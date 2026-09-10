@@ -17,7 +17,7 @@ import Badge from '../components/common/Badge';
 import Card from '../components/common/Card';
 import AttendanceTab from '../components/catedra/AttendanceTab';
 import GradesTab from '../components/catedra/GradesTab';
-import ExcelImporter from '../components/catedra/ExcelImporter';
+import StudentsTab from '../components/catedra/StudentsTab';
 import ResourcesTab from '../components/catedra/ResourcesTab';
 import SettingsTab from '../components/catedra/SettingsTab';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -118,9 +118,9 @@ export default function CatedraDetailPage() {
   const schedules = Array.isArray(catedra.horarios_semanales) ? catedra.horarios_semanales : [];
 
   const tabs = [
+    { id: 'alumnos', label: 'Alumnos y Matrícula', icon: Users },
     { id: 'asistencias', label: 'Asistencias', icon: CheckSquare },
     { id: 'calificaciones', label: 'Calificaciones', icon: GraduationCap },
-    { id: 'importar', label: 'Cargar Alumnos (Excel)', icon: FileSpreadsheet },
     { id: 'recursos', label: 'Recursos y Archivos', icon: FolderOpen },
     { id: 'configuracion', label: 'Configuración y Criterios', icon: SettingsIcon }
   ];
@@ -225,23 +225,8 @@ export default function CatedraDetailPage() {
           />
         )}
 
-        {activeTab === 'importar' && (
-          <div className="space-y-4">
-            <div className="bg-surface p-4 rounded-xl border border-surface-border">
-              <h3 className="text-sm font-bold text-text-primary">
-                Importación Masiva de Estudiantes a {catedra.nombre}
-              </h3>
-              <p className="text-xs text-text-muted mt-0.5">
-                Carga un archivo Excel (.xlsx, .xls) o CSV con las columnas DNI, Apellido y Nombre. El sistema detectará automáticamente los encabezados y vinculará a los alumnos en esta cátedra.
-              </p>
-            </div>
-            <ExcelImporter 
-              catedraId={catedra.id} 
-              onStudentsImported={() => {
-                setActiveTab('asistencias');
-              }} 
-            />
-          </div>
+        {activeTab === 'alumnos' && (
+          <StudentsTab catedraId={catedra.id} catedraName={catedra.nombre} />
         )}
 
         {activeTab === 'recursos' && (

@@ -39,6 +39,7 @@ export default function GradesTab({
   const [notas, setNotas] = useState([]);
   const [clases, setClases] = useState([]);
   const [asistencias, setAsistencias] = useState([]);
+  const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
   const [criterios, setCriterios] = useState({
     min_asist_promo: 80,
     min_asist_reg: 70,
@@ -130,7 +131,13 @@ export default function GradesTab({
           asistList = aData || [];
         }
 
-        // 5. Criterios
+        // 5. Inasistencias Docente
+        const { data: inasistData } = await supabase
+          .from('inasistencias_docente')
+          .select('*')
+          .eq('catedra_id', catedraId);
+
+        // 6. Criterios
         const { data: critData } = await supabase
           .from('criterios_evaluacion')
           .select('*')
@@ -142,6 +149,7 @@ export default function GradesTab({
         setNotas(notasList);
         setClases(cData || []);
         setAsistencias(asistList);
+        setInasistenciasDocente(inasistData || []);
         if (critData) {
           setCriterios({
             min_asist_promo: Number(critData.min_asist_promo) || 80,
@@ -216,6 +224,9 @@ export default function GradesTab({
         setNotas(notasList);
         setClases(cls);
         setAsistencias(asist);
+
+        const storedInasist = localStorage.getItem(`inasistencias_docente_${catedraId}`);
+        setInasistenciasDocente(storedInasist ? JSON.parse(storedInasist) : []);
 
         localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(evalList));
         localStorage.setItem(`notas_${catedraId}`, JSON.stringify(notasList));
@@ -334,7 +345,11 @@ export default function GradesTab({
 
   const matrixData = estudiantes.map(est => {
     const studentAsistencias = asistencias.filter(a => a.estudiante_id === est.id);
-    const asistPct = calcularPorcentajeAsistencia(studentAsistencias, clases.length);
+    const asistPct = calcularPorcentajeAsistencia(
+      studentAsistencias, 
+      clases.length, 
+      inasistenciasDocente.length
+    );
 
     // Collect student notes
     const studentNotas = [];

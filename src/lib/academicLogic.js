@@ -5,14 +5,36 @@
 
 /**
  * Calcula el porcentaje de asistencia de un alumno.
- * @param {Array} asistencias - Lista de asistencias del alumno
- * @param {number} totalClases - Cantidad total de clases dictadas
+ * No penaliza al estudiante si el docente estuvo ausente / con licencia.
+ * @param {Array|Object} arg1 - Lista de asistencias del alumno o config object
+ * @param {number} [arg2] - Cantidad total de clases dictadas
+ * @param {number} [arg3] - Cantidad de clases con inasistencia docente (a descontar del total)
  * @returns {number} Porcentaje de 0 a 100
  */
-export function calcularPorcentajeAsistencia(asistencias = [], totalClases = 0) {
-  if (!totalClases || totalClases === 0) return 100;
-  const presentes = asistencias.filter(a => a.estado === 'PRESENTE').length;
-  return Number(((presentes / totalClases) * 100).toFixed(1));
+export function calcularPorcentajeAsistencia(arg1 = [], arg2 = 0, arg3 = 0) {
+  let asistencias = [];
+  let totalClases = 0;
+  let clasesConLicencia = 0;
+
+  if (typeof arg1 === 'object' && arg1 !== null && !Array.isArray(arg1)) {
+    asistencias = arg1.asistencias || [];
+    totalClases = Number(arg1.totalClases ?? 0);
+    clasesConLicencia = Number(arg1.clasesConLicencia ?? 0);
+  } else {
+    asistencias = Array.isArray(arg1) ? arg1 : [];
+    totalClases = Number(arg2 ?? 0);
+    clasesConLicencia = Number(arg3 ?? 0);
+  }
+
+  const clasesEfectivas = Math.max(0, totalClases - clasesConLicencia);
+  if (clasesEfectivas === 0) return 100;
+
+  // Filtrar presentes, excluyendo explícitamente clases donde el docente faltó si estuvieran marcadas
+  const presentes = asistencias.filter(a => 
+    a.estado === 'PRESENTE' && !a.docenteAusente && !a.inasistenciaDocente
+  ).length;
+
+  return Number(((presentes / clasesEfectivas) * 100).toFixed(1));
 }
 
 /**

@@ -189,6 +189,38 @@ export default function ResourcesTab({ catedraId, catedraName }) {
     }
   };
 
+  const handleSaveLocalFallback = async () => {
+    if (!fileToUpload || !title.trim()) return;
+    setSaving(true);
+    try {
+      const localBlobUrl = URL.createObjectURL(fileToUpload);
+      const newResource = {
+        id: 'rec-' + Date.now(),
+        catedra_id: catedraId,
+        categoria: category,
+        tipo_origen: 'LOCAL',
+        titulo: title.trim(),
+        url_o_path: localBlobUrl,
+        created_at: new Date().toISOString()
+      };
+
+      const updated = [newResource, ...resources];
+      setResources(updated);
+      localStorage.setItem(`recursos_${catedraId}`, JSON.stringify(updated));
+
+      toast.info('Recurso guardado localmente en tu navegador.');
+      setTitle('');
+      setExternalUrl('');
+      setFileToUpload(null);
+      setErrorMsg('');
+      setIsModalOpen(false);
+    } catch (err) {
+      toast.error('Error al guardar localmente: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDeleteResource = async (id) => {
     if (!confirm('¿Estás seguro de eliminar este recurso?')) return;
 
@@ -360,9 +392,33 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       >
         <form onSubmit={handleSaveResource} className="space-y-4">
           {errorMsg && (
-            <div className="p-3 bg-danger/10 border border-danger/30 text-danger text-xs rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{errorMsg}</span>
+            <div className="p-3.5 bg-danger/10 border border-danger/30 text-danger text-xs rounded-xl space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-relaxed font-medium">{errorMsg}</span>
+              </div>
+              {(errorMsg.includes('Row-Level Security') || errorMsg.includes('Storage') || errorMsg.includes('bucket')) && (
+                <div className="pt-2 border-t border-danger/20 flex items-center justify-between gap-2 flex-wrap">
+                  <a
+                    href="https://supabase.com/dashboard/project/rjndiodfnlncefyiujbg/sql/new"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:underline font-bold text-[11px]"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Abrir SQL Editor en Supabase</span>
+                  </a>
+                  {fileToUpload && (
+                    <button
+                      type="button"
+                      onClick={handleSaveLocalFallback}
+                      className="px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary hover:bg-surface-hover font-semibold text-[11px]"
+                    >
+                      Guardar localmente sin nube
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

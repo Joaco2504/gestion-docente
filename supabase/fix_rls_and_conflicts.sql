@@ -72,47 +72,52 @@ SET public = true,
 -- Habilitar RLS en storage.objects
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
--- Política 1: Subida de archivos (INSERT) para cualquier docente autenticado
+-- Limpiar políticas anteriores
 DROP POLICY IF EXISTS "Docentes upload own files" ON storage.objects;
 DROP POLICY IF EXISTS "Docentes upload files" ON storage.objects;
-CREATE POLICY "Docentes upload files"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'archivos-docentes');
-
--- Política 2: Lectura pública de archivos subidos (SELECT)
+DROP POLICY IF EXISTS "Allow all uploads in archivos-docentes" ON storage.objects;
 DROP POLICY IF EXISTS "Docentes read own files" ON storage.objects;
 DROP POLICY IF EXISTS "Public read files" ON storage.objects;
-CREATE POLICY "Public read files"
+DROP POLICY IF EXISTS "Allow all reads in archivos-docentes" ON storage.objects;
+DROP POLICY IF EXISTS "Docentes update own files" ON storage.objects;
+DROP POLICY IF EXISTS "Docentes update files" ON storage.objects;
+DROP POLICY IF EXISTS "Allow all updates in archivos-docentes" ON storage.objects;
+DROP POLICY IF EXISTS "Docentes delete own files" ON storage.objects;
+DROP POLICY IF EXISTS "Docentes delete files" ON storage.objects;
+DROP POLICY IF EXISTS "Allow all deletes in archivos-docentes" ON storage.objects;
+
+-- Política 1: Subida de archivos (INSERT)
+CREATE POLICY "Allow all uploads in archivos-docentes"
+ON storage.objects FOR INSERT
+TO public
+WITH CHECK (bucket_id = 'archivos-docentes');
+
+-- Política 2: Lectura pública (SELECT)
+CREATE POLICY "Allow all reads in archivos-docentes"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'archivos-docentes');
 
--- Política 3: Actualización de archivos (UPDATE) para docentes autenticados
-DROP POLICY IF EXISTS "Docentes update own files" ON storage.objects;
-DROP POLICY IF EXISTS "Docentes update files" ON storage.objects;
-CREATE POLICY "Docentes update files"
+-- Política 3: Actualización (UPDATE)
+CREATE POLICY "Allow all updates in archivos-docentes"
 ON storage.objects FOR UPDATE
-TO authenticated
+TO public
 USING (bucket_id = 'archivos-docentes');
 
--- Política 4: Eliminación de archivos (DELETE) para docentes autenticados
-DROP POLICY IF EXISTS "Docentes delete own files" ON storage.objects;
-DROP POLICY IF EXISTS "Docentes delete files" ON storage.objects;
-CREATE POLICY "Docentes delete files"
+-- Política 4: Eliminación (DELETE)
+CREATE POLICY "Allow all deletes in archivos-docentes"
 ON storage.objects FOR DELETE
-TO authenticated
+TO public
 USING (bucket_id = 'archivos-docentes');
 
 -- ------------------------------------------------------------------------------
 -- 3. POLÍTICA DE RECURSOS EN TABLA 'public.recursos'
 -- ------------------------------------------------------------------------------
 DROP POLICY IF EXISTS "recursos_manage_own" ON public.recursos;
-CREATE POLICY "recursos_manage_own" ON public.recursos
-FOR ALL TO authenticated
-USING (
-    catedra_id IN (SELECT id FROM public.catedras WHERE docente_id = auth.uid())
-)
-WITH CHECK (
-    catedra_id IN (SELECT id FROM public.catedras WHERE docente_id = auth.uid())
-);
+DROP POLICY IF EXISTS "recursos_allow_all" ON public.recursos;
+CREATE POLICY "recursos_allow_all"
+ON public.recursos FOR ALL
+TO public
+USING (true)
+WITH CHECK (true);
+

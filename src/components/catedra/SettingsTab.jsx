@@ -7,8 +7,9 @@ import {
   Trash2, 
   Save, 
   CheckCircle2, 
-  AlertCircle,
-  HelpCircle
+  AlertCircle, 
+  HelpCircle,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
@@ -44,6 +45,13 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     nota_min_sec: 6
   });
 
+  // Periodos state
+  const [periodos, setPeriodos] = useState([
+    { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
+    { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
+    { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
+  ]);
+
   useEffect(() => {
     if (catedra) {
       setNombre(catedra.nombre || '');
@@ -51,6 +59,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
       setNivel(catedra.nivel || 'TERCIARIO');
       setHorarios(Array.isArray(catedra.horarios_semanales) ? catedra.horarios_semanales : []);
       fetchCriterios();
+      fetchPeriodos();
     }
   }, [catedra]);
 
@@ -81,6 +90,46 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     } catch (err) {
       console.warn('Could not fetch criteria:', err);
     }
+  };
+
+  const fetchPeriodos = async () => {
+    try {
+      if (isSupabaseConfigured && !isDemo && catedra?.ciclo_id) {
+        const { data, error } = await supabase
+          .from('periodos_academicos')
+          .select('*')
+          .eq('ciclo_id', catedra.ciclo_id)
+          .order('fecha_inicio', { ascending: true });
+
+        if (data && data.length > 0) {
+          setPeriodos(data);
+        }
+      } else {
+        const stored = localStorage.getItem(`periodos_${catedra?.ciclo_id || catedra?.id}`);
+        if (stored) {
+          setPeriodos(JSON.parse(stored));
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch periodos:', err);
+    }
+  };
+
+  const handleAddPeriodo = () => {
+    setPeriodos([
+      ...periodos,
+      { id: 'per-' + Date.now(), nombre: 'Nuevo Período', tipo: 'CUATRIMESTRE', fecha_inicio: '', fecha_fin: '' }
+    ]);
+  };
+
+  const handleRemovePeriodo = (index) => {
+    setPeriodos(periodos.filter((_, i) => i !== index));
+  };
+
+  const handlePeriodoChange = (index, field, value) => {
+    const updated = [...periodos];
+    updated[index][field] = value;
+    setPeriodos(updated);
   };
 
   const handleAddHorario = () => {
@@ -136,6 +185,24 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
 
         if (critError) throw critError;
 
+        // 3. Upsert / update periodos
+        if (catedra.ciclo_id) {
+          for (const p of periodos) {
+            const pPayload = {
+              ciclo_id: catedra.ciclo_id,
+              nombre: p.nombre.trim(),
+              tipo: p.tipo,
+              fecha_inicio: p.fecha_inicio || null,
+              fecha_fin: p.fecha_fin || null
+            };
+            if (p.id && !String(p.id).startsWith('per-')) {
+              await supabase.from('periodos_academicos').update(pPayload).eq('id', p.id);
+            } else {
+              await supabase.from('periodos_academicos').insert(pPayload);
+            }
+          }
+        }
+
         if (onCatedraUpdated) onCatedraUpdated(updatedCatedra);
       } else {
         // Demo mode fallback
@@ -146,11 +213,12 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
           horarios_semanales: horarios
         };
         localStorage.setItem(`criterios_${catedra.id}`, JSON.stringify(criterios));
+        localStorage.setItem(`periodos_${catedra?.ciclo_id || catedra?.id}`, JSON.stringify(periodos));
         if (onCatedraUpdated) onCatedraUpdated(updatedCat);
       }
 
       setSaveSuccess(true);
-      toast.success('Configuración y criterios guardados exitosamente.');
+      toast.success('Configuración, criterios y períodos guardados exitosamente.');
       setTimeout(() => setSaveSuccess(false), 3500);
     } catch (err) {
       console.error('Error saving catedra settings:', err);
@@ -299,6 +367,103 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
             ))}
           </div>
         )}
+      </Card>
+
+      {/* Límites de Períodos Académicos y Receso */}
+      <Card>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 mb-4 border-b border-surface-border">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-bold text-text-primary">
+              Límites de Períodos Académicos y Receso Invernal
+            </h3>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            icon={Plus}
+            onClick={handleAddPeriodo}
+            className="text-xs"
+          >
+            Agregar Período
+          </Button>
+        </div>
+
+        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary leading-relaxed mb-4">
+          <strong>Regla Estricta:</strong> Las clases proyectadas y recurrentes en el calendario se limitan a este rango de fechas y se excluyen automáticamente durante los días del Receso Invernal.
+        </div>
+
+        <div className="space-y-3">
+          {periodos.map((p, index) => (
+            <div
+              key={p.id || index}
+              className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+            >
+              <div className="w-full sm:w-44">
+                <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
+                  Nombre del Período
+                </label>
+                <input
+                  type="text"
+                  value={p.nombre}
+                  onChange={(e) => handlePeriodoChange(index, 'nombre', e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs font-semibold border border-surface-border rounded-lg bg-surface text-text-primary"
+                  placeholder="Ej: 1° Cuatrimestre"
+                />
+              </div>
+
+              <div className="w-full sm:w-36">
+                <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
+                  Tipo
+                </label>
+                <select
+                  value={p.tipo}
+                  onChange={(e) => handlePeriodoChange(index, 'tipo', e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-surface-border rounded-lg bg-surface text-text-primary font-medium"
+                >
+                  <option value="CUATRIMESTRE">Cuatrimestre</option>
+                  <option value="TRIMESTRE">Trimestre</option>
+                  <option value="RECESO">Receso Invernal</option>
+                </select>
+              </div>
+
+              <div className="flex-1 grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
+                    Fecha Inicio
+                  </label>
+                  <input
+                    type="date"
+                    value={p.fecha_inicio || ''}
+                    onChange={(e) => handlePeriodoChange(index, 'fecha_inicio', e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
+                    Fecha Fin
+                  </label>
+                  <input
+                    type="date"
+                    value={p.fecha_fin || ''}
+                    onChange={(e) => handlePeriodoChange(index, 'fecha_fin', e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleRemovePeriodo(index)}
+                className="p-1.5 text-text-muted hover:text-danger rounded-md hover:bg-danger/10 transition-colors self-end sm:self-center"
+                title="Eliminar período"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
       </Card>
 
       {/* Academic Evaluation Thresholds */}
