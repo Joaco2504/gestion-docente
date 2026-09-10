@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Settings, 
   Clock, 
@@ -645,9 +646,9 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         </Button>
       </div>
 
-      {/* Botón Circular Flotante (FAB) al detectar cambios automáticos */}
-      {isDirty && (
-        <div className="fixed bottom-20 md:bottom-8 right-6 md:right-8 z-50 flex items-center gap-3 animate-fadeIn">
+      {/* Botón Circular Flotante (FAB) renderizado directamente en document.body mediante Portal */}
+      {isDirty && typeof document !== 'undefined' && createPortal(
+        <div className="fixed bottom-20 md:bottom-8 right-6 md:right-8 z-[9999] flex items-center gap-3 animate-fadeIn pointer-events-auto">
           {/* Badge informativo lateral */}
           <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/95 dark:bg-[#0c1322]/95 backdrop-blur-md border border-primary/40 shadow-xl text-xs font-bold text-text-primary">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
@@ -677,7 +678,8 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
               <Save className="w-6 h-6 drop-shadow-md group-hover:scale-110 transition-transform" />
             )}
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </form>
   );
