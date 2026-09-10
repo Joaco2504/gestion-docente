@@ -1,0 +1,41 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-canvas-light text-slate-800 font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* JetBrains Mono with tabular nums for grades and DNI */
+  .font-mono-numeric {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom Scrollbar for grade matrix and tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f0f7;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c5c7de;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9d9fb8;
+}
+
+/* Sticky column for tables */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.05);
+}
