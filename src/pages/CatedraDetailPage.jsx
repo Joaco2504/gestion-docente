@@ -243,7 +243,12 @@ export default function CatedraDetailPage() {
         )}
 
         {activeTab === 'alumnos' && (
-          <StudentsTab catedraId={catedra.id} catedraName={catedra.nombre} />
+          <StudentsTab 
+            catedraId={catedra.id} 
+            catedraName={catedra.nombre} 
+            academicLevel={catedra.nivel}
+            modalidad={catedra.modalidad}
+          />
         )}
 
         {activeTab === 'recursos' && (

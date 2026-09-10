@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, 
   UserPlus, 
@@ -8,19 +8,30 @@ import {
   UserMinus, 
   AlertCircle, 
   CheckCircle2, 
-  ArrowLeft
+  ArrowLeft,
+  ArrowDownAZ,
+  ArrowUpZA,
+  ArrowUpDown,
+  GraduationCap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
+import CustomSelect from '../common/CustomSelect';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import ExcelImporter from './ExcelImporter';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 
-export default function StudentsTab({ catedraId, catedraName }) {
+export default function StudentsTab({ 
+  catedraId, 
+  catedraName, 
+  academicLevel = 'TERCIARIO', 
+  modalidad = 'ANUAL' 
+}) {
   const { user, isDemo } = useAuth();
 
   const [estudiantes, setEstudiantes] = useState([]);
@@ -28,11 +39,30 @@ export default function StudentsTab({ catedraId, catedraName }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'import-excel'
 
+  // Sorting state: 'apellido' | 'nombre' | 'dni' | 'condicion', 'asc' (A-Z) | 'desc' (Z-A)
+  const [sortField, setSortField] = useState('apellido');
+  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' = A-Z, 'desc' = Z-A
+
+  // Academic data for condition calculation
+  const [evaluaciones, setEvaluaciones] = useState([]);
+  const [notas, setNotas] = useState([]);
+  const [clases, setClases] = useState([]);
+  const [asistencias, setAsistencias] = useState([]);
+  const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
+  const [criterios, setCriterios] = useState({
+    min_asist_promo: 80,
+    min_asist_reg: 70,
+    nota_min_promo: 7,
+    nota_min_reg: 4,
+    nota_min_sec: 6
+  });
+
   // Modal: Carga Manual
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [dniManual, setDniManual] = useState('');
   const [apellidoManual, setApellidoManual] = useState('');
   const [nombreManual, setNombreManual] = useState('');
+  const [condicionManual, setCondicionManual] = useState('AUTO');
   const [savingManual, setSavingManual] = useState(false);
 
   // Modal: Editar Estudiante
@@ -41,6 +71,7 @@ export default function StudentsTab({ catedraId, catedraName }) {
   const [dniEdit, setDniEdit] = useState('');
   const [apellidoEdit, setApellidoEdit] = useState('');
   const [nombreEdit, setNombreEdit] = useState('');
+  const [condicionEdit, setCondicionEdit] = useState('AUTO');
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Modal: Confirmar Baja
@@ -72,8 +103,51 @@ export default function StudentsTab({ catedraId, catedraName }) {
         if (error) throw error;
 
         const list = (data || []).map(item => item.estudiantes).filter(Boolean);
-        list.sort((a, b) => a.apellido.localeCompare(b.apellido));
+        list.sort((a, b) => a.apellido.localeCompare(b.apellido, 'es'));
         setEstudiantes(list);
+
+        // Cargar datos académicos para cálculo de condición reglamentaria
+        try {
+          const [evalRes, clsRes, inasistRes, critRes] = await Promise.all([
+            supabase.from('evaluaciones').select('*').eq('catedra_id', catedraId),
+            supabase.from('clases').select('*').eq('catedra_id', catedraId),
+            supabase.from('inasistencias_docente').select('*').eq('catedra_id', catedraId),
+            supabase.from('criterios_evaluacion').select('*').eq('catedra_id', catedraId).maybeSingle()
+          ]);
+
+          const evList = evalRes.data || [];
+          const cList = clsRes.data || [];
+          setEvaluaciones(evList);
+          setClases(cList);
+          setInasistenciasDocente(inasistRes.data || []);
+          if (critRes.data) {
+            setCriterios({
+              min_asist_promo: Number(critRes.data.min_asist_promo) || 80,
+              min_asist_reg: Number(critRes.data.min_asist_reg) || 70,
+              nota_min_promo: Number(critRes.data.nota_min_promo) || 7,
+              nota_min_reg: Number(critRes.data.nota_min_reg) || 4,
+              nota_min_sec: Number(critRes.data.nota_min_sec) || 6
+            });
+          }
+
+          if (evList.length > 0) {
+            const { data: nData } = await supabase
+              .from('notas')
+              .select('*')
+              .in('evaluacion_id', evList.map(e => e.id).filter(id => !String(id).startsWith('eval-')));
+            setNotas(nData || []);
+          }
+
+          if (cList.length > 0) {
+            const { data: aData } = await supabase
+              .from('asistencias')
+              .select('*')
+              .in('clase_id', cList.map(c => c.id));
+            setAsistencias(aData || []);
+          }
+        } catch (acadErr) {
+          console.warn('Aviso cargando datos complementarios de condición:', acadErr);
+        }
       } else {
         const stored = localStorage.getItem(`estudiantes_${catedraId}`);
         if (stored) {
@@ -89,6 +163,18 @@ export default function StudentsTab({ catedraId, catedraName }) {
           setEstudiantes(sample);
           localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(sample));
         }
+
+        const storedEval = localStorage.getItem(`evaluaciones_${catedraId}`);
+        const storedNotas = localStorage.getItem(`notas_${catedraId}`);
+        const storedClases = localStorage.getItem(`clases_${catedraId}`);
+        const storedAsist = localStorage.getItem(`asistencias_${catedraId}`);
+        const storedInasist = localStorage.getItem(`inasistencias_docente_${catedraId}`);
+
+        if (storedEval) setEvaluaciones(JSON.parse(storedEval));
+        if (storedNotas) setNotas(JSON.parse(storedNotas));
+        if (storedClases) setClases(JSON.parse(storedClases));
+        if (storedAsist) setAsistencias(JSON.parse(storedAsist));
+        if (storedInasist) setInasistenciasDocente(JSON.parse(storedInasist));
       }
     } catch (err) {
       console.error('Error fetching students:', err);
@@ -96,6 +182,84 @@ export default function StudentsTab({ catedraId, catedraName }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Obtener condición académica (cálculo automático o ajuste manual del docente)
+  const getStudentCondition = (studentId) => {
+    // 1. Verificar si el docente fijó una condición manual
+    const override = localStorage.getItem(`condicion_override_${catedraId}_${studentId}`);
+    if (override && override !== 'AUTO') return override;
+
+    // 2. Cálculo dinámico reglamentario
+    const studentAsistencias = asistencias.filter(a => a.estudiante_id === studentId);
+    const asistPct = calcularPorcentajeAsistencia(
+      studentAsistencias, 
+      clases.length, 
+      inasistenciasDocente.length
+    );
+
+    const studentNotas = [];
+    evaluaciones.forEach(ev => {
+      const record = notas.find(n => n.estudiante_id === studentId && n.evaluacion_id === ev.id);
+      if (record?.valor !== undefined && record?.valor !== null) {
+        studentNotas.push({
+          evaluacion_id: ev.id,
+          valor: Number(record.valor),
+          tipo: ev.tipo,
+          evaluacion_origen_id: ev.evaluacion_origen_id
+        });
+      }
+    });
+
+    const res = calcularCondicionFinal(
+      academicLevel,
+      modalidad,
+      asistPct,
+      evaluaciones,
+      studentNotas,
+      criterios
+    );
+
+    return res?.condicion || 'REGULAR';
+  };
+
+  const getCondBadgeVariant = (cond) => {
+    switch (cond) {
+      case 'PROMOCIONAL': return 'promo';
+      case 'REGULAR': return 'regular';
+      case 'LIBRE': return 'libre';
+      case 'APROBADO': return 'promo';
+      case 'DESAPROBADO': return 'libre';
+      case 'REINCORPORADO': return 'info';
+      case 'OYENTE': return 'default';
+      default: return 'default';
+    }
+  };
+
+  // Manejo de ordenamiento (A-Z / Z-A)
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const toggleSortAZ = () => {
+    setSortField('apellido');
+    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3.5 h-3.5 text-text-muted opacity-40 group-hover:opacity-70" />;
+    }
+    return sortDirection === 'asc' ? (
+      <ArrowDownAZ className="w-3.5 h-3.5 text-primary" />
+    ) : (
+      <ArrowUpZA className="w-3.5 h-3.5 text-primary" />
+    );
   };
 
   // Carga Manual de Alumno
@@ -112,6 +276,7 @@ export default function StudentsTab({ catedraId, catedraName }) {
 
     setSavingManual(true);
     try {
+      let studentId;
       if (isSupabaseConfigured && !isDemo && user) {
         // 1. Buscar si el estudiante ya existe para este docente
         const { data: existingStudent, error: findErr } = await supabase
@@ -123,7 +288,7 @@ export default function StudentsTab({ catedraId, catedraName }) {
 
         if (findErr) throw findErr;
 
-        let studentId = existingStudent?.id;
+        studentId = existingStudent?.id;
 
         if (!studentId) {
           // Crear nuevo estudiante
@@ -175,16 +340,21 @@ export default function StudentsTab({ catedraId, catedraName }) {
         await fetchStudents();
       } else {
         // Demo mode
+        studentId = 'est-' + Date.now();
         const newStudent = {
-          id: 'est-' + Date.now(),
+          id: studentId,
           dni: cleanDni,
           apellido: cleanApellido,
           nombre: cleanNombre
         };
         const updated = [...estudiantes, newStudent];
-        updated.sort((a, b) => a.apellido.localeCompare(b.apellido));
+        updated.sort((a, b) => a.apellido.localeCompare(b.apellido, 'es'));
         setEstudiantes(updated);
         localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
+      }
+
+      if (condicionManual && condicionManual !== 'AUTO' && studentId) {
+        localStorage.setItem(`condicion_override_${catedraId}_${studentId}`, condicionManual);
       }
 
       toast.success(`${cleanApellido}, ${cleanNombre} matriculado correctamente.`);
@@ -192,6 +362,7 @@ export default function StudentsTab({ catedraId, catedraName }) {
       setDniManual('');
       setApellidoManual('');
       setNombreManual('');
+      setCondicionManual('AUTO');
     } catch (err) {
       console.error('Error registering student:', err);
       toast.error('Error al guardar el alumno: ' + err.message);
@@ -206,6 +377,8 @@ export default function StudentsTab({ catedraId, catedraName }) {
     setDniEdit(student.dni || '');
     setApellidoEdit(student.apellido || '');
     setNombreEdit(student.nombre || '');
+    const savedCond = localStorage.getItem(`condicion_override_${catedraId}_${student.id}`);
+    setCondicionEdit(savedCond || 'AUTO');
     setIsEditModalOpen(true);
   };
 
@@ -243,11 +416,17 @@ export default function StudentsTab({ catedraId, catedraName }) {
           ? { ...st, dni: cleanDni, apellido: cleanApellido, nombre: cleanNombre }
           : st
       );
-      updated.sort((a, b) => a.apellido.localeCompare(b.apellido));
       setEstudiantes(updated);
 
       if (!isSupabaseConfigured || isDemo) {
         localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
+      }
+
+      // Guardar condición personalizada
+      if (condicionEdit && condicionEdit !== 'AUTO') {
+        localStorage.setItem(`condicion_override_${catedraId}_${editingStudent.id}`, condicionEdit);
+      } else {
+        localStorage.removeItem(`condicion_override_${catedraId}_${editingStudent.id}`);
       }
 
       toast.success('Datos del estudiante actualizados con éxito.');
@@ -289,6 +468,8 @@ export default function StudentsTab({ catedraId, catedraName }) {
         localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
       }
 
+      localStorage.removeItem(`condicion_override_${catedraId}_${studentToDelete.id}`);
+
       toast.success(`${studentToDelete.apellido}, ${studentToDelete.nombre} dado de baja de la cátedra.`);
       setIsDeleteModalOpen(false);
       setStudentToDelete(null);
@@ -300,14 +481,41 @@ export default function StudentsTab({ catedraId, catedraName }) {
     }
   };
 
-  // Filtrado en tiempo real
-  const filteredStudents = estudiantes.filter(st => {
+  // Filtrado y Ordenamiento A-Z / Z-A en tiempo real
+  const filteredAndSortedStudents = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
-    if (!q) return true;
-    const fullName = `${st.apellido} ${st.nombre}`.toLowerCase();
-    const dni = String(st.dni || '').toLowerCase();
-    return fullName.includes(q) || dni.includes(q);
-  });
+    let list = estudiantes.filter(st => {
+      if (!q) return true;
+      const fullName = `${st.apellido} ${st.nombre}`.toLowerCase();
+      const dni = String(st.dni || '').toLowerCase();
+      const cond = getStudentCondition(st.id).toLowerCase();
+      return fullName.includes(q) || dni.includes(q) || cond.includes(q);
+    });
+
+    list.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+
+      if (sortField === 'apellido') {
+        valA = (a.apellido || '').trim();
+        valB = (b.apellido || '').trim();
+      } else if (sortField === 'nombre') {
+        valA = (a.nombre || '').trim();
+        valB = (b.nombre || '').trim();
+      } else if (sortField === 'dni') {
+        valA = String(a.dni || '').trim();
+        valB = String(b.dni || '').trim();
+      } else if (sortField === 'condicion') {
+        valA = getStudentCondition(a.id);
+        valB = getStudentCondition(b.id);
+      }
+
+      const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [estudiantes, searchTerm, sortField, sortDirection, asistencias, evaluaciones, notas, clases, inasistenciasDocente, criterios, academicLevel, modalidad]);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
@@ -380,30 +588,52 @@ export default function StudentsTab({ catedraId, catedraName }) {
             </div>
           </div>
 
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar alumno por Apellido, Nombre o DNI..."
-              className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-surface border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none text-text-primary placeholder:text-text-muted transition-all"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text-primary font-medium"
-              >
-                Limpiar
-              </button>
-            )}
+          {/* Search bar & Sort A-Z / Z-A Controls */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar alumno por Apellido, Nombre, DNI o Condición..."
+                className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-surface border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none text-text-primary placeholder:text-text-muted transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text-primary font-medium"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+
+            {/* A-Z / Z-A Quick Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleSortAZ}
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-text-primary transition-all shadow-xs shrink-0 touch-target-44"
+              title={sortDirection === 'asc' ? 'Orden alfabético A-Z activo. Clic para ordenar Z-A' : 'Orden alfabético Z-A activo. Clic para ordenar A-Z'}
+            >
+              {sortDirection === 'asc' ? (
+                <>
+                  <ArrowDownAZ className="w-4 h-4 text-primary" />
+                  <span>Ordenar: <strong className="text-primary font-bold">A-Z</strong></span>
+                </>
+              ) : (
+                <>
+                  <ArrowUpZA className="w-4 h-4 text-primary" />
+                  <span>Ordenar: <strong className="text-primary font-bold">Z-A</strong></span>
+                </>
+              )}
+            </button>
           </div>
 
           {/* Student Table / Cards */}
           {loading ? (
             <div className="py-4 space-y-3">
-              <SkeletonTable rows={5} cols={4} />
+              <SkeletonTable rows={5} cols={5} />
             </div>
           ) : estudiantes.length === 0 ? (
             <Card className="text-center py-16">
@@ -435,7 +665,7 @@ export default function StudentsTab({ catedraId, catedraName }) {
                 </Button>
               </div>
             </Card>
-          ) : filteredStudents.length === 0 ? (
+          ) : filteredAndSortedStudents.length === 0 ? (
             <Card className="text-center py-12">
               <Search className="w-8 h-8 text-text-muted mx-auto mb-2 opacity-50" />
               <p className="text-sm font-semibold text-text-primary">
@@ -448,49 +678,112 @@ export default function StudentsTab({ catedraId, catedraName }) {
           ) : (
             <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs sm:text-sm">
-                  <thead className="bg-surface-hover/80 text-text-secondary font-semibold border-b border-surface-border">
+                <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                  <thead className="bg-surface-hover/80 text-text-secondary font-semibold border-b border-surface-border select-none">
                     <tr>
-                      <th className="px-4 py-3 w-12 text-center">#</th>
-                      <th className="px-4 py-3 font-mono">DNI</th>
-                      <th className="px-4 py-3">Apellido y Nombre</th>
-                      <th className="px-4 py-3 text-right">Acciones</th>
+                      {/* 1. DNI */}
+                      <th 
+                        onClick={() => handleSort('dni')}
+                        className="px-4 py-3 font-mono cursor-pointer hover:text-text-primary transition-colors w-32 sm:w-36"
+                        title="Ordenar por DNI"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>DNI</span>
+                          {renderSortIcon('dni')}
+                        </div>
+                      </th>
+
+                      {/* 2. Apellido */}
+                      <th 
+                        onClick={() => handleSort('apellido')}
+                        className="px-4 py-3 cursor-pointer hover:text-text-primary transition-colors"
+                        title="Ordenar por Apellido (A-Z / Z-A)"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Apellido</span>
+                          {renderSortIcon('apellido')}
+                        </div>
+                      </th>
+
+                      {/* 3. Nombre */}
+                      <th 
+                        onClick={() => handleSort('nombre')}
+                        className="px-4 py-3 cursor-pointer hover:text-text-primary transition-colors"
+                        title="Ordenar por Nombre (A-Z / Z-A)"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Nombre</span>
+                          {renderSortIcon('nombre')}
+                        </div>
+                      </th>
+
+                      {/* 4. Condición */}
+                      <th 
+                        onClick={() => handleSort('condicion')}
+                        className="px-4 py-3 text-center cursor-pointer hover:text-text-primary transition-colors w-36 sm:w-44"
+                        title="Ordenar por Condición Académica"
+                      >
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span>Condición</span>
+                          {renderSortIcon('condicion')}
+                        </div>
+                      </th>
+
+                      {/* 5. Acciones */}
+                      <th className="px-4 py-3 text-right w-28 sm:w-32">
+                        Acciones
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-border">
-                    {filteredStudents.map((st, index) => (
-                      <tr key={st.id} className="hover:bg-surface-hover/40 transition-colors group">
-                        <td className="px-4 py-3 text-center text-text-muted font-mono">
-                          {index + 1}
-                        </td>
-                        <td className="px-4 py-3 font-mono font-medium text-text-secondary">
-                          {st.dni}
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-text-primary">
-                          <div className="flex items-center gap-2">
-                            <span>{st.apellido}, {st.nombre}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => handleOpenEdit(st)}
-                              className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors"
-                              title="Editar datos del alumno"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenDelete(st)}
-                              className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors"
-                              title="Dar de baja de la cátedra"
-                            >
-                              <UserMinus className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredAndSortedStudents.map((st) => {
+                      const cond = getStudentCondition(st.id);
+                      return (
+                        <tr key={st.id} className="hover:bg-surface-hover/40 transition-colors group">
+                          {/* 1. DNI */}
+                          <td className="px-4 py-3.5 font-mono font-medium text-text-secondary whitespace-nowrap">
+                            {st.dni}
+                          </td>
+
+                          {/* 2. Apellido */}
+                          <td className="px-4 py-3.5 font-bold text-text-primary whitespace-nowrap">
+                            {st.apellido}
+                          </td>
+
+                          {/* 3. Nombre */}
+                          <td className="px-4 py-3.5 text-text-primary whitespace-nowrap">
+                            {st.nombre}
+                          </td>
+
+                          {/* 4. Condición */}
+                          <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                            <Badge variant={getCondBadgeVariant(cond)}>
+                              {cond}
+                            </Badge>
+                          </td>
+
+                          {/* 5. Acciones */}
+                          <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenEdit(st)}
+                                className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
+                                title="Editar datos y condición del alumno"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleOpenDelete(st)}
+                                className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors touch-target-44"
+                                title="Dar de baja de la cátedra"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -551,6 +844,26 @@ export default function StudentsTab({ catedraId, catedraName }) {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
+              Condición Académica Inicial
+            </label>
+            <CustomSelect
+              value={condicionManual}
+              onChange={(val) => setCondicionManual(typeof val === 'object' ? val.target.value : val)}
+              options={[
+                { value: 'AUTO', label: 'Automática (Calculada según RAM y Asistencias)', badge: 'Auto' },
+                { value: 'REGULAR', label: 'Regular', badge: 'Regular' },
+                { value: 'PROMOCIONAL', label: 'Promocional', badge: 'Promo' },
+                { value: 'LIBRE', label: 'Libre', badge: 'Libre' },
+                { value: 'APROBADO', label: 'Aprobado', badge: 'Aprobado' },
+                { value: 'DESAPROBADO', label: 'Desaprobado', badge: 'Desaprobado' },
+                { value: 'REINCORPORADO', label: 'Reincorporado', badge: 'Reinc.' },
+                { value: 'OYENTE', label: 'Oyente', badge: 'Oyente' }
+              ]}
+            />
+          </div>
+
           <div className="flex justify-end gap-2 pt-4 border-t border-surface-border">
             <Button
               type="button"
@@ -576,7 +889,7 @@ export default function StudentsTab({ catedraId, catedraName }) {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title="Editar Datos del Estudiante"
-        subtitle="Actualiza la información personal"
+        subtitle="Actualiza la información personal y condición académica"
       >
         <form onSubmit={handleEditSubmit} className="space-y-4">
           <div>
@@ -618,6 +931,29 @@ export default function StudentsTab({ catedraId, catedraName }) {
                 className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
+              Condición Académica
+            </label>
+            <CustomSelect
+              value={condicionEdit}
+              onChange={(val) => setCondicionEdit(typeof val === 'object' ? val.target.value : val)}
+              options={[
+                { value: 'AUTO', label: 'Automática (Calculada según Asistencias y Notas)', badge: 'Auto' },
+                { value: 'REGULAR', label: 'Regular', badge: 'Regular' },
+                { value: 'PROMOCIONAL', label: 'Promocional', badge: 'Promo' },
+                { value: 'LIBRE', label: 'Libre', badge: 'Libre' },
+                { value: 'APROBADO', label: 'Aprobado', badge: 'Aprobado' },
+                { value: 'DESAPROBADO', label: 'Desaprobado', badge: 'Desaprobado' },
+                { value: 'REINCORPORADO', label: 'Reincorporado', badge: 'Reinc.' },
+                { value: 'OYENTE', label: 'Oyente', badge: 'Oyente' }
+              ]}
+            />
+            <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
+              Selecciona "Automática" para que el sistema calcule la condición según el RAM, o elige una condición fija para el alumno.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-surface-border">
