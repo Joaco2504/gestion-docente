@@ -21,7 +21,10 @@ import {
   X, 
   Clock,
   ExternalLink,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Trash2,
+  ListChecks,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -84,6 +87,21 @@ export default function GradesTab({
   const [evalFechaEntrega, setEvalFechaEntrega] = useState('');
   const [evalDriveUrl, setEvalDriveUrl] = useState('');
   const [savingEval, setSavingEval] = useState(false);
+
+  // Edit Eval form state
+  const [isEditEvalModalOpen, setIsEditEvalModalOpen] = useState(false);
+  const [editingEval, setEditingEval] = useState(null);
+  const [editEvalTitulo, setEditEvalTitulo] = useState('');
+  const [editEvalTipo, setEditEvalTipo] = useState('PARCIAL');
+  const [editEvalFechaEntrega, setEditEvalFechaEntrega] = useState('');
+  const [editEvalDriveUrl, setEditEvalDriveUrl] = useState('');
+  const [savingEditEval, setSavingEditEval] = useState(false);
+
+  // Batch Grade state
+  const [isBatchGradeModalOpen, setIsBatchGradeModalOpen] = useState(false);
+  const [targetEvalForBatch, setTargetEvalForBatch] = useState(null);
+  const [batchGradesMap, setBatchGradesMap] = useState({});
+  const [savingBatchGrades, setSavingBatchGrades] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -293,9 +311,46 @@ export default function GradesTab({
     setIsEditNotaModalOpen(true);
   };
 
+  const handleDeleteNota = async () => {
+    if (!selectedStudentForNota || !selectedEvalForNota) return;
+
+    setSavingNota(true);
+    try {
+      if (isSupabaseConfigured && !isDemo && !String(selectedEvalForNota.id).startsWith('eval-')) {
+        await supabase
+          .from('notas')
+          .delete()
+          .match({
+            evaluacion_id: selectedEvalForNota.id,
+            estudiante_id: selectedStudentForNota.id
+          });
+      }
+
+      const updated = notas.filter(
+        n => !(n.evaluacion_id === selectedEvalForNota.id && n.estudiante_id === selectedStudentForNota.id)
+      );
+      setNotas(updated);
+      localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updated));
+
+      toast.success(`Calificación eliminada para ${selectedStudentForNota.apellido}.`);
+      setIsEditNotaModalOpen(false);
+    } catch (err) {
+      console.error('Error al eliminar nota:', err);
+      toast.error('Error al eliminar la calificación: ' + err.message);
+    } finally {
+      setSavingNota(false);
+    }
+  };
+
   const handleSaveNotaSubmit = async (e) => {
     e.preventDefault();
     if (!selectedStudentForNota || !selectedEvalForNota) return;
+
+    // Si el docente deja el campo vacío, se interpreta como borrar la nota
+    if (!inputNotaValor || inputNotaValor.trim() === '') {
+      await handleDeleteNota();
+      return;
+    }
 
     const valNum = Number(inputNotaValor);
     if (isNaN(valNum) || valNum < 1 || valNum > 10) {
@@ -305,7 +360,7 @@ export default function GradesTab({
 
     setSavingNota(true);
     try {
-      if (isSupabaseConfigured && !isDemo) {
+      if (isSupabaseConfigured && !isDemo && !String(selectedEvalForNota.id).startsWith('eval-')) {
         await supabase
           .from('notas')
           .upsert({
@@ -325,10 +380,7 @@ export default function GradesTab({
         valor: valNum
       }];
       setNotas(updated);
-
-      if (!isSupabaseConfigured || isDemo) {
-        localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updated));
-      }
+      localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updated));
 
       toast.success(`Nota de ${selectedStudentForNota.apellido} actualizada a ${valNum}`);
       setIsEditNotaModalOpen(false);
@@ -459,6 +511,193 @@ export default function GradesTab({
       toast.error('Error al crear evaluación: ' + err.message);
     } finally {
       setSavingEval(false);
+    }
+  };
+
+  // Eliminar Evaluación con borrado en cascada de sus notas asociadas
+  const handleDeleteEvaluacion = async (evaluacionId, evalTitulo) => {
+    const isConfirmed = window.confirm(
+      `¿Estás seguro de eliminar la evaluación "${evalTitulo}"?\n\nEsta acción también eliminará todas las notas y recuperatorios asociados.`
+    );
+    if (!isConfirmed) return;
+
+    try {
+      // Si tiene recuperatorios vinculados, incluirlos en la eliminación
+      const linkedRecups = evaluaciones.filter(e => e.evaluacion_origen_id === evaluacionId);
+      const allIdsToDelete = [evaluacionId, ...linkedRecups.map(r => r.id)];
+
+      // 1. Supabase deletion si está conectado
+      if (isSupabaseConfigured && !isDemo) {
+        const realIds = allIdsToDelete.filter(id => !String(id).startsWith('eval-'));
+        if (realIds.length > 0) {
+          await supabase.from('notas').delete().in('evaluacion_id', realIds);
+          await supabase.from('evaluaciones').delete().in('id', realIds);
+        }
+      }
+
+      // 2. Actualización local
+      const updatedEvaluaciones = evaluaciones.filter(e => !allIdsToDelete.includes(e.id));
+      const updatedNotas = notas.filter(n => !allIdsToDelete.includes(n.evaluacion_id));
+
+      setEvaluaciones(updatedEvaluaciones);
+      setNotas(updatedNotas);
+
+      localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedEvaluaciones));
+      localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updatedNotas));
+
+      toast.success(`Evaluación "${evalTitulo}" eliminada correctamente.`);
+    } catch (err) {
+      console.error('Error al eliminar evaluación:', err);
+      toast.error('Error al eliminar la evaluación: ' + err.message);
+    }
+  };
+
+  // Abrir Modal de Edición de Evaluación
+  const handleOpenEditEvaluacion = (ev) => {
+    setEditingEval(ev);
+    setEditEvalTitulo(ev.titulo || '');
+    setEditEvalTipo(ev.tipo || 'PARCIAL');
+    setEditEvalFechaEntrega(ev.fecha_entrega ? ev.fecha_entrega.split('T')[0] : '');
+    setEditEvalDriveUrl(ev.archivo_url || '');
+    setIsEditEvalModalOpen(true);
+  };
+
+  // Guardar Edición de Evaluación
+  const handleSaveEditEvaluacion = async (e) => {
+    e.preventDefault();
+    if (!editingEval || !editEvalTitulo.trim()) return;
+
+    setSavingEditEval(true);
+    try {
+      const isoFechaEntrega = editEvalFechaEntrega ? parseDMYtoYMD(editEvalFechaEntrega) : null;
+      const driveUrl = editEvalDriveUrl.trim() || null;
+      const driveNombre = driveUrl ? 'Consignas en Google Drive' : null;
+
+      const updatedObj = {
+        ...editingEval,
+        titulo: editEvalTitulo.trim(),
+        tipo: editEvalTipo,
+        fecha_entrega: isoFechaEntrega,
+        archivo_url: driveUrl,
+        archivo_nombre: driveNombre,
+        updated_at: new Date().toISOString()
+      };
+
+      if (isSupabaseConfigured && !isDemo && !String(editingEval.id).startsWith('eval-')) {
+        try {
+          const { error } = await supabase
+            .from('evaluaciones')
+            .update({
+              titulo: updatedObj.titulo,
+              tipo: updatedObj.tipo,
+              fecha_entrega: updatedObj.fecha_entrega,
+              archivo_url: updatedObj.archivo_url,
+              archivo_nombre: updatedObj.archivo_nombre
+            })
+            .eq('id', editingEval.id);
+
+          if (error) {
+            // Fallback en caso de que la tabla remota no tenga columnas extendidas
+            await supabase
+              .from('evaluaciones')
+              .update({
+                titulo: updatedObj.titulo,
+                tipo: updatedObj.tipo
+              })
+              .eq('id', editingEval.id);
+          }
+        } catch (dbErr) {
+          console.warn('Evaluación actualizada localmente. Aviso Supabase:', dbErr);
+        }
+      }
+
+      const updatedList = evaluaciones.map(ev => ev.id === editingEval.id ? updatedObj : ev);
+      setEvaluaciones(updatedList);
+      localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedList));
+
+      toast.success(`Evaluación "${updatedObj.titulo}" actualizada correctamente.`);
+      setIsEditEvalModalOpen(false);
+      setEditingEval(null);
+    } catch (err) {
+      toast.error('Error al actualizar evaluación: ' + err.message);
+    } finally {
+      setSavingEditEval(false);
+    }
+  };
+
+  // Calificación rápida masiva por evaluación ("Calificar Curso")
+  const handleOpenBatchGrade = (evaluacion) => {
+    setTargetEvalForBatch(evaluacion);
+    const initialMap = {};
+    estudiantes.forEach(est => {
+      const v = getNotaValue(est.id, evaluacion.id);
+      initialMap[est.id] = v !== null ? String(v) : '';
+    });
+    setBatchGradesMap(initialMap);
+    setIsBatchGradeModalOpen(true);
+  };
+
+  const handleSaveBatchGrades = async (e) => {
+    e.preventDefault();
+    if (!targetEvalForBatch) return;
+
+    setSavingBatchGrades(true);
+    try {
+      const evalId = targetEvalForBatch.id;
+      const newNotas = [...notas.filter(n => n.evaluacion_id !== evalId)];
+      const upsertsSupabase = [];
+      const deletesEstIds = [];
+
+      for (const est of estudiantes) {
+        const rawVal = batchGradesMap[est.id]?.trim();
+        if (!rawVal) {
+          deletesEstIds.push(est.id);
+        } else {
+          const num = Number(rawVal);
+          if (isNaN(num) || num < 1 || num > 10) {
+            toast.error(`Nota inválida para ${est.apellido} (${rawVal}). Debe estar entre 1 y 10.`);
+            setSavingBatchGrades(false);
+            return;
+          }
+          newNotas.push({
+            evaluacion_id: evalId,
+            estudiante_id: est.id,
+            valor: num
+          });
+          upsertsSupabase.push({
+            evaluacion_id: evalId,
+            estudiante_id: est.id,
+            valor: num
+          });
+        }
+      }
+
+      if (isSupabaseConfigured && !isDemo && !String(evalId).startsWith('eval-')) {
+        if (upsertsSupabase.length > 0) {
+          await supabase
+            .from('notas')
+            .upsert(upsertsSupabase, { onConflict: 'evaluacion_id,estudiante_id' });
+        }
+        if (deletesEstIds.length > 0) {
+          await supabase
+            .from('notas')
+            .delete()
+            .eq('evaluacion_id', evalId)
+            .in('estudiante_id', deletesEstIds);
+        }
+      }
+
+      setNotas(newNotas);
+      localStorage.setItem(`notas_${catedraId}`, JSON.stringify(newNotas));
+
+      toast.success(`Calificaciones de "${targetEvalForBatch.titulo}" guardadas con éxito.`);
+      setIsBatchGradeModalOpen(false);
+      setTargetEvalForBatch(null);
+    } catch (err) {
+      console.error('Error guardando calificaciones masivas:', err);
+      toast.error('Error al guardar calificaciones: ' + err.message);
+    } finally {
+      setSavingBatchGrades(false);
     }
   };
 
@@ -594,6 +833,21 @@ export default function GradesTab({
               <LayoutGrid className="w-3.5 h-3.5" />
               <span className="hidden xs:inline">Tarjetas</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('evaluaciones')}
+              className={`p-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
+                viewMode === 'evaluaciones'
+                  ? 'bg-surface text-primary shadow-xs'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+              title="Ver y gestionar listado de evaluaciones, TPs y parciales"
+            >
+              <ListChecks className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Evaluaciones</span>
+              <span className="xs:hidden">Evals</span>
+              <span className="font-mono text-[11px] opacity-80">({evaluaciones.length})</span>
+            </button>
           </div>
 
           {/* Exportación: Excel & CSV */}
@@ -635,8 +889,214 @@ export default function GradesTab({
         </div>
       </div>
 
-      {/* Main Content: Table View vs Student Cards View */}
-      {estudiantes.length === 0 ? (
+      {/* Main Content: Evaluaciones List View vs Table View vs Student Cards View */}
+      {viewMode === 'evaluaciones' ? (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                <ListChecks className="w-4 h-4 text-primary" />
+                <span>Listado de Evaluaciones & Trabajos Prácticos ({evaluaciones.length})</span>
+              </h4>
+              <p className="text-xs text-text-muted">
+                Supervisa fechas de entrega, consignas en Google Drive, califica alumnos o elimina registros.
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              onClick={() => setIsNewEvalModalOpen(true)}
+              className="text-xs self-start sm:self-auto"
+            >
+              Nueva Evaluación
+            </Button>
+          </div>
+
+          {evaluaciones.length === 0 ? (
+            <Card className="text-center py-12">
+              <ListChecks className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-50" />
+              <h4 className="text-base font-semibold text-text-primary">No hay evaluaciones registradas en esta cátedra</h4>
+              <p className="text-xs text-text-muted mt-1 mb-4">
+                Crea Trabajos Prácticos, Parciales o Recuperatorios para comenzar a calificar a tus alumnos.
+              </p>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Plus}
+                onClick={() => setIsNewEvalModalOpen(true)}
+              >
+                Crear Primera Evaluación
+              </Button>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {evaluaciones.map(ev => {
+                const isRecup = ev.tipo === 'RECUPERATORIO';
+                const parentEval = isRecup && ev.evaluacion_origen_id 
+                  ? evaluaciones.find(p => p.id === ev.evaluacion_origen_id) 
+                  : null;
+
+                // Calificaciones stats
+                const validNotas = estudiantes
+                  .map(est => getNotaValue(est.id, ev.id))
+                  .filter(v => v !== null);
+                const gradedCount = validNotas.length;
+                const totalStudents = estudiantes.length;
+                const gradedPct = totalStudents > 0 ? Math.round((gradedCount / totalStudents) * 100) : 0;
+                const avgNota = validNotas.length > 0 
+                  ? (validNotas.reduce((a, b) => a + b, 0) / validNotas.length).toFixed(1) 
+                  : null;
+
+                return (
+                  <Card key={ev.id} className="p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
+                    <div className="space-y-3">
+                      {/* Header Badge & Quick Actions */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold ${
+                            ev.tipo === 'PARCIAL' 
+                              ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20' 
+                              : ev.tipo === 'TP'
+                              ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
+                              : ev.tipo === 'RECUPERATORIO'
+                              ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20'
+                              : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                          }`}>
+                            {ev.tipo}
+                          </span>
+                          {parentEval && (
+                            <span className="text-[10px] text-text-muted truncate max-w-[130px]" title={`Recuperatorio de: ${parentEval.titulo}`}>
+                              de {parentEval.titulo}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Quick Action Icons */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditEvaluacion(ev)}
+                            className="p-1.5 rounded-lg text-text-muted hover:text-amber-600 hover:bg-surface-hover transition-colors touch-target-44"
+                            title="Editar título, fecha o enlace de Drive"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEvaluacion(ev.id, ev.titulo)}
+                            className="p-1.5 rounded-lg text-text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors touch-target-44"
+                            title="Eliminar esta evaluación y todas sus notas"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Title */}
+                      <h4 className="text-base font-bold text-text-primary leading-snug">
+                        {ev.titulo}
+                      </h4>
+
+                      {/* Metadata: Fecha de Entrega y Enlace Drive */}
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center gap-1.5 text-text-muted">
+                          <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                          {ev.fecha_entrega ? (
+                            <span className="font-mono">
+                              Entrega: <strong className="text-text-primary">{formatFechaDMY(ev.fecha_entrega)}</strong>
+                            </span>
+                          ) : (
+                            <span className="italic text-[11px]">Sin fecha límite de entrega</span>
+                          )}
+                        </div>
+
+                        {ev.archivo_url ? (
+                          <div className="pt-0.5">
+                            <a
+                              href={ev.archivo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 border border-amber-500/20 transition-colors max-w-full"
+                              title="Abrir consignas en Google Drive"
+                            >
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{ev.archivo_nombre || 'Consignas en Google Drive'}</span>
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-text-muted italic flex items-center gap-1">
+                            <LinkIcon className="w-3 h-3 opacity-40" />
+                            <span>Sin consignas enlazadas a Drive</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Calificaciones stats bar */}
+                      <div className="pt-2 border-t border-surface-border">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-text-muted font-medium">
+                            Calificados: <strong className="text-text-primary font-mono">{gradedCount} / {totalStudents}</strong>
+                          </span>
+                          <span className="font-mono text-xs font-bold text-primary">
+                            {gradedPct}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-surface-hover rounded-full h-2 overflow-hidden mb-2">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-300"
+                            style={{ width: `${gradedPct}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-text-muted">
+                          <span>Promedio curso:</span>
+                          {avgNota !== null ? (
+                            <span className={`font-mono font-bold px-1.5 py-0.5 rounded text-xs ${
+                              Number(avgNota) >= 7
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : Number(avgNota) >= 4
+                                ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                                : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                            }`}>
+                              {avgNota}
+                            </span>
+                          ) : (
+                            <span className="italic">Pendiente de notas</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Action Buttons */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-surface-border">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon={ListChecks}
+                        onClick={() => handleOpenBatchGrade(ev)}
+                        disabled={estudiantes.length === 0}
+                        className="text-xs justify-center"
+                        title="Cargar o modificar notas para todos los alumnos"
+                      >
+                        Calificar Curso
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        icon={Edit3}
+                        onClick={() => handleOpenEditEvaluacion(ev)}
+                        className="text-xs justify-center"
+                      >
+                        Editar Datos
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : estudiantes.length === 0 ? (
         <Card className="text-center py-12">
           <GraduationCap className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-50" />
           <h4 className="text-base font-semibold text-text-primary">No hay estudiantes inscriptos en esta cátedra</h4>
@@ -839,6 +1299,34 @@ export default function GradesTab({
                             </a>
                           </div>
                         )}
+
+                        {/* Botones de acción rápida en cabecera: Calificar, Editar, Borrar */}
+                        <div className="flex items-center justify-center gap-1 mt-1.5 pt-1.5 border-t border-surface-border/60">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenBatchGrade(ev)}
+                            title={`Calificar a todo el curso en "${ev.titulo}"`}
+                            className="p-1 rounded-md text-text-muted hover:text-primary hover:bg-surface transition-colors"
+                          >
+                            <ListChecks className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditEvaluacion(ev)}
+                            title={`Editar datos de "${ev.titulo}"`}
+                            className="p-1 rounded-md text-text-muted hover:text-amber-600 hover:bg-surface transition-colors"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEvaluacion(ev.id, ev.titulo)}
+                            title={`Eliminar "${ev.titulo}" y todas sus notas`}
+                            className="p-1 rounded-md text-text-muted hover:text-rose-600 hover:bg-surface transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </th>
                     );
                   })}
@@ -952,16 +1440,15 @@ export default function GradesTab({
         <form onSubmit={handleSaveNotaSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-              Calificación Numérica (1 a 10) *
+              Calificación Numérica (1 a 10)
             </label>
             <input
               type="number"
               step="0.5"
               min="1"
               max="10"
-              required
               autoFocus
-              placeholder="Ej: 7.5"
+              placeholder="Ej: 7.5 (dejar vacío para borrar nota)"
               value={inputNotaValor}
               onChange={(e) => setInputNotaValor(e.target.value)}
               className="w-full px-3.5 py-3 text-lg font-mono font-bold border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
@@ -969,17 +1456,36 @@ export default function GradesTab({
             <p className="text-[11px] text-text-muted mt-1.5">
               {selectedEvalForNota?.tipo === 'RECUPERATORIO' 
                 ? 'Nota de examen recuperatorio: se conserva en paralelo sin sobreescribir la nota del examen original.' 
-                : 'Escala numérica estándar reglamentaria de 1 a 10.'}
+                : 'Escala numérica estándar reglamentaria de 1 a 10. Deja en blanco o presiona "Borrar Nota" para eliminarla.'}
             </p>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">
-            <Button variant="secondary" onClick={() => setIsEditNotaModalOpen(false)} type="button">
-              Cancelar
-            </Button>
-            <Button type="submit" loading={savingNota}>
-              Guardar Nota
-            </Button>
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-surface-border">
+            <div>
+              {selectedStudentForNota && selectedEvalForNota && getNotaValue(selectedStudentForNota.id, selectedEvalForNota.id) !== null && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={Trash2}
+                  type="button"
+                  onClick={handleDeleteNota}
+                  loading={savingNota}
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 border-rose-200 dark:border-rose-900/50 text-xs"
+                  title="Eliminar la calificación asignada a este estudiante"
+                >
+                  Borrar Nota
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={() => setIsEditNotaModalOpen(false)} type="button">
+                Cancelar
+              </Button>
+              <Button type="submit" loading={savingNota}>
+                Guardar Nota
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>
@@ -987,10 +1493,7 @@ export default function GradesTab({
       {/* Modal / Bottom Sheet Nueva Evaluación */}
       <Modal
         isOpen={isNewEvalModalOpen}
-        onClose={() => {
-          setIsNewEvalModalOpen(false);
-          setEvalFile(null);
-        }}
+        onClose={() => setIsNewEvalModalOpen(false)}
         title="Crear Nueva Evaluación"
         subtitle="Registra un Parcial, Trabajo Práctico o Recuperatorio con fecha de entrega y consignas"
       >
@@ -998,7 +1501,7 @@ export default function GradesTab({
           <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-text-secondary leading-relaxed flex items-start gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <span>
-              Puedes registrar la evaluación ahora y subir sus consignas. Se guardará de inmediato y los estudiantes no serán penalizados mientras el trabajo esté en plazo de entrega.
+              Puedes registrar la evaluación ahora y colocar el enlace a Google Drive de sus consignas. Se guardará de inmediato y no penalizará a los alumnos mientras esté en plazo.
             </span>
           </div>
 
@@ -1107,10 +1610,7 @@ export default function GradesTab({
           <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">
             <Button
               variant="secondary"
-              onClick={() => {
-                setIsNewEvalModalOpen(false);
-                setEvalFile(null);
-              }}
+              onClick={() => setIsNewEvalModalOpen(false)}
               type="button"
               disabled={savingEval}
             >
@@ -1119,6 +1619,191 @@ export default function GradesTab({
             <Button type="submit" loading={savingEval}>
               Guardar Evaluación
             </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Editar Evaluación */}
+      <Modal
+        isOpen={isEditEvalModalOpen}
+        onClose={() => {
+          setIsEditEvalModalOpen(false);
+          setEditingEval(null);
+        }}
+        title={`Editar: ${editingEval?.titulo || ''}`}
+        subtitle="Modifica el título, tipo, fecha de entrega o consignas en Google Drive"
+      >
+        <form onSubmit={handleSaveEditEvaluacion} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+              Título de la Evaluación *
+            </label>
+            <input
+              type="text"
+              required
+              value={editEvalTitulo}
+              onChange={(e) => setEditEvalTitulo(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+                Tipo de Evaluación *
+              </label>
+              <CustomSelect
+                value={editEvalTipo}
+                onChange={(val) => setEditEvalTipo(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: 'PARCIAL', label: 'Parcial (Instancia Mayor)', badge: 'Mayor' },
+                  { value: 'TP', label: 'Trabajo Práctico Obligatorio', badge: 'TP' },
+                  { value: 'PRUEBA', label: 'Prueba Escrita / Periódica', badge: 'Prueba' },
+                  { value: 'RECUPERATORIO', label: 'Recuperatorio', badge: 'Recup' }
+                ]}
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold uppercase text-text-secondary">
+                  Fecha de Entrega (Opcional)
+                </label>
+                {editEvalFechaEntrega && (
+                  <span className="text-[10px] font-mono text-primary font-bold">
+                    {formatFechaDMY(editEvalFechaEntrega)}
+                  </span>
+                )}
+              </div>
+              <input
+                type="date"
+                value={editEvalFechaEntrega}
+                onChange={(e) => setEditEvalFechaEntrega(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+              />
+            </div>
+          </div>
+
+          {/* Enlace de Google Drive a Consignas / Trabajo Práctico */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold uppercase text-text-secondary">
+                Enlace a Google Drive con Consignas / TP (Opcional)
+              </label>
+              <a
+                href="https://drive.google.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-semibold text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <ExternalLink className="w-3 h-3" />
+                <span>Abrir Drive</span>
+              </a>
+            </div>
+            <div className="relative">
+              <input
+                type="url"
+                placeholder="https://drive.google.com/file/d/..."
+                value={editEvalDriveUrl}
+                onChange={(e) => setEditEvalDriveUrl(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+              />
+              <LinkIcon className="w-4 h-4 text-text-muted absolute left-3 top-3" />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsEditEvalModalOpen(false);
+                setEditingEval(null);
+              }}
+              type="button"
+              disabled={savingEditEval}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" loading={savingEditEval}>
+              Guardar Cambios
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Calificar Curso Completo ("Batch Grading") */}
+      <Modal
+        isOpen={isBatchGradeModalOpen}
+        onClose={() => {
+          setIsBatchGradeModalOpen(false);
+          setTargetEvalForBatch(null);
+        }}
+        title={`Calificar Curso: ${targetEvalForBatch?.titulo || ''}`}
+        subtitle="Asigna o modifica notas numéricas (1 al 10). Deja el campo vacío para dejar al alumno sin calificación."
+      >
+        <form onSubmit={handleSaveBatchGrades} className="space-y-4">
+          <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+            {estudiantes.map((est, idx) => {
+              const currentVal = batchGradesMap[est.id] ?? '';
+              return (
+                <div
+                  key={est.id}
+                  className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-xs font-mono text-text-muted w-6 text-right shrink-0">
+                      {idx + 1}.
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-text-primary truncate">
+                        {est.apellido}, {est.nombre}
+                      </p>
+                      <p className="text-[11px] font-mono text-text-muted">
+                        DNI: {est.dni}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="w-24 shrink-0">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="1"
+                      max="10"
+                      placeholder="—"
+                      value={currentVal}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setBatchGradesMap(prev => ({ ...prev, [est.id]: val }));
+                      }}
+                      className="w-full px-2.5 py-1.5 text-sm font-mono font-bold text-center border border-surface-border rounded-lg bg-surface text-text-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-surface-border">
+            <span className="text-xs text-text-muted">
+              Total: <strong>{estudiantes.length} alumnos</strong>
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsBatchGradeModalOpen(false);
+                  setTargetEvalForBatch(null);
+                }}
+                type="button"
+                disabled={savingBatchGrades}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" loading={savingBatchGrades}>
+                Guardar Calificaciones
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>
