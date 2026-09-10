@@ -235,12 +235,12 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
     <>
       <div
         ref={popoverRef}
-        className="absolute left-16 bottom-2 z-50 w-72 bg-surface/95 backdrop-blur-xl border border-surface-border rounded-2xl shadow-elevated p-2 animate-fadeIn text-text-primary origin-bottom-left"
+        className="fixed left-4 right-4 sm:left-20 sm:right-auto bottom-20 md:bottom-4 z-[9999] w-auto sm:w-80 bg-white dark:bg-[#0c1222] border-2 border-primary/40 dark:border-primary/50 rounded-2xl shadow-2xl shadow-black/25 dark:shadow-black/70 ring-1 ring-black/10 dark:ring-white/10 p-3 animate-fadeIn text-text-primary origin-bottom-left"
       >
-        {/* Cabecera del usuario */}
-        <div className="p-3 border-b border-surface-border/70 flex items-center gap-3">
+        {/* Cabecera del usuario con alto contraste */}
+        <div className="p-3 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 flex items-center gap-3 mb-2">
           <div className="relative shrink-0">
-            <div className="w-11 h-11 rounded-xl overflow-hidden bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <div className="w-11 h-11 rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-primary/30 flex items-center justify-center shadow-xs">
               {currentAvatar?.startsWith('preset:') ? (
                 PRESET_AVATARS.find(a => `preset:${a.id}` === currentAvatar)?.svg || (
                   <User className="w-6 h-6 text-primary" />
@@ -252,7 +252,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
               )}
             </div>
             {/* Halo activo online */}
-            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-surface" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-800" />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -273,14 +273,14 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
         </div>
 
         {/* Acciones principales */}
-        <div className="p-1 space-y-0.5">
+        <div className="p-1 space-y-1">
           <button
             type="button"
             onClick={() => {
               onClose();
               navigate('/configuracion');
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer"
           >
             <User className="w-4 h-4 text-text-muted" />
             <span>Ver Perfil & Períodos</span>
@@ -292,7 +292,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
               onClose();
               navigate('/configuracion');
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer"
           >
             <Settings className="w-4 h-4 text-text-muted" />
             <span>Ajustes de Cuenta & Temas</span>
@@ -301,7 +301,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
           <button
             type="button"
             onClick={() => setIsAvatarModalOpen(true)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-primary hover:bg-primary/5 transition-colors text-left"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-primary hover:bg-primary/5 transition-colors text-left cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <Camera className="w-4 h-4 text-primary" />
@@ -314,14 +314,14 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
         </div>
 
         {/* Separador y Salida */}
-        <div className="p-1 border-t border-surface-border/70 mt-1">
+        <div className="p-1 border-t border-slate-200 dark:border-slate-800 mt-1">
           <button
             type="button"
             onClick={() => {
               onClose();
               signOut();
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-left cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar Sesión</span>

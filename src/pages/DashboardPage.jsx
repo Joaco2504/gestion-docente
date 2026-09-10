@@ -508,17 +508,20 @@ export default function DashboardPage() {
 
     try {
       if (isSupabaseConfigured && !isDemo && user) {
-        const { data, error } = await supabase
+        let insertPayload = {
+          docente_id: user.id,
+          institucion_id: targetInstId,
+          ciclo_id: activeCiclo?.id || null,
+          nombre: newNombre.trim(),
+          nivel: newNivel,
+          modalidad: newModalidad,
+          horarios_semanales: []
+        };
+
+        let data = null;
+        let { data: resData, error } = await supabase
           .from('catedras')
-          .insert({
-            docente_id: user.id,
-            institucion_id: targetInstId,
-            ciclo_id: activeCiclo?.id || null,
-            nombre: newNombre.trim(),
-            nivel: newNivel,
-            modalidad: newModalidad,
-            horarios_semanales: []
-          })
+          .insert(insertPayload)
           .select(`
             *,
             instituciones (
@@ -528,6 +531,23 @@ export default function DashboardPage() {
             )
           `)
           .single();
+
+        if (error && (error.message?.includes('violates check constraint') || error.message?.includes('catedras_modalidad_check'))) {
+          // Fallback si la restricción en Supabase aún no fue actualizada con el script
+          console.warn('Aviso: Restricción check previa en Supabase. Aplicando fallback a CUATRIMESTRAL...');
+          const fallbackRes = await supabase
+            .from('catedras')
+            .insert({ ...insertPayload, modalidad: 'CUATRIMESTRAL' })
+            .select(`*, instituciones(id, nombre, nivel)`)
+            .single();
+          if (fallbackRes.error) throw fallbackRes.error;
+          data = fallbackRes.data;
+          toast.info(`Cátedra creada. Recuerda ejecutar el script 'supabase/update_modalidad_check.sql' en el SQL Editor para guardar el valor exacto.`);
+        } else if (error) {
+          throw error;
+        } else {
+          data = resData;
+        }
 
         if (error) throw error;
         toast.success(`Cátedra "${data.nombre}" creada con éxito`);
@@ -1193,8 +1213,10 @@ export default function DashboardPage() {
                 value={newModalidad}
                 onChange={(val) => setNewModalidad(typeof val === 'object' ? val.target.value : val)}
                 options={[
-                  { value: 'ANUAL', label: 'Anual' },
-                  { value: 'CUATRIMESTRAL', label: 'Cuatrimestral' }
+                  { value: '1° CUATRIMESTRE', label: '1° Cuatrimestre', badge: '1° Cuat.' },
+                  { value: '2° CUATRIMESTRE', label: '2° Cuatrimestre', badge: '2° Cuat.' },
+                  { value: 'ANUAL', label: 'Anual', badge: 'Anual' },
+                  { value: 'CUATRIMESTRAL', label: 'Cuatrimestral (Genérico)', badge: 'Cuat.' }
                 ]}
               />
             </div>

@@ -159,7 +159,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     try {
       if (isSupabaseConfigured && !isDemo) {
         // 1. Update cátedra
-        const { data: updatedCatedra, error: catError } = await supabase
+        let { data: updatedCatedra, error: catError } = await supabase
           .from('catedras')
           .update({
             nombre: nombre.trim(),
@@ -170,7 +170,23 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
           .select()
           .single();
 
-        if (catError) throw catError;
+        if (catError && (catError.message?.includes('violates check constraint') || catError.message?.includes('catedras_modalidad_check'))) {
+          const fallbackRes = await supabase
+            .from('catedras')
+            .update({
+              nombre: nombre.trim(),
+              modalidad: 'CUATRIMESTRAL',
+              horarios_semanales: horarios
+            })
+            .eq('id', catedra.id)
+            .select()
+            .single();
+          if (fallbackRes.error) throw fallbackRes.error;
+          updatedCatedra = fallbackRes.data;
+          toast.info(`Modalidad guardada. Ejecuta 'supabase/update_modalidad_check.sql' en el SQL Editor para guardar el valor exacto.`);
+        } else if (catError) {
+          throw catError;
+        }
 
         // 2. Upsert criterios
         const { error: critError } = await supabase
@@ -275,8 +291,10 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
               value={modalidad}
               onChange={(val) => setModalidad(typeof val === 'object' ? val.target.value : val)}
               options={[
-                { value: 'ANUAL', label: 'Anual' },
-                { value: 'CUATRIMESTRAL', label: 'Cuatrimestral' }
+                { value: '1° CUATRIMESTRE', label: '1° Cuatrimestre', badge: '1° Cuat.' },
+                { value: '2° CUATRIMESTRE', label: '2° Cuatrimestre', badge: '2° Cuat.' },
+                { value: 'ANUAL', label: 'Anual', badge: 'Anual' },
+                { value: 'CUATRIMESTRAL', label: 'Cuatrimestral (Genérico)', badge: 'Cuat.' }
               ]}
             />
           </div>

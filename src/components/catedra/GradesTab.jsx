@@ -16,10 +16,12 @@ import {
   Percent,
   Calendar,
   Upload,
-  FileText,
-  Paperclip,
-  X,
-  Clock
+  FileText, 
+  Paperclip, 
+  X, 
+  Clock,
+  ExternalLink,
+  Link as LinkIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -30,7 +32,7 @@ import CustomSelect from '../common/CustomSelect';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { exportGradesToExcel, exportGradesToCsv } from '../../lib/excel';
-import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { formatFechaDMY, parseDMYtoYMD } from '../../lib/dateUtils';
 import { useAuth } from '../../context/AuthContext';
 
@@ -80,7 +82,7 @@ export default function GradesTab({
   const [evalTipo, setEvalTipo] = useState(academicLevel === 'SECUNDARIO' ? 'PRUEBA' : 'PARCIAL');
   const [evalOrigenId, setEvalOrigenId] = useState('');
   const [evalFechaEntrega, setEvalFechaEntrega] = useState('');
-  const [evalFile, setEvalFile] = useState(null);
+  const [evalDriveUrl, setEvalDriveUrl] = useState('');
   const [savingEval, setSavingEval] = useState(false);
 
   useEffect(() => {
@@ -343,46 +345,29 @@ export default function GradesTab({
 
     setSavingEval(true);
     try {
-      let archivoUrl = null;
-      let archivoNombre = null;
+      let archivoUrl = evalDriveUrl.trim() || null;
+      let archivoNombre = archivoUrl ? 'Consignas en Google Drive' : null;
 
-      // 1. Si se adjuntó un archivo de Trabajo Práctico, subirlo
-      if (evalFile) {
-        if (isSupabaseConfigured && !isDemo) {
-          const uploadRes = await uploadCatedraFile(catedraId, evalFile);
-          if (uploadRes.error) {
-            console.warn('Aviso al subir archivo adjunto:', uploadRes.error);
-            toast.error('No se pudo subir el archivo: ' + uploadRes.error.message);
+      // Si se proporcionó enlace a Google Drive, sincronizarlo también en la tabla 'recursos'
+      if (archivoUrl) {
+        try {
+          const recCategory = evalTipo === 'PARCIAL' ? 'PARCIAL' : 'TP';
+          const newRec = {
+            catedra_id: catedraId,
+            categoria: recCategory,
+            tipo_origen: 'GOOGLE_LINK',
+            titulo: `${evalTitulo.trim()} — Consignas Drive`,
+            url_o_path: archivoUrl,
+            created_at: new Date().toISOString()
+          };
+          if (isSupabaseConfigured && !isDemo) {
+            await supabase.from('recursos').insert(newRec);
           } else {
-            archivoUrl = uploadRes.publicUrl;
-            archivoNombre = evalFile.name;
+            const prevRec = JSON.parse(localStorage.getItem(`recursos_${catedraId}`) || '[]');
+            localStorage.setItem(`recursos_${catedraId}`, JSON.stringify([{ ...newRec, id: 'rec-' + Date.now() }, ...prevRec]));
           }
-        } else {
-          archivoUrl = URL.createObjectURL(evalFile);
-          archivoNombre = evalFile.name;
-        }
-
-        // Registrar también en la tabla 'recursos' para que aparezca en el repositorio
-        if (archivoUrl) {
-          try {
-            const recCategory = evalTipo === 'PARCIAL' ? 'PARCIAL' : 'TP';
-            const newRec = {
-              catedra_id: catedraId,
-              categoria: recCategory,
-              tipo_origen: 'LOCAL',
-              titulo: `${evalTitulo.trim()} — ${archivoNombre}`,
-              url_o_path: archivoUrl,
-              created_at: new Date().toISOString()
-            };
-            if (isSupabaseConfigured && !isDemo) {
-              await supabase.from('recursos').insert(newRec);
-            } else {
-              const prevRec = JSON.parse(localStorage.getItem(`recursos_${catedraId}`) || '[]');
-              localStorage.setItem(`recursos_${catedraId}`, JSON.stringify([{ ...newRec, id: 'rec-' + Date.now() }, ...prevRec]));
-            }
-          } catch (recErr) {
-            console.warn('Aviso al sincronizar con repositorio:', recErr);
-          }
+        } catch (recErr) {
+          console.warn('Aviso al sincronizar con repositorio:', recErr);
         }
       }
 
@@ -469,7 +454,7 @@ export default function GradesTab({
       setEvalTitulo('');
       setEvalOrigenId('');
       setEvalFechaEntrega('');
-      setEvalFile(null);
+      setEvalDriveUrl('');
     } catch (err) {
       toast.error('Error al crear evaluación: ' + err.message);
     } finally {
@@ -743,12 +728,11 @@ export default function GradesTab({
                                 href={ev.archivo_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[10px] text-primary hover:underline inline-flex items-center gap-1 mt-1 font-medium"
-                                title={`Ver/Descargar archivo: ${ev.archivo_nombre || 'Consignas'}`}
+                                className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1 mt-1 font-semibold"
+                                title={`Abrir en Google Drive: ${ev.archivo_nombre || 'Google Drive'}`}
                               >
-                                <FileText className="w-2.5 h-2.5" />
-                                <span className="truncate max-w-[120px]">{ev.archivo_nombre || 'Consignas adjuntas'}</span>
-                                <Download className="w-2.5 h-2.5" />
+                                <ExternalLink className="w-2.5 h-2.5" />
+                                <span className="truncate max-w-[120px]">{ev.archivo_nombre || 'Drive TP'}</span>
                               </a>
                             )}
                           </div>
@@ -840,19 +824,18 @@ export default function GradesTab({
                           </div>
                         )}
 
-                        {/* Archivo consignas de TP si fue subido */}
+                        {/* Enlace a Google Drive de TP si fue adjuntado */}
                         {ev.archivo_url && (
                           <div className="mt-1 flex items-center justify-center">
                             <a
                               href={ev.archivo_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-                              title={`Descargar consignas: ${ev.archivo_nombre || 'Documento adjunto'}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                              title={`Abrir consignas en Google Drive: ${ev.archivo_nombre || 'Google Drive'}`}
                             >
-                              <FileText className="w-3 h-3 shrink-0" />
-                              <span className="truncate max-w-[85px]">{ev.archivo_nombre || 'Consignas'}</span>
-                              <Download className="w-2.5 h-2.5 shrink-0" />
+                              <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate max-w-[85px]">{ev.archivo_nombre || 'Drive TP'}</span>
                             </a>
                           </div>
                         )}
@@ -1090,58 +1073,35 @@ export default function GradesTab({
             </div>
           )}
 
-          {/* Subir archivo de Trabajo Práctico / Consignas */}
+          {/* Enlace de Google Drive a Consignas / Trabajo Práctico */}
           <div>
-            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-              Subir Consignas / Documento del Trabajo Práctico (Opcional)
-            </label>
-            {!evalFile ? (
-              <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-surface-border rounded-2xl cursor-pointer hover:border-primary/50 hover:bg-surface-hover transition-all group">
-                <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-2 group-hover:scale-110 transition-transform">
-                  <Upload className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-semibold text-text-primary">
-                  Haz clic para adjuntar las consignas
-                </span>
-                <span className="text-[11px] text-text-muted mt-0.5">
-                  Formatos admitidos: PDF, Word (.doc, .docx), Excel, ZIP
-                </span>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setEvalFile(e.target.files[0]);
-                    }
-                  }}
-                  className="hidden"
-                />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold uppercase text-text-secondary">
+                Enlace a Google Drive con Consignas / TP (Opcional)
               </label>
-            ) : (
-              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-hover border border-surface-border">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-text-primary truncate">
-                      {evalFile.name}
-                    </p>
-                    <p className="text-[10px] text-text-muted font-mono">
-                      {(evalFile.size / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEvalFile(null)}
-                  className="p-1.5 rounded-lg hover:bg-danger/10 text-text-muted hover:text-danger transition-colors"
-                  title="Quitar archivo adjunto"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+              <a
+                href="https://drive.google.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-semibold text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <ExternalLink className="w-3 h-3" />
+                <span>Abrir Drive</span>
+              </a>
+            </div>
+            <div className="relative">
+              <input
+                type="url"
+                placeholder="https://drive.google.com/file/d/..."
+                value={evalDriveUrl}
+                onChange={(e) => setEvalDriveUrl(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+              />
+              <LinkIcon className="w-4 h-4 text-text-muted absolute left-3 top-3" />
+            </div>
+            <p className="text-[11px] text-text-muted mt-1.5 leading-relaxed">
+              Guarda tus consignas directamente en Google Drive sin ocupar cuota en Supabase y pega aquí el enlace compartido.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">

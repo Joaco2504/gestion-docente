@@ -7,7 +7,7 @@ export default function Navbar({ onToggleSidebar }) {
   const { user, isDemo, signOut } = useAuth();
 
   return (
-    <header className="sticky top-0 z-30 bg-surface/90 backdrop-blur-md border-b border-surface-border transition-colors duration-200 relative overflow-hidden">
+    <header className="sticky top-0 z-30 bg-white dark:bg-[#0c1222] border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative overflow-hidden shadow-xs">
       {/* Animated top shimmer beam */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-80 animate-pulseGlow" />
       {/* Ambient soft glow */}

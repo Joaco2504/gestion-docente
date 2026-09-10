@@ -2,17 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   ExternalLink, 
-  Upload, 
   Plus, 
   Trash2, 
   FolderOpen, 
-  CheckCircle2, 
   Link as LinkIcon, 
   FileCheck, 
   BookOpen, 
   AlertCircle,
   FileCode,
-  Download
+  Sparkles
 } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
@@ -20,7 +18,7 @@ import Badge from '../common/Badge';
 import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
 import { toast } from 'sonner';
-import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const CATEGORIES = [
@@ -38,13 +36,11 @@ export default function ResourcesTab({ catedraId, catedraName }) {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [uploadMode, setUploadMode] = useState('link'); // 'file' | 'link'
   
   // Form state
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('APUNTE');
   const [externalUrl, setExternalUrl] = useState('');
-  const [fileToUpload, setFileToUpload] = useState(null);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -84,9 +80,9 @@ export default function ResourcesTab({ catedraId, catedraName }) {
               id: 'rec-2',
               catedra_id: catedraId,
               categoria: 'APUNTE',
-              tipo_origen: 'LOCAL',
-              titulo: 'Unidad 1 - Fundamentos Teóricos.pdf',
-              url_o_path: '#',
+              tipo_origen: 'GOOGLE_LINK',
+              titulo: 'Carpeta de Apuntes Unidad 1 (Google Drive)',
+              url_o_path: 'https://drive.google.com/drive/folders/sample-unidad-1',
               created_at: new Date(Date.now() - 86400000 * 3).toISOString()
             },
             {
@@ -117,42 +113,20 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       return;
     }
 
+    if (!externalUrl.trim()) {
+      setErrorMsg('Debes ingresar la URL o enlace de Google Drive / Docs.');
+      return;
+    }
+
     setSaving(true);
     setErrorMsg('');
 
     try {
-      let finalUrl = '';
-      let origen = 'GOOGLE_LINK';
-
-      if (uploadMode === 'file') {
-        if (!fileToUpload) {
-          setErrorMsg('Selecciona un archivo para subir.');
-          setSaving(false);
-          return;
-        }
-
-        if (isSupabaseConfigured && !isDemo) {
-          const uploadRes = await uploadCatedraFile(catedraId, fileToUpload);
-          if (uploadRes.error) throw uploadRes.error;
-          finalUrl = uploadRes.publicUrl;
-        } else {
-          finalUrl = URL.createObjectURL(fileToUpload);
-        }
-        origen = 'LOCAL';
-      } else {
-        if (!externalUrl.trim()) {
-          setErrorMsg('La URL o enlace es requerido.');
-          setSaving(false);
-          return;
-        }
-        finalUrl = externalUrl.trim();
-        origen = 'GOOGLE_LINK';
-      }
-
+      const finalUrl = externalUrl.trim();
       const newResource = {
         catedra_id: catedraId,
         categoria: category,
-        tipo_origen: origen,
+        tipo_origen: 'GOOGLE_LINK',
         titulo: title.trim(),
         url_o_path: finalUrl,
         created_at: new Date().toISOString()
@@ -174,49 +148,16 @@ export default function ResourcesTab({ catedraId, catedraName }) {
         localStorage.setItem(`recursos_${catedraId}`, JSON.stringify(updated));
       }
 
-      toast.success('Recurso guardado correctamente.');
+      toast.success('Documento de Google Drive vinculado correctamente.');
       // Reset & close
       setTitle('');
       setExternalUrl('');
-      setFileToUpload(null);
       setIsModalOpen(false);
     } catch (err) {
       console.error('Error saving resource:', err);
       const friendlyMsg = err.message || 'Intente nuevamente';
       toast.error(friendlyMsg);
       setErrorMsg(friendlyMsg);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveLocalFallback = async () => {
-    if (!fileToUpload || !title.trim()) return;
-    setSaving(true);
-    try {
-      const localBlobUrl = URL.createObjectURL(fileToUpload);
-      const newResource = {
-        id: 'rec-' + Date.now(),
-        catedra_id: catedraId,
-        categoria: category,
-        tipo_origen: 'LOCAL',
-        titulo: title.trim(),
-        url_o_path: localBlobUrl,
-        created_at: new Date().toISOString()
-      };
-
-      const updated = [newResource, ...resources];
-      setResources(updated);
-      localStorage.setItem(`recursos_${catedraId}`, JSON.stringify(updated));
-
-      toast.info('Recurso guardado localmente en tu navegador.');
-      setTitle('');
-      setExternalUrl('');
-      setFileToUpload(null);
-      setErrorMsg('');
-      setIsModalOpen(false);
-    } catch (err) {
-      toast.error('Error al guardar localmente: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -262,9 +203,9 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       {/* Action bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface p-4 rounded-xl border border-surface-border">
         <div>
-          <h3 className="text-base font-bold text-text-primary">Repositorio Documental y Enlaces</h3>
+          <h3 className="text-base font-bold text-text-primary">Repositorio Documental y Google Drive</h3>
           <p className="text-xs text-text-muted mt-0.5">
-            Archivos locales subidos a Supabase Storage y accesos directos a Google Drive de {catedraName}.
+            Documentos, guías y carpetas compartidas de Google Drive para {catedraName}, sin ocupar almacenamiento en Supabase.
           </p>
         </div>
         <Button 
@@ -275,7 +216,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
             setIsModalOpen(true);
           }}
         >
-          Agregar Recurso
+          Vincular Documento Drive
         </Button>
       </div>
 
@@ -320,16 +261,15 @@ export default function ResourcesTab({ catedraId, catedraName }) {
           </div>
           <h4 className="text-sm font-semibold text-text-primary mb-1">No hay recursos en esta categoría</h4>
           <p className="text-xs text-text-muted max-w-sm mx-auto mb-4">
-            Sube la planificación, guías de trabajos prácticos o vincula carpetas de Google Drive.
+            Vincula programas, consignas de trabajos prácticos o carpetas compartidas de Google Drive.
           </p>
           <Button variant="outline" size="sm" icon={Plus} onClick={() => setIsModalOpen(true)}>
-            Subir primer recurso
+            Vincular primer documento
           </Button>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredResources.map((res) => {
-            const isExternal = res.tipo_origen === 'GOOGLE_LINK';
             return (
               <Card key={res.id} hover className="flex flex-col justify-between p-4 group">
                 <div>
@@ -339,7 +279,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
                     </Badge>
                     <button
                       onClick={() => handleDeleteResource(res.id)}
-                      className="text-text-muted hover:text-danger p-1 rounded transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-text-muted hover:text-danger p-1 rounded transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
                       title="Eliminar recurso"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -347,17 +287,15 @@ export default function ResourcesTab({ catedraId, catedraName }) {
                   </div>
 
                   <div className="flex items-start gap-3 mt-1">
-                    <div className={`p-2 rounded-lg shrink-0 ${
-                      isExternal ? 'bg-amber-50 text-amber-600' : 'bg-primary/10 text-primary'
-                    }`}>
-                      {isExternal ? <ExternalLink className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+                      <ExternalLink className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-sm font-bold text-text-primary leading-snug break-words">
                         {res.titulo}
                       </h4>
                       <p className="text-[11px] text-text-muted mt-1 flex items-center gap-1.5">
-                        <span>{isExternal ? 'Enlace Web / Drive' : 'Archivo Local'}</span>
+                        <span className="font-semibold text-amber-600 dark:text-amber-400">Google Drive</span>
                         <span>•</span>
                         <span>{new Date(res.created_at).toLocaleDateString('es-AR')}</span>
                       </p>
@@ -375,8 +313,8 @@ export default function ResourcesTab({ catedraId, catedraName }) {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
                   >
-                    <span>{isExternal ? 'Abrir enlace' : 'Descargar'}</span>
-                    {isExternal ? <ExternalLink className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                    <span>Abrir en Drive</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>
               </Card>
@@ -385,88 +323,59 @@ export default function ResourcesTab({ catedraId, catedraName }) {
         </div>
       )}
 
-      {/* Modal Agregar Recurso */}
+      {/* Modal Agregar Recurso Google Drive */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Agregar Recurso a la Cátedra"
+        title="Vincular Documento de Google Drive"
+        subtitle={`Repositorio institucional de ${catedraName}`}
       >
         <form onSubmit={handleSaveResource} className="space-y-4">
           {errorMsg && (
-            <div className="p-3.5 bg-danger/10 border border-danger/30 text-danger text-xs rounded-xl space-y-2">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="leading-relaxed font-medium">{errorMsg}</span>
-              </div>
-              {(errorMsg.includes('Row-Level Security') || errorMsg.includes('Storage') || errorMsg.includes('bucket')) && (
-                <div className="pt-2 border-t border-danger/20 flex items-center justify-between gap-2 flex-wrap">
-                  <a
-                    href="https://supabase.com/dashboard/project/rjndiodfnlncefyiujbg/sql/new"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline font-bold text-[11px]"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Abrir SQL Editor en Supabase</span>
-                  </a>
-                  {fileToUpload && (
-                    <button
-                      type="button"
-                      onClick={handleSaveLocalFallback}
-                      className="px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary hover:bg-surface-hover font-semibold text-[11px]"
-                    >
-                      Guardar localmente sin nube
-                    </button>
-                  )}
-                </div>
-              )}
+            <div className="p-3 bg-danger/10 border border-danger/30 text-danger text-xs rounded-xl flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-relaxed font-medium">{errorMsg}</span>
             </div>
           )}
 
-          {/* Type switcher */}
-          <div className="flex rounded-lg p-1 bg-surface-hover border border-surface-border">
-            <button
-              type="button"
-              onClick={() => setUploadMode('link')}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
-                uploadMode === 'link' 
-                  ? 'bg-surface text-primary shadow-sm' 
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <LinkIcon className="w-3.5 h-3.5" />
-              Enlace Web / Google Drive
-            </button>
-            <button
-              type="button"
-              onClick={() => setUploadMode('file')}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
-                uploadMode === 'file' 
-                  ? 'bg-surface text-primary shadow-sm' 
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Subir Archivo Local
-            </button>
+          {/* Google Drive Informative Helper */}
+          <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-primary">
+                <Sparkles className="w-4 h-4" />
+                <span>Almacenamiento Ilimitado en Google Drive</span>
+              </div>
+              <a
+                href="https://drive.google.com"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Abrir Google Drive</span>
+              </a>
+            </div>
+            <p className="text-text-secondary leading-relaxed">
+              Sube tu PDF, Word o carpeta a tu cuenta de Google Drive y pega el enlace aquí. No ocupará almacenamiento en Supabase.
+            </p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Título descriptivo *
+            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1">
+              Título Descriptivo *
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ej: Guía de TP N° 2 - Modelado de Datos"
-              className="w-full px-3 py-2 text-sm border border-surface-border rounded-lg bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
+            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1">
               Categoría
             </label>
             <CustomSelect
@@ -482,34 +391,28 @@ export default function ResourcesTab({ catedraId, catedraName }) {
             />
           </div>
 
-          {uploadMode === 'link' ? (
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                URL o enlace a Google Drive / Docs *
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold uppercase text-text-secondary">
+                Enlace a Google Drive o Docs *
               </label>
+              <span className="text-[11px] font-mono text-text-muted">drive.google.com / docs.google.com</span>
+            </div>
+            <div className="relative">
               <input
                 type="url"
+                required
                 value={externalUrl}
                 onChange={(e) => setExternalUrl(e.target.value)}
-                placeholder="https://drive.google.com/..."
-                className="w-full px-3 py-2 text-sm font-mono border border-surface-border rounded-lg bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                placeholder="https://drive.google.com/file/d/..."
+                className="w-full pl-9 pr-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
+              <LinkIcon className="w-4 h-4 text-text-muted absolute left-3 top-3" />
             </div>
-          ) : (
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Seleccionar archivo *
-              </label>
-              <input
-                type="file"
-                onChange={(e) => setFileToUpload(e.target.files[0] || null)}
-                className="w-full text-xs text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
-              />
-              <p className="text-[11px] text-text-muted mt-1">
-                Soporta PDF, Word, Excel, presentaciones o archivos comprimidos.
-              </p>
-            </div>
-          )}
+            <p className="text-[11px] text-text-muted mt-1.5">
+              Asegúrate de que en Google Drive el enlace esté configurado con acceso de lectura (<em>"Cualquiera con el enlace"</em>).
+            </p>
+          </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-surface-border">
             <Button
@@ -525,7 +428,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
               variant="primary"
               loading={saving}
             >
-              Guardar Recurso
+              Vincular Documento Drive
             </Button>
           </div>
         </form>

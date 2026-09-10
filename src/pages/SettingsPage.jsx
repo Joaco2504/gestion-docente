@@ -14,7 +14,9 @@ import {
   AlertCircle,
   Sparkles,
   ShieldCheck,
-  GraduationCap
+  GraduationCap,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../components/common/Button';
@@ -39,6 +41,7 @@ export default function SettingsPage() {
 
   const [savingPeriods, setSavingPeriods] = useState(false);
   const [savingCriteria, setSavingCriteria] = useState(false);
+  const [isPeriodsOpen, setIsPeriodsOpen] = useState(false);
 
   // Límites de Períodos Académicos y Receso Invernal
   const [periodos, setPeriodos] = useState([
@@ -332,144 +335,181 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* SECCIÓN 2: LÍMITES DE PERÍODOS ACADÉMICOS Y RECESO INVERNAL */}
-      <Card className="p-5 sm:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surface-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+      {/* SECCIÓN 2: LÍMITES DE PERÍODOS ACADÉMICOS Y RECESO INVERNAL (DESPLEGABLE) */}
+      <Card className="p-0 overflow-hidden border-surface-border">
+        {/* Encabezado Desplegable */}
+        <button
+          type="button"
+          onClick={() => setIsPeriodsOpen(prev => !prev)}
+          className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-left hover:bg-surface-hover/50 transition-colors cursor-pointer group"
+          aria-expanded={isPeriodsOpen}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <CalendarIcon className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-text-primary">
-                Límites de Períodos Académicos y Receso Invernal
-              </h2>
-              <p className="text-xs text-text-muted">
-                Establece con precisión los rangos de fechas donde se proyectan las clases y descansos lectivos.
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-bold text-text-primary">
+                  Límites de Períodos Académicos y Receso Invernal
+                </h2>
+                <Badge variant="primary" className="text-[10px] font-mono">
+                  {periodos.length} {periodos.length === 1 ? 'período' : 'períodos'}
+                </Badge>
+              </div>
+              <p className="text-xs text-text-muted mt-0.5 truncate max-w-md sm:max-w-xl">
+                {isPeriodsOpen 
+                  ? 'Establece con precisión los rangos de fechas donde se proyectan las clases y descansos lectivos.' 
+                  : (periodos.length > 0 ? periodos.map(p => p.nombre).join(' • ') : 'Sin períodos configurados')
+                }
               </p>
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            icon={Plus}
-            onClick={handleAddPeriod}
-            type="button"
-            className="text-xs self-start sm:self-auto"
-          >
-            Añadir Período
-          </Button>
-        </div>
-
-        {/* Informative Callout */}
-        <div className="p-4 rounded-xl bg-primary/5 border border-primary/15 text-xs text-text-secondary flex items-start gap-3 leading-relaxed">
-          <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-          <div>
-            <strong>Regla Académica Estricta:</strong> La agenda proyectará clases regulares únicamente dentro de las fechas de los cuatrimestres o trimestres habilitados. Durante el <strong>Receso Invernal</strong> no se computarán clases dictadas ni inasistencias docentes.
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-semibold text-primary hidden sm:inline">
+              {isPeriodsOpen ? 'Ocultar' : 'Configurar'}
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-surface-hover flex items-center justify-center text-text-secondary group-hover:text-primary transition-colors">
+              {isPeriodsOpen ? (
+                <ChevronUp className="w-4 h-4 transition-transform" />
+              ) : (
+                <ChevronDown className="w-4 h-4 transition-transform" />
+              )}
+            </div>
           </div>
-        </div>
+        </button>
 
-        {/* Períodos List */}
-        <div className="space-y-4">
-          {periodos.map((p, index) => (
-            <div 
-              key={p.id || index}
-              className={`p-4 rounded-2xl border transition-all ${
-                p.tipo === 'RECESO'
-                  ? 'bg-amber-500/5 border-amber-500/20'
-                  : 'bg-surface border-surface-border'
-              }`}
-            >
-              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                  {/* Nombre */}
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
-                      Nombre del Período
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={p.nombre}
-                      onChange={(e) => handlePeriodChange(index, 'nombre', e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm font-semibold border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-                    />
-                  </div>
+        {/* Contenido Desplegable */}
+        {isPeriodsOpen && (
+          <div className="p-4 sm:p-6 border-t border-surface-border space-y-6 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+              <p className="text-xs text-text-muted">
+                Configura los rangos de fechas para el ciclo lectivo <strong>{selectedCiclo?.anio || '2026'}</strong>.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={Plus}
+                onClick={handleAddPeriod}
+                type="button"
+                className="text-xs self-start sm:self-auto"
+              >
+                Añadir Período
+              </Button>
+            </div>
 
-                  {/* Tipo */}
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
-                      Tipo de Período
-                    </label>
-                    <CustomSelect
-                      value={p.tipo}
-                      onChange={(val) => handlePeriodChange(index, 'tipo', typeof val === 'object' ? val.target.value : val)}
-                      options={[
-                        { value: 'CUATRIMESTRE', label: 'Cuatrimestre' },
-                        { value: 'TRIMESTRE', label: 'Trimestre' },
-                        { value: 'RECESO', label: 'Receso Invernal (Vacaciones)' },
-                        { value: 'EXAMENES', label: 'Turno de Exámenes Finales' }
-                      ]}
-                      buttonClassName="py-2 text-xs font-semibold"
-                    />
-                  </div>
-
-                  {/* Fecha Inicio */}
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
-                      Fecha de Inicio
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={p.fecha_inicio}
-                      onChange={(e) => handlePeriodChange(index, 'fecha_inicio', e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-                    />
-                  </div>
-
-                  {/* Fecha Fin */}
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
-                      Fecha de Cierre
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={p.fecha_fin}
-                      onChange={(e) => handlePeriodChange(index, 'fecha_fin', e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-                    />
-                  </div>
-                </div>
-
-                {/* Remove button */}
-                <div className="flex items-end justify-end">
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePeriod(index)}
-                    className="p-2 text-text-muted hover:text-danger hover:bg-danger/10 rounded-xl transition-all touch-target-44"
-                    title="Eliminar este período"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+            {/* Informative Callout */}
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/15 text-xs text-text-secondary flex items-start gap-3 leading-relaxed">
+              <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <div>
+                <strong>Regla Académica Estricta:</strong> La agenda proyectará clases regulares únicamente dentro de las fechas de los cuatrimestres o trimestres habilitados. Durante el <strong>Receso Invernal</strong> no se computarán clases dictadas ni inasistencias docentes.
               </div>
             </div>
-          ))}
-        </div>
 
-        <div className="flex justify-end pt-3 border-t border-surface-border">
-          <Button
-            variant="primary"
-            icon={Save}
-            loading={savingPeriods}
-            onClick={handleSavePeriods}
-            type="button"
-          >
-            Guardar Períodos Académicos
-          </Button>
-        </div>
+            {/* Períodos List */}
+            <div className="space-y-4">
+              {periodos.map((p, index) => (
+                <div 
+                  key={p.id || index}
+                  className={`p-4 rounded-2xl border transition-all ${
+                    p.tipo === 'RECESO'
+                      ? 'bg-amber-500/5 border-amber-500/20'
+                      : 'bg-surface border-surface-border'
+                  }`}
+                >
+                  <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                      {/* Nombre */}
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
+                          Nombre del Período
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={p.nombre}
+                          onChange={(e) => handlePeriodChange(index, 'nombre', e.target.value)}
+                          className="w-full px-3 py-2 text-xs sm:text-sm font-semibold border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+                        />
+                      </div>
+
+                      {/* Tipo */}
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
+                          Tipo de Período
+                        </label>
+                        <CustomSelect
+                          value={p.tipo}
+                          onChange={(val) => handlePeriodChange(index, 'tipo', typeof val === 'object' ? val.target.value : val)}
+                          options={[
+                            { value: 'CUATRIMESTRE', label: 'Cuatrimestre' },
+                            { value: 'TRIMESTRE', label: 'Trimestre' },
+                            { value: 'RECESO', label: 'Receso Invernal (Vacaciones)' },
+                            { value: 'EXAMENES', label: 'Turno de Exámenes Finales' }
+                          ]}
+                          buttonClassName="py-2 text-xs font-semibold"
+                        />
+                      </div>
+
+                      {/* Fecha Inicio */}
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
+                          Fecha de Inicio
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={p.fecha_inicio}
+                          onChange={(e) => handlePeriodChange(index, 'fecha_inicio', e.target.value)}
+                          className="w-full px-3 py-2 text-xs sm:text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+                        />
+                      </div>
+
+                      {/* Fecha Fin */}
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
+                          Fecha de Cierre
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={p.fecha_fin}
+                          onChange={(e) => handlePeriodChange(index, 'fecha_fin', e.target.value)}
+                          className="w-full px-3 py-2 text-xs sm:text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Remove button */}
+                    <div className="flex items-end justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePeriod(index)}
+                        className="p-2 text-text-muted hover:text-danger hover:bg-danger/10 rounded-xl transition-all touch-target-44 cursor-pointer"
+                        title="Eliminar este período"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-surface-border">
+              <Button
+                variant="primary"
+                icon={Save}
+                loading={savingPeriods}
+                onClick={handleSavePeriods}
+                type="button"
+              >
+                Guardar Períodos Académicos
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* SECCIÓN 3: CRITERIOS ACADÉMICOS PREDETERMINADOS */}

@@ -166,7 +166,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       {/* DUAL SIDEBAR CONTAINER */}
       <aside
         className={`
-          fixed md:sticky top-0 bottom-0 left-0 z-50 md:z-20 h-screen
+          fixed md:sticky top-0 md:top-16 bottom-0 left-0 z-50 md:z-20 h-[100dvh] md:h-[calc(100vh-4rem)]
           flex shrink-0 transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
@@ -174,7 +174,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
         {/* ========================================================
             1. RIEL IZQUIERDO ESTRECHO (ICON RAIL: 4rem / 64px)
            ======================================================== */}
-        <div className="w-16 bg-surface/85 dark:bg-[#080d1a]/90 backdrop-blur-xl border-r border-surface-border flex flex-col justify-between items-center py-3.5 z-20 shrink-0 select-none shadow-subtle dark:shadow-none">
+        <div className="w-16 bg-white dark:bg-[#080d1a] border-r border-slate-200/80 dark:border-slate-800 flex flex-col justify-between items-center py-3.5 z-20 shrink-0 select-none shadow-xs dark:shadow-none">
           {/* Top Logo / Isotipo */}
           <div className="flex flex-col items-center gap-4">
             <NavLink
@@ -285,13 +285,13 @@ export default function DualSidebar({ isOpen = false, onClose }) {
            ======================================================== */}
         <div
           className={`
-            bg-surface border-r border-surface-border flex flex-col justify-between
+            bg-white dark:bg-[#0c1222] border-r border-slate-200/80 dark:border-slate-800 flex flex-col justify-between
             transition-all duration-300 ease-in-out overflow-hidden z-10
             ${isSubmenuOpen ? 'w-56 opacity-100' : 'w-0 opacity-0 md:border-r-0 pointer-events-none'}
           `}
         >
           {/* Sub-menu Header & Cascading Selectors */}
-          <div className="p-3 border-b border-surface-border/70 space-y-2.5">
+          <div className="p-3 border-b border-slate-200/80 dark:border-slate-800/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-primary" />
