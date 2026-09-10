@@ -37,7 +37,7 @@ export default function CatedraDetailPage() {
 
   useEffect(() => {
     fetchCatedraData();
-  }, [id, catedras]);
+  }, [id]);
 
   const fetchCatedraData = async () => {
     setLoading(true);
@@ -118,7 +118,7 @@ export default function CatedraDetailPage() {
   const schedules = Array.isArray(catedra.horarios_semanales) ? catedra.horarios_semanales : [];
 
   const tabs = [
-    { id: 'alumnos', label: 'Alumnos y Matrícula', icon: Users },
+    { id: 'alumnos', label: 'Alumnos', icon: Users },
     { id: 'asistencias', label: 'Asistencias', icon: CheckSquare },
     { id: 'calificaciones', label: 'Calificaciones', icon: GraduationCap },
     { id: 'recursos', label: 'Recursos y Archivos', icon: FolderOpen },

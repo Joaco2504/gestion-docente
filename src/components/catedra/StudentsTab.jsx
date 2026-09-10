@@ -64,9 +64,7 @@ export default function StudentsTab({ catedraId, catedraName }) {
               id,
               dni,
               apellido,
-              nombre,
-              email,
-              telefono
+              nombre
             )
           `)
           .eq('catedra_id', catedraId);
@@ -348,7 +346,7 @@ export default function StudentsTab({ catedraId, catedraName }) {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-text-primary">
-                    Nómina de Alumnos Matriculados
+                    Nómina de Alumnos
                   </h3>
                   <Badge variant="default" className="font-mono text-[11px]">
                     {estudiantes.length} {estudiantes.length === 1 ? 'alumno' : 'alumnos'}

@@ -619,9 +619,9 @@ export default function GradesTab({
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead className="bg-surface-hover/80 text-text-secondary border-b border-surface-border">
                 <tr>
-                  <th className="sticky-col bg-surface-hover px-3 sm:px-4 py-3 text-center w-12 font-mono">#</th>
-                  <th className="sticky-col bg-surface-hover px-3 sm:px-4 py-3 font-mono">DNI</th>
-                  <th className="sticky-col bg-surface-hover px-3 sm:px-4 py-3 min-w-[180px] sm:min-w-[210px]">Estudiante</th>
+                  <th className="px-3 sm:px-4 py-3 text-center w-12 font-mono">#</th>
+                  <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
+                  <th className="px-3 sm:px-4 py-3 min-w-[180px] sm:min-w-[210px]">Estudiante</th>
                   <th className="px-3 py-3 text-center w-24 font-mono">% Asist.</th>
 
                   {/* Main Evaluation Columns */}
@@ -657,9 +657,9 @@ export default function GradesTab({
                   const est = item.estudiante;
                   return (
                     <tr key={est.id} className="hover:bg-surface-hover/40 transition-colors">
-                      <td className="sticky-col bg-surface px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{idx + 1}</td>
-                      <td className="sticky-col bg-surface px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
-                      <td className="sticky-col bg-surface px-3 sm:px-4 py-3 font-semibold text-text-primary">
+                      <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{idx + 1}</td>
+                      <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
+                      <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary whitespace-nowrap">
                         {est.apellido}, {est.nombre}
                       </td>
 

@@ -14,6 +14,8 @@ import DashboardPage from './pages/DashboardPage';
 import CatedraDetailPage from './pages/CatedraDetailPage';
 import CalendarPage from './pages/CalendarPage';
 import InstitutionsPage from './pages/InstitutionsPage';
+import SettingsPage from './pages/SettingsPage';
+import { GraduationCap } from 'lucide-react';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -22,10 +24,25 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-canvas">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-          <span className="text-xs font-mono text-text-muted">Cargando DocentePro...</span>
+      <div className="min-h-screen flex items-center justify-center bg-canvas relative overflow-hidden">
+        {/* Subtle background light glow */}
+        <div className="absolute w-72 h-72 rounded-full bg-primary/10 blur-3xl pointer-events-none animate-pulseGlow" />
+        
+        <div className="flex flex-col items-center gap-4 relative z-10">
+          <div className="relative">
+            {/* Spinning decorative ring */}
+            <div className="w-16 h-16 rounded-2xl border-2 border-primary/20 border-t-primary animate-spin" />
+            {/* Center icon */}
+            <div className="absolute inset-0 flex items-center justify-center text-primary">
+              <GraduationCap className="w-7 h-7" />
+            </div>
+          </div>
+          <div className="text-center">
+            <span className="font-bold text-base tracking-tight text-text-primary block">
+              Docente<span className="text-primary">Pro</span>
+            </span>
+            <span className="text-xs font-mono text-text-muted">Iniciando plataforma...</span>
+          </div>
         </div>
       </div>
     );
@@ -80,6 +97,7 @@ export default function App() {
                 <Route path="/catedra/:id" element={<CatedraDetailPage />} />
                 <Route path="/calendario" element={<CalendarPage />} />
                 <Route path="/instituciones" element={<InstitutionsPage />} />
+                <Route path="/configuracion" element={<SettingsPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </div>

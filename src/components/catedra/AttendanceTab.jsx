@@ -44,6 +44,7 @@ export default function AttendanceTab({
 
   // Modal Inasistencia Docente
   const [isInasistenciaModalOpen, setIsInasistenciaModalOpen] = useState(false);
+  const [fechaInasistencia, setFechaInasistencia] = useState(new Date().toISOString().split('T')[0]);
   const [tipoInasistencia, setTipoInasistencia] = useState('LICENCIA');
   const [articuloLicencia, setArticuloLicencia] = useState('Art. 44 - Razones de Salud');
   const [otroArticulo, setOtroArticulo] = useState('');
@@ -169,6 +170,7 @@ export default function AttendanceTab({
         tema: nuevoTema.trim()
       };
 
+      let claseId = null;
       if (isSupabaseConfigured && !isDemo) {
         const { data, error } = await supabase
           .from('clases')
@@ -177,18 +179,41 @@ export default function AttendanceTab({
           .single();
 
         if (error) throw error;
+        claseId = data.id;
         const updated = [data, ...clases];
         setClases(updated);
         setSelectedClaseId(data.id);
       } else {
         const created = { ...newClaseObj, id: 'clase-' + Date.now() };
+        claseId = created.id;
         const updated = [created, ...clases];
         setClases(updated);
         setSelectedClaseId(created.id);
         localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updated));
       }
 
-      toast.success(`Clase del ${nuevaFecha} creada exitosamente.`);
+      // Automatically mark all currently enrolled students as PRESENTE
+      if (claseId && estudiantes.length > 0) {
+        const defaultAttendance = estudiantes.map(e => ({
+          clase_id: claseId,
+          estudiante_id: e.id,
+          estado: 'PRESENTE'
+        }));
+
+        if (isSupabaseConfigured && !isDemo) {
+          const { error: asistError } = await supabase
+            .from('asistencias')
+            .upsert(defaultAttendance, { onConflict: 'clase_id,estudiante_id' });
+          if (asistError) console.warn('Aviso al autocompletar asistencias:', asistError);
+        } else {
+          const prevStored = JSON.parse(localStorage.getItem(`asistencias_${catedraId}`) || '[]');
+          localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify([...prevStored, ...defaultAttendance]));
+        }
+
+        setAsistencias(prev => [...prev, ...defaultAttendance]);
+      }
+
+      toast.success(`Clase del ${nuevaFecha} creada. Todos los alumnos fueron marcados como presentes.`);
       setIsModalOpen(false);
       setNuevoTema('');
     } catch (err) {
@@ -252,7 +277,11 @@ export default function AttendanceTab({
 
   const handleSaveInasistencia = async (e) => {
     e.preventDefault();
-    if (!activeClase) return;
+    const targetFecha = activeClase ? activeClase.fecha : fechaInasistencia;
+    if (!targetFecha) {
+      toast.error('Por favor especifica una fecha válida.');
+      return;
+    }
 
     let artFinal = null;
     if (tipoInasistencia === 'LICENCIA') {
@@ -268,7 +297,7 @@ export default function AttendanceTab({
       const payload = {
         catedra_id: catedraId,
         docente_id: user?.id,
-        fecha: activeClase.fecha,
+        fecha: targetFecha,
         tipo: tipoInasistencia,
         articulo_licencia: artFinal,
         observaciones: obsInasistencia.trim()
@@ -282,17 +311,17 @@ export default function AttendanceTab({
           .single();
 
         if (error) throw error;
-        const other = inasistenciasDocente.filter(i => i.fecha !== activeClase.fecha);
+        const other = inasistenciasDocente.filter(i => i.fecha !== targetFecha);
         setInasistenciasDocente([...other, data]);
       } else {
         const withId = { ...payload, id: 'inasist-' + Date.now() };
-        const other = inasistenciasDocente.filter(i => i.fecha !== activeClase.fecha);
+        const other = inasistenciasDocente.filter(i => i.fecha !== targetFecha);
         const updated = [...other, withId];
         setInasistenciasDocente(updated);
         localStorage.setItem(`inasistencias_docente_${catedraId}`, JSON.stringify(updated));
       }
 
-      toast.success('Inasistencia docente registrada. No computará como falta para los alumnos.');
+      toast.success(`Inasistencia docente registrada para el ${targetFecha}.`);
       setIsInasistenciaModalOpen(false);
     } catch (err) {
       console.error('Error saving inasistencia docente:', err);
@@ -384,30 +413,30 @@ export default function AttendanceTab({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          {activeClase && (
-            <Button
-              variant={inasistenciaActual ? 'secondary' : 'outline'}
-              size="sm"
-              icon={ShieldAlert}
-              onClick={() => {
-                if (inasistenciaActual) {
-                  setTipoInasistencia(inasistenciaActual.tipo || 'LICENCIA');
-                  setArticuloLicencia(inasistenciaActual.articulo_licencia || 'Art. 44 - Razones de Salud');
-                  setObsInasistencia(inasistenciaActual.observaciones || '');
-                } else {
-                  setTipoInasistencia('LICENCIA');
-                  setArticuloLicencia('Art. 44 - Razones de Salud');
-                  setOtroArticulo('');
-                  setObsInasistencia('');
-                }
-                setIsInasistenciaModalOpen(true);
-              }}
-              className="flex-1 sm:flex-initial text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-              title="Registrar o editar inasistencia / licencia del docente"
-            >
-              {inasistenciaActual ? 'Ver Licencia Docente' : 'Inasistencia Docente'}
-            </Button>
-          )}
+          <Button
+            variant={inasistenciaActual ? 'secondary' : 'outline'}
+            size="sm"
+            icon={ShieldAlert}
+            type="button"
+            onClick={() => {
+              setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
+              if (inasistenciaActual) {
+                setTipoInasistencia(inasistenciaActual.tipo || 'LICENCIA');
+                setArticuloLicencia(inasistenciaActual.articulo_licencia || 'Art. 44 - Razones de Salud');
+                setObsInasistencia(inasistenciaActual.observaciones || '');
+              } else {
+                setTipoInasistencia('LICENCIA');
+                setArticuloLicencia('Art. 44 - Razones de Salud');
+                setOtroArticulo('');
+                setObsInasistencia('');
+              }
+              setIsInasistenciaModalOpen(true);
+            }}
+            className="flex-1 sm:flex-initial text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+            title="Registrar o editar inasistencia / licencia del docente"
+          >
+            {inasistenciaActual ? 'Ver Licencia Docente' : 'Inasistencia Docente'}
+          </Button>
 
           {activeClase && estudiantes.length > 0 && (
             <Button
@@ -648,6 +677,20 @@ export default function AttendanceTab({
         <form onSubmit={handleSaveInasistencia} className="space-y-4">
           <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary leading-relaxed">
             <strong>Excepción Académica:</strong> Al registrar la inasistencia del profesor, esta fecha <em>no computará como falta</em> para los estudiantes matriculados en la cátedra.
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+              Fecha de Inasistencia *
+            </label>
+            <input
+              type="date"
+              required
+              value={activeClase ? activeClase.fecha : fechaInasistencia}
+              onChange={(e) => setFechaInasistencia(e.target.value)}
+              disabled={!!activeClase}
+              className="w-full px-3.5 py-2 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary disabled:opacity-75 disabled:bg-surface-hover"
+            />
           </div>
 
           <div>

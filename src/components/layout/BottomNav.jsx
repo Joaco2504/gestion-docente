@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { BookOpen, Calendar, Building2, Sun, Moon } from 'lucide-react';
+import { BookOpen, Calendar, Building2, Settings, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function BottomNav() {
@@ -11,6 +11,7 @@ export default function BottomNav() {
     { to: '/dashboard', label: 'Cátedras', icon: BookOpen },
     { to: '/calendario', label: 'Agenda', icon: Calendar },
     { to: '/instituciones', label: 'Colegios', icon: Building2 },
+    { to: '/configuracion', label: 'Ajustes', icon: Settings },
   ];
 
   return (

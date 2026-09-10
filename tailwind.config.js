@@ -9,11 +9,11 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#1209ff',
-          hover: '#0e07cc',
-          light: '#f0efff',
-          muted: '#e2e0ff',
-          dark: '#3d34ff',
+          DEFAULT: 'rgb(var(--color-primary-rgb, 26 86 219) / <alpha-value>)',
+          hover: 'rgb(var(--color-primary-hover-rgb, 30 66 159) / <alpha-value>)',
+          light: 'var(--color-primary-light, #ebf5ff)',
+          muted: 'var(--color-primary-muted, #d0e1fd)',
+          dark: 'rgb(var(--color-primary-rgb, 26 86 219) / <alpha-value>)',
         },
         surface: {
           DEFAULT: 'var(--surface)',

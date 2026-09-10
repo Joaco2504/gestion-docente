@@ -4,6 +4,7 @@ import {
   BookOpen, 
   Calendar, 
   Building2, 
+  Settings,
   HelpCircle, 
   X, 
   GraduationCap,
@@ -30,6 +31,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
     { to: '/dashboard', label: 'Cátedras', icon: BookOpen },
     { to: '/calendario', label: 'Calendario & Horarios', icon: Calendar },
     { to: '/instituciones', label: 'Instituciones & Ciclos', icon: Building2 },
+    { to: '/configuracion', label: 'Configuración', icon: Settings },
   ];
 
   return (
