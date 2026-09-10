@@ -23,6 +23,7 @@ import Modal from '../common/Modal';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { formatFechaDMY, parseDMYtoYMD, getTodayYMD } from '../../lib/dateUtils';
 
 export default function AttendanceTab({
   catedraId,
@@ -164,9 +165,12 @@ export default function AttendanceTab({
     if (!nuevaFecha) return;
     setSavingClase(true);
     try {
+      const fechaIso = parseDMYtoYMD(nuevaFecha);
+      const fechaDmy = formatFechaDMY(nuevaFecha);
+
       const newClaseObj = {
         catedra_id: catedraId,
-        fecha: nuevaFecha,
+        fecha: fechaIso,
         tema: nuevoTema.trim()
       };
 
@@ -213,7 +217,7 @@ export default function AttendanceTab({
         setAsistencias(prev => [...prev, ...defaultAttendance]);
       }
 
-      toast.success(`Clase del ${nuevaFecha} creada. Todos los alumnos fueron marcados como presentes.`);
+      toast.success(`Clase del ${fechaDmy} guardada. Todos los alumnos fueron marcados como presentes.`);
       setIsModalOpen(false);
       setNuevoTema('');
     } catch (err) {
@@ -389,7 +393,7 @@ export default function AttendanceTab({
           </div>
           <div className="flex-1 min-w-0">
             <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">
-              Sesión de Clase
+              Sesión de Clase {activeClase ? `• ${formatFechaDMY(activeClase.fecha)}` : ''}
             </label>
             {clases.length === 0 ? (
               <span className="text-xs font-medium text-text-muted">No hay clases registradas</span>
@@ -403,7 +407,7 @@ export default function AttendanceTab({
                   const hasAbsence = inasistenciasDocente.some(i => i.fecha === c.fecha);
                   return (
                     <option key={c.id} value={c.id}>
-                      {c.fecha} — {c.tema || 'Sin tema especificado'} {hasAbsence ? ' [LICENCIA DOCENTE]' : ''}
+                      {formatFechaDMY(c.fecha)} — {c.tema || 'Sin tema especificado'} {hasAbsence ? ' [LICENCIA DOCENTE]' : ''}
                     </option>
                   );
                 })}
@@ -633,9 +637,14 @@ export default function AttendanceTab({
       >
         <form onSubmit={handleCreateClase} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-              Fecha de la Clase
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold uppercase text-text-secondary">
+                Fecha de la Clase *
+              </label>
+              <span className="text-[11px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                Formato: {formatFechaDMY(nuevaFecha)} (DD-MM-YYYY)
+              </span>
+            </div>
             <input
               type="date"
               required
@@ -643,6 +652,9 @@ export default function AttendanceTab({
               onChange={(e) => setNuevaFecha(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
+            <p className="text-[11px] text-text-muted mt-1">
+              Se guardará y mostrará registrada con formato <strong>{formatFechaDMY(nuevaFecha)}</strong>.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
@@ -672,7 +684,7 @@ export default function AttendanceTab({
         isOpen={isInasistenciaModalOpen}
         onClose={() => setIsInasistenciaModalOpen(false)}
         title="Inasistencia Docente / Licencia"
-        subtitle={activeClase ? `Fecha: ${activeClase.fecha} — ${activeClase.tema || 'Clase Regular'}` : ''}
+        subtitle={activeClase ? `Fecha: ${formatFechaDMY(activeClase.fecha)} — ${activeClase.tema || 'Clase Regular'}` : ''}
       >
         <form onSubmit={handleSaveInasistencia} className="space-y-4">
           <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary leading-relaxed">

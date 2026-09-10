@@ -50,6 +50,10 @@ export default function GuidesPage() {
       summary: 'Optimiza el tiempo en el aula con la marcación automática de presentes y control por clase.',
       content: [
         {
+          sub: 'Formato Estándar de Fecha (DD-MM-YYYY)',
+          text: 'Las sesiones de clase se registran y exhiben de manera estandarizada en formato DD-MM-YYYY (ej. 10-09-2026) tanto en el menú selector como en reportes y vistas móviles.'
+        },
+        {
           sub: 'Presentes Automáticos al Crear Sesión',
           text: 'Cada vez que agregas una nueva clase indicando la fecha y el tema dictado, PlanillaDocente marca de manera automática a todos los alumnos matriculados como PRESENTE. Solo tendrás que tocar a los estudiantes que estuvieron ausentes.'
         },
@@ -86,26 +90,30 @@ export default function GuidesPage() {
     },
     {
       id: 'calificaciones',
-      title: '4. Calificaciones y Recuperatorios',
+      title: '4. Calificaciones, Fecha de Entrega y Archivos',
       icon: GraduationCap,
       badge: 'Académico',
-      summary: 'Sábana panorámica de notas, cálculo reglamentario de regularidad y recuperatorios en paralelo.',
+      summary: 'Sábana panorámica de notas, adjuntos de Trabajos Prácticos, fechas límite y cálculo reglamentario.',
       content: [
         {
-          sub: 'Crear Evaluaciones (Parciales, TPs, Pruebas)',
-          text: 'Haz clic en "Nueva Eval." en la pestaña Calificaciones para registrar una instancia evaluativa. Puedes especificar si es un Parcial, Trabajo Práctico Obligatorio o Recuperatorio.'
+          sub: 'Crear Evaluaciones, Fechas de Entrega y Subida de Archivos',
+          text: 'Al pulsar "Nueva Eval." puedes registrar un Parcial, TP o Recuperatorio. En esa misma ventana puedes fijar una Fecha de Entrega y subir el documento de consignas (PDF, Word, Excel, etc.). La evaluación se guarda inmediatamente aunque aún no hayas calificado alumnos.'
+        },
+        {
+          sub: 'Preservación de Estado Durante Plazo de Entrega',
+          text: 'Si creas un Trabajo Práctico con entrega futura y sin notas cargadas, el sistema NO penaliza a los alumnos como "Libres"; se conserva su condición en curso mientras transcurre el plazo de entrega.'
+        },
+        {
+          sub: 'Descarga Directa de Consignas y Repositorio',
+          text: 'Los trabajos prácticos con archivos adjuntos exhiben un botón de descarga directa en la cabecera de la tabla y en las tarjetas, y se sincronizan en el Repositorio de Recursos de la cátedra.'
         },
         {
           sub: 'Recuperatorios sin Sobreescritura',
           text: 'Al vincular un examen recuperatorio al parcial original, la nota del recuperatorio se exhibe en paralelo junto a la nota original (R: 7) para preservar el historial académico auténtico.'
         },
         {
-          sub: 'Condición Académica Automática',
-          text: 'El sistema calcula en tiempo real si el estudiante queda en condición Promocional, Regular o Libre evaluando el porcentaje de asistencia efectiva y las notas mínimas requeridas.'
-        },
-        {
-          sub: 'Exportación a Excel',
-          text: 'Con un solo clic puedes descargar la sábana completa en formato Excel profesional con colores reglamentarios, lista para entregar en secretaría académica.'
+          sub: 'Condición Académica Automática y Exportación',
+          text: 'El sistema calcula en tiempo real la condición (Promocional, Regular, Libre) y te permite exportar toda la sábana a Excel con fórmulas y colores institucionales.'
         }
       ]
     },

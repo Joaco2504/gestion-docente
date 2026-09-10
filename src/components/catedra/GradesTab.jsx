@@ -13,7 +13,13 @@ import {
   Table as TableIcon,
   ChevronRight,
   UserCheck,
-  Percent
+  Percent,
+  Calendar,
+  Upload,
+  FileText,
+  Paperclip,
+  X,
+  Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -23,7 +29,8 @@ import Modal from '../common/Modal';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { exportGradesToExcel } from '../../lib/excel';
-import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
+import { formatFechaDMY, parseDMYtoYMD } from '../../lib/dateUtils';
 import { useAuth } from '../../context/AuthContext';
 
 export default function GradesTab({
@@ -71,6 +78,8 @@ export default function GradesTab({
   const [evalTitulo, setEvalTitulo] = useState('');
   const [evalTipo, setEvalTipo] = useState(academicLevel === 'SECUNDARIO' ? 'PRUEBA' : 'PARCIAL');
   const [evalOrigenId, setEvalOrigenId] = useState('');
+  const [evalFechaEntrega, setEvalFechaEntrega] = useState('');
+  const [evalFile, setEvalFile] = useState(null);
   const [savingEval, setSavingEval] = useState(false);
 
   useEffect(() => {
@@ -306,22 +315,100 @@ export default function GradesTab({
 
     setSavingEval(true);
     try {
+      let archivoUrl = null;
+      let archivoNombre = null;
+
+      // 1. Si se adjuntó un archivo de Trabajo Práctico, subirlo
+      if (evalFile) {
+        if (isSupabaseConfigured && !isDemo) {
+          const uploadRes = await uploadCatedraFile(catedraId, evalFile);
+          if (uploadRes.error) {
+            console.warn('Aviso al subir archivo adjunto:', uploadRes.error);
+            toast.error('No se pudo subir el archivo: ' + uploadRes.error.message);
+          } else {
+            archivoUrl = uploadRes.publicUrl;
+            archivoNombre = evalFile.name;
+          }
+        } else {
+          archivoUrl = URL.createObjectURL(evalFile);
+          archivoNombre = evalFile.name;
+        }
+
+        // Registrar también en la tabla 'recursos' para que aparezca en el repositorio
+        if (archivoUrl) {
+          try {
+            const recCategory = evalTipo === 'PARCIAL' ? 'PARCIAL' : 'TP';
+            const newRec = {
+              catedra_id: catedraId,
+              categoria: recCategory,
+              tipo_origen: 'LOCAL',
+              titulo: `${evalTitulo.trim()} — ${archivoNombre}`,
+              url_o_path: archivoUrl,
+              created_at: new Date().toISOString()
+            };
+            if (isSupabaseConfigured && !isDemo) {
+              await supabase.from('recursos').insert(newRec);
+            } else {
+              const prevRec = JSON.parse(localStorage.getItem(`recursos_${catedraId}`) || '[]');
+              localStorage.setItem(`recursos_${catedraId}`, JSON.stringify([{ ...newRec, id: 'rec-' + Date.now() }, ...prevRec]));
+            }
+          } catch (recErr) {
+            console.warn('Aviso al sincronizar con repositorio:', recErr);
+          }
+        }
+      }
+
+      const isoFechaEntrega = evalFechaEntrega ? parseDMYtoYMD(evalFechaEntrega) : null;
+
       const newEvalObj = {
         catedra_id: catedraId,
         titulo: evalTitulo.trim(),
         tipo: evalTipo,
-        evaluacion_origen_id: evalTipo === 'RECUPERATORIO' && evalOrigenId ? evalOrigenId : null
+        evaluacion_origen_id: evalTipo === 'RECUPERATORIO' && evalOrigenId ? evalOrigenId : null,
+        fecha_entrega: isoFechaEntrega,
+        archivo_url: archivoUrl,
+        archivo_nombre: archivoNombre
       };
 
       if (isSupabaseConfigured && !isDemo) {
+        let createdData = null;
+        // Intento de inserción con campos extendidos
         const { data, error } = await supabase
           .from('evaluaciones')
           .insert(newEvalObj)
           .select()
           .single();
 
-        if (error) throw error;
-        setEvaluaciones([...evaluaciones, data]);
+        if (error) {
+          // Si el esquema de Supabase no tiene aún las columnas fecha_entrega / archivo_url
+          if (error.message && (error.message.includes('column') || error.message.includes('fecha_entrega') || error.message.includes('archivo_url'))) {
+            const baseObj = {
+              catedra_id: catedraId,
+              titulo: evalTitulo.trim(),
+              tipo: evalTipo,
+              evaluacion_origen_id: evalTipo === 'RECUPERATORIO' && evalOrigenId ? evalOrigenId : null
+            };
+            const fallbackRes = await supabase
+              .from('evaluaciones')
+              .insert(baseObj)
+              .select()
+              .single();
+
+            if (fallbackRes.error) throw fallbackRes.error;
+            createdData = {
+              ...fallbackRes.data,
+              fecha_entrega: isoFechaEntrega,
+              archivo_url: archivoUrl,
+              archivo_nombre: archivoNombre
+            };
+          } else {
+            throw error;
+          }
+        } else {
+          createdData = data;
+        }
+
+        setEvaluaciones([...evaluaciones, createdData]);
       } else {
         const created = { ...newEvalObj, id: 'eval-' + Date.now() };
         const updated = [...evaluaciones, created];
@@ -329,10 +416,12 @@ export default function GradesTab({
         localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updated));
       }
 
-      toast.success(`Evaluación "${evalTitulo}" creada.`);
+      toast.success(`Evaluación "${evalTitulo}" guardada correctamente.`);
       setIsNewEvalModalOpen(false);
       setEvalTitulo('');
       setEvalOrigenId('');
+      setEvalFechaEntrega('');
+      setEvalFile(null);
     } catch (err) {
       toast.error('Error al crear evaluación: ' + err.message);
     } finally {
@@ -558,11 +647,32 @@ export default function GradesTab({
                       return (
                         <div
                           key={ev.id}
-                          className="p-2 rounded-xl bg-surface-hover/40 border border-surface-border flex flex-col justify-between"
+                          className="p-2.5 rounded-xl bg-surface-hover/40 border border-surface-border flex flex-col justify-between"
                         >
-                          <span className="text-[11px] font-bold text-text-primary truncate" title={ev.titulo}>
-                            {ev.titulo}
-                          </span>
+                          <div>
+                            <span className="text-[11px] font-bold text-text-primary block truncate" title={ev.titulo}>
+                              {ev.titulo}
+                            </span>
+                            {ev.fecha_entrega && (
+                              <span className="text-[10px] font-mono text-text-muted flex items-center gap-1 mt-0.5" title={`Fecha de entrega: ${formatFechaDMY(ev.fecha_entrega)}`}>
+                                <Clock className="w-2.5 h-2.5 text-primary/70 shrink-0" />
+                                <span>Entrega: {formatFechaDMY(ev.fecha_entrega)}</span>
+                              </span>
+                            )}
+                            {ev.archivo_url && (
+                              <a
+                                href={ev.archivo_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-primary hover:underline inline-flex items-center gap-1 mt-1 font-medium"
+                                title={`Ver/Descargar archivo: ${ev.archivo_nombre || 'Consignas'}`}
+                              >
+                                <FileText className="w-2.5 h-2.5" />
+                                <span className="truncate max-w-[120px]">{ev.archivo_nombre || 'Consignas adjuntas'}</span>
+                                <Download className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1.5 mt-2">
                             {/* Original note */}
                             <button
@@ -628,20 +738,45 @@ export default function GradesTab({
                   {mainEvaluations.map(ev => {
                     const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
                     return (
-                      <th key={ev.id} className="px-3 sm:px-4 py-3 text-center border-l border-surface-border min-w-[130px]">
-                        <div className="font-bold text-text-primary truncate" title={ev.titulo}>
+                      <th key={ev.id} className="px-3 sm:px-4 py-3 text-center border-l border-surface-border min-w-[145px] align-top">
+                        <div className="font-bold text-text-primary text-xs sm:text-sm truncate" title={ev.titulo}>
                           {ev.titulo}
                         </div>
-                        <div className="flex items-center justify-center gap-1 mt-0.5">
-                          <span className="text-[10px] font-mono uppercase bg-primary/10 dark:bg-primary/20 text-primary px-1.5 py-0.2 rounded font-bold">
+                        <div className="flex items-center justify-center gap-1 mt-1 flex-wrap">
+                          <span className="text-[10px] font-mono uppercase bg-primary/10 dark:bg-primary/20 text-primary px-1.5 py-0.5 rounded font-bold">
                             {ev.tipo}
                           </span>
                           {recup && (
-                            <span className="text-[10px] font-mono uppercase bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.2 rounded font-bold">
+                            <span className="text-[10px] font-mono uppercase bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold">
                               +RECUP
                             </span>
                           )}
                         </div>
+
+                        {/* Fecha de Entrega si existe */}
+                        {ev.fecha_entrega && (
+                          <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-mono text-text-muted" title={`Fecha límite de entrega: ${formatFechaDMY(ev.fecha_entrega)}`}>
+                            <Clock className="w-3 h-3 text-primary/70 shrink-0" />
+                            <span>Entrega: {formatFechaDMY(ev.fecha_entrega)}</span>
+                          </div>
+                        )}
+
+                        {/* Archivo consignas de TP si fue subido */}
+                        {ev.archivo_url && (
+                          <div className="mt-1 flex items-center justify-center">
+                            <a
+                              href={ev.archivo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                              title={`Descargar consignas: ${ev.archivo_nombre || 'Documento adjunto'}`}
+                            >
+                              <FileText className="w-3 h-3 shrink-0" />
+                              <span className="truncate max-w-[85px]">{ev.archivo_nombre || 'Consignas'}</span>
+                              <Download className="w-2.5 h-2.5 shrink-0" />
+                            </a>
+                          </div>
+                        )}
                       </th>
                     );
                   })}
@@ -790,11 +925,21 @@ export default function GradesTab({
       {/* Modal / Bottom Sheet Nueva Evaluación */}
       <Modal
         isOpen={isNewEvalModalOpen}
-        onClose={() => setIsNewEvalModalOpen(false)}
+        onClose={() => {
+          setIsNewEvalModalOpen(false);
+          setEvalFile(null);
+        }}
         title="Crear Nueva Evaluación"
-        subtitle="Registra un Parcial, Trabajo Práctico o Recuperatorio"
+        subtitle="Registra un Parcial, Trabajo Práctico o Recuperatorio con fecha de entrega y consignas"
       >
         <form onSubmit={handleCreateEvaluacion} className="space-y-4">
+          <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-text-secondary leading-relaxed flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <span>
+              Puedes registrar la evaluación ahora y subir sus consignas. Se guardará de inmediato y los estudiantes no serán penalizados mientras el trabajo esté en plazo de entrega.
+            </span>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
               Título o Nombre de la Evaluación *
@@ -802,27 +947,48 @@ export default function GradesTab({
             <input
               type="text"
               required
-              placeholder="Ej: Parcial N° 1, TP N° 2"
+              placeholder="Ej: TP N° 1 - Modelado Relacional, Parcial 1..."
               value={evalTitulo}
               onChange={(e) => setEvalTitulo(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-              Tipo de Evaluación
-            </label>
-            <select
-              value={evalTipo}
-              onChange={(e) => setEvalTipo(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary cursor-pointer"
-            >
-              <option value="PARCIAL">Parcial (Instancia Mayor)</option>
-              <option value="TP">Trabajo Práctico Obligatorio</option>
-              <option value="PRUEBA">Prueba Escrita / Evaluación Periódica</option>
-              <option value="RECUPERATORIO">Recuperatorio</option>
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+                Tipo de Evaluación *
+              </label>
+              <select
+                value={evalTipo}
+                onChange={(e) => setEvalTipo(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary cursor-pointer"
+              >
+                <option value="PARCIAL">Parcial (Instancia Mayor)</option>
+                <option value="TP">Trabajo Práctico Obligatorio</option>
+                <option value="PRUEBA">Prueba Escrita / Evaluación Periódica</option>
+                <option value="RECUPERATORIO">Recuperatorio</option>
+              </select>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold uppercase text-text-secondary">
+                  Fecha de Entrega (Opcional)
+                </label>
+                {evalFechaEntrega && (
+                  <span className="text-[10px] font-mono text-primary font-bold">
+                    {formatFechaDMY(evalFechaEntrega)}
+                  </span>
+                )}
+              </div>
+              <input
+                type="date"
+                value={evalFechaEntrega}
+                onChange={(e) => setEvalFechaEntrega(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+              />
+            </div>
           </div>
 
           {evalTipo === 'RECUPERATORIO' && (
@@ -845,12 +1011,74 @@ export default function GradesTab({
             </div>
           )}
 
+          {/* Subir archivo de Trabajo Práctico / Consignas */}
+          <div>
+            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+              Subir Consignas / Documento del Trabajo Práctico (Opcional)
+            </label>
+            {!evalFile ? (
+              <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-surface-border rounded-2xl cursor-pointer hover:border-primary/50 hover:bg-surface-hover transition-all group">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-2 group-hover:scale-110 transition-transform">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-text-primary">
+                  Haz clic para adjuntar las consignas
+                </span>
+                <span className="text-[11px] text-text-muted mt-0.5">
+                  Formatos admitidos: PDF, Word (.doc, .docx), Excel, ZIP
+                </span>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setEvalFile(e.target.files[0]);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </label>
+            ) : (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-hover border border-surface-border">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-text-primary truncate">
+                      {evalFile.name}
+                    </p>
+                    <p className="text-[10px] text-text-muted font-mono">
+                      {(evalFile.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEvalFile(null)}
+                  className="p-1.5 rounded-lg hover:bg-danger/10 text-text-muted hover:text-danger transition-colors"
+                  title="Quitar archivo adjunto"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">
-            <Button variant="secondary" onClick={() => setIsNewEvalModalOpen(false)} type="button">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsNewEvalModalOpen(false);
+                setEvalFile(null);
+              }}
+              type="button"
+              disabled={savingEval}
+            >
               Cancelar
             </Button>
             <Button type="submit" loading={savingEval}>
-              Crear Evaluación
+              Guardar Evaluación
             </Button>
           </div>
         </form>

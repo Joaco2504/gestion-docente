@@ -1,7 +1,4 @@
-/**
- * LÓGICA DE NEGOCIO ACADÉMICA (DocentePro)
- * Manejo de cálculo de asistencia, recuperatorios y condición final (Promocional/Regular/Libre/Aprobado).
- */
+import { isDatePast } from './dateUtils';
 
 /**
  * Calcula el porcentaje de asistencia de un alumno.
@@ -133,14 +130,33 @@ export function calcularCondicionFinal(
   // =========================================================================
   // NIVEL TERCIARIO: Promocional, Regular, Libre
   // =========================================================================
+  if (notasMap.size === 0) {
+    return {
+      condicion: 'EN CURSO',
+      color: 'text-text-muted',
+      badgeVariant: 'default',
+      motivo: evaluaciones.length > 0
+        ? `${evaluaciones.length} evaluación(es) en curso / pendientes de entrega`
+        : 'Sin evaluaciones calificadas aún'
+    };
+  }
+
   const parciales = evaluaciones.filter(e => e.tipo === 'PARCIAL');
   const tps = evaluaciones.filter(e => e.tipo === 'TP');
   const recuperatorios = evaluaciones.filter(e => e.tipo === 'RECUPERATORIO');
 
-  // Verificar TPs (deben estar todos aprobados con >= notaMinReg)
+  // Verificar TPs (se exige aprobación con >= notaMinReg para los TPs ya calificados o vencidos)
   let todosTpsAprobados = true;
-  if (tps.length > 0) {
-    for (const tp of tps) {
+  const tpsExigibles = tps.filter(tp => {
+    // Si el TP tiene fecha de entrega futura y el alumno aún no tiene nota, está en plazo de entrega
+    if (tp.fecha_entrega && !isDatePast(tp.fecha_entrega) && !notasMap.has(tp.id)) {
+      return false;
+    }
+    return true;
+  });
+
+  if (tpsExigibles.length > 0) {
+    for (const tp of tpsExigibles) {
       const v = notasMap.get(tp.id);
       if (v === undefined || v < notaMinReg) {
         todosTpsAprobados = false;
@@ -149,12 +165,19 @@ export function calcularCondicionFinal(
     }
   }
 
-  // Parciales y recuperatorios
+  // Parciales y recuperatorios exigibles (excluyendo parciales con fecha futura sin calificar)
   let recupsUsados = 0;
   let todosParcialesReg = true;
   let todosParcialesPromo = true;
 
-  for (const p of parciales) {
+  const parcialesExigibles = parciales.filter(p => {
+    if (p.fecha_entrega && !isDatePast(p.fecha_entrega) && !notasMap.has(p.id)) {
+      return false;
+    }
+    return true;
+  });
+
+  for (const p of parcialesExigibles) {
     const notaOrig = notasMap.get(p.id);
     const recupLinked = recuperatorios.find(r => r.evaluacion_origen_id === p.id);
     const notaRecup = recupLinked ? notasMap.get(recupLinked.id) : undefined;
