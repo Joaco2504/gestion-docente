@@ -50,7 +50,11 @@ export default function Footer() {
           <div className="flex items-center gap-3 shrink-0 flex-wrap justify-center">
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => {
+                navigate('/dashboard');
+                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+              }}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
             >
               <span>Explorar Mis Cátedras</span>
@@ -59,7 +63,11 @@ export default function Footer() {
 
             <button
               type="button"
-              onClick={() => navigate('/calendario')}
+              onClick={() => {
+                navigate('/calendario');
+                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+              }}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-surface-hover hover:bg-surface border border-surface-border text-text-primary text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <Calendar className="w-4 h-4 text-primary" />

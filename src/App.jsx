@@ -18,6 +18,7 @@ import InstitutionsPage from './pages/InstitutionsPage';
 import SettingsPage from './pages/SettingsPage';
 import GuidesPage from './pages/GuidesPage';
 import SupportPage from './pages/SupportPage';
+import ScrollToTop from './components/common/ScrollToTop';
 import { GraduationCap } from 'lucide-react';
 
 export default function App() {
@@ -68,6 +69,8 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      {/* Scroll restoration helper: resets scroll to top on every navigation */}
+      <ScrollToTop />
       <div className="min-h-screen flex flex-col bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary">
         {/* Sonner Floating Notifications */}
         <Toaster 

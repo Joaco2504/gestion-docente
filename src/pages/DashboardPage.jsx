@@ -743,7 +743,11 @@ export default function DashboardPage() {
           <Button
             variant="outline"
             icon={CalendarIcon}
-            onClick={() => navigate('/calendario')}
+            onClick={() => {
+              navigate('/calendario');
+              window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+              document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            }}
             className="flex-1 sm:flex-initial text-xs"
           >
             Ver Calendario

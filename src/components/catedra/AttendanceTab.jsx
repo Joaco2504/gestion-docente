@@ -13,7 +13,10 @@ import {
   Percent,
   ShieldAlert,
   FileText,
-  Trash2
+  Trash2,
+  BookOpen,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -25,6 +28,8 @@ import { SkeletonTable } from '../common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { formatFechaDMY, parseDMYtoYMD, getTodayYMD } from '../../lib/dateUtils';
+import { DECRETO_1092_CATAMARCA } from '../../data/decreto1092Catamarca';
+import LicenciasDecreto1092Table from './LicenciasDecreto1092Table';
 
 export default function AttendanceTab({
   catedraId,
@@ -48,10 +53,24 @@ export default function AttendanceTab({
   const [isInasistenciaModalOpen, setIsInasistenciaModalOpen] = useState(false);
   const [fechaInasistencia, setFechaInasistencia] = useState(new Date().toISOString().split('T')[0]);
   const [tipoInasistencia, setTipoInasistencia] = useState('LICENCIA');
-  const [articuloLicencia, setArticuloLicencia] = useState('Art. 44 - Razones de Salud');
+  const [articuloLicencia, setArticuloLicencia] = useState('Art. 17° - Afecciones Comunes de Corto Tratamiento');
   const [otroArticulo, setOtroArticulo] = useState('');
   const [obsInasistencia, setObsInasistencia] = useState('');
   const [savingInasistencia, setSavingInasistencia] = useState(false);
+
+  // Estados para Tabla Resumen Decreto Acuerdo N° 1092 Catamarca
+  const [isDecretoModalOpen, setIsDecretoModalOpen] = useState(false);
+  const [isLicenciasApartadoOpen, setIsLicenciasApartadoOpen] = useState(true);
+
+  // Opciones completas de artículos oficiales según Decreto Acuerdo N° 1092/2015
+  const articuloOptions = React.useMemo(() => [
+    ...DECRETO_1092_CATAMARCA.map(art => ({
+      value: `${art.numero} - ${art.titulo}`,
+      label: `${art.numero} - ${art.titulo}`,
+      badge: art.conGoce.toLowerCase().includes('con goce') ? 'Con goce' : undefined
+    })),
+    { value: 'OTRO', label: 'Otro artículo o motivo específico...' }
+  ], []);
 
   useEffect(() => {
     fetchData();
@@ -427,11 +446,11 @@ export default function AttendanceTab({
               setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
               if (inasistenciaActual) {
                 setTipoInasistencia(inasistenciaActual.tipo || 'LICENCIA');
-                setArticuloLicencia(inasistenciaActual.articulo_licencia || 'Art. 44 - Razones de Salud');
+                setArticuloLicencia(inasistenciaActual.articulo_licencia || 'Art. 17° - Afecciones Comunes de Corto Tratamiento');
                 setObsInasistencia(inasistenciaActual.observaciones || '');
               } else {
                 setTipoInasistencia('LICENCIA');
-                setArticuloLicencia('Art. 44 - Razones de Salud');
+                setArticuloLicencia('Art. 17° - Afecciones Comunes de Corto Tratamiento');
                 setOtroArticulo('');
                 setObsInasistencia('');
               }
@@ -629,6 +648,59 @@ export default function AttendanceTab({
         </div>
       )}
 
+      {/* ========================================================
+          APARTADO: RÉGIMEN DE LICENCIAS DOCENTES - DECRETO 1092
+         ======================================================== */}
+      <div className="mt-8 pt-6 border-t border-surface-border space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 sm:p-5 rounded-2xl border border-surface-border shadow-xs">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/20 shadow-xs">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-extrabold text-text-primary tracking-tight">
+                  Régimen de Licencias Docentes — Decreto Acuerdo N° 1092
+                </h3>
+                <Badge variant="primary" className="text-[10px] uppercase font-bold">
+                  Catamarca
+                </Badge>
+              </div>
+              <p className="text-xs text-text-muted mt-0.5">
+                Ministerio de Educación, Ciencia y Tecnología • Tabla oficial de justificaciones, licencias y franquicias.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={isLicenciasApartadoOpen ? ChevronUp : ChevronDown}
+              onClick={() => setIsLicenciasApartadoOpen(!isLicenciasApartadoOpen)}
+              className="text-xs"
+            >
+              {isLicenciasApartadoOpen ? 'Contraer Tabla' : 'Ver Tabla Resumen'}
+            </Button>
+          </div>
+        </div>
+
+        {isLicenciasApartadoOpen && (
+          <div className="animate-fadeIn">
+            <LicenciasDecreto1092Table
+              onSelectArticle={(art) => {
+                setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
+                setArticuloLicencia(`${art.numero} - ${art.titulo}`);
+                setTipoInasistencia('LICENCIA');
+                setIsInasistenciaModalOpen(true);
+                toast.info(`Artículo seleccionado: ${art.numero}. Completa la fecha y confirma.`);
+              }}
+              selectedArticleNumero={articuloLicencia}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Modal / Bottom Sheet Nueva Clase */}
       <Modal
         isOpen={isModalOpen}
@@ -739,19 +811,23 @@ export default function AttendanceTab({
           {tipoInasistencia === 'LICENCIA' && (
             <div className="space-y-3 animate-fadeIn">
               <div>
-                <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-                  Artículo de Licencia *
-                </label>
+                <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                  <label className="block text-xs font-semibold uppercase text-text-secondary">
+                    Artículo de Licencia *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsDecretoModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline hover:text-primary-hover transition-colors cursor-pointer"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Ver Tabla Resumen Decreto 1092</span>
+                  </button>
+                </div>
                 <CustomSelect
                   value={articuloLicencia}
                   onChange={(val) => setArticuloLicencia(typeof val === 'object' ? val.target.value : val)}
-                  options={[
-                    { value: 'Art. 44 - Razones de Salud / Afección Común', label: 'Art. 44 - Razones de Salud / Afección Común' },
-                    { value: 'Art. 50 - Examen / Perfeccionamiento Docente', label: 'Art. 50 - Examen / Perfeccionamiento Docente' },
-                    { value: 'Art. 5 - Donación de Sangre / Cargas Públicas', label: 'Art. 5 - Donación de Sangre / Cargas Públicas' },
-                    { value: 'Art. 11 - Duelo Familiar / Cuidado de Familiar', label: 'Art. 11 - Duelo Familiar / Cuidado de Familiar' },
-                    { value: 'OTRO', label: 'Otro artículo específico...' }
-                  ]}
+                  options={articuloOptions}
                   placeholder="Seleccionar artículo de licencia..."
                 />
               </div>
@@ -805,6 +881,39 @@ export default function AttendanceTab({
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Interactivo con Tabla Resumen Decreto Acuerdo N° 1092/2015 Catamarca */}
+      <Modal
+        isOpen={isDecretoModalOpen}
+        onClose={() => setIsDecretoModalOpen(false)}
+        title="Régimen de Licencias Docentes — Decreto Acuerdo N° 1092/2015"
+        subtitle="Ministerio de Educación, Ciencia y Tecnología de Catamarca • Tabla Resumen Oficial"
+        maxWidth="max-w-4xl"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-text-muted">
+            Consulta los artículos vigentes o haz clic en <strong>"Elegir"</strong> en cualquier fila para seleccionar automáticamente el artículo correspondiente a tu inasistencia.
+          </p>
+          <LicenciasDecreto1092Table
+            onSelectArticle={(art) => {
+              setArticuloLicencia(`${art.numero} - ${art.titulo}`);
+              setTipoInasistencia('LICENCIA');
+              setIsDecretoModalOpen(false);
+              toast.success(`Artículo asignado: ${art.numero} - ${art.titulo}`);
+            }}
+            selectedArticleNumero={articuloLicencia}
+          />
+          <div className="flex justify-end pt-3 border-t border-surface-border">
+            <Button
+              variant="secondary"
+              onClick={() => setIsDecretoModalOpen(false)}
+              type="button"
+            >
+              Cerrar Tabla
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

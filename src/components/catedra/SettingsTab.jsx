@@ -53,66 +53,89 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
   ]);
 
+  // Initial snapshot to automatically detect dirty/modified state
+  const [initialSnapshot, setInitialSnapshot] = useState(null);
+
   useEffect(() => {
     if (catedra) {
-      setNombre(catedra.nombre || '');
-      setModalidad(catedra.modalidad || 'ANUAL');
-      setNivel(catedra.nivel || 'TERCIARIO');
-      setHorarios(Array.isArray(catedra.horarios_semanales) ? catedra.horarios_semanales : []);
-      fetchCriterios();
-      fetchPeriodos();
+      const initNombre = catedra.nombre || '';
+      const initMod = catedra.modalidad || 'ANUAL';
+      const initNivel = catedra.nivel || 'TERCIARIO';
+      const initHorarios = Array.isArray(catedra.horarios_semanales) ? catedra.horarios_semanales : [];
+      setNombre(initNombre);
+      setModalidad(initMod);
+      setNivel(initNivel);
+      setHorarios(initHorarios);
+      loadAllSettings(initNombre, initMod, initNivel, initHorarios);
     }
   }, [catedra]);
 
-  const fetchCriterios = async () => {
+  const loadAllSettings = async (initNombre, initMod, initNivel, initHorarios) => {
+    let loadedCrit = {
+      min_asist_promo: 80,
+      min_asist_reg: 70,
+      nota_min_promo: 7,
+      nota_min_reg: 4,
+      nota_min_sec: 6
+    };
+    let loadedPers = [
+      { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
+      { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
+      { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
+    ];
+
     try {
       if (isSupabaseConfigured && !isDemo) {
-        const { data, error } = await supabase
+        const { data: critData } = await supabase
           .from('criterios_evaluacion')
           .select('*')
           .eq('catedra_id', catedra.id)
           .single();
 
-        if (data) {
-          setCriterios({
-            min_asist_promo: Number(data.min_asist_promo) || 80,
-            min_asist_reg: Number(data.min_asist_reg) || 70,
-            nota_min_promo: Number(data.nota_min_promo) || 7,
-            nota_min_reg: Number(data.nota_min_reg) || 4,
-            nota_min_sec: Number(data.nota_min_sec) || 6
-          });
+        if (critData) {
+          loadedCrit = {
+            min_asist_promo: Number(critData.min_asist_promo) || 80,
+            min_asist_reg: Number(critData.min_asist_reg) || 70,
+            nota_min_promo: Number(critData.nota_min_promo) || 7,
+            nota_min_reg: Number(critData.nota_min_reg) || 4,
+            nota_min_sec: Number(critData.nota_min_sec) || 6
+          };
+        }
+
+        if (catedra?.ciclo_id) {
+          const { data: perData } = await supabase
+            .from('periodos_academicos')
+            .select('*')
+            .eq('ciclo_id', catedra.ciclo_id)
+            .order('fecha_inicio', { ascending: true });
+
+          if (perData && perData.length > 0) {
+            loadedPers = perData;
+          }
         }
       } else {
-        const stored = localStorage.getItem(`criterios_${catedra.id}`);
-        if (stored) {
-          setCriterios(JSON.parse(stored));
+        const storedCrit = localStorage.getItem(`criterios_${catedra.id}`);
+        if (storedCrit) {
+          loadedCrit = JSON.parse(storedCrit);
+        }
+        const storedPer = localStorage.getItem(`periodos_${catedra?.ciclo_id || catedra?.id}`);
+        if (storedPer) {
+          loadedPers = JSON.parse(storedPer);
         }
       }
     } catch (err) {
-      console.warn('Could not fetch criteria:', err);
-    }
-  };
-
-  const fetchPeriodos = async () => {
-    try {
-      if (isSupabaseConfigured && !isDemo && catedra?.ciclo_id) {
-        const { data, error } = await supabase
-          .from('periodos_academicos')
-          .select('*')
-          .eq('ciclo_id', catedra.ciclo_id)
-          .order('fecha_inicio', { ascending: true });
-
-        if (data && data.length > 0) {
-          setPeriodos(data);
-        }
-      } else {
-        const stored = localStorage.getItem(`periodos_${catedra?.ciclo_id || catedra?.id}`);
-        if (stored) {
-          setPeriodos(JSON.parse(stored));
-        }
-      }
-    } catch (err) {
-      console.warn('Could not fetch periodos:', err);
+      console.warn('Could not fetch settings data:', err);
+    } finally {
+      setCriterios(loadedCrit);
+      setPeriodos(loadedPers);
+      setInitialSnapshot(JSON.stringify({
+        nombre: (initNombre || '').trim(),
+        modalidad: initMod,
+        nivel: initNivel,
+        horarios: initHorarios,
+        criterios: loadedCrit,
+        periodos: loadedPers
+      }));
     }
   };
 
@@ -150,8 +173,21 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     setHorarios(updated);
   };
 
+  const currentSnapshot = JSON.stringify({
+    nombre: (nombre || '').trim(),
+    modalidad,
+    nivel,
+    horarios,
+    criterios,
+    periodos
+  });
+
+  const isDirty = Boolean(initialSnapshot && initialSnapshot !== currentSnapshot);
+
   const handleSaveAll = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
     setLoading(true);
     setSaveSuccess(false);
     setErrorMessage('');
@@ -233,6 +269,15 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         localStorage.setItem(`periodos_${catedra?.ciclo_id || catedra?.id}`, JSON.stringify(periodos));
         if (onCatedraUpdated) onCatedraUpdated(updatedCat);
       }
+
+      setInitialSnapshot(JSON.stringify({
+        nombre: (nombre || '').trim(),
+        modalidad,
+        nivel,
+        horarios,
+        criterios,
+        periodos
+      }));
 
       setSaveSuccess(true);
       toast.success('Configuración, criterios y períodos guardados exitosamente.');
@@ -599,6 +644,41 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
           Guardar Cambios de Configuración
         </Button>
       </div>
+
+      {/* Botón Circular Flotante (FAB) al detectar cambios automáticos */}
+      {isDirty && (
+        <div className="fixed bottom-20 md:bottom-8 right-6 md:right-8 z-50 flex items-center gap-3 animate-fadeIn">
+          {/* Badge informativo lateral */}
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/95 dark:bg-[#0c1322]/95 backdrop-blur-md border border-primary/40 shadow-xl text-xs font-bold text-text-primary">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
+            <span>Cambios sin guardar</span>
+          </div>
+
+          {/* Botón circular con icono de guardar */}
+          <button
+            type="button"
+            onClick={handleSaveAll}
+            disabled={loading}
+            title="Guardar cambios pendientes (detectados automáticamente)"
+            aria-label="Guardar cambios de configuración"
+            className="relative group w-14 h-14 rounded-full bg-gradient-to-r from-primary to-primary-hover hover:brightness-110 active:scale-95 text-white shadow-2xl shadow-primary/50 flex items-center justify-center transition-all duration-200 border-2 border-white/30 focus:outline-hidden cursor-pointer"
+          >
+            {/* Distintivo animado en la esquina */}
+            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border border-white text-[9px] font-black text-white items-center justify-center">
+                !
+              </span>
+            </span>
+
+            {loading ? (
+              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Save className="w-6 h-6 drop-shadow-md group-hover:scale-110 transition-transform" />
+            )}
+          </button>
+        </div>
+      )}
     </form>
   );
 }
