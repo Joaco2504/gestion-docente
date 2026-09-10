@@ -14,6 +14,7 @@ import {
 import Button from '../common/Button';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
+import CustomSelect from '../common/CustomSelect';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -270,14 +271,14 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
             <label className="block text-xs font-medium text-text-secondary mb-1">
               Régimen / Modalidad
             </label>
-            <select
+            <CustomSelect
               value={modalidad}
-              onChange={(e) => setModalidad(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-surface-border rounded-lg bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            >
-              <option value="ANUAL">Anual</option>
-              <option value="CUATRIMESTRAL">Cuatrimestral</option>
-            </select>
+              onChange={(val) => setModalidad(typeof val === 'object' ? val.target.value : val)}
+              options={[
+                { value: 'ANUAL', label: 'Anual' },
+                { value: 'CUATRIMESTRAL', label: 'Cuatrimestral' }
+              ]}
+            />
           </div>
         </div>
       </Card>
@@ -317,15 +318,12 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                 className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-lg bg-surface-hover/40 border border-surface-border"
               >
                 <div className="w-full sm:w-36">
-                  <select
+                  <CustomSelect
                     value={slot.dia}
-                    onChange={(e) => handleHorarioChange(index, 'dia', e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs font-semibold border border-surface-border rounded-lg bg-surface text-text-primary"
-                  >
-                    {DAYS_OF_WEEK.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleHorarioChange(index, 'dia', typeof val === 'object' ? val.target.value : val)}
+                    options={DAYS_OF_WEEK.map((d) => ({ value: d, label: d }))}
+                    buttonClassName="py-1.5 px-2.5 text-xs font-semibold"
+                  />
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -417,15 +415,16 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                 <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
                   Tipo
                 </label>
-                <select
+                <CustomSelect
                   value={p.tipo}
-                  onChange={(e) => handlePeriodoChange(index, 'tipo', e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-surface-border rounded-lg bg-surface text-text-primary font-medium"
-                >
-                  <option value="CUATRIMESTRE">Cuatrimestre</option>
-                  <option value="TRIMESTRE">Trimestre</option>
-                  <option value="RECESO">Receso Invernal</option>
-                </select>
+                  onChange={(val) => handlePeriodoChange(index, 'tipo', typeof val === 'object' ? val.target.value : val)}
+                  options={[
+                    { value: 'CUATRIMESTRE', label: 'Cuatrimestre' },
+                    { value: 'TRIMESTRE', label: 'Trimestre' },
+                    { value: 'RECESO', label: 'Receso Invernal' }
+                  ]}
+                  buttonClassName="py-1.5 px-2.5 text-xs font-medium"
+                />
               </div>
 
               <div className="flex-1 grid grid-cols-2 gap-2">

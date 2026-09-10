@@ -4,9 +4,10 @@ import { Toaster } from 'sonner';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
-import Sidebar from './components/layout/Sidebar';
+import DualSidebar from './components/layout/DualSidebar';
 import BottomNav from './components/layout/BottomNav';
 import HeaderSelector from './components/layout/HeaderSelector';
+import Footer from './components/layout/Footer';
 
 // Pages
 import AuthPage from './pages/AuthPage';
@@ -81,18 +82,18 @@ export default function App() {
 
         {/* Main Shell */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar Navigation (Responsive: Mobile Drawer, Tablet Rail, Desktop Expanded) */}
-          <Sidebar 
+          {/* Dual-Sidebar Navigation (Icon Rail 64px + Secondary Expandable Tree 224px) */}
+          <DualSidebar 
             isOpen={sidebarOpen} 
             onClose={() => setSidebarOpen(false)} 
           />
 
           {/* Content Area with extra bottom padding on mobile for BottomNav */}
-          <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 max-w-7xl w-full mx-auto">
-            {/* Institution and Academic Year Global Context Bar */}
-            <HeaderSelector />
+          <main className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 w-full">
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Global Context Bar: Institución y Ciclo Activo */}
+              <HeaderSelector />
 
-            <div className="mt-6">
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
@@ -104,6 +105,9 @@ export default function App() {
                 <Route path="/soporte" element={<SupportPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
+
+              {/* Institutional Footer & Dark Enterprise CTA Banner */}
+              <Footer />
             </div>
           </main>
         </div>

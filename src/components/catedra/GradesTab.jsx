@@ -26,6 +26,7 @@ import Button from '../common/Button';
 import Badge from '../common/Badge';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
+import CustomSelect from '../common/CustomSelect';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { exportGradesToExcel } from '../../lib/excel';
@@ -959,16 +960,16 @@ export default function GradesTab({
               <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
                 Tipo de Evaluación *
               </label>
-              <select
+              <CustomSelect
                 value={evalTipo}
-                onChange={(e) => setEvalTipo(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary cursor-pointer"
-              >
-                <option value="PARCIAL">Parcial (Instancia Mayor)</option>
-                <option value="TP">Trabajo Práctico Obligatorio</option>
-                <option value="PRUEBA">Prueba Escrita / Evaluación Periódica</option>
-                <option value="RECUPERATORIO">Recuperatorio</option>
-              </select>
+                onChange={(val) => setEvalTipo(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: 'PARCIAL', label: 'Parcial (Instancia Mayor)', badge: 'Mayor' },
+                  { value: 'TP', label: 'Trabajo Práctico Obligatorio', badge: 'TP' },
+                  { value: 'PRUEBA', label: 'Prueba Escrita / Periódica', badge: 'Prueba' },
+                  { value: 'RECUPERATORIO', label: 'Recuperatorio', badge: 'Recup' }
+                ]}
+              />
             </div>
 
             <div>
@@ -996,18 +997,18 @@ export default function GradesTab({
               <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
                 Vincular al Parcial Original (Opcional)
               </label>
-              <select
+              <CustomSelect
                 value={evalOrigenId}
-                onChange={(e) => setEvalOrigenId(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary cursor-pointer"
-              >
-                <option value="">-- Sin vinculación directa --</option>
-                {evaluaciones.filter(e => e.tipo === 'PARCIAL' || e.tipo === 'PRUEBA').map(e => (
-                  <option key={e.id} value={e.id}>
-                    {e.titulo} ({e.tipo})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setEvalOrigenId(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: '', label: '-- Sin vinculación directa --' },
+                  ...evaluaciones.filter(e => e.tipo === 'PARCIAL' || e.tipo === 'PRUEBA').map(e => ({
+                    value: e.id,
+                    label: `${e.titulo} (${e.tipo})`
+                  }))
+                ]}
+                placeholder="Seleccionar evaluación original..."
+              />
             </div>
           )}
 

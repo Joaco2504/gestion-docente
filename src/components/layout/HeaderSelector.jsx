@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Building2, Calendar, ChevronDown, Plus } from 'lucide-react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
+import CustomSelect from '../common/CustomSelect';
 
 export default function HeaderSelector() {
   const {
@@ -58,69 +59,61 @@ export default function HeaderSelector() {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-surface p-3 rounded-xl border border-surface-border">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-surface p-3 rounded-2xl border border-surface-border shadow-xs">
       {/* Selector de Institución */}
-      <div className="relative flex items-center">
-        <div className="flex items-center gap-2 bg-surface-hover/60 border border-surface-border hover:border-primary/40 rounded-lg px-3 py-1.5 transition-colors">
-          <Building2 className="w-4 h-4 text-primary shrink-0" />
-          <select
-            value={selectedInstitucion?.id || ''}
-            onChange={(e) => {
-              const found = instituciones.find(i => i.id === e.target.value);
-              if (found) setSelectedInstitucion(found);
-            }}
-            className="bg-transparent text-xs sm:text-sm font-medium text-text-primary focus:outline-none cursor-pointer max-w-[160px] sm:max-w-[220px] truncate"
-          >
-            {instituciones.length === 0 ? (
-              <option value="">Sin instituciones</option>
-            ) : (
-              instituciones.map(inst => (
-                <option key={inst.id} value={inst.id}>
-                  {inst.nombre} ({inst.nivel})
-                </option>
-              ))
-            )}
-          </select>
-          <button
-            onClick={() => setIsInstModalOpen(true)}
-            title="Nueva Institución"
-            className="p-1 hover:bg-surface-hover rounded text-text-muted hover:text-text-primary transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <div className="flex items-center gap-1.5 flex-1 min-w-[200px] max-w-xs">
+        <CustomSelect
+          value={selectedInstitucion?.id || ''}
+          onChange={(val) => {
+            const targetId = typeof val === 'object' ? val.target.value : val;
+            const found = instituciones.find(i => i.id === targetId);
+            if (found) setSelectedInstitucion(found);
+          }}
+          options={instituciones.map(inst => ({
+            value: inst.id,
+            label: inst.nombre,
+            badge: inst.nivel === 'TERCIARIO' ? 'Terciario' : 'Secundario'
+          }))}
+          placeholder="Sin instituciones"
+          icon={Building2}
+          buttonClassName="py-2 text-xs"
+        />
+        <button
+          type="button"
+          onClick={() => setIsInstModalOpen(true)}
+          title="Nueva Institución"
+          className="p-2 hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border"
+        >
+          <Plus className="w-4 h-4 text-primary" />
+        </button>
       </div>
 
       {/* Selector de Ciclo Lectivo */}
-      <div className="relative flex items-center">
-        <div className="flex items-center gap-2 bg-surface-hover/60 border border-surface-border hover:border-primary/40 rounded-lg px-3 py-1.5 transition-colors">
-          <Calendar className="w-4 h-4 text-primary shrink-0" />
-          <select
-            value={selectedCiclo?.id || ''}
-            onChange={(e) => {
-              const found = ciclosLectivos.find(c => c.id === e.target.value);
-              if (found) setSelectedCiclo(found);
-            }}
-            className="bg-transparent text-xs sm:text-sm font-mono font-medium text-text-primary focus:outline-none cursor-pointer"
-          >
-            {ciclosLectivos.length === 0 ? (
-              <option value="">Sin ciclos</option>
-            ) : (
-              ciclosLectivos.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.anio} {c.activo ? '• Activo' : ''}
-                </option>
-              ))
-            )}
-          </select>
-          <button
-            onClick={() => setIsCicloModalOpen(true)}
-            title="Nuevo Ciclo Lectivo"
-            className="p-1 hover:bg-surface-hover rounded text-text-muted hover:text-text-primary transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <div className="flex items-center gap-1.5 min-w-[160px] max-w-[220px]">
+        <CustomSelect
+          value={selectedCiclo?.id || ''}
+          onChange={(val) => {
+            const targetId = typeof val === 'object' ? val.target.value : val;
+            const found = ciclosLectivos.find(c => c.id === targetId);
+            if (found) setSelectedCiclo(found);
+          }}
+          options={ciclosLectivos.map(c => ({
+            value: c.id,
+            label: `${c.anio} ${c.activo ? '• Activo' : ''}`,
+            badge: String(c.anio)
+          }))}
+          placeholder="Sin ciclos"
+          icon={Calendar}
+          buttonClassName="py-2 text-xs font-mono"
+        />
+        <button
+          type="button"
+          onClick={() => setIsCicloModalOpen(true)}
+          title="Nuevo Ciclo Lectivo"
+          className="p-2 hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border"
+        >
+          <Plus className="w-4 h-4 text-primary" />
+        </button>
       </div>
 
       {/* Modal Nueva Institución */}

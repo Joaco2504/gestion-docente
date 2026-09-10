@@ -9,66 +9,70 @@ import {
   Users, 
   Trash2, 
   AlertCircle,
-  CheckCircle2,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  ExternalLink,
-  ShieldAlert,
-  CalendarDays,
-  CalendarRange,
-  SunMedium,
-  Check,
-  Sparkles
+  CheckCircle2, 
+  Filter, 
+  ChevronLeft, 
+  ChevronRight, 
+  Download, 
+  ExternalLink, 
+  ShieldAlert, 
+  CalendarDays, 
+  CalendarRange, 
+  SunMedium, 
+  Check, 
+  Sparkles,
+  Award,
+  HelpCircle,
+  Tag
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { generateIcsContent, downloadIcsFile, getGoogleCalendarUrl } from '../lib/calendarSync';
+import { formatFechaLegible, getRelativeDateLabel, getTodayYMD } from '../lib/dateUtils';
 
-const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const MONTHS = [
+const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const SHORT_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
-
-const EVENT_TYPES = [
-  { id: 'TODOS', label: 'Todos' },
-  { id: 'CLASE', label: 'Clases Regulares', color: 'primary' },
-  { id: 'TRIBUNAL_EXAMEN', label: 'Tribunales de Examen', color: 'danger' },
-  { id: 'REUNION', label: 'Reuniones de Cátedra / Dpto', color: 'warning' },
-  { id: 'PERIODO', label: 'Cierre de Periodo / Entrega', color: 'secondary' },
-  { id: 'OTRO', label: 'Otros Eventos', color: 'default' }
 ];
 
 export default function CalendarPage() {
   const { user, isDemo } = useAuth();
   const { catedras, activeInstitucion, activeCiclo } = useApp();
 
-  // Mode: 'semanal' | 'mensual' | 'anual'
+  // Mode: 'dia' | 'semanal' | 'mensual' | 'anual'
   const [viewMode, setViewMode] = useState('semanal');
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  // Data states
   const [events, setEvents] = useState([]);
   const [clases, setClases] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
   const [periodos, setPeriodos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState('TODOS');
+
+  // Category Filter
+  const [selectedCategory, setSelectedCategory] = useState('TODOS');
+
+  // Mini calendar state for left panel
+  const [miniCalDate, setMiniCalDate] = useState(new Date());
 
   // Modals
   const [isNewEventModalOpen, setIsNewEventModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [selectedEventForDetail, setSelectedEventForDetail] = useState(null);
 
   // New Event Form State
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState('TRIBUNAL_EXAMEN');
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState(getTodayYMD());
   const [horaInicio, setHoraInicio] = useState('08:00');
   const [horaFin, setHoraFin] = useState('10:00');
   const [notas, setNotas] = useState('');
@@ -90,7 +94,7 @@ export default function CalendarPage() {
           .order('fecha_inicio', { ascending: true });
         setEvents(evData || []);
 
-        // 2. Clases Registradas de las Cátedras del Docente
+        // 2. Clases Registradas de las Cátedras
         const catIds = (catedras || []).map(c => c.id);
         if (catIds.length > 0) {
           const { data: clsData } = await supabase
@@ -123,7 +127,6 @@ export default function CalendarPage() {
           setPeriodos(getDefaultPeriods());
         }
       } else {
-        // Demo mode fallback
         loadDemoCalendarData();
       }
     } catch (err) {
@@ -141,12 +144,7 @@ export default function CalendarPage() {
   ];
 
   const loadDemoCalendarData = () => {
-    const storedEv = localStorage.getItem('demo_eventos_calendario');
-    const storedClases = localStorage.getItem('demo_clases_all');
-    const storedInasist = localStorage.getItem('demo_inasistencias_all');
-    const storedPer = localStorage.getItem('demo_periodos_all');
-
-    const sampleEvents = storedEv ? JSON.parse(storedEv) : [
+    const sampleEvents = [
       {
         id: 'ev-1',
         titulo: 'Mesa de Examen Final - Práctica Profesional',
@@ -158,162 +156,112 @@ export default function CalendarPage() {
       },
       {
         id: 'ev-2',
-        titulo: 'Reunión de Departamento de Informática',
+        titulo: 'Reunión Plenaria Docente Ciclo 2026',
         tipo: 'REUNION',
         fecha_inicio: new Date(Date.now() + 86400000 * 5).toISOString(),
         fecha_fin: new Date(Date.now() + 86400000 * 5 + 3600000).toISOString(),
-        notas: 'Definición de fechas de parciales y proyectos transversales.',
+        notas: 'Planificación cuatrimestral y pautas institucionales.',
         editable: true
       }
-    ];
-
-    const sampleClases = storedClases ? JSON.parse(storedClases) : [
-      { id: 'cls-1', catedra_id: catedras[0]?.id || 'cat-1', fecha: '2026-03-09', tema: 'Presentación de la Cátedra' },
-      { id: 'cls-2', catedra_id: catedras[0]?.id || 'cat-1', fecha: '2026-03-16', tema: 'Unidad 1 - Fundamentos' },
-      { id: 'cls-3', catedra_id: catedras[1]?.id || 'cat-2', fecha: '2026-03-17', tema: 'Normalización de Datos' }
-    ];
-
-    const sampleInasist = storedInasist ? JSON.parse(storedInasist) : [
-      { id: 'in-1', catedra_id: catedras[0]?.id || 'cat-1', fecha: '2026-03-23', tipo: 'LICENCIA', articulo_licencia: 'Art. 44', observaciones: 'Certificado de reposo médico' }
     ];
 
     setEvents(sampleEvents);
-    setClases(sampleClases);
-    setInasistenciasDocente(sampleInasist);
-    setPeriodos(storedPer ? JSON.parse(storedPer) : getDefaultPeriods());
+    setPeriodos(getDefaultPeriods());
   };
-
-  // Crear Evento / Mesa
-  const handleCreateEvent = async (e) => {
-    e.preventDefault();
-    if (!titulo.trim()) {
-      setErrorMsg('El título del evento es obligatorio.');
-      return;
-    }
-
-    setSaving(true);
-    setErrorMsg('');
-
-    try {
-      const startDateTime = new Date(`${fecha}T${horaInicio}:00`).toISOString();
-      const endDateTime = new Date(`${fecha}T${horaFin}:00`).toISOString();
-
-      const newEvent = {
-        docente_id: user?.id,
-        titulo: titulo.trim(),
-        tipo,
-        fecha_inicio: startDateTime,
-        fecha_fin: endDateTime,
-        notas: notas.trim(),
-        editable: true
-      };
-
-      if (isSupabaseConfigured && !isDemo) {
-        const { data, error } = await supabase
-          .from('eventos_calendario')
-          .insert(newEvent)
-          .select()
-          .single();
-
-        if (error) throw error;
-        setEvents([...events, data]);
-      } else {
-        const withId = { ...newEvent, id: 'ev-' + Date.now() };
-        const updated = [...events, withId];
-        setEvents(updated);
-        localStorage.setItem('demo_eventos_calendario', JSON.stringify(updated));
-      }
-
-      setIsNewEventModalOpen(false);
-      setTitulo('');
-      setNotas('');
-      toast.success('Evento registrado con éxito en el calendario.');
-    } catch (err) {
-      console.error('Error creating event:', err);
-      setErrorMsg(err.message || 'Error al guardar el evento.');
-      toast.error('Error al guardar el evento: ' + (err.message || 'Error desconocido'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteEvent = async (id) => {
-    try {
-      if (isSupabaseConfigured && !isDemo) {
-        const { error } = await supabase.from('eventos_calendario').delete().eq('id', id);
-        if (error) throw error;
-      }
-      const updated = events.filter((e) => e.id !== id);
-      setEvents(updated);
-      if (!isSupabaseConfigured || isDemo) {
-        localStorage.setItem('demo_eventos_calendario', JSON.stringify(updated));
-      }
-      toast.success('Evento eliminado del calendario.');
-    } catch (err) {
-      console.error('Error deleting event:', err);
-      toast.error('Error al eliminar el evento: ' + err.message);
-    }
-  };
-
-  // =========================================================================
-  // REGLAS ESTRICTAS DE LÍMITES DE PERÍODOS Y RECESO INVERNAL
-  // =========================================================================
-  const recesoPeriodo = periodos.find(p => p.tipo === 'RECESO');
-  const regularPeriods = periodos.filter(p => p.tipo !== 'RECESO');
 
   /**
-   * Verifica si una fecha dada cae dentro de algún período lectivo válido
-   * y NUNCA durante el receso invernal.
+   * Generación de todas las clases recurrentes de las cátedras para la fecha actual
    */
-  const isDateWithinAcademicPeriod = (dateStr) => {
-    if (!dateStr) return false;
-    
-    // 1. Si cae dentro de las fechas de receso invernal -> Excluido estrictamente
-    if (recesoPeriodo?.fecha_inicio && recesoPeriodo?.fecha_fin) {
-      if (dateStr >= recesoPeriodo.fecha_inicio && dateStr <= recesoPeriodo.fecha_fin) {
-        return false;
-      }
-    }
-
-    // 2. Si no hay periodos cargados, permitimos por defecto
-    if (regularPeriods.length === 0) return true;
-
-    // 3. Debe caer dentro de al menos un período activo (1° o 2° cuatrimestre, etc.)
-    return regularPeriods.some(p => {
-      if (!p.fecha_inicio || !p.fecha_fin) return true;
-      return dateStr >= p.fecha_inicio && dateStr <= p.fecha_fin;
+  const regularClasses = useMemo(() => {
+    const list = [];
+    (catedras || []).forEach(cat => {
+      const horarios = Array.isArray(cat.horarios_semanales) ? cat.horarios_semanales : [];
+      horarios.forEach(h => {
+        list.push({
+          id: `class-recur-${cat.id}-${h.dia}`,
+          catedra_id: cat.id,
+          catedra_nombre: cat.nombre,
+          dia_semana: h.dia,
+          desde: h.desde || '18:00',
+          hasta: h.hasta || '20:00',
+          aula: h.aula || 'Aula General',
+          nivel: cat.nivel,
+          modalidad: cat.modalidad
+        });
+      });
     });
-  };
+    return list;
+  }, [catedras]);
 
-  const isDateInRecess = (dateStr) => {
-    if (!recesoPeriodo?.fecha_inicio || !recesoPeriodo?.fecha_fin) return false;
-    return dateStr >= recesoPeriodo.fecha_inicio && dateStr <= recesoPeriodo.fecha_fin;
-  };
+  /**
+   * Cálculo de Próximo Evento / Clase para la Tarjeta de Cuenta Regresiva
+   */
+  const nextUpcomingItem = useMemo(() => {
+    const now = new Date();
+    const candidates = [];
 
-  // =========================================================================
-  // NAVEGACIÓN Y CÁLCULOS DE SEMANA Y MES
-  // =========================================================================
+    // 1. Revisar eventos futuros
+    events.forEach(ev => {
+      const evDate = new Date(ev.fecha_inicio || ev.fecha);
+      if (evDate >= now) {
+        candidates.push({
+          id: ev.id,
+          titulo: ev.titulo,
+          tipo: ev.tipo,
+          date: evDate,
+          isClass: false,
+          hora: ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : '08:00'
+        });
+      }
+    });
+
+    // 2. Revisar próximas clases según el día actual
+    const daysMap = { 'Domingo': 0, 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6 };
+    regularClasses.forEach(cls => {
+      const targetDay = daysMap[cls.dia_semana];
+      if (targetDay !== undefined) {
+        const diff = (targetDay - now.getDay() + 7) % 7;
+        const clsDate = new Date();
+        clsDate.setDate(now.getDate() + diff);
+        const [hh, mm] = (cls.desde || '18:00').split(':');
+        clsDate.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
+
+        if (clsDate >= now) {
+          candidates.push({
+            id: cls.id,
+            titulo: cls.catedra_nombre,
+            tipo: 'CLASE',
+            date: clsDate,
+            isClass: true,
+            hora: cls.desde,
+            aula: cls.aula
+          });
+        }
+      }
+    });
+
+    candidates.sort((a, b) => a.date - b.date);
+    return candidates[0] || null;
+  }, [events, regularClasses]);
+
+  /**
+   * Navegación de Fecha
+   */
   const handlePrev = () => {
     const d = new Date(currentDate);
-    if (viewMode === 'semanal') {
-      d.setDate(d.getDate() - 7);
-    } else if (viewMode === 'mensual') {
-      d.setMonth(d.getMonth() - 1);
-    } else {
-      d.setFullYear(d.getFullYear() - 1);
-    }
+    if (viewMode === 'dia') d.setDate(d.getDate() - 1);
+    else if (viewMode === 'semanal') d.setDate(d.getDate() - 7);
+    else if (viewMode === 'mensual') d.setMonth(d.getMonth() - 1);
+    else if (viewMode === 'anual') d.setFullYear(d.getFullYear() - 1);
     setCurrentDate(d);
   };
 
   const handleNext = () => {
     const d = new Date(currentDate);
-    if (viewMode === 'semanal') {
-      d.setDate(d.getDate() + 7);
-    } else if (viewMode === 'mensual') {
-      d.setMonth(d.getMonth() + 1);
-    } else {
-      d.setFullYear(d.getFullYear() + 1);
-    }
+    if (viewMode === 'dia') d.setDate(d.getDate() + 1);
+    else if (viewMode === 'semanal') d.setDate(d.getDate() + 7);
+    else if (viewMode === 'mensual') d.setMonth(d.getMonth() + 1);
+    else if (viewMode === 'anual') d.setFullYear(d.getFullYear() + 1);
     setCurrentDate(d);
   };
 
@@ -321,712 +269,801 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
-  // Cálculo de los 6 días de la semana actual (Lunes a Sábado)
-  const currentWeekDays = useMemo(() => {
-    const curr = new Date(currentDate);
-    // Calcular lunes de esta semana
-    const dayOfWeek = curr.getDay(); // 0: Dom, 1: Lun ...
-    const diffToMonday = curr.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
-    const monday = new Date(curr.setDate(diffToMonday));
+  /**
+   * Crear Nuevo Evento en Supabase o Demo
+   */
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    if (!titulo.trim()) return;
 
-    const week = [];
-    for (let i = 0; i < 6; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const iso = d.toISOString().split('T')[0];
-      week.push({
-        name: DAYS[i],
-        date: d,
-        isoDate: iso,
-        inAcademicPeriod: isDateWithinAcademicPeriod(iso),
-        inRecess: isDateInRecess(iso)
-      });
-    }
-    return week;
-  }, [currentDate, periodos]);
+    setSaving(true);
+    setErrorMsg('');
 
-  // Cátedras map para búsqueda rápida
-  const catedrasMap = useMemo(() => {
-    return new Map((catedras || []).map(c => [c.id, c]));
-  }, [catedras]);
-
-  // Consolidar slots semanales recurrentes
-  const weeklyClassSlots = useMemo(() => {
-    const slots = [];
-    (catedras || []).forEach(cat => {
-      if (Array.isArray(cat.horarios_semanales)) {
-        cat.horarios_semanales.forEach(s => {
-          slots.push({
-            catedraId: cat.id,
-            catedraNombre: cat.nombre,
-            nivel: cat.nivel,
-            dia: s.dia,
-            desde: s.desde,
-            hasta: s.hasta,
-            aula: s.aula
-          });
-        });
-      }
-    });
-    return slots;
-  }, [catedras]);
-
-  const filteredEvents = filterType === 'TODOS'
-    ? events
-    : events.filter(e => e.tipo === filterType);
-
-  // Exportar .ics
-  const handleDownloadIcs = () => {
     try {
-      const ics = generateIcsContent(events, clases, catedras);
-      downloadIcsFile('agenda_docentepro_2026.ics', ics);
-      toast.success('Archivo .ics descargado exitosamente. Ya puedes importarlo en Google Calendar, Outlook o Apple Calendar.');
-      setIsSyncModalOpen(false);
+      const startIso = `${fecha}T${horaInicio}:00`;
+      const endIso = `${fecha}T${horaFin}:00`;
+
+      if (isSupabaseConfigured && !isDemo && user) {
+        const { data, error } = await supabase
+          .from('eventos_calendario')
+          .insert({
+            docente_id: user.id,
+            institucion_id: activeInstitucion?.id || null,
+            ciclo_id: activeCiclo?.id || null,
+            titulo: titulo.trim(),
+            tipo,
+            fecha_inicio: startIso,
+            fecha_fin: endIso,
+            notas: notas.trim()
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setEvents(prev => [...prev, data]);
+        toast.success(`Evento "${titulo}" registrado`);
+      } else {
+        const newEv = {
+          id: 'ev-' + Date.now(),
+          titulo: titulo.trim(),
+          tipo,
+          fecha_inicio: startIso,
+          fecha_fin: endIso,
+          notas: notas.trim(),
+          editable: true
+        };
+        setEvents(prev => [...prev, newEv]);
+        toast.success(`Evento "${titulo}" creado (Modo Demo)`);
+      }
+
+      setIsNewEventModalOpen(false);
+      setTitulo('');
+      setNotas('');
     } catch (err) {
-      toast.error('Error al generar archivo de calendario: ' + err.message);
+      console.error('Error creating event:', err);
+      setErrorMsg(err.message || 'Error al guardar el evento');
+    } finally {
+      setSaving(false);
     }
   };
 
+  /**
+   * Eliminar Evento
+   */
+  const handleDeleteEvent = async (eventId) => {
+    if (!confirm('¿Estás seguro de eliminar este evento del calendario?')) return;
+    try {
+      if (isSupabaseConfigured && !isDemo) {
+        const { error } = await supabase
+          .from('eventos_calendario')
+          .delete()
+          .eq('id', eventId);
+        if (error) throw error;
+      }
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+      setSelectedEventForDetail(null);
+      toast.success('Evento eliminado del calendario');
+    } catch (err) {
+      toast.error('Error al eliminar evento: ' + err.message);
+    }
+  };
+
+  /**
+   * Exportar archivo .ics
+   */
+  const handleDownloadIcs = () => {
+    try {
+      const ics = generateIcsContent(events, catedras);
+      downloadIcsFile(ics, `calendario_docente_${new Date().getFullYear()}.ics`);
+      toast.success('Archivo .ics descargado con éxito');
+      setIsSyncModalOpen(false);
+    } catch (err) {
+      toast.error('Error al generar archivo .ics: ' + err.message);
+    }
+  };
+
+  /**
+   * Días del mes para el Mini Calendario en el Panel Izquierdo
+   */
+  const miniCalMonthDays = useMemo(() => {
+    const year = miniCalDate.getFullYear();
+    const month = miniCalDate.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    // Normalizar a Lunes = 0
+    const offset = (firstDayIndex + 6) % 7;
+    const days = [];
+
+    // Días vacíos previos
+    for (let i = 0; i < offset; i++) {
+      days.push(null);
+    }
+    // Días del mes
+    for (let d = 1; d <= totalDays; d++) {
+      days.push(new Date(year, month, d));
+    }
+    return days;
+  }, [miniCalDate]);
+
+  /**
+   * Colores y Estilos Pastel según la Categoría
+   */
+  const getEventStyle = (tipo) => {
+    switch (tipo) {
+      case 'CLASE':
+        return {
+          bg: 'bg-blue-50/90 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800/60 hover:border-blue-400',
+          badge: 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200',
+          text: 'text-blue-900 dark:text-blue-100',
+          tag: 'Clase Regular',
+          dot: 'bg-blue-500'
+        };
+      case 'TRIBUNAL_EXAMEN':
+        return {
+          bg: 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 hover:border-rose-400',
+          badge: 'bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200',
+          text: 'text-rose-900 dark:text-rose-100',
+          tag: 'Examen / Mesa',
+          dot: 'bg-rose-500'
+        };
+      case 'REUNION':
+        return {
+          bg: 'bg-sky-50/90 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800/60 hover:border-sky-400',
+          badge: 'bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-200',
+          text: 'text-sky-900 dark:text-sky-100',
+          tag: 'Reunión Docente',
+          dot: 'bg-sky-500'
+        };
+      case 'PERIODO':
+        return {
+          bg: 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 hover:border-amber-400',
+          badge: 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200',
+          text: 'text-amber-900 dark:text-amber-100',
+          tag: 'Cierre de Período',
+          dot: 'bg-amber-500'
+        };
+      default:
+        return {
+          bg: 'bg-slate-50/90 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-slate-400',
+          badge: 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200',
+          text: 'text-slate-900 dark:text-slate-100',
+          tag: 'Compromiso',
+          dot: 'bg-slate-400'
+        };
+    }
+  };
+
+  /**
+   * Rango de fechas visibles en la cabecera
+   */
+  const formattedHeaderRange = useMemo(() => {
+    if (viewMode === 'dia') {
+      return formatFechaLegible(currentDate);
+    }
+    if (viewMode === 'mensual') {
+      return `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    }
+    if (viewMode === 'anual') {
+      return `Ciclo Lectivo ${currentDate.getFullYear()}`;
+    }
+    // Semanal: inicio y fin de semana
+    const startOfWeek = new Date(currentDate);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 5);
+
+    return `${startOfWeek.getDate()} de ${MONTH_NAMES[startOfWeek.getMonth()]} - ${endOfWeek.getDate()} de ${MONTH_NAMES[endOfWeek.getMonth()]} ${endOfWeek.getFullYear()}`;
+  }, [viewMode, currentDate]);
+
   return (
-    <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
-      {/* Top Header Card with View Switcher */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-surface p-5 rounded-2xl border border-surface-border shadow-xs">
+    <div className="space-y-6 pb-12 animate-fadeIn max-w-7xl mx-auto">
+      {/* Top Header con Sincronización y Acciones */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs font-mono uppercase tracking-wider text-text-muted">
-              Agenda Docente 2026
-            </span>
-            {recesoPeriodo && (
-              <Badge variant="warning" className="text-[10px] font-semibold">
-                Receso Invernal: {recesoPeriodo.fecha_inicio} al {recesoPeriodo.fecha_fin}
-              </Badge>
-            )}
-          </div>
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-            Calendario Académico y Horarios de Cursada
-          </h1>
-          <p className="text-xs text-text-secondary mt-0.5">
-            Sincronización semanal, mensual y anual con límites de cursada y exclusión de receso invernal.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end flex-wrap sm:flex-nowrap">
-          {/* View Switcher (Semanal / Mensual / Anual) */}
-          <div className="inline-flex rounded-xl bg-surface-hover p-1 border border-surface-border">
-            <button
-              type="button"
-              onClick={() => setViewMode('semanal')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
-                viewMode === 'semanal'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Semanal</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('mensual')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
-                viewMode === 'mensual'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>Mensual</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('anual')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
-                viewMode === 'anual'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <CalendarRange className="w-3.5 h-3.5" />
-              <span>Anual</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              icon={Download}
-              onClick={() => setIsSyncModalOpen(true)}
-              className="text-xs"
-              title="Exportar y sincronizar con Google Calendar"
-            >
-              Sincronizar Google Calendar
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              onClick={() => {
-                setErrorMsg('');
-                setIsNewEventModalOpen(true);
-              }}
-              className="text-xs"
-            >
-              Nuevo Evento
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Date Navigation Bar */}
-      <div className="flex items-center justify-between bg-surface px-4 py-3 rounded-2xl border border-surface-border shadow-xs">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrev}
-            className="p-1.5 rounded-xl hover:bg-surface-hover text-text-secondary hover:text-text-primary transition-colors touch-target-44"
-            title="Anterior"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleToday}
-            className="px-3 py-1 rounded-xl text-xs font-semibold bg-surface-hover text-text-primary hover:bg-surface-hover/80 transition-colors"
-          >
-            Hoy
-          </button>
-          <button
-            onClick={handleNext}
-            className="p-1.5 rounded-xl hover:bg-surface-hover text-text-secondary hover:text-text-primary transition-colors touch-target-44"
-            title="Siguiente"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-
-          <span className="text-sm font-bold text-text-primary ml-2">
-            {viewMode === 'semanal' && (
-              <>
-                Semana del {currentWeekDays[0]?.date.getDate()} de {MONTHS[currentWeekDays[0]?.date.getMonth()]} al {currentWeekDays[5]?.date.getDate()} de {MONTHS[currentWeekDays[5]?.date.getMonth()]} de {currentDate.getFullYear()}
-              </>
-            )}
-            {viewMode === 'mensual' && (
-              <>
-                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-              </>
-            )}
-            {viewMode === 'anual' && (
-              <>
-                Ciclo Lectivo {currentDate.getFullYear()}
-              </>
-            )}
-          </span>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-2">
-          {regularPeriods.map(p => (
-            <span key={p.id} className="text-[11px] font-medium text-text-muted">
-              <strong>{p.nombre}:</strong> {p.fecha_inicio} al {p.fecha_fin}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* ===================================================================== */}
-      {/* VISTA 1: SEMANAL */}
-      {/* ===================================================================== */}
-      {viewMode === 'semanal' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Grilla Semanal (2 Cols) */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {currentWeekDays.map((dayInfo) => {
-                // Clases del horario regular correspondientes a este día
-                const daySlots = weeklyClassSlots.filter(s => s.dia === dayInfo.name);
-                
-                // Clases efectivamente registradas en el sistema para esta fecha específica
-                const registeredClassesForDate = clases.filter(c => c.fecha === dayInfo.isoDate);
-
-                // Inasistencias docentes registradas para esta fecha
-                const absenceForDate = inasistenciasDocente.find(i => i.fecha === dayInfo.isoDate);
-
-                return (
-                  <div
-                    key={dayInfo.isoDate}
-                    className={`p-3 rounded-2xl border flex flex-col min-h-[190px] transition-all ${
-                      dayInfo.inRecess
-                        ? 'bg-amber-500/5 border-amber-500/20'
-                        : !dayInfo.inAcademicPeriod
-                        ? 'bg-surface/50 border-surface-border opacity-70'
-                        : 'bg-surface border-surface-border shadow-xs'
-                    }`}
-                  >
-                    {/* Header del Día */}
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-surface-border">
-                      <div>
-                        <span className="text-xs font-bold text-text-primary block">
-                          {dayInfo.name}
-                        </span>
-                        <span className="text-[11px] font-mono text-text-muted">
-                          {dayInfo.date.getDate()} de {MONTHS[dayInfo.date.getMonth()]}
-                        </span>
-                      </div>
-
-                      {dayInfo.inRecess ? (
-                        <Badge variant="warning" className="text-[9px] font-bold">
-                          Receso
-                        </Badge>
-                      ) : !dayInfo.inAcademicPeriod ? (
-                        <Badge variant="default" className="text-[9px]">
-                          Fuera de Término
-                        </Badge>
-                      ) : (
-                        <span className="text-[10px] font-mono font-bold text-text-muted">
-                          {daySlots.length + registeredClassesForDate.length}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Contenido del Día */}
-                    <div className="space-y-2 flex-1">
-                      {/* Caso 1: Receso Invernal (Regla estricta: NO hay clases) */}
-                      {dayInfo.inRecess ? (
-                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center my-auto">
-                          <SunMedium className="w-5 h-5 text-amber-600 dark:text-amber-400 mx-auto mb-1 opacity-70" />
-                          <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
-                            Receso Invernal
-                          </p>
-                          <p className="text-[10px] text-text-muted mt-0.5">
-                            Sin actividades académicas ni dictado de clases.
-                          </p>
-                        </div>
-                      ) : !dayInfo.inAcademicPeriod ? (
-                        /* Caso 2: Fuera de límites de cursada */
-                        <div className="p-3 rounded-xl bg-surface-hover text-center my-auto">
-                          <p className="text-[11px] font-medium text-text-muted italic">
-                            Fuera del período de cursada regular
-                          </p>
-                        </div>
-                      ) : (
-                        /* Caso 3: Período Regular Activo */
-                        <>
-                          {/* Banner de Licencia Docente si existe en este día */}
-                          {absenceForDate && (
-                            <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-                              <span className="text-[10px] font-bold">
-                                {absenceForDate.tipo === 'LICENCIA'
-                                  ? `Licencia: ${absenceForDate.articulo_licencia || 'Art.'}`
-                                  : 'Docente Ausente'}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Clases registradas en la fecha */}
-                          {registeredClassesForDate.map(rc => {
-                            const cat = catedrasMap.get(rc.catedra_id);
-                            return (
-                              <div
-                                key={rc.id}
-                                className="p-2 rounded-xl bg-primary/10 border border-primary/20 shadow-xs border-l-4 border-l-primary"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <h5 className="text-xs font-bold text-text-primary truncate">
-                                    {cat?.nombre || 'Clase Registrada'}
-                                  </h5>
-                                  <Badge variant="primary" className="text-[9px] px-1 py-0">
-                                    Dictada
-                                  </Badge>
-                                </div>
-                                <p className="text-[10px] text-text-muted mt-0.5 truncate">
-                                  {rc.tema || 'Sin tema registrado'}
-                                </p>
-                              </div>
-                            );
-                          })}
-
-                          {/* Horarios recurrentes proyectados (si no hay registrada) */}
-                          {daySlots.length === 0 && registeredClassesForDate.length === 0 ? (
-                            <span className="text-[11px] text-text-muted italic block pt-3 text-center">
-                              Sin clases programadas
-                            </span>
-                          ) : (
-                            daySlots.map((slot, i) => (
-                              <div
-                                key={i}
-                                className="p-2 rounded-xl bg-surface-hover/60 border border-surface-border shadow-xs"
-                              >
-                                <h5 className="text-xs font-bold text-text-primary truncate">
-                                  {slot.catedraNombre}
-                                </h5>
-                                <div className="flex items-center justify-between mt-1 text-[10px] font-mono text-text-muted">
-                                  <span>{slot.desde} - {slot.hasta}</span>
-                                  {slot.aula && <span className="text-text-secondary">{slot.aula}</span>}
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 rounded-2xl bg-primary/10 text-primary shrink-0">
+              <CalendarIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-primary">
+                  Calendario y Agenda Docente
+                </h1>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {activeCiclo ? `Ciclo ${activeCiclo.anio}` : 'Multi-Cátedra'}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                Organización de clases de cátedra, tribunales de examen final y cronograma institucional.
+              </p>
             </div>
           </div>
+        </div>
 
-          {/* Special Events & Google Calendar Fast Sync (1 Col) */}
-          <div className="space-y-4">
-            <Card>
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-surface-border">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-primary" />
-                  <h3 className="text-sm font-bold text-text-primary">
-                    Mesas, Exámenes y Compromisos
-                  </h3>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Button
+            variant="outline"
+            icon={Download}
+            onClick={() => setIsSyncModalOpen(true)}
+            className="text-xs"
+          >
+            Sincronizar (.ics)
+          </Button>
+
+          <Button
+            variant="primary"
+            icon={Plus}
+            onClick={() => setIsNewEventModalOpen(true)}
+            className="text-xs shadow-xs"
+          >
+            Nuevo Evento / Mesa
+          </Button>
+        </div>
+      </div>
+
+      {/* ========================================================
+          MULTI-PANEL LAYOUT (LEFT CONTROL PANEL + CENTRAL GRID)
+         ======================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ========================================================
+            1. PANEL DE CONTROL OSCURO / LATERAL IZQUIERDO (4 Cols)
+           ======================================================== */}
+        <div className="lg:col-span-4 space-y-4">
+          <div className="bg-[#0c1322] border border-[#1a263e] rounded-3xl p-5 text-slate-200 shadow-elevated-dark space-y-5">
+            {/* Header del Panel de Control */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <CalendarRange className="w-4 h-4 text-[#00C2CB]" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                  Navegación Rápida
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleToday}
+                className="text-[11px] font-semibold text-[#00C2CB] hover:underline"
+              >
+                Ir a Hoy
+              </button>
+            </div>
+
+            {/* A. MINI CALENDARIO MENSUAL INTERACTIVO */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold text-white">
+                  {MONTH_NAMES[miniCalDate.getMonth()]} {miniCalDate.getFullYear()}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(miniCalDate);
+                      d.setMonth(d.getMonth() - 1);
+                      setMiniCalDate(d);
+                    }}
+                    className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(miniCalDate);
+                      d.setMonth(d.getMonth() + 1);
+                      setMiniCalDate(d);
+                    }}
+                    className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
-                <Badge variant="default" className="text-xs font-mono">
-                  {filteredEvents.length}
-                </Badge>
               </div>
 
-              {/* Event Type Filter */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-3 scrollbar-thin">
-                {EVENT_TYPES.slice(0, 4).map((et) => (
-                  <button
-                    key={et.id}
-                    onClick={() => setFilterType(et.id)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
-                      filterType === et.id
-                        ? 'bg-primary text-white font-semibold'
-                        : 'bg-surface-hover text-text-muted hover:text-text-primary'
-                    }`}
-                  >
-                    {et.label}
-                  </button>
+              {/* Días de la semana abreviados */}
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-mono text-slate-400 font-bold">
+                {SHORT_DAYS.map((sd, i) => (
+                  <span key={i}>{sd}</span>
                 ))}
               </div>
 
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                </div>
-              ) : filteredEvents.length === 0 ? (
-                <div className="text-center py-8 text-text-muted">
-                  <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-xs">No hay eventos ni mesas en esta categoría.</p>
+              {/* Grilla de días */}
+              <div className="grid grid-cols-7 gap-1">
+                {miniCalMonthDays.map((d, i) => {
+                  if (!d) return <div key={`empty-${i}`} className="h-7 w-7" />;
+                  const isSelected = d.toDateString() === currentDate.toDateString();
+                  const isToday = d.toDateString() === new Date().toDateString();
+
+                  // Determinar si hay eventos o clases este día
+                  const dStr = d.toISOString().split('T')[0];
+                  const hasEv = events.some(e => (e.fecha_inicio || e.fecha || '').startsWith(dStr));
+
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setCurrentDate(d)}
+                      className={`
+                        h-7 w-7 rounded-lg text-xs font-mono font-medium transition-all flex flex-col items-center justify-center relative
+                        ${isSelected 
+                          ? 'bg-primary text-white font-bold shadow-sm' 
+                          : isToday 
+                            ? 'border border-[#00C2CB] text-[#00C2CB] hover:bg-slate-800' 
+                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                        }
+                      `}
+                    >
+                      <span>{d.getDate()}</span>
+                      {hasEv && (
+                        <span className="w-1 h-1 rounded-full bg-rose-400 -mt-0.5" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* B. TARJETA DESTACADA: CUENTA REGRESIVA / PRÓXIMO EVENTO */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-950/40 to-slate-900 border border-blue-900/40 space-y-2.5 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#00C2CB] flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Próximo Compromiso</span>
+                </span>
+                {nextUpcomingItem && (
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">
+                    {getRelativeDateLabel(nextUpcomingItem.date.toISOString().split('T')[0])}
+                  </span>
+                )}
+              </div>
+
+              {nextUpcomingItem ? (
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug">
+                    {nextUpcomingItem.titulo}
+                  </h4>
+                  <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-300 font-mono">
+                    <span className="text-white font-semibold">
+                      {nextUpcomingItem.hora} hs
+                    </span>
+                    <span>•</span>
+                    <span className="text-slate-400 truncate">
+                      {nextUpcomingItem.isClass ? (nextUpcomingItem.aula || 'Aula regular') : 'Examen / Compromiso'}
+                    </span>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
-                  {filteredEvents.map((ev) => {
-                    const sDate = new Date(ev.fecha_inicio);
-                    const googleUrl = getGoogleCalendarUrl(ev);
-
-                    return (
-                      <div
-                        key={ev.id}
-                        className="p-3.5 rounded-xl bg-surface-hover/50 border border-surface-border flex flex-col justify-between group"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <Badge variant={ev.tipo === 'TRIBUNAL_EXAMEN' ? 'danger' : 'primary'}>
-                            {ev.tipo.replace('_', ' ')}
-                          </Badge>
-                          <div className="flex items-center gap-1">
-                            <a
-                              href={googleUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1 rounded text-text-muted hover:text-primary transition-colors"
-                              title="Añadir a Google Calendar"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                            <button
-                              onClick={() => handleDeleteEvent(ev.id)}
-                              className="text-text-muted hover:text-danger p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Eliminar evento"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <h4 className="text-xs font-bold text-text-primary mt-2">
-                          {ev.titulo}
-                        </h4>
-
-                        <div className="flex items-center gap-1.5 text-[11px] font-mono text-text-muted mt-1">
-                          <Clock className="w-3 h-3" />
-                          <span>
-                            {sDate.toLocaleDateString('es-AR')} • {sDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
-                          </span>
-                        </div>
-
-                        {ev.notas && (
-                          <p className="text-[11px] text-text-secondary mt-2 bg-surface p-2 rounded-lg border border-surface-border">
-                            {ev.notas}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                <p className="text-xs text-slate-400">
+                  No tienes clases ni exámenes pendientes programados.
+                </p>
               )}
-            </Card>
+            </div>
+
+            {/* C. FILTROS POR CATEGORÍAS ESTILIZADOS */}
+            <div className="space-y-2 pt-2 border-t border-slate-800">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Filtrar por Categoría
+              </span>
+
+              <div className="space-y-1.5 text-xs">
+                {[
+                  { id: 'TODOS', label: 'Todas las categorías', color: 'bg-slate-400' },
+                  { id: 'CLASE', label: 'Clases de Cátedra', color: 'bg-blue-500' },
+                  { id: 'TRIBUNAL_EXAMEN', label: 'Exámenes & Tribunales', color: 'bg-rose-500' },
+                  { id: 'REUNION', label: 'Reuniones Institucionales', color: 'bg-sky-500' },
+                  { id: 'PERIODO', label: 'Períodos & Recesos', color: 'bg-amber-500' }
+                ].map(catItem => {
+                  const isActive = selectedCategory === catItem.id;
+                  return (
+                    <button
+                      key={catItem.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(catItem.id)}
+                      className={`
+                        w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-left font-medium
+                        ${isActive 
+                          ? 'bg-slate-800 text-white border border-slate-700 shadow-xs' 
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-2.5 h-2.5 rounded-full ${catItem.color}`} />
+                        <span>{catItem.label}</span>
+                      </div>
+                      {isActive && <Check className="w-3.5 h-3.5 text-[#00C2CB]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* ===================================================================== */}
-      {/* VISTA 2: MENSUAL */}
-      {/* ===================================================================== */}
-      {viewMode === 'mensual' && (
-        <Card className="p-4 sm:p-6 space-y-4">
-          {/* Header días de la semana */}
-          <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs font-bold text-text-muted pb-2 border-b border-surface-border">
-            <span>Lun</span>
-            <span>Mar</span>
-            <span>Mié</span>
-            <span>Jue</span>
-            <span>Vie</span>
-            <span>Sáb</span>
-            <span>Dom</span>
+        {/* ========================================================
+            2. CUADRÍCULA CENTRAL DE HORARIOS Y AGENDA (8 Cols)
+           ======================================================== */}
+        <div className="lg:col-span-8 space-y-4">
+          {/* Barra de Control de Vistas y Rango de Fecha */}
+          <div className="bg-surface rounded-2xl border border-surface-border p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Navegación Anterior / Siguiente / Hoy */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  className="p-1.5 rounded-xl border border-surface-border hover:bg-surface-hover text-text-muted hover:text-text-primary transition-colors"
+                  title="Anterior"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleToday}
+                  className="px-3 py-1.5 rounded-xl border border-surface-border hover:bg-surface-hover text-xs font-semibold text-text-primary transition-colors"
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="p-1.5 rounded-xl border border-surface-border hover:bg-surface-hover text-text-muted hover:text-text-primary transition-colors"
+                  title="Siguiente"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <span className="text-xs sm:text-sm font-bold text-text-primary font-mono truncate">
+                {formattedHeaderRange}
+              </span>
+            </div>
+
+            {/* SELECTOR DE VISTAS ESTILO PILL: DÍA, SEMANA, MES, AÑO */}
+            <div className="flex items-center bg-surface-hover/80 p-1 rounded-xl border border-surface-border w-full sm:w-auto justify-center">
+              {[
+                { id: 'dia', label: 'Día' },
+                { id: 'semanal', label: 'Semana' },
+                { id: 'mensual', label: 'Mes' },
+                { id: 'anual', label: 'Año' }
+              ].map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setViewMode(v.id)}
+                  className={`
+                    px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                    ${viewMode === v.id
+                      ? 'bg-surface text-primary shadow-xs'
+                      : 'text-text-muted hover:text-text-primary'
+                    }
+                  `}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Cuadrícula de días */}
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {(() => {
-              const year = currentDate.getFullYear();
-              const month = currentDate.getMonth();
-              const firstDay = new Date(year, month, 1);
-              const lastDay = new Date(year, month + 1, 0);
-              
-              // Ajuste para que lunes sea día 0
-              let startOffset = firstDay.getDay() - 1;
-              if (startOffset === -1) startOffset = 6;
+          {/* ========================================================
+              VISTA 1: DÍA (DAY VIEW)
+             ======================================================== */}
+          {viewMode === 'dia' && (
+            <div className="bg-surface rounded-2xl border border-surface-border p-4 sm:p-6 space-y-4 shadow-xs">
+              <div className="border-b border-surface-border pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-text-primary">
+                    Agenda del {formatFechaLegible(currentDate)}
+                  </h3>
+                  <p className="text-xs text-text-muted">Horarios y compromisos asignados para la jornada</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon={Plus}
+                  onClick={() => {
+                    setFecha(currentDate.toISOString().split('T')[0]);
+                    setIsNewEventModalOpen(true);
+                  }}
+                  className="text-xs"
+                >
+                  Agregar a este día
+                </Button>
+              </div>
 
-              const cells = [];
+              {/* Eventos y Clases de este Día */}
+              <div className="space-y-3">
+                {(() => {
+                  const currIso = currentDate.toISOString().split('T')[0];
+                  const currDayName = DAYS_OF_WEEK[(currentDate.getDay() + 6) % 7];
 
-              // Días vacíos al principio
-              for (let i = 0; i < startOffset; i++) {
-                cells.push(
-                  <div key={`empty-${i}`} className="min-h-[90px] sm:min-h-[110px] p-1 bg-surface-hover/10 rounded-xl border border-dashed border-surface-border opacity-30" />
-                );
-              }
+                  // Filtrar clases de cátedra regulares para este día
+                  const matchingClasses = (selectedCategory === 'TODOS' || selectedCategory === 'CLASE')
+                    ? regularClasses.filter(c => c.dia_semana === currDayName)
+                    : [];
 
-              // Días del mes
-              for (let d = 1; d <= lastDay.getDate(); d++) {
-                const dayDate = new Date(year, month, d);
-                const isoStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const inRecess = isDateInRecess(isoStr);
-                const inPeriod = isDateWithinAcademicPeriod(isoStr);
-                const dayClasses = clases.filter(c => c.fecha === isoStr);
-                const dayAbsence = inasistenciasDocente.find(i => i.fecha === isoStr);
-                const dayEvents = events.filter(e => e.fecha_inicio?.startsWith(isoStr));
-                const isToday = new Date().toISOString().split('T')[0] === isoStr;
+                  // Filtrar eventos de calendario
+                  const matchingEvents = events.filter(e => {
+                    if (selectedCategory !== 'TODOS' && e.tipo !== selectedCategory) return false;
+                    const evIso = (e.fecha_inicio || e.fecha || '').split('T')[0];
+                    return evIso === currIso;
+                  });
 
-                cells.push(
-                  <div
-                    key={isoStr}
-                    className={`min-h-[90px] sm:min-h-[110px] p-2 rounded-xl border flex flex-col justify-between transition-all ${
-                      isToday
-                        ? 'border-primary shadow-xs ring-1 ring-primary'
-                        : inRecess
-                        ? 'bg-amber-500/5 border-amber-500/20'
-                        : !inPeriod
-                        ? 'bg-surface/50 border-surface-border opacity-60'
-                        : 'bg-surface border-surface-border hover:border-primary/40'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-bold font-mono ${isToday ? 'text-primary' : 'text-text-primary'}`}>
-                        {d}
-                      </span>
-                      {inRecess && (
-                        <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/20 px-1 rounded">
-                          Receso
-                        </span>
-                      )}
-                    </div>
+                  if (matchingClasses.length === 0 && matchingEvents.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-text-muted space-y-2">
+                        <CalendarIcon className="w-8 h-8 mx-auto opacity-40" />
+                        <p className="text-xs">No tienes clases ni eventos programados para este día.</p>
+                      </div>
+                    );
+                  }
 
-                    <div className="space-y-1 my-1 flex-1 overflow-hidden">
-                      {dayAbsence && (
-                        <div className="text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/20 px-1 py-0.5 rounded truncate">
-                          {dayAbsence.tipo === 'LICENCIA' ? `Lic: ${dayAbsence.articulo_licencia || 'Art'}` : 'Falta'}
-                        </div>
-                      )}
-                      {dayClasses.map(c => {
-                        const cat = catedrasMap.get(c.catedra_id);
+                  return (
+                    <div className="space-y-3">
+                      {/* Clases regulares */}
+                      {matchingClasses.map(cls => {
+                        const styles = getEventStyle('CLASE');
                         return (
-                          <div key={c.id} className="text-[9px] font-semibold text-primary bg-primary/10 px-1 py-0.5 rounded truncate">
-                            {cat?.nombre || 'Clase'}
+                          <div
+                            key={cls.id}
+                            className={`p-4 rounded-2xl border transition-all ${styles.bg} flex items-start justify-between gap-3`}
+                          >
+                            <div className="space-y-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles.badge}`}>
+                                Clase de Cátedra
+                              </span>
+                              <h4 className={`text-sm font-bold ${styles.text}`}>
+                                {cls.catedra_nombre}
+                              </h4>
+                              <p className="text-xs text-text-secondary">
+                                {cls.nivel} • {cls.aula}
+                              </p>
+                            </div>
+                            <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary shrink-0">
+                              {cls.desde} - {cls.hasta} hs
+                            </span>
                           </div>
                         );
                       })}
-                      {dayEvents.map(e => (
-                        <div key={e.id} className="text-[9px] font-semibold text-danger bg-danger/10 px-1 py-0.5 rounded truncate">
-                          {e.titulo}
-                        </div>
-                      ))}
+
+                      {/* Eventos registrados */}
+                      {matchingEvents.map(ev => {
+                        const styles = getEventStyle(ev.tipo);
+                        const timeBadge = ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : '08:00';
+                        return (
+                          <div
+                            key={ev.id}
+                            onClick={() => setSelectedEventForDetail(ev)}
+                            className={`p-4 rounded-2xl border cursor-pointer transition-all ${styles.bg} flex items-start justify-between gap-3`}
+                          >
+                            <div className="space-y-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles.badge}`}>
+                                {styles.tag}
+                              </span>
+                              <h4 className={`text-sm font-bold ${styles.text}`}>
+                                {ev.titulo}
+                              </h4>
+                              {ev.notas && (
+                                <p className="text-xs text-text-secondary line-clamp-2">
+                                  {ev.notas}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary">
+                                {timeBadge} hs
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteEvent(ev.id);
+                                }}
+                                className="p-1 text-text-muted hover:text-rose-600 rounded"
+                                title="Eliminar evento"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
 
-                    <div className="text-[9px] font-mono text-text-muted text-right">
-                      {dayClasses.length + dayEvents.length > 0 ? `${dayClasses.length + dayEvents.length} act.` : ''}
-                    </div>
-                  </div>
-                );
-              }
-
-              return cells;
-            })()}
-          </div>
-        </Card>
-      )}
-
-      {/* ===================================================================== */}
-      {/* VISTA 3: ANUAL */}
-      {/* ===================================================================== */}
-      {viewMode === 'anual' && (
-        <div className="space-y-6">
-          {/* Tarjetas de Resumen de Períodos del Año */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {periodos.map((p) => {
-              const isRecess = p.tipo === 'RECESO';
-              return (
-                <Card
-                  key={p.id}
-                  className={`p-4 border-l-4 ${
-                    isRecess ? 'border-l-amber-500 bg-amber-500/5' : 'border-l-primary'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-bold text-text-primary">
-                      {p.nombre}
-                    </h3>
-                    <Badge variant={isRecess ? 'warning' : 'primary'}>
-                      {p.tipo}
-                    </Badge>
-                  </div>
-                  <p className="text-xs font-mono text-text-muted">
-                    {p.fecha_inicio ? `Desde: ${p.fecha_inicio}` : 'Inicio sin definir'}
-                  </p>
-                  <p className="text-xs font-mono text-text-muted mt-0.5">
-                    {p.fecha_fin ? `Hasta: ${p.fecha_fin}` : 'Fin sin definir'}
-                  </p>
-                  <p className="text-[11px] text-text-secondary mt-2">
-                    {isRecess 
-                      ? 'Vacaciones de invierno. Clases suspendidas sin cómputo de falta.'
-                      : 'Período regular de dictado de clases y evaluación.'}
-                  </p>
-                </Card>
-              );
-            })}
-          </div>
-
-          {/* Grilla Anual de los 12 meses */}
-          <Card className="p-6">
-            <h3 className="text-sm font-bold text-text-primary mb-4 pb-2 border-b border-surface-border">
-              Mapa Anual de Actividad Lectiva ({currentDate.getFullYear()})
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {MONTHS.map((mName, mIdx) => {
-                const isCurrentMonth = new Date().getMonth() === mIdx && new Date().getFullYear() === currentDate.getFullYear();
-                const daysInMonth = new Date(currentDate.getFullYear(), mIdx + 1, 0).getDate();
-
-                // Clases dictadas en este mes
-                const monthClases = clases.filter(c => {
-                  const [y, m] = (c.fecha || '').split('-').map(Number);
-                  return y === currentDate.getFullYear() && m === (mIdx + 1);
-                });
-
-                // Eventos en este mes
-                const monthEvents = events.filter(e => {
-                  if (!e.fecha_inicio) return false;
-                  const d = new Date(e.fecha_inicio);
-                  return d.getFullYear() === currentDate.getFullYear() && d.getMonth() === mIdx;
-                });
+          {/* ========================================================
+              VISTA 2: SEMANAL (WEEK VIEW)
+             ======================================================== */}
+          {viewMode === 'semanal' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+              {DAYS_OF_WEEK.map((diaName) => {
+                // Clases regulares de este día de la semana
+                const dayClasses = (selectedCategory === 'TODOS' || selectedCategory === 'CLASE')
+                  ? regularClasses.filter(c => c.dia_semana === diaName)
+                  : [];
 
                 return (
                   <div
-                    key={mName}
-                    className={`p-3 rounded-xl border transition-all ${
-                      isCurrentMonth
-                        ? 'border-primary ring-1 ring-primary bg-primary/5'
-                        : 'border-surface-border bg-surface-hover/30'
-                    }`}
+                    key={diaName}
+                    className="bg-surface rounded-2xl border border-surface-border p-4 space-y-3 shadow-xs flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-text-primary">
-                        {mName}
-                      </span>
-                      {isCurrentMonth && (
-                        <Badge variant="primary" className="text-[9px]">Actual</Badge>
-                      )}
+                    <div>
+                      {/* Cabecera del Día */}
+                      <div className="flex items-center justify-between border-b border-surface-border pb-2.5">
+                        <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
+                          {diaName}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-text-muted">
+                          {dayClasses.length} {dayClasses.length === 1 ? 'materia' : 'materias'}
+                        </span>
+                      </div>
+
+                      {/* Tarjetas de clases del día */}
+                      <div className="mt-3 space-y-2">
+                        {dayClasses.length === 0 ? (
+                          <p className="text-[11px] text-text-muted italic py-3 text-center">
+                            Sin cátedras fijas este día
+                          </p>
+                        ) : (
+                          dayClasses.map(cls => {
+                            const styles = getEventStyle('CLASE');
+                            return (
+                              <div
+                                key={cls.id}
+                                className={`p-3 rounded-xl border transition-all ${styles.bg} space-y-1.5`}
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <h4 className="text-xs font-bold text-text-primary truncate">
+                                    {cls.catedra_nombre}
+                                  </h4>
+                                  <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.2 rounded shrink-0">
+                                    {cls.desde}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] text-text-muted">
+                                  <span>{cls.aula || 'Aula regular'}</span>
+                                  <span>{cls.hasta} hs</span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
-                    <p className="text-[10px] text-text-muted font-mono">{daysInMonth} días</p>
-                    <div className="mt-3 flex items-center justify-between text-[11px] text-text-secondary">
-                      <span>{monthClases.length} clases</span>
-                      <span className="font-semibold text-primary">{monthEvents.length} eventos</span>
-                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsNewEventModalOpen(true);
+                      }}
+                      className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-primary hover:underline pt-2 border-t border-surface-border/60"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Agregar Compromiso</span>
+                    </button>
                   </div>
                 );
               })}
             </div>
-          </Card>
+          )}
+
+          {/* ========================================================
+              VISTA 3: MENSUAL (MONTH VIEW)
+             ======================================================== */}
+          {viewMode === 'mensual' && (
+            <div className="bg-surface rounded-2xl border border-surface-border p-4 sm:p-5 shadow-xs space-y-3">
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono font-bold text-text-muted pb-2 border-b border-surface-border">
+                {DAYS_OF_WEEK.map((d, i) => (
+                  <span key={i} className="truncate">{d.substring(0, 3)}</span>
+                ))}
+                <span className="truncate">Dom</span>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5">
+                {miniCalMonthDays.map((d, idx) => {
+                  if (!d) {
+                    return <div key={`empty-month-${idx}`} className="min-h-[70px] bg-surface-hover/20 rounded-xl" />;
+                  }
+
+                  const dStr = d.toISOString().split('T')[0];
+                  const isToday = d.toDateString() === new Date().toDateString();
+                  const isSelected = d.toDateString() === currentDate.toDateString();
+
+                  // Eventos de este día
+                  const dayEvents = events.filter(e => {
+                    const evDate = (e.fecha_inicio || e.fecha || '').split('T')[0];
+                    return evDate === dStr;
+                  });
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setCurrentDate(d);
+                        setViewMode('dia');
+                      }}
+                      className={`
+                        min-h-[70px] p-1.5 rounded-xl border text-xs cursor-pointer transition-all flex flex-col justify-between
+                        ${isSelected 
+                          ? 'border-primary bg-primary/5 shadow-xs' 
+                          : isToday 
+                            ? 'border-[#00C2CB] bg-[#00C2CB]/5' 
+                            : 'border-surface-border hover:border-primary/40 hover:bg-surface-hover/50'
+                        }
+                      `}
+                    >
+                      <span className={`font-mono font-bold text-[11px] ${isToday ? 'text-primary' : 'text-text-primary'}`}>
+                        {d.getDate()}
+                      </span>
+
+                      <div className="space-y-1 overflow-hidden">
+                        {dayEvents.slice(0, 2).map((ev) => (
+                          <div
+                            key={ev.id}
+                            className="text-[9px] font-semibold px-1 py-0.5 rounded bg-rose-500/10 text-rose-700 dark:text-rose-300 truncate"
+                            title={ev.titulo}
+                          >
+                            {ev.titulo}
+                          </div>
+                        ))}
+                        {dayEvents.length > 2 && (
+                          <span className="text-[9px] font-mono text-text-muted">
+                            +{dayEvents.length - 2} más
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              VISTA 4: ANUAL (YEAR VIEW)
+             ======================================================== */}
+          {viewMode === 'anual' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {MONTH_NAMES.map((mName, mIdx) => (
+                <div
+                  key={mName}
+                  onClick={() => {
+                    const d = new Date(currentDate);
+                    d.setMonth(mIdx);
+                    setCurrentDate(d);
+                    setViewMode('mensual');
+                  }}
+                  className="bg-surface p-3 rounded-2xl border border-surface-border hover:border-primary/40 cursor-pointer transition-all shadow-xs space-y-2"
+                >
+                  <div className="flex items-center justify-between border-b border-surface-border pb-1">
+                    <span className="text-xs font-bold text-text-primary">{mName}</span>
+                    <span className="text-[10px] font-mono text-text-muted">{currentDate.getFullYear()}</span>
+                  </div>
+
+                  <div className="py-2 text-center text-xs text-text-muted">
+                    <span>Haz clic para explorar el mes</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* ===================================================================== */}
-      {/* MODAL: Sincronización Google Calendar / Descargar .ics */}
-      {/* ===================================================================== */}
-      <Modal
-        isOpen={isSyncModalOpen}
-        onClose={() => setIsSyncModalOpen(false)}
-        title="Sincronizar con Google Calendar"
-        subtitle="Exporta tu cronograma completo a tu calendario digital"
-      >
-        <div className="space-y-4">
-          <div className="p-3.5 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary leading-relaxed">
-            <strong>Compatibilidad Total:</strong> Genera un archivo estándar RFC 5545 (<code>.ics</code>) que puedes importar en Google Calendar, Apple Calendar, Outlook o el calendario de tu celular.
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold uppercase text-text-secondary tracking-wider">
-              Paso a Paso para Google Calendar:
-            </h4>
-            <ol className="text-xs text-text-muted space-y-1.5 list-decimal pl-4">
-              <li>Haz clic en <strong>Descargar archivo .ics</strong> abajo.</li>
-              <li>Abre <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-primary underline">calendar.google.com</a> en tu navegador.</li>
-              <li>Ve a <strong>Configuración (engranaje) &gt; Importar y exportar</strong>.</li>
-              <li>Selecciona el archivo descargado y confirma la importación.</li>
-            </ol>
-          </div>
-
-          <div className="pt-3 border-t border-surface-border flex justify-end gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setIsSyncModalOpen(false)}
-              type="button"
-            >
-              Cerrar
-            </Button>
-            <Button
-              variant="primary"
-              icon={Download}
-              onClick={handleDownloadIcs}
-            >
-              Descargar Archivo .ics
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* ===================================================================== */}
-      {/* MODAL: Nuevo Evento / Mesa */}
-      {/* ===================================================================== */}
+      {/* ========================================================
+          MODAL FLOTANTE: CREAR / EDITAR EVENTO (rounded-2xl shadow-2xl)
+         ======================================================== */}
       <Modal
         isOpen={isNewEventModalOpen}
         onClose={() => setIsNewEventModalOpen(false)}
         title="Crear Evento en Calendario"
-        subtitle="Mesa de examen final, reunión departamental o fecha clave"
+        subtitle="Mesa de examen final, reunión departamental o fecha clave institucional"
       >
         <form onSubmit={handleCreateEvent} className="space-y-4">
           {errorMsg && (
@@ -1036,7 +1073,7 @@ export default function CalendarPage() {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">
+            <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
               Título del Evento o Mesa *
             </label>
             <input
@@ -1044,70 +1081,70 @@ export default function CalendarPage() {
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
               placeholder="Ej: Mesa de Examen Final - Práctica Profesionalizante"
-              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">
+            <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
               Tipo de Evento *
             </label>
-            <select
+            <CustomSelect
               value={tipo}
-              onChange={(e) => setTipo(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="TRIBUNAL_EXAMEN">Tribunal de Examen / Mesa Final</option>
-              <option value="REUNION">Reunión Docente / Departamental</option>
-              <option value="PERIODO">Cierre de Período / Calificaciones</option>
-              <option value="OTRO">Otro Evento</option>
-            </select>
+              onChange={(val) => setTipo(typeof val === 'object' ? val.target.value : val)}
+              options={[
+                { value: 'TRIBUNAL_EXAMEN', label: 'Tribunal de Examen / Mesa Final', badge: 'Examen' },
+                { value: 'REUNION', label: 'Reunión Docente / Departamental', badge: 'Reunión' },
+                { value: 'PERIODO', label: 'Cierre de Período / Calificaciones', badge: 'Cierre' },
+                { value: 'OTRO', label: 'Otro Evento', badge: 'General' }
+              ]}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">
+              <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
                 Fecha *
               </label>
               <input
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono border border-surface-border rounded-xl bg-surface text-text-primary"
+                className="w-full px-3 py-2 text-xs font-mono border border-surface-border rounded-xl bg-surface text-text-primary focus:ring-2 focus:ring-primary/20 outline-none"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">
+              <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
                 Desde *
               </label>
               <input
                 type="time"
                 value={horaInicio}
                 onChange={(e) => setHoraInicio(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono border border-surface-border rounded-xl bg-surface text-text-primary"
+                className="w-full px-3 py-2 text-xs font-mono border border-surface-border rounded-xl bg-surface text-text-primary focus:ring-2 focus:ring-primary/20 outline-none"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">
+              <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
                 Hasta *
               </label>
               <input
                 type="time"
                 value={horaFin}
                 onChange={(e) => setHoraFin(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono border border-surface-border rounded-xl bg-surface text-text-primary"
+                className="w-full px-3 py-2 text-xs font-mono border border-surface-border rounded-xl bg-surface text-text-primary focus:ring-2 focus:ring-primary/20 outline-none"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-text-secondary uppercase mb-1">
+            <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
               Notas adicionales / Vocales de la mesa
             </label>
             <textarea
@@ -1115,7 +1152,7 @@ export default function CalendarPage() {
               onChange={(e) => setNotas(e.target.value)}
               rows={3}
               placeholder="Ej: Aula 14. Integrantes del tribunal: Prof. López, Prof. Díaz."
-              className="w-full px-3 py-2 text-xs sm:text-sm border border-surface-border rounded-xl bg-surface text-text-primary resize-none"
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-surface-border rounded-xl bg-surface text-text-primary resize-none focus:ring-2 focus:ring-primary/20 outline-none"
             />
           </div>
 
@@ -1137,6 +1174,97 @@ export default function CalendarPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* ========================================================
+          MODAL: DETALLES DE EVENTO SELECCIONADO
+         ======================================================== */}
+      {selectedEventForDetail && (
+        <Modal
+          isOpen={Boolean(selectedEventForDetail)}
+          onClose={() => setSelectedEventForDetail(null)}
+          title={selectedEventForDetail.titulo}
+          subtitle="Detalle del compromiso registrado en el calendario"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
+                {selectedEventForDetail.tipo}
+              </span>
+              <span className="text-xs text-text-muted font-mono">
+                {formatFechaLegible(selectedEventForDetail.fecha_inicio || selectedEventForDetail.fecha)}
+              </span>
+            </div>
+
+            {selectedEventForDetail.notas && (
+              <div className="p-3.5 rounded-xl bg-surface-hover text-xs text-text-secondary leading-relaxed">
+                {selectedEventForDetail.notas}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-3 border-t border-surface-border">
+              <button
+                type="button"
+                onClick={() => handleDeleteEvent(selectedEventForDetail.id)}
+                className="text-xs text-rose-600 hover:underline inline-flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Eliminar del calendario</span>
+              </button>
+
+              <Button
+                variant="secondary"
+                onClick={() => setSelectedEventForDetail(null)}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ========================================================
+          MODAL: SINCRONIZACIÓN CON GOOGLE CALENDAR & .ICS
+         ======================================================== */}
+      <Modal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        title="Sincronizar Calendario Docente"
+        subtitle="Exporta tus cátedras y exámenes hacia Google Calendar, Outlook o Apple Calendar"
+      >
+        <div className="space-y-4 text-xs sm:text-sm text-text-secondary">
+          <p>
+            Puedes descargar el archivo en formato universal <strong>iCalendar (.ics)</strong> para importarlo en tu celular o aplicación de calendario favorita.
+          </p>
+
+          <div className="p-3.5 rounded-2xl bg-surface-hover/60 border border-surface-border space-y-2">
+            <span className="font-bold text-text-primary text-xs block">
+              Pasos para Google Calendar:
+            </span>
+            <ol className="list-decimal list-inside space-y-1 text-xs text-text-muted">
+              <li>Haz clic en "Descargar Archivo .ics".</li>
+              <li>Abre Google Calendar en tu navegador.</li>
+              <li>Ve a Configuración &gt; Importar y exportar &gt; Seleccionar archivo de tu equipo.</li>
+            </ol>
+          </div>
+
+          <div className="pt-3 border-t border-surface-border flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setIsSyncModalOpen(false)}
+              type="button"
+            >
+              Cerrar
+            </Button>
+            <Button
+              variant="primary"
+              icon={Download}
+              onClick={handleDownloadIcs}
+            >
+              Descargar Archivo .ics
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

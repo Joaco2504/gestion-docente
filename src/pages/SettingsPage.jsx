@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../components/common/Button';
+import CustomSelect from '../components/common/CustomSelect';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import { useTheme } from '../context/ThemeContext';
@@ -400,16 +401,17 @@ export default function SettingsPage() {
                     <label className="block text-[11px] font-bold uppercase text-text-muted mb-1">
                       Tipo de Período
                     </label>
-                    <select
+                    <CustomSelect
                       value={p.tipo}
-                      onChange={(e) => handlePeriodChange(index, 'tipo', e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm font-semibold border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary cursor-pointer"
-                    >
-                      <option value="CUATRIMESTRE">Cuatrimestre</option>
-                      <option value="TRIMESTRE">Trimestre</option>
-                      <option value="RECESO">Receso Invernal (Vacaciones)</option>
-                      <option value="EXAMENES">Turno de Exámenes Finales</option>
-                    </select>
+                      onChange={(val) => handlePeriodChange(index, 'tipo', typeof val === 'object' ? val.target.value : val)}
+                      options={[
+                        { value: 'CUATRIMESTRE', label: 'Cuatrimestre' },
+                        { value: 'TRIMESTRE', label: 'Trimestre' },
+                        { value: 'RECESO', label: 'Receso Invernal (Vacaciones)' },
+                        { value: 'EXAMENES', label: 'Turno de Exámenes Finales' }
+                      ]}
+                      buttonClassName="py-2 text-xs font-semibold"
+                    />
                   </div>
 
                   {/* Fecha Inicio */}

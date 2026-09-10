@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   CheckSquare, 
@@ -27,10 +27,27 @@ import { useApp } from '../context/AppContext';
 export default function CatedraDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isDemo } = useAuth();
   const { catedras, activeCiclo } = useApp();
 
-  const [activeTab, setActiveTab] = useState('asistencias');
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(() => {
+    return ['alumnos', 'asistencias', 'calificaciones', 'recursos', 'configuracion'].includes(tabFromUrl)
+      ? tabFromUrl
+      : 'asistencias';
+  });
+
+  useEffect(() => {
+    if (tabFromUrl && ['alumnos', 'asistencias', 'calificaciones', 'recursos', 'configuracion'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    setSearchParams({ tab: newTab });
+  };
   const [catedra, setCatedra] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -194,7 +211,7 @@ export default function CatedraDetailPage() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                   className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-primary text-white shadow-sm'

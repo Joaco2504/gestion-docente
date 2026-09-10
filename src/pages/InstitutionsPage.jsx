@@ -15,6 +15,7 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -325,14 +326,14 @@ export default function InstitutionsPage() {
             <label className="block text-xs font-semibold text-text-secondary mb-1">
               Nivel Educativo
             </label>
-            <select
+            <CustomSelect
               value={instNivel}
-              onChange={(e) => setInstNivel(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-surface-border rounded-lg bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            >
-              <option value="TERCIARIO">Nivel Terciario / Superior / Universitario</option>
-              <option value="SECUNDARIO">Nivel Secundario / Medio</option>
-            </select>
+              onChange={(val) => setInstNivel(typeof val === 'object' ? val.target.value : val)}
+              options={[
+                { value: 'TERCIARIO', label: 'Nivel Terciario / Superior / Universitario' },
+                { value: 'SECUNDARIO', label: 'Nivel Secundario / Medio' }
+              ]}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-surface-border">

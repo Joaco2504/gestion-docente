@@ -18,6 +18,7 @@ import Button from '../common/Button';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
 import Modal from '../common/Modal';
+import CustomSelect from '../common/CustomSelect';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -468,17 +469,17 @@ export default function ResourcesTab({ catedraId, catedraName }) {
             <label className="block text-xs font-medium text-text-secondary mb-1">
               Categoría
             </label>
-            <select
+            <CustomSelect
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-surface-border rounded-lg bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            >
-              <option value="APUNTE">Apunte Teórico</option>
-              <option value="TP">Trabajo Práctico</option>
-              <option value="PARCIAL">Parcial / Examen</option>
-              <option value="PLANIFICACION">Planificación Anual</option>
-              <option value="BIBLIOGRAFIA">Bibliografía</option>
-            </select>
+              onChange={(val) => setCategory(typeof val === 'object' ? val.target.value : val)}
+              options={[
+                { value: 'APUNTE', label: 'Apunte Teórico' },
+                { value: 'TP', label: 'Trabajo Práctico' },
+                { value: 'PARCIAL', label: 'Parcial / Examen' },
+                { value: 'PLANIFICACION', label: 'Planificación Anual' },
+                { value: 'BIBLIOGRAFIA', label: 'Bibliografía' }
+              ]}
+            />
           </div>
 
           {uploadMode === 'link' ? (

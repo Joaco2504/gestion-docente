@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const AuthContext = createContext({});
@@ -98,6 +98,36 @@ export function AuthProvider({ children }) {
     setIsDemo(true);
   };
 
+  // Actualizar avatar del docente (persistido en user_metadata de Supabase y localStorage en Demo)
+  const updateUserAvatar = async (avatarUrl) => {
+    if (isDemo || !supabase) {
+      const updated = {
+        ...user,
+        user_metadata: {
+          ...user?.user_metadata,
+          avatar_url: avatarUrl
+        }
+      };
+      localStorage.setItem('docentepro_demo_user', JSON.stringify(updated));
+      setUser(updated);
+      return { data: { user: updated }, error: null };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl }
+      });
+      if (error) throw error;
+      if (data?.user) {
+        setUser(data.user);
+      }
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error updating user avatar:', err);
+      return { error: err };
+    }
+  };
+
   const value = {
     user,
     session,
@@ -107,7 +137,8 @@ export function AuthProvider({ children }) {
     signIn,
     signUp,
     signOut,
-    loginDemo
+    loginDemo,
+    updateUserAvatar
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -20,6 +20,7 @@ import Button from '../common/Button';
 import Badge from '../common/Badge';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
+import CustomSelect from '../common/CustomSelect';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -398,20 +399,20 @@ export default function AttendanceTab({
             {clases.length === 0 ? (
               <span className="text-xs font-medium text-text-muted">No hay clases registradas</span>
             ) : (
-              <select
+              <CustomSelect
                 value={activeClase?.id || ''}
-                onChange={(e) => setSelectedClaseId(e.target.value)}
-                className="w-full text-xs sm:text-sm font-semibold text-text-primary bg-transparent border-0 focus:ring-0 p-0 cursor-pointer truncate"
-              >
-                {clases.map(c => {
+                onChange={(val) => setSelectedClaseId(typeof val === 'object' ? val.target.value : val)}
+                options={clases.map(c => {
                   const hasAbsence = inasistenciasDocente.some(i => i.fecha === c.fecha);
-                  return (
-                    <option key={c.id} value={c.id}>
-                      {formatFechaDMY(c.fecha)} — {c.tema || 'Sin tema especificado'} {hasAbsence ? ' [LICENCIA DOCENTE]' : ''}
-                    </option>
-                  );
+                  return {
+                    value: c.id,
+                    label: `${formatFechaDMY(c.fecha)} — ${c.tema || 'Sin tema especificado'}`,
+                    badge: hasAbsence ? 'Licencia' : undefined
+                  };
                 })}
-              </select>
+                placeholder="Seleccionar clase..."
+                buttonClassName="py-1 px-2 text-xs sm:text-sm font-semibold border-transparent hover:border-surface-border bg-transparent shadow-none"
+              />
             )}
           </div>
         </div>
@@ -741,17 +742,18 @@ export default function AttendanceTab({
                 <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
                   Artículo de Licencia *
                 </label>
-                <select
+                <CustomSelect
                   value={articuloLicencia}
-                  onChange={(e) => setArticuloLicencia(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-                >
-                  <option value="Art. 44 - Razones de Salud / Afección Común">Art. 44 - Razones de Salud / Afección Común</option>
-                  <option value="Art. 50 - Examen / Perfeccionamiento Docente">Art. 50 - Examen / Perfeccionamiento Docente</option>
-                  <option value="Art. 5 - Donación de Sangre / Cargas Públicas">Art. 5 - Donación de Sangre / Cargas Públicas</option>
-                  <option value="Art. 11 - Duelo Familiar / Cuidado de Familiar">Art. 11 - Duelo Familiar / Cuidado de Familiar</option>
-                  <option value="OTRO">Otro artículo específico...</option>
-                </select>
+                  onChange={(val) => setArticuloLicencia(typeof val === 'object' ? val.target.value : val)}
+                  options={[
+                    { value: 'Art. 44 - Razones de Salud / Afección Común', label: 'Art. 44 - Razones de Salud / Afección Común' },
+                    { value: 'Art. 50 - Examen / Perfeccionamiento Docente', label: 'Art. 50 - Examen / Perfeccionamiento Docente' },
+                    { value: 'Art. 5 - Donación de Sangre / Cargas Públicas', label: 'Art. 5 - Donación de Sangre / Cargas Públicas' },
+                    { value: 'Art. 11 - Duelo Familiar / Cuidado de Familiar', label: 'Art. 11 - Duelo Familiar / Cuidado de Familiar' },
+                    { value: 'OTRO', label: 'Otro artículo específico...' }
+                  ]}
+                  placeholder="Seleccionar artículo de licencia..."
+                />
               </div>
 
               {articuloLicencia === 'OTRO' && (

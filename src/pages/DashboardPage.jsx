@@ -28,6 +28,7 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
+import CustomSelect from '../components/common/CustomSelect';
 import { SkeletonCatedraCard } from '../components/common/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -742,116 +743,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 2. PANEL SUPERIOR: FECHAS IMPORTANTES & AGENDA PRÓXIMA (PRÓXIMOS 15 DÍAS) */}
-      <section className="space-y-3.5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
-                Agenda Crítica & Fechas Importantes
-              </h2>
-              <p className="text-[11px] text-text-muted">
-                Compromisos, exámenes, mesas y cierres previstos en los próximos 15 días
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsNewEventModalOpen(true)}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Crear Recordatorio</span>
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            <div className="h-24 rounded-2xl bg-surface-hover animate-pulse" />
-            <div className="h-24 rounded-2xl bg-surface-hover animate-pulse" />
-            <div className="h-24 rounded-2xl bg-surface-hover animate-pulse" />
-          </div>
-        ) : agendaItems.length === 0 ? (
-          /* Estado vacío elegante si no hay eventos próximos */
-          <div className="p-6 rounded-2xl bg-surface border border-surface-border text-center space-y-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-surface-hover text-text-muted flex items-center justify-center mx-auto">
-              <CalendarIcon className="w-5 h-5 opacity-60" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-text-primary">
-                No tienes compromisos ni exámenes programados para los próximos 15 días
-              </h3>
-              <p className="text-xs text-text-muted mt-0.5 max-w-md mx-auto">
-                Tu agenda está al día. Puedes registrar mesas examinadoras, reuniones institucionales o entregas de notas.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              icon={Plus}
-              onClick={() => setIsNewEventModalOpen(true)}
-              className="text-xs mx-auto"
-            >
-              Crear Recordatorio / Evento
-            </Button>
-          </div>
-        ) : (
-          /* Grilla de eventos próximos ordenados */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {agendaItems.map((item) => {
-              const styles = getAgendaColorStyles(item.tipo);
-              const IconComp = styles.icon;
-              const relativeTag = getRelativeDateLabel(item.fecha);
-
-              return (
-                <div
-                  key={item.id}
-                  className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between gap-3 ${styles.cardBg}`}
-                >
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${styles.iconColor} bg-surface`}>
-                        <IconComp className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border mb-1 ${styles.badge}`}>
-                          {styles.label}
-                        </span>
-                        <h4 className="text-xs sm:text-sm font-bold text-text-primary leading-snug line-clamp-2">
-                          {item.titulo}
-                        </h4>
-                      </div>
-                    </div>
-
-                    <span className="shrink-0 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-surface border border-surface-border text-text-secondary">
-                      {relativeTag}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] pt-2 border-t border-surface-border/50 text-text-muted font-mono">
-                    <span className="flex items-center gap-1 font-semibold text-text-secondary">
-                      <CalendarDays className="w-3 h-3 text-text-muted" />
-                      {formatFechaLegible(item.fecha)}
-                    </span>
-                    {item.hora && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-text-muted" />
-                        {item.hora} hs
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* 3. SECCIÓN PRINCIPAL: TODAS MIS CÁTEDRAS (VISTA GLOBAL UNIFICADA) */}
+      {/* 2. SECCIÓN PRINCIPAL: TODAS MIS CÁTEDRAS (VISTA GLOBAL UNIFICADA) */}
       <section className="space-y-4">
         {/* Cabecera de Cátedras con Filtros y Buscador */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
@@ -1120,6 +1012,115 @@ export default function DashboardPage() {
         )}
       </section>
 
+      {/* 3. PANEL: FECHAS IMPORTANTES & AGENDA PRÓXIMA (PRÓXIMOS 15 DÍAS) */}
+      <section className="space-y-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
+                Agenda Crítica & Fechas Importantes
+              </h2>
+              <p className="text-[11px] text-text-muted">
+                Compromisos, exámenes, mesas y cierres previstos en los próximos 15 días
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsNewEventModalOpen(true)}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Crear Recordatorio</span>
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="h-24 rounded-2xl bg-surface-hover animate-pulse" />
+            <div className="h-24 rounded-2xl bg-surface-hover animate-pulse" />
+            <div className="h-24 rounded-2xl bg-surface-hover animate-pulse" />
+          </div>
+        ) : agendaItems.length === 0 ? (
+          /* Estado vacío elegante si no hay eventos próximos */
+          <div className="p-6 rounded-2xl bg-surface border border-surface-border text-center space-y-3 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-surface-hover text-text-muted flex items-center justify-center mx-auto">
+              <CalendarIcon className="w-5 h-5 opacity-60" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-text-primary">
+                No tienes compromisos ni exámenes programados para los próximos 15 días
+              </h3>
+              <p className="text-xs text-text-muted mt-0.5 max-w-md mx-auto">
+                Tu agenda está al día. Puedes registrar mesas examinadoras, reuniones institucionales o entregas de notas.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Plus}
+              onClick={() => setIsNewEventModalOpen(true)}
+              className="text-xs mx-auto"
+            >
+              Crear Recordatorio / Evento
+            </Button>
+          </div>
+        ) : (
+          /* Grilla de eventos próximos ordenados */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {agendaItems.map((item) => {
+              const styles = getAgendaColorStyles(item.tipo);
+              const IconComp = styles.icon;
+              const relativeTag = getRelativeDateLabel(item.fecha);
+
+              return (
+                <div
+                  key={item.id}
+                  className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between gap-3 ${styles.cardBg}`}
+                >
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${styles.iconColor} bg-surface`}>
+                        <IconComp className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border mb-1 ${styles.badge}`}>
+                          {styles.label}
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-bold text-text-primary leading-snug line-clamp-2">
+                          {item.titulo}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <span className="shrink-0 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-surface border border-surface-border text-text-secondary">
+                      {relativeTag}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] pt-2 border-t border-surface-border/50 text-text-muted font-mono">
+                    <span className="flex items-center gap-1 font-semibold text-text-secondary">
+                      <CalendarDays className="w-3 h-3 text-text-muted" />
+                      {formatFechaLegible(item.fecha)}
+                    </span>
+                    {item.hora && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-text-muted" />
+                        {item.hora} hs
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* MODAL 1: NUEVA CÁTEDRA */}
       <Modal
         isOpen={isModalOpen}
@@ -1138,21 +1139,21 @@ export default function DashboardPage() {
             <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
               Institución Educativa *
             </label>
-            <select
+            <CustomSelect
               value={newInstitucionId}
-              onChange={(e) => {
-                setNewInstitucionId(e.target.value);
-                const inst = instituciones.find(i => i.id === e.target.value);
+              onChange={(val) => {
+                const targetId = typeof val === 'object' ? val.target.value : val;
+                setNewInstitucionId(targetId);
+                const inst = instituciones.find(i => i.id === targetId);
                 if (inst?.nivel) setNewNivel(inst.nivel);
               }}
-              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
-            >
-              {instituciones.map(inst => (
-                <option key={inst.id} value={inst.id}>
-                  {inst.nombre} ({inst.nivel})
-                </option>
-              ))}
-            </select>
+              options={instituciones.map(inst => ({
+                value: inst.id,
+                label: `${inst.nombre} (${inst.nivel})`,
+                badge: inst.nivel === 'TERCIARIO' ? 'Terc.' : 'Sec.'
+              }))}
+              placeholder="Seleccionar institución..."
+            />
           </div>
 
           <div>
@@ -1174,28 +1175,28 @@ export default function DashboardPage() {
               <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
                 Nivel Académico
               </label>
-              <select
+              <CustomSelect
                 value={newNivel}
-                onChange={(e) => setNewNivel(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
-              >
-                <option value="TERCIARIO">Terciario / Superior</option>
-                <option value="SECUNDARIO">Secundario</option>
-              </select>
+                onChange={(val) => setNewNivel(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: 'TERCIARIO', label: 'Terciario / Superior' },
+                  { value: 'SECUNDARIO', label: 'Secundario' }
+                ]}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
                 Modalidad
               </label>
-              <select
+              <CustomSelect
                 value={newModalidad}
-                onChange={(e) => setNewModalidad(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
-              >
-                <option value="ANUAL">Anual</option>
-                <option value="CUATRIMESTRAL">Cuatrimestral</option>
-              </select>
+                onChange={(val) => setNewModalidad(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: 'ANUAL', label: 'Anual' },
+                  { value: 'CUATRIMESTRAL', label: 'Cuatrimestral' }
+                ]}
+              />
             </div>
           </div>
 
@@ -1312,17 +1313,17 @@ export default function DashboardPage() {
               <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
                 Tipo de Evento *
               </label>
-              <select
+              <CustomSelect
                 value={newEventTipo}
-                onChange={(e) => setNewEventTipo(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary cursor-pointer"
-              >
-                <option value="TRIBUNAL_EXAMEN">Mesa / Tribunal de Examen (Rojo/Violeta)</option>
-                <option value="REUNION">Reunión Institucional (Azul/Índigo)</option>
-                <option value="PERIODO">Cierre de Período / Notas (Ámbar/Naranja)</option>
-                <option value="CLASE">Clase Especial</option>
-                <option value="OTRO">Otro Compromiso</option>
-              </select>
+                onChange={(val) => setNewEventTipo(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: 'TRIBUNAL_EXAMEN', label: 'Mesa / Tribunal de Examen', badge: 'Examen' },
+                  { value: 'REUNION', label: 'Reunión Institucional', badge: 'Reunión' },
+                  { value: 'PERIODO', label: 'Cierre de Período / Notas', badge: 'Cierre' },
+                  { value: 'CLASE', label: 'Clase Especial', badge: 'Clase' },
+                  { value: 'OTRO', label: 'Otro Compromiso', badge: 'General' }
+                ]}
+              />
             </div>
 
             <div>

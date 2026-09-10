@@ -3,6 +3,7 @@ import { parseExcelOrCsv, autoDetectColumns, sanitizeStudentRows } from '../../l
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Users, ArrowRight } from 'lucide-react';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
+import CustomSelect from '../common/CustomSelect';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -298,45 +299,39 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
               <label className="block text-xs font-bold uppercase text-text-secondary mb-1">
                 Columna de DNI / Documento:
               </label>
-              <select
+              <CustomSelect
                 value={mapping.dniField}
-                onChange={(e) => handleMappingChange('dniField', e.target.value)}
-                className="w-full text-xs font-mono bg-surface border border-surface-border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 text-text-primary"
-              >
-                {headers.map(h => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
+                onChange={(val) => handleMappingChange('dniField', typeof val === 'object' ? val.target.value : val)}
+                options={headers.map(h => ({ value: h, label: h }))}
+                placeholder="Seleccionar columna..."
+                buttonClassName="py-1.5 text-xs font-mono"
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase text-text-secondary mb-1">
                 Columna de Apellido:
               </label>
-              <select
+              <CustomSelect
                 value={mapping.apellidoField}
-                onChange={(e) => handleMappingChange('apellidoField', e.target.value)}
-                className="w-full text-xs bg-surface border border-surface-border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 text-text-primary"
-              >
-                {headers.map(h => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
+                onChange={(val) => handleMappingChange('apellidoField', typeof val === 'object' ? val.target.value : val)}
+                options={headers.map(h => ({ value: h, label: h }))}
+                placeholder="Seleccionar columna..."
+                buttonClassName="py-1.5 text-xs"
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase text-text-secondary mb-1">
                 Columna de Nombre:
               </label>
-              <select
+              <CustomSelect
                 value={mapping.nombreField}
-                onChange={(e) => handleMappingChange('nombreField', e.target.value)}
-                className="w-full text-xs bg-surface border border-surface-border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 text-text-primary"
-              >
-                {headers.map(h => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
+                onChange={(val) => handleMappingChange('nombreField', typeof val === 'object' ? val.target.value : val)}
+                options={headers.map(h => ({ value: h, label: h }))}
+                placeholder="Seleccionar columna..."
+                buttonClassName="py-1.5 text-xs"
+              />
             </div>
           </div>
 
