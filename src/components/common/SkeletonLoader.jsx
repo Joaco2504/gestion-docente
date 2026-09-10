@@ -2,13 +2,16 @@ import React from 'react';
 
 export function SkeletonItem({ className = '' }) {
   return (
-    <div className={`animate-pulse bg-surface-hover/80 rounded-lg ${className}`} />
+    <div className={`relative overflow-hidden bg-surface-hover/80 rounded-lg ${className}`}>
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-surface-border/50 to-transparent animate-shimmer" />
+    </div>
   );
 }
 
 export function SkeletonCatedraCard() {
   return (
-    <div className="bg-surface rounded-2xl border border-surface-border p-5 space-y-4 shadow-sm animate-pulse">
+    <div className="relative overflow-hidden bg-surface rounded-2xl border border-surface-border p-5 space-y-4 shadow-sm">
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-surface-hover/60 to-transparent animate-shimmer pointer-events-none" />
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           <div className="w-16 h-5 bg-surface-hover rounded-full" />
@@ -29,13 +32,14 @@ export function SkeletonCatedraCard() {
 
 export function SkeletonTable({ rows = 5, cols = 4 }) {
   return (
-    <div className="bg-surface rounded-xl border border-surface-border overflow-hidden p-4 space-y-3 animate-pulse">
+    <div className="relative overflow-hidden bg-surface rounded-2xl border border-surface-border p-4 space-y-3 shadow-xs">
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-surface-hover/50 to-transparent animate-shimmer pointer-events-none" />
       <div className="flex justify-between items-center pb-2 border-b border-surface-border">
         <div className="w-1/3 h-5 bg-surface-hover rounded" />
         <div className="w-24 h-8 bg-surface-hover rounded-lg" />
       </div>
       {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="flex gap-4 items-center py-2">
+        <div key={r} className="flex gap-4 items-center py-2.5">
           <div className="w-8 h-4 bg-surface-hover rounded" />
           <div className="w-24 h-4 bg-surface-hover rounded" />
           <div className="flex-1 h-4 bg-surface-hover rounded" />

@@ -66,12 +66,17 @@ export default {
         pulseGlow: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.6' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
         }
       },
       animation: {
         fadeIn: 'fadeIn 0.2s ease-out forwards',
         slideUp: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         pulseGlow: 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        shimmer: 'shimmer 1.8s ease-in-out infinite',
       }
     },
   },
