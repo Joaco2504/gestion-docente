@@ -181,8 +181,9 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       setIsModalOpen(false);
     } catch (err) {
       console.error('Error saving resource:', err);
-      toast.error('Error al guardar el recurso: ' + (err.message || 'Intente nuevamente'));
-      setErrorMsg('Error al guardar el recurso: ' + (err.message || 'Intente nuevamente'));
+      const friendlyMsg = err.message || 'Intente nuevamente';
+      toast.error(friendlyMsg);
+      setErrorMsg(friendlyMsg);
     } finally {
       setSaving(false);
     }
@@ -359,9 +360,9 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       >
         <form onSubmit={handleSaveResource} className="space-y-4">
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 text-danger text-xs rounded-lg flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMsg}</span>
+            <div className="p-3 bg-danger/10 border border-danger/30 text-danger text-xs rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{errorMsg}</span>
             </div>
           )}
 

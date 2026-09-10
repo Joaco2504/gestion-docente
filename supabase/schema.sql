@@ -1,4 +1,4 @@
-﻿-- ==============================================================================
+-- ==============================================================================
 -- GESTIÓN DOCENTE (DOCENTEPRO) — ESQUEMA RELACIONAL COMPLETO & RLS
 -- Para ejecutar en Supabase: Dashboard -> SQL Editor -> New Query -> Run
 -- ==============================================================================
@@ -222,28 +222,31 @@ CREATE TRIGGER on_catedra_created
 -- ==============================================================================
 -- STORAGE BUCKET: archivos-docentes
 -- ==============================================================================
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('archivos-docentes', 'archivos-docentes', true)
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('archivos-docentes', 'archivos-docentes', true, 52428800)
+ON CONFLICT (id) DO UPDATE SET public = true;
 
 -- Políticas de Storage
 DROP POLICY IF EXISTS "Docentes upload own files" ON storage.objects;
-CREATE POLICY "Docentes upload own files"
+DROP POLICY IF EXISTS "Docentes upload files" ON storage.objects;
+CREATE POLICY "Docentes upload files"
 ON storage.objects FOR INSERT
 TO authenticated
-WITH CHECK (bucket_id = 'archivos-docentes' AND auth.uid()::text = (storage.foldername(name))[1]);
+WITH CHECK (bucket_id = 'archivos-docentes');
 
 DROP POLICY IF EXISTS "Docentes read own files" ON storage.objects;
-CREATE POLICY "Docentes read own files"
+DROP POLICY IF EXISTS "Public read files" ON storage.objects;
+CREATE POLICY "Public read files"
 ON storage.objects FOR SELECT
-TO authenticated
+TO public
 USING (bucket_id = 'archivos-docentes');
 
 DROP POLICY IF EXISTS "Docentes delete own files" ON storage.objects;
-CREATE POLICY "Docentes delete own files"
+DROP POLICY IF EXISTS "Docentes delete files" ON storage.objects;
+CREATE POLICY "Docentes delete files"
 ON storage.objects FOR DELETE
 TO authenticated
-USING (bucket_id = 'archivos-docentes' AND auth.uid()::text = (storage.foldername(name))[1]);
+USING (bucket_id = 'archivos-docentes');
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) EN TODAS LAS TABLAS

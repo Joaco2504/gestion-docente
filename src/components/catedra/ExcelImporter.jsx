@@ -31,7 +31,7 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
     try {
       const { rows, headers: detectedHeaders } = await parseExcelOrCsv(selectedFile);
       if (rows.length === 0) {
-        alert('El archivo no contiene filas de datos.');
+        toast.error('El archivo no contiene filas de datos.');
         return;
       }
 
@@ -49,7 +49,7 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
       setErrors(sanitizeErrors);
       setStep(2);
     } catch (err) {
-      alert('Error al leer el archivo: ' + err.message);
+      toast.error('Error al leer el archivo: ' + err.message);
     } finally {
       setIsProcessing(false);
     }
@@ -65,40 +65,108 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
 
   const handleConfirmImport = async () => {
     if (sanitizedData.length === 0) {
-      alert('No hay alumnos válidos para importar.');
+      toast.error('No hay alumnos válidos para importar.');
       return;
     }
     setIsProcessing(true);
     try {
       if (isSupabaseConfigured && !isDemo && user && catedraId) {
-        // 1. Upsert estudiantes
-        const studentsToInsert = sanitizedData.map(s => ({
-          docente_id: user.id,
-          dni: s.dni,
-          apellido: s.apellido,
-          nombre: s.nombre
-        }));
+        // 1. Deduplicar en memoria por DNI (si el archivo traía repetidos en la misma planilla)
+        const uniqueStudentsMap = new Map();
+        sanitizedData.forEach(s => {
+          if (!uniqueStudentsMap.has(s.dni)) {
+            uniqueStudentsMap.set(s.dni, s);
+          }
+        });
+        const uniqueStudents = Array.from(uniqueStudentsMap.values());
+        const dnis = uniqueStudents.map(s => s.dni);
 
-        const { data: insertedStudents, error: estError } = await supabase
+        // 2. Consultar estudiantes ya existentes en la BD para este docente
+        const { data: existingStudents, error: fetchErr } = await supabase
           .from('estudiantes')
-          .upsert(studentsToInsert, { onConflict: 'docente_id,dni' })
-          .select('id, dni');
+          .select('id, dni')
+          .eq('docente_id', user.id)
+          .in('dni', dnis);
 
-        if (estError) throw estError;
+        if (fetchErr) throw fetchErr;
 
-        // 2. Inscribir en catedra
-        if (insertedStudents && insertedStudents.length > 0) {
-          const inscriptions = insertedStudents.map(st => ({
-            estudiante_id: st.id,
-            catedra_id: catedraId,
-            ciclo_id: activeCiclo?.id || null
-          }));
+        const existingMap = new Map((existingStudents || []).map(e => [e.dni, e.id]));
+        const toInsert = [];
+        const toUpdate = [];
 
-          const { error: inscError } = await supabase
+        uniqueStudents.forEach(s => {
+          if (existingMap.has(s.dni)) {
+            toUpdate.push({
+              id: existingMap.get(s.dni),
+              apellido: s.apellido,
+              nombre: s.nombre
+            });
+          } else {
+            toInsert.push({
+              docente_id: user.id,
+              dni: s.dni,
+              apellido: s.apellido,
+              nombre: s.nombre
+            });
+          }
+        });
+
+        // 3. Insertar nuevos estudiantes (sin depender de restricciones ON CONFLICT)
+        let newlyInserted = [];
+        if (toInsert.length > 0) {
+          const { data: inserted, error: insertErr } = await supabase
+            .from('estudiantes')
+            .insert(toInsert)
+            .select('id, dni');
+
+          if (insertErr) throw insertErr;
+          newlyInserted = inserted || [];
+        }
+
+        // 4. Actualizar nombres/apellidos si correspondiese
+        if (toUpdate.length > 0) {
+          await Promise.all(
+            toUpdate.map(u =>
+              supabase
+                .from('estudiantes')
+                .update({ apellido: u.apellido, nombre: u.nombre })
+                .eq('id', u.id)
+            )
+          );
+        }
+
+        // 5. Consolidar IDs de todos los estudiantes (nuevos + existentes)
+        const allStudentIds = [
+          ...newlyInserted.map(s => s.id),
+          ...toUpdate.map(s => s.id)
+        ];
+
+        // 6. Inscribir en la cátedra verificando inscripciones previas para no duplicar
+        if (allStudentIds.length > 0) {
+          const { data: existingInsc, error: inscFetchErr } = await supabase
             .from('inscripciones')
-            .upsert(inscriptions, { onConflict: 'estudiante_id,catedra_id' });
+            .select('estudiante_id')
+            .eq('catedra_id', catedraId)
+            .in('estudiante_id', allStudentIds);
 
-          if (inscError) throw inscError;
+          if (inscFetchErr) throw inscFetchErr;
+
+          const alreadyInscribedSet = new Set((existingInsc || []).map(i => i.estudiante_id));
+          const inscriptionsToInsert = allStudentIds
+            .filter(id => !alreadyInscribedSet.has(id))
+            .map(id => ({
+              estudiante_id: id,
+              catedra_id: catedraId,
+              ciclo_id: activeCiclo?.id || null
+            }));
+
+          if (inscriptionsToInsert.length > 0) {
+            const { error: inscInsertErr } = await supabase
+              .from('inscripciones')
+              .insert(inscriptionsToInsert);
+
+            if (inscInsertErr) throw inscInsertErr;
+          }
         }
       } else if (catedraId) {
         // Demo mode fallback
@@ -122,7 +190,7 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
       }
 
       setImportSuccessCount(sanitizedData.length);
-      toast.success(`Se han importado exitosamente ${sanitizedData.length} alumnos.`);
+      toast.success(`Se han procesado e importado exitosamente ${sanitizedData.length} alumnos.`);
       if (onStudentsImported) onStudentsImported(sanitizedData);
       if (onImportSuccess) onImportSuccess(sanitizedData);
 

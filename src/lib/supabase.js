@@ -41,9 +41,20 @@ export async function uploadCatedraFile(param1, param2, param3) {
     file = param3;
   }
 
+  if (!file) {
+    return { error: new Error('No se ha proporcionado ningún archivo para subir.') };
+  }
+
   try {
+    // Obtener el usuario autenticado para que la política de storage (auth.uid() = foldername[1]) se cumpla
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id;
+
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const filePath = `${catedraId}/${Date.now()}_${cleanFileName}`;
+    // Si tenemos userId, la ruta comienza con userId/catedraId/... para cumplir con la RLS de Supabase Storage
+    const filePath = userId 
+      ? `${userId}/${catedraId}/${Date.now()}_${cleanFileName}`
+      : `${catedraId}/${Date.now()}_${cleanFileName}`;
 
     const { data, error } = await supabase.storage
       .from('archivos-docentes')
@@ -52,7 +63,24 @@ export async function uploadCatedraFile(param1, param2, param3) {
         upsert: false
       });
 
-    if (error) throw error;
+    if (error) {
+      // Diagnóstico amigable para errores de RLS o bucket no existente
+      if (error.message?.includes('row-level security') || error.message?.includes('policy') || error.statusCode === '403') {
+        throw new Error(
+          "Permiso denegado por Row-Level Security en Supabase Storage. " +
+          "Asegúrate de ejecutar el script 'supabase/fix_rls_and_conflicts.sql' en el SQL Editor de Supabase " +
+          "o crear el bucket 'archivos-docentes' como público con políticas de INSERT para usuarios autenticados."
+        );
+      }
+      if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
+        throw new Error(
+          "El bucket 'archivos-docentes' no existe en tu proyecto de Supabase. " +
+          "Créalo en Supabase Dashboard -> Storage -> New Bucket ('archivos-docentes', Público: activado) " +
+          "o ejecuta 'supabase/fix_rls_and_conflicts.sql'."
+        );
+      }
+      throw error;
+    }
 
     const { data: publicUrlData } = supabase.storage
       .from('archivos-docentes')
