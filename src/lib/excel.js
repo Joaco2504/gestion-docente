@@ -113,6 +113,18 @@ export function sanitizeStudentRows(rows = [], mapping = {}) {
  * Exporta la sábana de calificaciones y asistencia completa a un archivo Excel (.xlsx).
  */
 export function exportGradesToExcel(arg1, arg2, arg3, arg4, arg5) {
+  exportGradesToFile('xlsx', arg1, arg2, arg3, arg4, arg5);
+}
+
+export function exportGradesToCsv(arg1, arg2, arg3, arg4, arg5) {
+  exportGradesToFile('csv', arg1, arg2, arg3, arg4, arg5);
+}
+
+/**
+ * Exporta la sábana de calificaciones en formato Excel (.xlsx) o CSV (.csv).
+ * @param {'xlsx'|'csv'} format 
+ */
+export function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4, arg5) {
   let catedraInfo = { nombre: 'Catedra' };
   let estudiantes = [];
   let evaluaciones = [];
@@ -200,7 +212,12 @@ export function exportGradesToExcel(arg1, arg2, arg3, arg4, arg5) {
 
   const cleanCatedraName = (catedraInfo.nombre || 'Catedra').replace(/[^a-zA-Z0-9_-]/g, '_');
   const dateStr = new Date().toISOString().split('T')[0];
-  const fileName = `Calificaciones_${cleanCatedraName}_${dateStr}.xlsx`;
 
-  XLSX.writeFile(workbook, fileName);
+  if (format === 'csv') {
+    const fileName = `Calificaciones_${cleanCatedraName}_${dateStr}.csv`;
+    XLSX.writeFile(workbook, fileName, { bookType: 'csv' });
+  } else {
+    const fileName = `Calificaciones_${cleanCatedraName}_${dateStr}.xlsx`;
+    XLSX.writeFile(workbook, fileName, { bookType: 'xlsx' });
+  }
 }

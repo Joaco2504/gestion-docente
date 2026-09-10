@@ -29,7 +29,7 @@ import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
-import { exportGradesToExcel } from '../../lib/excel';
+import { exportGradesToExcel, exportGradesToCsv } from '../../lib/excel';
 import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
 import { formatFechaDMY, parseDMYtoYMD } from '../../lib/dateUtils';
 import { useAuth } from '../../context/AuthContext';
@@ -108,21 +108,48 @@ export default function GradesTab({
         const estList = (inscData || []).map(i => i.estudiantes).filter(Boolean);
         estList.sort((a, b) => a.apellido.localeCompare(b.apellido));
 
-        // 2. Evaluaciones
+        // 2. Evaluaciones (con fusión resiliente de almacenamiento local)
         const { data: evalData } = await supabase
           .from('evaluaciones')
           .select('*')
           .eq('catedra_id', catedraId)
           .order('created_at', { ascending: true });
 
+        const localKey = `evaluaciones_${catedraId}`;
+        let localEvals = [];
+        try {
+          localEvals = JSON.parse(localStorage.getItem(localKey) || '[]');
+        } catch {
+          localEvals = [];
+        }
+
+        const combinedMap = new Map();
+        // Cargar registros remotos
+        (evalData || []).forEach(e => combinedMap.set(e.id, e));
+        // Preservar registros locales que aún no hayan impactado en la base de datos
+        localEvals.forEach(localEv => {
+          if (!combinedMap.has(localEv.id)) {
+            const match = (evalData || []).find(e => 
+              e.titulo?.trim().toLowerCase() === localEv.titulo?.trim().toLowerCase() &&
+              String(e.catedra_id) === String(localEv.catedra_id)
+            );
+            if (!match) {
+              combinedMap.set(localEv.id, localEv);
+            }
+          }
+        });
+
+        const mergedEvals = Array.from(combinedMap.values());
+        localStorage.setItem(localKey, JSON.stringify(mergedEvals));
+
         // 3. Notas
-        const evalIds = (evalData || []).map(e => e.id);
+        const evalIds = mergedEvals.map(e => e.id);
         let notasList = [];
         if (evalIds.length > 0) {
           const { data: nData } = await supabase
             .from('notas')
             .select('*')
-            .in('evaluacion_id', evalIds);
+            .in('evaluacion_id', evalIds.filter(id => !String(id).startsWith('eval-')));
           notasList = nData || [];
         }
 
@@ -155,7 +182,7 @@ export default function GradesTab({
           .maybeSingle();
 
         setEstudiantes(estList);
-        setEvaluaciones(evalData || []);
+        setEvaluaciones(mergedEvals);
         setNotas(notasList);
         setClases(cData || []);
         setAsistencias(asistList);
@@ -360,61 +387,81 @@ export default function GradesTab({
       }
 
       const isoFechaEntrega = evalFechaEntrega ? parseDMYtoYMD(evalFechaEntrega) : null;
+      const localId = 'eval-' + Date.now();
 
       const newEvalObj = {
+        id: localId,
         catedra_id: catedraId,
         titulo: evalTitulo.trim(),
         tipo: evalTipo,
         evaluacion_origen_id: evalTipo === 'RECUPERATORIO' && evalOrigenId ? evalOrigenId : null,
         fecha_entrega: isoFechaEntrega,
         archivo_url: archivoUrl,
-        archivo_nombre: archivoNombre
+        archivo_nombre: archivoNombre,
+        created_at: new Date().toISOString()
       };
 
+      // 1. Guardar de forma inmediata y síncrona en estado y localStorage
+      const updatedList = [...evaluaciones, newEvalObj];
+      setEvaluaciones(updatedList);
+      localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedList));
+
+      // 2. Intentar guardar y sincronizar con Supabase si está disponible
       if (isSupabaseConfigured && !isDemo) {
-        let createdData = null;
-        // Intento de inserción con campos extendidos
-        const { data, error } = await supabase
-          .from('evaluaciones')
-          .insert(newEvalObj)
-          .select()
-          .single();
+        try {
+          const insertPayload = {
+            catedra_id: catedraId,
+            titulo: newEvalObj.titulo,
+            tipo: newEvalObj.tipo,
+            evaluacion_origen_id: newEvalObj.evaluacion_origen_id,
+            fecha_entrega: newEvalObj.fecha_entrega,
+            archivo_url: newEvalObj.archivo_url,
+            archivo_nombre: newEvalObj.archivo_nombre
+          };
 
-        if (error) {
-          // Si el esquema de Supabase no tiene aún las columnas fecha_entrega / archivo_url
-          if (error.message && (error.message.includes('column') || error.message.includes('fecha_entrega') || error.message.includes('archivo_url'))) {
-            const baseObj = {
-              catedra_id: catedraId,
-              titulo: evalTitulo.trim(),
-              tipo: evalTipo,
-              evaluacion_origen_id: evalTipo === 'RECUPERATORIO' && evalOrigenId ? evalOrigenId : null
-            };
-            const fallbackRes = await supabase
-              .from('evaluaciones')
-              .insert(baseObj)
-              .select()
-              .single();
+          const { data, error } = await supabase
+            .from('evaluaciones')
+            .insert(insertPayload)
+            .select()
+            .single();
 
-            if (fallbackRes.error) throw fallbackRes.error;
-            createdData = {
-              ...fallbackRes.data,
-              fecha_entrega: isoFechaEntrega,
-              archivo_url: archivoUrl,
-              archivo_nombre: archivoNombre
-            };
-          } else {
-            throw error;
+          if (error) {
+            // Si la tabla no tiene las columnas extendidas
+            if (error.message && (error.message.includes('column') || error.message.includes('fecha_entrega') || error.message.includes('archivo_url'))) {
+              const baseObj = {
+                catedra_id: catedraId,
+                titulo: newEvalObj.titulo,
+                tipo: newEvalObj.tipo,
+                evaluacion_origen_id: newEvalObj.evaluacion_origen_id
+              };
+              const fallbackRes = await supabase
+                .from('evaluaciones')
+                .insert(baseObj)
+                .select()
+                .single();
+
+              if (!fallbackRes.error && fallbackRes.data) {
+                const synced = {
+                  ...fallbackRes.data,
+                  fecha_entrega: isoFechaEntrega,
+                  archivo_url: archivoUrl,
+                  archivo_nombre: archivoNombre
+                };
+                const refreshed = updatedList.map(e => e.id === localId ? synced : e);
+                setEvaluaciones(refreshed);
+                localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(refreshed));
+              }
+            } else {
+              console.warn('Evaluación guardada localmente. Aviso Supabase:', error.message);
+            }
+          } else if (data) {
+            const refreshed = updatedList.map(e => e.id === localId ? data : e);
+            setEvaluaciones(refreshed);
+            localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(refreshed));
           }
-        } else {
-          createdData = data;
+        } catch (dbErr) {
+          console.warn('Evaluación preservada localmente. Error de red/DB:', dbErr);
         }
-
-        setEvaluaciones([...evaluaciones, createdData]);
-      } else {
-        const created = { ...newEvalObj, id: 'eval-' + Date.now() };
-        const updated = [...evaluaciones, created];
-        setEvaluaciones(updated);
-        localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updated));
       }
 
       toast.success(`Evaluación "${evalTitulo}" guardada correctamente.`);
@@ -471,7 +518,7 @@ export default function GradesTab({
     };
   });
 
-  const handleExport = () => {
+  const handleExportExcel = () => {
     try {
       exportGradesToExcel(
         { nombre: catedraName, nivel: academicLevel, modalidad },
@@ -480,9 +527,24 @@ export default function GradesTab({
         notas,
         matrixData.map(m => ({ estudianteId: m.estudiante.id, asistenciaPct: m.asistenciaPct, condicion: m.condicion }))
       );
-      toast.success('Archivo Excel generado correctamente.');
+      toast.success('Archivo Excel (.xlsx) generado correctamente.');
     } catch (err) {
       toast.error('Error al exportar Excel: ' + err.message);
+    }
+  };
+
+  const handleExportCsv = () => {
+    try {
+      exportGradesToCsv(
+        { nombre: catedraName, nivel: academicLevel, modalidad },
+        estudiantes,
+        evaluaciones,
+        notas,
+        matrixData.map(m => ({ estudianteId: m.estudiante.id, asistenciaPct: m.asistenciaPct, condicion: m.condicion }))
+      );
+      toast.success('Archivo CSV (.csv) generado correctamente.');
+    } catch (err) {
+      toast.error('Error al exportar CSV: ' + err.message);
     }
   };
 
@@ -518,7 +580,7 @@ export default function GradesTab({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
           {/* Mobile View Toggle */}
           <div className="inline-flex rounded-xl bg-surface-hover p-1 border border-surface-border">
             <button
@@ -549,16 +611,32 @@ export default function GradesTab({
             </button>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            icon={Download}
-            onClick={handleExport}
-            disabled={estudiantes.length === 0}
-            className="text-xs"
-          >
-            <span className="hidden sm:inline">Exportar </span>Excel
-          </Button>
+          {/* Exportación: Excel & CSV */}
+          <div className="inline-flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={FileSpreadsheet}
+              onClick={handleExportExcel}
+              disabled={estudiantes.length === 0}
+              className="text-xs"
+              title="Descargar sábana completa en Excel (.xlsx)"
+            >
+              <span className="hidden md:inline">Exportar </span>Excel
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              icon={FileText}
+              onClick={handleExportCsv}
+              disabled={estudiantes.length === 0}
+              className="text-xs"
+              title="Descargar calificaciones en CSV (.csv)"
+            >
+              CSV
+            </Button>
+          </div>
 
           <Button
             variant="primary"

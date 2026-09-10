@@ -509,22 +509,22 @@ export default function CalendarPage() {
          ======================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ========================================================
-            1. PANEL DE CONTROL OSCURO / LATERAL IZQUIERDO (4 Cols)
+            1. PANEL DE CONTROL / NAVEGACIÓN RÁPIDA LIQUID GLASS (4 Cols)
            ======================================================== */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="bg-[#0c1322] border border-[#1a263e] rounded-3xl p-5 text-slate-200 shadow-elevated-dark space-y-5">
+          <div className="bg-surface/90 dark:bg-surface/80 backdrop-blur-xl border border-surface-border rounded-3xl p-5 text-text-primary shadow-subtle dark:shadow-elevated-dark space-y-5 transition-colors">
             {/* Header del Panel de Control */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center justify-between border-b border-surface-border pb-3">
               <div className="flex items-center gap-2">
-                <CalendarRange className="w-4 h-4 text-[#00C2CB]" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                <CalendarRange className="w-4 h-4 text-primary" />
+                <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
                   Navegación Rápida
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleToday}
-                className="text-[11px] font-semibold text-[#00C2CB] hover:underline"
+                className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
               >
                 Ir a Hoy
               </button>
@@ -533,7 +533,7 @@ export default function CalendarPage() {
             {/* A. MINI CALENDARIO MENSUAL INTERACTIVO */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-bold text-white">
+                <span className="text-xs font-bold text-text-primary">
                   {MONTH_NAMES[miniCalDate.getMonth()]} {miniCalDate.getFullYear()}
                 </span>
                 <div className="flex items-center gap-1">
@@ -544,7 +544,7 @@ export default function CalendarPage() {
                       d.setMonth(d.getMonth() - 1);
                       setMiniCalDate(d);
                     }}
-                    className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                    className="p-1 rounded-lg hover:bg-surface-hover text-text-muted hover:text-text-primary transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -555,7 +555,7 @@ export default function CalendarPage() {
                       d.setMonth(d.getMonth() + 1);
                       setMiniCalDate(d);
                     }}
-                    className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                    className="p-1 rounded-lg hover:bg-surface-hover text-text-muted hover:text-text-primary transition-colors"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -563,7 +563,7 @@ export default function CalendarPage() {
               </div>
 
               {/* Días de la semana abreviados */}
-              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-mono text-slate-400 font-bold">
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-mono text-text-muted font-bold">
                 {SHORT_DAYS.map((sd, i) => (
                   <span key={i}>{sd}</span>
                 ))}
@@ -586,18 +586,18 @@ export default function CalendarPage() {
                       type="button"
                       onClick={() => setCurrentDate(d)}
                       className={`
-                        h-7 w-7 rounded-lg text-xs font-mono font-medium transition-all flex flex-col items-center justify-center relative
+                        h-7 w-7 rounded-lg text-xs font-mono font-medium transition-all flex flex-col items-center justify-center relative cursor-pointer
                         ${isSelected 
-                          ? 'bg-primary text-white font-bold shadow-sm' 
+                          ? 'bg-primary text-white font-bold shadow-sm shadow-primary/30' 
                           : isToday 
-                            ? 'border border-[#00C2CB] text-[#00C2CB] hover:bg-slate-800' 
-                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                            ? 'border border-primary text-primary hover:bg-primary/10' 
+                            : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                         }
                       `}
                     >
                       <span>{d.getDate()}</span>
                       {hasEv && (
-                        <span className="w-1 h-1 rounded-full bg-rose-400 -mt-0.5" />
+                        <span className="w-1 h-1 rounded-full bg-primary -mt-0.5" />
                       )}
                     </button>
                   );
@@ -606,14 +606,14 @@ export default function CalendarPage() {
             </div>
 
             {/* B. TARJETA DESTACADA: CUENTA REGRESIVA / PRÓXIMO EVENTO */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-950/40 to-slate-900 border border-blue-900/40 space-y-2.5 relative overflow-hidden">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-surface to-primary/5 border border-primary/20 space-y-2.5 relative overflow-hidden backdrop-blur-md">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#00C2CB] flex items-center gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5" />
                   <span>Próximo Compromiso</span>
                 </span>
                 {nextUpcomingItem && (
-                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/20">
                     {getRelativeDateLabel(nextUpcomingItem.date.toISOString().split('T')[0])}
                   </span>
                 )}
@@ -621,36 +621,36 @@ export default function CalendarPage() {
 
               {nextUpcomingItem ? (
                 <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug">
+                  <h4 className="text-xs sm:text-sm font-bold text-text-primary line-clamp-2 leading-snug">
                     {nextUpcomingItem.titulo}
                   </h4>
-                  <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-300 font-mono">
-                    <span className="text-white font-semibold">
+                  <div className="flex items-center gap-2 mt-2 text-[11px] text-text-secondary font-mono">
+                    <span className="text-primary font-bold">
                       {nextUpcomingItem.hora} hs
                     </span>
                     <span>•</span>
-                    <span className="text-slate-400 truncate">
+                    <span className="text-text-muted truncate">
                       {nextUpcomingItem.isClass ? (nextUpcomingItem.aula || 'Aula regular') : 'Examen / Compromiso'}
                     </span>
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-text-muted">
                   No tienes clases ni exámenes pendientes programados.
                 </p>
               )}
             </div>
 
             {/* C. FILTROS POR CATEGORÍAS ESTILIZADOS */}
-            <div className="space-y-2 pt-2 border-t border-slate-800">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+            <div className="space-y-2 pt-2 border-t border-surface-border">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted block mb-1">
                 Filtrar por Categoría
               </span>
 
               <div className="space-y-1.5 text-xs">
                 {[
                   { id: 'TODOS', label: 'Todas las categorías', color: 'bg-slate-400' },
-                  { id: 'CLASE', label: 'Clases de Cátedra', color: 'bg-blue-500' },
+                  { id: 'CLASE', label: 'Clases de Cátedra', color: 'bg-primary' },
                   { id: 'TRIBUNAL_EXAMEN', label: 'Exámenes & Tribunales', color: 'bg-rose-500' },
                   { id: 'REUNION', label: 'Reuniones Institucionales', color: 'bg-sky-500' },
                   { id: 'PERIODO', label: 'Períodos & Recesos', color: 'bg-amber-500' }
@@ -662,10 +662,10 @@ export default function CalendarPage() {
                       type="button"
                       onClick={() => setSelectedCategory(catItem.id)}
                       className={`
-                        w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-left font-medium
+                        w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-left font-medium cursor-pointer
                         ${isActive 
-                          ? 'bg-slate-800 text-white border border-slate-700 shadow-xs' 
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                          ? 'bg-primary/10 text-primary border border-primary/25 font-bold shadow-xs' 
+                          : 'text-text-muted hover:text-text-primary hover:bg-surface-hover'
                         }
                       `}
                     >
@@ -673,7 +673,7 @@ export default function CalendarPage() {
                         <span className={`w-2.5 h-2.5 rounded-full ${catItem.color}`} />
                         <span>{catItem.label}</span>
                       </div>
-                      {isActive && <Check className="w-3.5 h-3.5 text-[#00C2CB]" />}
+                      {isActive && <Check className="w-3.5 h-3.5 text-primary" />}
                     </button>
                   );
                 })}

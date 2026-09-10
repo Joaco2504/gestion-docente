@@ -174,20 +174,20 @@ export default function DualSidebar({ isOpen = false, onClose }) {
         {/* ========================================================
             1. RIEL IZQUIERDO ESTRECHO (ICON RAIL: 4rem / 64px)
            ======================================================== */}
-        <div className="w-16 bg-[#080d1a] border-r border-[#152033] flex flex-col justify-between items-center py-3.5 z-20 shrink-0 select-none">
+        <div className="w-16 bg-surface/85 dark:bg-[#080d1a]/90 backdrop-blur-xl border-r border-surface-border flex flex-col justify-between items-center py-3.5 z-20 shrink-0 select-none shadow-subtle dark:shadow-none">
           {/* Top Logo / Isotipo */}
           <div className="flex flex-col items-center gap-4">
             <NavLink
               to="/dashboard"
               onClick={onClose}
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-700 flex items-center justify-center text-white shadow-md shadow-primary/30 hover:scale-105 active:scale-95 transition-transform"
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center text-white shadow-md shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
               title="PlanillaDocente — Yastai de Geti"
             >
               <GraduationCap className="w-5 h-5" />
             </NavLink>
 
             {/* Separador sutil */}
-            <div className="w-8 h-[1px] bg-slate-800" />
+            <div className="w-8 h-[1px] bg-surface-border" />
 
             {/* Primary Action Icons */}
             <nav className="flex flex-col items-center gap-1.5" aria-label="Riel de accesos rápidos">
@@ -204,8 +204,8 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                       relative group w-10 h-10 rounded-xl flex items-center justify-center
                       transition-all duration-150 touch-target-44 cursor-pointer
                       ${isActive
-                        ? 'bg-primary text-white shadow-sm shadow-primary/40'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                        ? 'bg-primary text-white shadow-md shadow-primary/30'
+                        : 'text-text-muted hover:text-text-primary hover:bg-surface-hover/80'
                       }
                     `}
                     title={link.label}
@@ -213,7 +213,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                     <Icon className="w-5 h-5 shrink-0" />
 
                     {/* Tooltip flotante a la derecha en modo hover */}
-                    <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-slate-900 border border-slate-700 rounded-lg shadow-elevated text-xs font-semibold text-white whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5">
+                    <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-surface border border-surface-border rounded-lg shadow-elevated text-xs font-semibold text-text-primary whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
                       {link.label}
                     </span>
                   </NavLink>
@@ -228,7 +228,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="p-2 mb-2 text-slate-400 hover:text-white rounded-lg md:hidden"
+              className="p-2 mb-2 text-text-muted hover:text-text-primary rounded-lg md:hidden"
               title="Cerrar menú"
             >
               <X className="w-5 h-5" />
@@ -238,7 +238,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
             <button
               type="button"
               onClick={toggleSubmenu}
-              className="hidden md:flex w-8 h-8 rounded-lg mb-3 items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="hidden md:flex w-8 h-8 rounded-lg mb-3 items-center justify-center text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
               title={isSubmenuOpen ? 'Ocultar panel de cátedras' : 'Mostrar panel de cátedras'}
               aria-label="Alternar panel secundario"
             >
@@ -254,21 +254,21 @@ export default function DualSidebar({ isOpen = false, onClose }) {
               ref={avatarButtonRef}
               type="button"
               onClick={() => setIsAvatarPopoverOpen(prev => !prev)}
-              className="relative w-10 h-10 rounded-xl overflow-hidden border-2 border-primary/40 hover:border-primary transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center bg-slate-800 group"
+              className="relative w-10 h-10 rounded-xl overflow-hidden border-2 border-primary/40 hover:border-primary transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center bg-surface-hover group"
               title={`Perfil: ${teacherName}`}
             >
               {currentAvatar?.startsWith('preset:') ? (
                 PRESET_AVATARS.find(a => `preset:${a.id}` === currentAvatar)?.svg || (
-                  <User className="w-5 h-5 text-white" />
+                  <User className="w-5 h-5 text-text-secondary" />
                 )
               ) : currentAvatar?.startsWith('data:') || currentAvatar?.startsWith('http') ? (
                 <img src={currentAvatar} alt={teacherName} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-5 h-5 text-white" />
+                <User className="w-5 h-5 text-text-secondary" />
               )}
 
               {/* Halo / Dot Activo Verde */}
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#080d1a]" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-surface" />
             </button>
 
             {/* Avatar Popover Menu */}
