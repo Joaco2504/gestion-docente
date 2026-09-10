@@ -95,3 +95,48 @@ export function isDatePast(dateStr) {
   const target = new Date(iso + 'T23:59:59');
   return target.getTime() < Date.now();
 }
+
+/**
+ * Retorna una fecha en formato legible y abreviado en español (ej. "Lun 15 Mar", "Jue 10 Sep").
+ * @param {string|Date} dateInput 
+ * @returns {string}
+ */
+export function formatFechaLegible(dateInput) {
+  if (!dateInput) return '';
+  const d = dateInput instanceof Date ? dateInput : new Date(parseDMYtoYMD(dateInput) + 'T12:00:00');
+  if (isNaN(d.getTime())) return String(dateInput);
+
+  const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  const diaSemana = dias[d.getDay()];
+  const diaNum = d.getDate();
+  const mes = meses[d.getMonth()];
+
+  return `${diaSemana} ${diaNum} ${mes}`;
+}
+
+/**
+ * Retorna etiqueta de tiempo relativo respecto a hoy (ej. "Hoy", "Mañana", "En 3 días", "Pasó").
+ * @param {string|Date} dateInput 
+ * @returns {string}
+ */
+export function getRelativeDateLabel(dateInput) {
+  if (!dateInput) return '';
+  const targetDate = dateInput instanceof Date ? dateInput : new Date(parseDMYtoYMD(dateInput) + 'T00:00:00');
+  if (isNaN(targetDate.getTime())) return '';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const diffTime = targetDate.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Hoy';
+  if (diffDays === 1) return 'Mañana';
+  if (diffDays === 2) return 'Pasado mañana';
+  if (diffDays > 2) return `En ${diffDays} días`;
+  if (diffDays === -1) return 'Ayer';
+  return `Hace ${Math.abs(diffDays)} días`;
+}
