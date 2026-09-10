@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
+import ThemeToggle from '../components/common/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -118,7 +119,12 @@ export default function AuthPage() {
       </div>
 
       {/* Right side: Login / Signup Form */}
-      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12">
+      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 relative">
+        {/* Floating Theme Switcher */}
+        <div className="absolute top-4 right-4 z-20">
+          <ThemeToggle />
+        </div>
+
         <div className="w-full max-w-md space-y-6">
           {/* Mobile brand header */}
           <div className="lg:hidden flex items-center gap-3 mb-6">
@@ -146,8 +152,8 @@ export default function AuthPage() {
 
           {/* Supabase status pill */}
           {!isSupabaseConfigured && (
-            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs rounded-xl flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <span className="font-semibold block">Supabase no configurado en .env</span>
                 <span className="text-[11px]">Puedes probar la aplicación completa inmediatamente haciendo clic en el botón de demostración local.</span>
@@ -156,14 +162,14 @@ export default function AuthPage() {
           )}
 
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 text-danger text-xs rounded-xl flex items-center gap-2">
+            <div className="p-3 bg-danger/10 border border-danger/30 text-danger text-xs rounded-xl flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3 bg-green-50 border border-green-200 text-green-700 text-xs rounded-xl flex items-center gap-2">
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs rounded-xl flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{successMsg}</span>
             </div>

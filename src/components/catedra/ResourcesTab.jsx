@@ -18,6 +18,7 @@ import Button from '../common/Button';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
 import Modal from '../common/Modal';
+import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -172,6 +173,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
         localStorage.setItem(`recursos_${catedraId}`, JSON.stringify(updated));
       }
 
+      toast.success('Recurso guardado correctamente.');
       // Reset & close
       setTitle('');
       setExternalUrl('');
@@ -179,6 +181,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       setIsModalOpen(false);
     } catch (err) {
       console.error('Error saving resource:', err);
+      toast.error('Error al guardar el recurso: ' + (err.message || 'Intente nuevamente'));
       setErrorMsg('Error al guardar el recurso: ' + (err.message || 'Intente nuevamente'));
     } finally {
       setSaving(false);
@@ -198,9 +201,10 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       if (!isSupabaseConfigured || isDemo) {
         localStorage.setItem(`recursos_${catedraId}`, JSON.stringify(updated));
       }
+      toast.success('Recurso eliminado.');
     } catch (err) {
       console.error('Error deleting resource:', err);
-      alert('No se pudo eliminar el recurso.');
+      toast.error('No se pudo eliminar el recurso.');
     }
   };
 

@@ -1,7 +1,14 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-export default function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = 'max-w-lg' }) {
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children,
+  maxWidth = 'max-w-lg'
+}) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
@@ -19,28 +26,45 @@ export default function Modal({ isOpen, onClose, title, subtitle, children, maxW
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
-        onClick={onClose} 
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200"
+        onClick={onClose}
+        aria-hidden="true"
       />
 
-      {/* Modal Dialog */}
-      <div className={`relative w-full ${maxWidth} bg-surface rounded-2xl shadow-xl border border-surface-border overflow-hidden z-10 animate-fadeIn`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border bg-surface-hover/50">
+      {/* Modal Dialog (Bottom Sheet on Mobile, Centered Modal on Tablet/Desktop) */}
+      <div
+        className={`relative w-full ${maxWidth} bg-surface rounded-t-3xl sm:rounded-2xl shadow-elevated border-t sm:border border-surface-border overflow-hidden z-10 animate-slideUp sm:animate-fadeIn max-h-[90vh] sm:max-h-[85vh] flex flex-col`}
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Mobile Drag Handle */}
+        <div className="sm:hidden pt-2.5 pb-1 flex justify-center">
+          <div className="w-12 h-1.5 bg-text-muted/30 rounded-full" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-surface-border bg-surface-hover/30">
           <div>
             <h3 className="text-base font-bold text-text-primary">{title}</h3>
-            {subtitle && <p className="text-xs text-text-muted mt-0.5">{subtitle}</p>}
+            {subtitle && (
+              <p className="text-xs text-text-muted mt-0.5 leading-snug">{subtitle}</p>
+            )}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
+            className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors touch-target-44 flex items-center justify-center"
+            title="Cerrar ventana"
+            aria-label="Cerrar"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 max-h-[80vh] overflow-y-auto">
+
+        {/* Scrollable Content Body */}
+        <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1">
           {children}
         </div>
       </div>

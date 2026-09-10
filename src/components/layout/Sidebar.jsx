@@ -11,40 +11,52 @@ export default function Sidebar({ isOpen = false, onClose }) {
 
   return (
     <>
-      {/* Mobile backdrop */}
+      {/* Mobile Drawer Backdrop */}
       {isOpen && (
         <div 
           onClick={onClose}
-          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity duration-200"
+          aria-hidden="true"
         />
       )}
 
+      {/* Sidebar Shell:
+          - Mobile: slide-over drawer (w-72)
+          - Tablet (md to lg): compact icon rail (w-20)
+          - Desktop (lg+): full expanded sidebar (w-64)
+      */}
       <aside className={`
-        fixed lg:static top-0 bottom-0 left-0 z-40
-        w-64 bg-surface border-r border-surface-border p-4 flex flex-col justify-between shrink-0
-        transform transition-transform duration-200 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        fixed md:static top-0 bottom-0 left-0 z-50 md:z-20
+        bg-surface border-r border-surface-border p-3 md:p-3.5 lg:p-4
+        flex flex-col justify-between shrink-0
+        transition-all duration-200 ease-in-out
+        w-72 md:w-20 lg:w-64
+        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         <div className="space-y-4">
           {/* Mobile close button header */}
-          <div className="flex items-center justify-between lg:hidden pb-3 border-b border-surface-border">
+          <div className="flex items-center justify-between md:hidden pb-3 border-b border-surface-border">
             <div className="flex items-center gap-2">
-              <GraduationCap className="w-5 h-5 text-primary" />
-              <span className="font-bold text-sm text-text-primary">DocentePro</span>
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <span className="font-bold text-base text-text-primary">DocentePro</span>
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover"
+              className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover touch-target-44"
+              aria-label="Cerrar navegación"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-text-muted">
+          <p className="hidden lg:block px-3 text-[11px] font-bold uppercase tracking-wider text-text-muted">
             Navegación
           </p>
 
-          <nav className="space-y-1">
+          {/* Navigation Links */}
+          <nav className="space-y-1.5" aria-label="Menú principal">
             {links.map((link) => {
               const Icon = link.icon;
               return (
@@ -55,29 +67,35 @@ export default function Sidebar({ isOpen = false, onClose }) {
                     if (onClose) onClose();
                   }}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    `flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-xs font-semibold transition-all touch-target-44 group relative md:justify-center lg:justify-start ${
                       isActive 
                         ? 'bg-primary text-white shadow-sm' 
                         : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                     }`
                   }
+                  title={link.label}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{link.label}</span>
+                  <Icon className="w-5 h-5 md:w-5 md:h-5 shrink-0" />
+                  <span className="md:hidden lg:inline truncate">{link.label}</span>
+
+                  {/* Tablet Icon Rail Tooltip */}
+                  <span className="hidden md:group-hover:block lg:hidden absolute left-full ml-2 px-2.5 py-1 bg-surface border border-surface-border rounded-lg shadow-elevated text-xs font-semibold text-text-primary whitespace-nowrap z-50">
+                    {link.label}
+                  </span>
                 </NavLink>
               );
             })}
           </nav>
         </div>
 
-        {/* Info card footer */}
-        <div className="p-3.5 rounded-xl bg-surface-hover/60 border border-surface-border mt-6">
+        {/* Footer Info Card (Hidden on Tablet Rail) */}
+        <div className="hidden lg:block p-3.5 rounded-2xl bg-surface-hover/60 border border-surface-border mt-6">
           <div className="flex items-center gap-2 text-primary mb-1">
             <HelpCircle className="w-4 h-4" />
             <span className="text-xs font-bold">DocentePro v1.0</span>
           </div>
           <p className="text-[11px] text-text-muted leading-relaxed">
-            Gestión administrativa de cátedras, asistencias y notas con recuperatorios sin sobreescritura.
+            Gestión administrativa de cátedras, asistencias y sábanas de notas con recuperatorios.
           </p>
         </div>
       </aside>

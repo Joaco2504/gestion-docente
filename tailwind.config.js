@@ -13,31 +13,31 @@ export default {
           hover: '#0e07cc',
           light: '#f0efff',
           muted: '#e2e0ff',
+          dark: '#3d34ff',
         },
         surface: {
-          DEFAULT: '#ffffff',
-          dark: '#161926',
-          hover: '#f4f3ff',
-          border: '#e4e2f5',
+          DEFAULT: 'var(--surface)',
+          hover: 'var(--surface-hover)',
+          border: 'var(--surface-border)',
         },
         canvas: {
-          DEFAULT: '#faf8ff',
+          DEFAULT: 'var(--canvas)',
           light: '#faf8ff',
-          dark: '#11131d',
+          dark: '#0b0f19',
         },
         academic: {
           promo: '#059669', // Emerald
           regular: '#d97706', // Amber
           libre: '#dc2626', // Rose / Red
-          recup: '#7c3aed', // Purple for recuperatorios
+          recup: '#7c3aed', // Purple
         },
         success: '#10b981',
         warning: '#f59e0b',
         danger: '#ef4444',
         text: {
-          primary: '#111827',
-          secondary: '#4b5563',
-          muted: '#9ca3af',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
         }
       },
       fontFamily: {
@@ -47,9 +47,31 @@ export default {
       borderRadius: {
         'xl': '0.75rem',
         '2xl': '1rem',
+        '3xl': '1.5rem',
       },
       boxShadow: {
         'subtle': '0 1px 3px 0 rgba(18, 9, 255, 0.04), 0 1px 2px -1px rgba(18, 9, 255, 0.04)',
+        'elevated': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+        'elevated-dark': '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        pulseGlow: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.6' },
+        }
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.2s ease-out forwards',
+        slideUp: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        pulseGlow: 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       }
     },
   },

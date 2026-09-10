@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { 
   Building, 
   Plus, 
@@ -69,6 +70,7 @@ export default function InstitutionsPage() {
         await refreshData();
         setIsInstModalOpen(false);
         setInstNombre('');
+        toast.success(`Institución creada con éxito`);
       } else {
         const newInst = {
           id: 'inst-' + Date.now(),
@@ -82,10 +84,12 @@ export default function InstitutionsPage() {
         await refreshData();
         setIsInstModalOpen(false);
         setInstNombre('');
+        toast.success(`Institución "${newInst.nombre}" creada (Modo Demo)`);
       }
     } catch (err) {
       console.error('Error creating institution:', err);
       setErrorMsg(err.message || 'Error al guardar la institución');
+      toast.error('Error al guardar la institución: ' + err.message);
     } finally {
       setSavingInst(false);
     }
@@ -111,6 +115,7 @@ export default function InstitutionsPage() {
         if (error) throw error;
         await refreshData();
         setIsCicloModalOpen(false);
+        toast.success(`Ciclo Lectivo ${cicloAnio} registrado`);
       } else {
         const newCiclo = {
           id: 'ciclo-' + Date.now(),
@@ -123,10 +128,12 @@ export default function InstitutionsPage() {
         localStorage.setItem('demo_ciclos', JSON.stringify(current));
         await refreshData();
         setIsCicloModalOpen(false);
+        toast.success(`Ciclo Lectivo ${cicloAnio} creado (Modo Demo)`);
       }
     } catch (err) {
       console.error('Error creating ciclo:', err);
       setErrorMsg(err.message || 'Error al crear el ciclo lectivo');
+      toast.error('Error al crear ciclo: ' + err.message);
     } finally {
       setSavingCiclo(false);
     }
@@ -173,7 +180,7 @@ export default function InstitutionsPage() {
       </div>
 
       {errorMsg && (
-        <div className="p-4 bg-red-50 border border-red-200 text-danger text-xs rounded-xl flex items-center gap-2">
+        <div className="p-4 bg-danger/10 border border-danger/30 text-danger text-xs rounded-xl flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{errorMsg}</span>
         </div>
@@ -197,7 +204,7 @@ export default function InstitutionsPage() {
                 <Card 
                   key={inst.id} 
                   className={`p-5 transition-all relative ${
-                    isSelected ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-surface-border'
+                    isSelected ? 'ring-2 ring-primary border-primary bg-primary/5 dark:bg-primary/10' : 'hover:border-surface-border'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
@@ -223,7 +230,10 @@ export default function InstitutionsPage() {
                     <Button
                       variant={isSelected ? 'secondary' : 'outline'}
                       size="sm"
-                      onClick={() => setActiveInstitucion(inst)}
+                      onClick={() => {
+                        setActiveInstitucion(inst);
+                        toast.info(`Institución activa: ${inst.nombre}`);
+                      }}
                       disabled={isSelected}
                     >
                       {isSelected ? 'Seleccionada' : 'Seleccionar como activa'}
@@ -252,7 +262,7 @@ export default function InstitutionsPage() {
                   key={ciclo.id}
                   className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
                     isSelected 
-                      ? 'border-primary bg-primary/5' 
+                      ? 'border-primary bg-primary/5 dark:bg-primary/10' 
                       : 'border-surface-border hover:bg-surface-hover'
                   }`}
                 >
@@ -275,7 +285,10 @@ export default function InstitutionsPage() {
                   <Button
                     variant={isSelected ? 'secondary' : 'ghost'}
                     size="sm"
-                    onClick={() => setActiveCiclo(ciclo)}
+                    onClick={() => {
+                      setActiveCiclo(ciclo);
+                      toast.info(`Ciclo lectivo activo: ${ciclo.anio}`);
+                    }}
                     disabled={isSelected}
                   >
                     {isSelected ? 'Activo' : 'Activar'}

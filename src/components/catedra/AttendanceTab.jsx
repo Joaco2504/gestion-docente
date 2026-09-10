@@ -8,12 +8,16 @@ import {
   CheckCheck, 
   Clock, 
   AlertCircle,
-  Save
+  Save,
+  CheckCircle2,
+  Percent
 } from 'lucide-react';
+import { toast } from 'sonner';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
+import { SkeletonTable } from '../common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -122,6 +126,7 @@ export default function AttendanceTab({
       }
     } catch (err) {
       console.error('Error fetching attendance data:', err);
+      toast.error('Error al cargar datos de asistencia.');
     } finally {
       setLoading(false);
     }
@@ -159,10 +164,11 @@ export default function AttendanceTab({
         localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updated));
       }
 
+      toast.success(`Clase del ${nuevaFecha} creada exitosamente.`);
       setIsModalOpen(false);
       setNuevoTema('');
     } catch (err) {
-      alert('Error: ' + err.message);
+      toast.error('Error al crear clase: ' + err.message);
     } finally {
       setSavingClase(false);
     }
@@ -212,6 +218,8 @@ export default function AttendanceTab({
     } else {
       localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(updated));
     }
+
+    toast.success('Todos los estudiantes marcados como presentes.');
   };
 
   const getEstado = (estudianteId) => {
@@ -230,29 +238,31 @@ export default function AttendanceTab({
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="py-6 space-y-4">
+        <SkeletonTable rows={5} cols={3} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
       {/* Top selector & action bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-surface p-4 rounded-xl border border-surface-border shadow-xs">
-        <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-          <Clock className="w-5 h-5 text-primary shrink-0" />
-          <div className="flex-1">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-surface p-4 rounded-2xl border border-surface-border shadow-xs">
+        <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center shrink-0">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
             <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">
-              Sesión de Clase Seleccionada
+              Sesión de Clase
             </label>
             {clases.length === 0 ? (
-              <span className="text-xs font-medium text-text-muted">No hay clases registradas aún</span>
+              <span className="text-xs font-medium text-text-muted">No hay clases registradas</span>
             ) : (
               <select
                 value={activeClase?.id || ''}
                 onChange={(e) => setSelectedClaseId(e.target.value)}
-                className="w-full text-xs sm:text-sm font-semibold text-text-primary bg-transparent border-0 focus:ring-0 p-0 cursor-pointer"
+                className="w-full text-xs sm:text-sm font-semibold text-text-primary bg-transparent border-0 focus:ring-0 p-0 cursor-pointer truncate"
               >
                 {clases.map(c => (
                   <option key={c.id} value={c.id}>
@@ -271,7 +281,7 @@ export default function AttendanceTab({
               size="sm"
               icon={CheckCheck}
               onClick={handleMarcarTodosPresentes}
-              title="Marcar todos como presentes"
+              className="flex-1 sm:flex-initial text-xs"
             >
               Todos Presentes
             </Button>
@@ -281,6 +291,7 @@ export default function AttendanceTab({
             size="sm"
             icon={Plus}
             onClick={() => setIsModalOpen(true)}
+            className="flex-1 sm:flex-initial text-xs"
           >
             Nueva Clase
           </Button>
@@ -289,32 +300,40 @@ export default function AttendanceTab({
 
       {/* Attendance summary cards */}
       {activeClase && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="p-4 flex items-center justify-between">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <Card className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-bold uppercase text-text-muted">Presentes</p>
-              <p className="text-2xl font-mono font-bold text-emerald-600 mt-1">{presentesCount}</p>
+              <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Presentes</p>
+              <p className="text-xl sm:text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 sm:mt-1">
+                {presentesCount}
+              </p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Check className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Check className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </Card>
-          <Card className="p-4 flex items-center justify-between">
+
+          <Card className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-bold uppercase text-text-muted">Ausentes</p>
-              <p className="text-2xl font-mono font-bold text-rose-600 mt-1">{ausentesCount}</p>
+              <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Ausentes</p>
+              <p className="text-xl sm:text-2xl font-mono font-bold text-rose-600 dark:text-rose-400 mt-0.5 sm:mt-1">
+                {ausentesCount}
+              </p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
-              <X className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </Card>
-          <Card className="p-4 flex items-center justify-between">
+
+          <Card className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-bold uppercase text-text-muted">% Presentismo</p>
-              <p className="text-2xl font-mono font-bold text-primary mt-1">{presentismoPct}%</p>
+              <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Presentismo</p>
+              <p className="text-xl sm:text-2xl font-mono font-bold text-primary mt-0.5 sm:mt-1">
+                {presentismoPct}%
+              </p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-              <Users className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center shrink-0">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </Card>
         </div>
@@ -341,15 +360,15 @@ export default function AttendanceTab({
           </Button>
         </Card>
       ) : (
-        <div className="bg-surface rounded-xl border border-surface-border overflow-hidden shadow-xs">
+        <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-surface-hover/60 text-text-secondary font-semibold border-b border-surface-border">
+              <thead className="bg-surface-hover/80 text-text-secondary font-semibold border-b border-surface-border">
                 <tr>
-                  <th className="px-4 py-3 w-12 text-center">#</th>
-                  <th className="px-4 py-3 font-mono">DNI</th>
-                  <th className="px-4 py-3">Estudiante (Apellido y Nombre)</th>
-                  <th className="px-4 py-3 text-center">Estado de Asistencia</th>
+                  <th className="px-3 sm:px-4 py-3 w-12 text-center">#</th>
+                  <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
+                  <th className="px-3 sm:px-4 py-3">Estudiante</th>
+                  <th className="px-3 sm:px-4 py-3 text-center min-w-[180px]">Estado de Asistencia</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-border">
@@ -359,36 +378,36 @@ export default function AttendanceTab({
 
                   return (
                     <tr key={est.id} className="hover:bg-surface-hover/40 transition-colors">
-                      <td className="px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
-                      <td className="px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
-                      <td className="px-4 py-3 font-semibold text-text-primary">
+                      <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
+                      <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
+                      <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary">
                         {est.apellido}, {est.nombre}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 sm:px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => handleToggle(est.id, 'PRESENTE')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-all touch-target-44 active:scale-95 flex-1 sm:flex-initial ${
                               isPresente
-                                ? 'bg-emerald-600 text-white shadow-xs'
-                                : 'bg-surface-hover text-text-muted hover:text-emerald-700 border border-surface-border'
+                                ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                                : 'bg-surface-hover text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-surface-border'
                             }`}
                           >
-                            <Check className="w-3.5 h-3.5" />
+                            <Check className="w-4 h-4 shrink-0" />
                             <span>Presente</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleToggle(est.id, 'AUSENTE')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-all touch-target-44 active:scale-95 flex-1 sm:flex-initial ${
                               !isPresente
-                                ? 'bg-rose-600 text-white shadow-xs'
-                                : 'bg-surface-hover text-text-muted hover:text-rose-700 border border-surface-border'
+                                ? 'bg-rose-600 text-white shadow-xs font-bold'
+                                : 'bg-surface-hover text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-surface-border'
                             }`}
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-4 h-4 shrink-0" />
                             <span>Ausente</span>
                           </button>
                         </div>
@@ -402,7 +421,7 @@ export default function AttendanceTab({
         </div>
       )}
 
-      {/* Modal Nueva Clase */}
+      {/* Modal / Bottom Sheet Nueva Clase */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -419,7 +438,7 @@ export default function AttendanceTab({
               required
               value={nuevaFecha}
               onChange={(e) => setNuevaFecha(e.target.value)}
-              className="w-full px-3.5 py-2 text-sm font-mono border border-surface-border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+              className="w-full px-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
           </div>
           <div>
@@ -431,10 +450,10 @@ export default function AttendanceTab({
               placeholder="Ej: Unidad 2 - Modelado Relacional y Normalización"
               value={nuevoTema}
               onChange={(e) => setNuevoTema(e.target.value)}
-              className="w-full px-3.5 py-2 text-sm border border-surface-border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
               Cancelar
             </Button>

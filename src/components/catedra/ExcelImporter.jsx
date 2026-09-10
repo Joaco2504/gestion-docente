@@ -3,6 +3,7 @@ import { parseExcelOrCsv, autoDetectColumns, sanitizeStudentRows } from '../../l
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Users, ArrowRight } from 'lucide-react';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
+import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -121,6 +122,7 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
       }
 
       setImportSuccessCount(sanitizedData.length);
+      toast.success(`Se han importado exitosamente ${sanitizedData.length} alumnos.`);
       if (onStudentsImported) onStudentsImported(sanitizedData);
       if (onImportSuccess) onImportSuccess(sanitizedData);
 
@@ -131,7 +133,7 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       console.error('Error al importar:', err);
-      alert('Error al importar alumnos: ' + err.message);
+      toast.error('Error al importar alumnos: ' + err.message);
     } finally {
       setIsProcessing(false);
     }

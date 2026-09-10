@@ -13,6 +13,7 @@ import {
 import Button from '../common/Button';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
+import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -149,9 +150,11 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
       }
 
       setSaveSuccess(true);
+      toast.success('Configuración y criterios guardados exitosamente.');
       setTimeout(() => setSaveSuccess(false), 3500);
     } catch (err) {
       console.error('Error saving catedra settings:', err);
+      toast.error('Error al guardar configuración: ' + (err.message || 'Error desconocido'));
       setErrorMessage('Error al guardar configuración: ' + (err.message || 'Error desconocido'));
     } finally {
       setLoading(false);

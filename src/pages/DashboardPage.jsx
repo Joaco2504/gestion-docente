@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { 
   BookOpen, 
   Users, 
@@ -19,6 +20,7 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
+import { SkeletonCatedraCard } from '../components/common/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -83,6 +85,7 @@ export default function DashboardPage() {
         await refreshData();
         setIsModalOpen(false);
         setNewNombre('');
+        toast.success(`Cátedra "${data.nombre}" creada con éxito`);
         navigate(`/catedra/${data.id}`);
       } else {
         // Demo mode fallback
@@ -103,11 +106,13 @@ export default function DashboardPage() {
         await refreshData();
         setIsModalOpen(false);
         setNewNombre('');
+        toast.success(`Cátedra "${newCat.nombre}" creada (Modo Demo)`);
         navigate(`/catedra/${newCat.id}`);
       }
     } catch (err) {
       console.error('Error creating cátedra:', err);
       setErrorMsg(err.message || 'Error al crear la cátedra');
+      toast.error('Error al crear la cátedra: ' + (err.message || 'Error desconocido'));
     } finally {
       setSaving(false);
     }
@@ -158,7 +163,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <BookOpen className="w-5 h-5" />
@@ -172,7 +177,7 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
             <Users className="w-5 h-5" />
           </div>
           <div>
@@ -184,7 +189,7 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
             <CheckCircle2 className="w-5 h-5" />
           </div>
           <div>
@@ -196,7 +201,7 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
             <Calendar className="w-5 h-5" />
           </div>
           <div>
@@ -230,8 +235,8 @@ export default function DashboardPage() {
         </div>
 
         {loadingApp ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <SkeletonCatedraCard count={3} />
           </div>
         ) : filteredCatedras.length === 0 ? (
           <Card className="text-center py-16">
@@ -342,7 +347,7 @@ export default function DashboardPage() {
       >
         <form onSubmit={handleCreateCatedra} className="space-y-4">
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 text-danger text-xs rounded-lg">
+            <div className="p-3 bg-danger/10 border border-danger/30 text-danger text-xs rounded-lg">
               {errorMsg}
             </div>
           )}

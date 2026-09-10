@@ -186,8 +186,8 @@ export default function CatedraDetailPage() {
             </div>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex items-center gap-1 overflow-x-auto border-t border-surface-border mt-6 pt-2 scrollbar-thin">
+          {/* Tab Navigation with 44px touch targets on mobile */}
+          <div className="flex items-center gap-1.5 overflow-x-auto border-t border-surface-border mt-6 pt-3 pb-1 scrollbar-thin scroll-smooth -mx-2 px-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -195,13 +195,13 @@ export default function CatedraDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-primary text-white shadow-sm'
                       : 'text-text-muted hover:text-text-primary hover:bg-surface-hover'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4 shrink-0" />
                   <span>{tab.label}</span>
                 </button>
               );

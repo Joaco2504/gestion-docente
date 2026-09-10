@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { useApp } from '../../context/AppContext';
 import { Building2, Calendar, ChevronDown, Plus } from 'lucide-react';
 import Modal from '../common/Modal';
@@ -33,8 +34,9 @@ export default function HeaderSelector() {
       await createInstitucion(instNombre.trim(), instNivel);
       setInstNombre('');
       setIsInstModalOpen(false);
+      toast.success('Institución creada con éxito');
     } catch (err) {
-      alert('Error: ' + err.message);
+      toast.error('Error al crear institución: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -47,8 +49,9 @@ export default function HeaderSelector() {
     try {
       await createCicloLectivo(cicloAnio, true);
       setIsCicloModalOpen(false);
+      toast.success(`Ciclo Lectivo ${cicloAnio} activado`);
     } catch (err) {
-      alert('Error: ' + err.message);
+      toast.error('Error al crear ciclo: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -138,7 +141,7 @@ export default function HeaderSelector() {
               placeholder="Ej: Instituto Superior de Formación Docente N° 19"
               value={instNombre}
               onChange={(e) => setInstNombre(e.target.value)}
-              className="w-full px-3.5 py-2 text-sm border border-surface-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              className="w-full px-3.5 py-2 text-sm bg-surface text-text-primary border border-surface-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
             />
           </div>
           <div>
@@ -200,7 +203,7 @@ export default function HeaderSelector() {
               max="2100"
               value={cicloAnio}
               onChange={(e) => setCicloAnio(e.target.value)}
-              className="w-full px-3.5 py-2 text-sm font-mono border border-surface-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              className="w-full px-3.5 py-2 text-sm font-mono bg-surface text-text-primary border border-surface-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -37,6 +38,7 @@ export default function CalendarPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('TODOS');
+  const [mobileTab, setMobileTab] = useState('semana'); // 'semana' | 'mesas'
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // New Event Form State
@@ -143,27 +145,31 @@ export default function CalendarPage() {
       setIsModalOpen(false);
       setTitulo('');
       setNotas('');
+      toast.success('Evento registrado con éxito en el calendario');
     } catch (err) {
       console.error('Error creating event:', err);
       setErrorMsg(err.message || 'Error al guardar el evento.');
+      toast.error('Error al guardar el evento: ' + (err.message || 'Error desconocido'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteEvent = async (id) => {
-    if (!confirm('¿Eliminar este evento del calendario?')) return;
     try {
       if (isSupabaseConfigured && !isDemo) {
-        await supabase.from('eventos_calendario').delete().eq('id', id);
+        const { error } = await supabase.from('eventos_calendario').delete().eq('id', id);
+        if (error) throw error;
       }
       const updated = events.filter((e) => e.id !== id);
       setEvents(updated);
       if (!isSupabaseConfigured || isDemo) {
         localStorage.setItem('demo_eventos_calendario', JSON.stringify(updated));
       }
+      toast.success('Evento eliminado del calendario');
     } catch (err) {
       console.error('Error deleting event:', err);
+      toast.error('Error al eliminar el evento: ' + err.message);
     }
   };
 
@@ -223,15 +229,42 @@ export default function CalendarPage() {
             setErrorMsg('');
             setIsModalOpen(true);
           }}
+          className="w-full sm:w-auto"
         >
           Nuevo Evento / Mesa
         </Button>
       </div>
 
+      {/* Mobile / Tablet Segmented View Switcher */}
+      <div className="flex lg:hidden items-center p-1 bg-surface-hover/70 rounded-xl border border-surface-border">
+        <button
+          type="button"
+          onClick={() => setMobileTab('semana')}
+          className={`flex-1 py-2.5 text-xs font-semibold rounded-lg transition-all ${
+            mobileTab === 'semana'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-text-muted hover:text-text-primary'
+          }`}
+        >
+          Grilla Semanal ({weeklyClassSlots.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('mesas')}
+          className={`flex-1 py-2.5 text-xs font-semibold rounded-lg transition-all ${
+            mobileTab === 'mesas'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-text-muted hover:text-text-primary'
+          }`}
+        >
+          Mesas y Eventos ({filteredEvents.length})
+        </button>
+      </div>
+
       {/* Grid: Weekly Schedule Board (Left) & Upcoming Special Events (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Weekly Grid (2 Cols) */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className={`lg:col-span-2 space-y-4 ${mobileTab === 'semana' ? 'block' : 'hidden lg:block'}`}>
           <Card>
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-surface-border">
               <div className="flex items-center gap-2">
@@ -290,7 +323,7 @@ export default function CalendarPage() {
         </div>
 
         {/* Upcoming Special Events (1 Col) */}
-        <div className="space-y-4">
+        <div className={`space-y-4 ${mobileTab === 'mesas' ? 'block' : 'hidden lg:block'}`}>
           <Card>
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-surface-border">
               <div className="flex items-center gap-2">
@@ -382,7 +415,7 @@ export default function CalendarPage() {
       >
         <form onSubmit={handleCreateEvent} className="space-y-4">
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 text-danger text-xs rounded-lg">
+            <div className="p-3 bg-danger/10 border border-danger/30 text-danger text-xs rounded-lg">
               {errorMsg}
             </div>
           )}
