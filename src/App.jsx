@@ -15,6 +15,8 @@ import CatedraDetailPage from './pages/CatedraDetailPage';
 import CalendarPage from './pages/CalendarPage';
 import InstitutionsPage from './pages/InstitutionsPage';
 import SettingsPage from './pages/SettingsPage';
+import GuidesPage from './pages/GuidesPage';
+import SupportPage from './pages/SupportPage';
 import { GraduationCap } from 'lucide-react';
 
 export default function App() {
@@ -39,7 +41,7 @@ export default function App() {
           </div>
           <div className="text-center">
             <span className="font-bold text-base tracking-tight text-text-primary block">
-              Docente<span className="text-primary">Pro</span>
+              Planilla<span className="text-primary">Docente</span>
             </span>
             <span className="text-xs font-mono text-text-muted">Iniciando plataforma...</span>
           </div>
@@ -98,6 +100,8 @@ export default function App() {
                 <Route path="/calendario" element={<CalendarPage />} />
                 <Route path="/instituciones" element={<InstitutionsPage />} />
                 <Route path="/configuracion" element={<SettingsPage />} />
+                <Route path="/guias" element={<GuidesPage />} />
+                <Route path="/soporte" element={<SupportPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </div>

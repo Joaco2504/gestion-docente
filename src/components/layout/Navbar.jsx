@@ -33,10 +33,10 @@ export default function Navbar({ onToggleSidebar }) {
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="font-bold text-base sm:text-lg tracking-tight text-text-primary">
-                Docente<span className="text-primary">Pro</span>
+                Planilla<span className="text-primary">Docente</span>
               </span>
               <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono hidden xs:inline">
-                v1.0
+                v1.2
               </span>
             </div>
             <p className="text-[11px] text-text-muted -mt-0.5 font-medium hidden sm:block">

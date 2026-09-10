@@ -14,7 +14,7 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export default function AuthPage() {
   const { signIn, signUp, enterDemoMode } = useAuth();
@@ -89,7 +89,7 @@ export default function AuthPage() {
               <GraduationCap className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-xl font-bold tracking-tight">Docente<span className="text-blue-300">Pro</span></span>
+              <span className="text-xl font-bold tracking-tight">Planilla<span className="text-blue-300">Docente</span></span>
               <span className="block text-[10px] uppercase font-mono tracking-widest text-blue-200">
                 Gestión Administrativa Docente
               </span>
@@ -133,7 +133,7 @@ export default function AuthPage() {
         </div>
 
         <div className="relative z-10 pt-6 border-t border-white/15 text-xs text-blue-200/80 flex items-center justify-between">
-          <span>© 2026 DocentePro • Arquitectura Segura con Supabase RLS</span>
+          <span>© 2026 PlanillaDocente • Arquitectura Segura con Supabase RLS</span>
           <div className="flex items-center gap-1.5 font-mono text-[11px]">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>PostgreSQL Relational</span>
@@ -143,8 +143,7 @@ export default function AuthPage() {
 
       {/* Right side: Login / Signup Form */}
       <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 relative">
-        {/* Floating Theme Switcher */}
-        <div className="absolute top-4 right-4 z-20">
+        <div className="absolute top-6 right-6">
           <ThemeToggle />
         </div>
 
@@ -155,7 +154,7 @@ export default function AuthPage() {
               <GraduationCap className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-lg font-bold text-text-primary">Docente<span className="text-primary">Pro</span></span>
+              <span className="text-lg font-bold text-text-primary">Planilla<span className="text-primary">Docente</span></span>
               <span className="block text-[10px] uppercase font-mono tracking-widest text-text-muted">
                 Gestión Docente
               </span>
@@ -179,7 +178,7 @@ export default function AuthPage() {
               <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <span className="font-semibold block">Supabase no configurado en .env</span>
-                <span className="text-[11px]">Puedes probar la aplicación completa inmediatamente haciendo clic en el botón de demostración local.</span>
+                <span className="text-[11px]">Verifica las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.</span>
               </div>
             </div>
           )}
@@ -199,27 +198,6 @@ export default function AuthPage() {
           )}
 
           <Card className="p-6 shadow-sm border border-surface-border">
-            {/* Google OAuth Button */}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl border border-surface-border bg-surface hover:bg-surface-hover text-text-primary text-xs font-semibold shadow-xs transition-all touch-target-44"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-              </svg>
-              <span>Continuar con Google</span>
-            </button>
-
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 h-px bg-surface-border" />
-              <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider">o con correo electrónico</span>
-              <div className="flex-1 h-px bg-surface-border" />
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <div>
@@ -272,9 +250,30 @@ export default function AuthPage() {
                 className="w-full mt-2"
                 icon={ArrowRight}
               >
-                {isLogin ? 'Ingresar a DocentePro' : 'Registrarme'}
+                {isLogin ? 'Ingresar a PlanillaDocente' : 'Registrarme'}
               </Button>
             </form>
+
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-surface-border" />
+              <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider">o continúa con</span>
+              <div className="flex-1 h-px bg-surface-border" />
+            </div>
+
+            {/* Google OAuth Button below Ingresar a PlanillaDocente */}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl border border-surface-border bg-surface hover:bg-surface-hover text-text-primary text-xs font-semibold shadow-xs transition-all touch-target-44 cursor-pointer hover:border-text-muted/40"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+              </svg>
+              <span>Continuar con Google</span>
+            </button>
 
             <div className="mt-4 pt-4 border-t border-surface-border flex items-center justify-between text-xs">
               <span className="text-text-muted">
@@ -287,31 +286,12 @@ export default function AuthPage() {
                   setErrorMsg('');
                   setSuccessMsg('');
                 }}
-                className="font-bold text-primary hover:underline"
+                className="font-bold text-primary hover:underline cursor-pointer"
               >
                 {isLogin ? 'Crear cuenta' : 'Iniciar sesión'}
               </button>
             </div>
           </Card>
-
-          {/* Quick Demo Access */}
-          <div className="p-4 bg-surface rounded-xl border border-dashed border-primary/40 text-center space-y-2">
-            <span className="text-xs font-semibold text-text-primary block">
-              ¿Quieres probar el sistema sin registrarte?
-            </span>
-            <p className="text-[11px] text-text-muted">
-              Inicia sesión instantáneamente con datos de muestra (Cátedras, Estudiantes, Calificaciones y Asistencias precargadas).
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={enterDemoMode}
-              className="w-full border-primary/40 text-primary hover:bg-primary/5"
-            >
-              🚀 Ingresar en Modo Demo Local
-            </Button>
-          </div>
         </div>
       </div>
     </div>

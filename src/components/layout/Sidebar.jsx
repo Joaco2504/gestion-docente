@@ -5,6 +5,8 @@ import {
   Calendar, 
   Building2, 
   Settings,
+  BookMarked,
+  LifeBuoy,
   HelpCircle, 
   X, 
   GraduationCap,
@@ -16,13 +18,13 @@ import {
 
 export default function Sidebar({ isOpen = false, onClose }) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    return localStorage.getItem('docentepro_sidebar_collapsed') === 'true';
+    return localStorage.getItem('planilladocente_sidebar_collapsed') === 'true';
   });
 
   const toggleCollapse = () => {
     setIsCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('docentepro_sidebar_collapsed', String(next));
+      localStorage.setItem('planilladocente_sidebar_collapsed', String(next));
       return next;
     });
   };
@@ -32,6 +34,8 @@ export default function Sidebar({ isOpen = false, onClose }) {
     { to: '/calendario', label: 'Calendario & Horarios', icon: Calendar },
     { to: '/instituciones', label: 'Instituciones & Ciclos', icon: Building2 },
     { to: '/configuracion', label: 'Configuración', icon: Settings },
+    { to: '/guias', label: 'Guías', icon: BookMarked },
+    { to: '/soporte', label: 'Soporte', icon: LifeBuoy },
   ];
 
   return (
@@ -65,7 +69,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
                 <GraduationCap className="w-5 h-5" />
               </div>
-              <span className="font-bold text-base text-text-primary">DocentePro</span>
+              <span className="font-bold text-base text-text-primary">PlanillaDocente</span>
             </div>
             <button
               onClick={onClose}
@@ -143,7 +147,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
           <div className="hidden md:block p-3.5 rounded-2xl bg-surface-hover/60 border border-surface-border mt-6 animate-fadeIn">
             <div className="flex items-center gap-2 text-primary mb-1">
               <HelpCircle className="w-4 h-4" />
-              <span className="text-xs font-bold">DocentePro v1.2</span>
+              <span className="text-xs font-bold">PlanillaDocente v1.2</span>
             </div>
             <p className="text-[11px] text-text-muted leading-relaxed">
               Gestión administrativa de cátedras, asistencias, notas y calendario docente.
