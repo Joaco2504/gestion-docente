@@ -33,6 +33,7 @@ import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
+import EmptyState from '../components/common/EmptyState';
 import { SkeletonCatedraCard, SkeletonBentoGrid } from '../components/common/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -1283,28 +1284,25 @@ export default function DashboardPage() {
             <SkeletonCatedraCard count={3} />
           </div>
         ) : filteredCatedras.length === 0 ? (
-          <Card className="text-center py-14">
-            <div className="w-12 h-12 rounded-2xl bg-surface-hover text-text-muted flex items-center justify-center mx-auto mb-3">
-              <BookOpen className="w-6 h-6 opacity-60" />
-            </div>
-            <h3 className="text-sm font-bold text-text-primary mb-1">
-              No se encontraron cátedras con los filtros actuales
-            </h3>
-            <p className="text-xs text-text-muted max-w-sm mx-auto mb-4">
-              {searchQuery
-                ? `No hay resultados para "${searchQuery}". Intenta con otro término.`
-                : 'Aún no has registrado cátedras en este nivel.'}
-            </p>
-            {searchQuery && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setSearchQuery(''); setLevelFilter('ALL'); }}
-              >
-                Restablecer Filtros
-              </Button>
-            )}
-          </Card>
+          <EmptyState
+            illustration="folder"
+            title={searchQuery ? "No se encontraron cátedras coincidentes" : "No hay cátedras registradas"}
+            description={
+              searchQuery
+                ? `No hay resultados para "${searchQuery}". Intenta con otro término de búsqueda o cambia de nivel.`
+                : 'Aún no has registrado materias en este ciclo lectivo o nivel educativo.'
+            }
+            actionLabel={searchQuery ? "Restablecer Filtros" : "Crear Primera Cátedra"}
+            actionIcon={searchQuery ? undefined : Plus}
+            onAction={() => {
+              if (searchQuery) {
+                setSearchQuery('');
+                setLevelFilter('ALL');
+              } else {
+                setIsModalOpen(true);
+              }
+            }}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredCatedras.map((cat) => {

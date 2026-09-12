@@ -29,6 +29,8 @@ import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import CustomSelect from '../components/common/CustomSelect';
 import Modal from '../components/common/Modal';
+import MinimalSpinner from '../components/common/MinimalSpinner';
+import SupportContactIllustration from '../components/illustrations/SupportContactIllustration';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -382,15 +384,15 @@ export default function SupportPage() {
               />
             </div>
 
-            {/* Botón Verde Esmeralda / Menta Prominente */}
+            {/* Botón Verde Esmeralda / Menta Prominente con Feedback Táctil */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-transform duration-100 text-white font-bold text-sm shadow-md shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <MinimalSpinner size="sm" variant="white" />
                   <span>Enviando mensaje al equipo...</span>
                 </>
               ) : (
@@ -409,59 +411,9 @@ export default function SupportPage() {
           <div className="absolute top-4 right-4 w-40 h-40 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="absolute bottom-10 left-4 w-48 h-48 bg-teal-400/20 dark:bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Gráfico Vectorial Pulido: Sobre abriéndose + Avión de papel despegando */}
+          {/* Gráfico Vectorial Pulido Estilo Tabler */}
           <div className="relative z-10 flex flex-col items-center text-center my-auto py-6">
-            <div className="relative w-48 h-48 sm:w-56 sm:h-56 mb-6">
-              {/* Gráficos vectoriales SVG estilizados */}
-              <svg viewBox="0 0 240 240" fill="none" className="w-full h-full drop-shadow-lg">
-                {/* Sombra suave de base */}
-                <ellipse cx="120" cy="205" rx="70" ry="12" fill="rgba(16, 185, 129, 0.15)" />
-
-                {/* Sobre de correspondencia en perspectiva suave */}
-                <rect x="50" y="100" width="140" height="90" rx="16" fill="#10b981" />
-                <rect x="50" y="100" width="140" height="90" rx="16" fill="url(#envelopeGradient)" />
-                
-                {/* Hoja de carta que emerge del sobre */}
-                <rect x="65" y="60" width="110" height="80" rx="8" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1.5" />
-                <line x1="80" y1="80" x2="140" y2="80" stroke="#004A99" strokeWidth="3" strokeLinecap="round" />
-                <line x1="80" y1="95" x2="160" y2="95" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" />
-                <line x1="80" y1="108" x2="130" y2="108" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="155" cy="80" r="4" fill="#00C2CB" />
-
-                {/* Solapa del sobre */}
-                <path d="M50 102 L120 150 L190 102" fill="none" stroke="#047857" strokeWidth="3" strokeLinejoin="round" />
-                <path d="M50 190 L105 140" stroke="#059669" strokeWidth="2" />
-                <path d="M190 190 L135 140" stroke="#059669" strokeWidth="2" />
-
-                {/* Trayectoria de vuelo punteada del avión */}
-                <path
-                  d="M120 110 C 130 80, 160 50, 195 40"
-                  stroke="#10b981"
-                  strokeWidth="2"
-                  strokeDasharray="4 4"
-                  fill="none"
-                />
-
-                {/* Avión de papel en vuelo ascendente */}
-                <g transform="translate(180, 25) rotate(15)">
-                  <polygon points="0,25 35,0 15,28" fill="#ffffff" />
-                  <polygon points="15,28 35,0 20,38" fill="#e2e8f0" />
-                  <polygon points="15,28 20,38 18,34" fill="#00C2CB" />
-                </g>
-
-                {/* Estrellas y acentos geométricos */}
-                <circle cx="45" cy="70" r="3" fill="#10b981" />
-                <circle cx="205" cy="115" r="4" fill="#00C2CB" />
-                <polygon points="40,140 43,148 51,148 45,153 47,161 40,156 33,161 35,153 29,148 37,148" fill="#f59e0b" />
-
-                <defs>
-                  <linearGradient id="envelopeGradient" x1="50" y1="100" x2="190" y2="190" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#10b981" />
-                    <stop offset="1" stopColor="#059669" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
+            <SupportContactIllustration className="w-48 h-48 sm:w-60 sm:h-60 mb-6" />
 
             <div className="space-y-2 relative z-10">
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold tracking-wide uppercase">

@@ -59,6 +59,10 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(4px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         slideUp: {
           '0%': { transform: 'translateY(100%)' },
           '100%': { transform: 'translateY(0)' },
@@ -67,16 +71,29 @@ export default {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.6' },
         },
+        emeraldFlash: {
+          '0%': { boxShadow: '0 0 0 0 rgba(16, 185, 129, 0.7)', backgroundColor: 'rgba(16, 185, 129, 0.2)' },
+          '70%': { boxShadow: '0 0 0 8px rgba(16, 185, 129, 0)', backgroundColor: 'rgba(16, 185, 129, 0.05)' },
+          '100%': { boxShadow: '0 0 0 0 rgba(16, 185, 129, 0)' },
+        },
         shimmer: {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
+        },
+        indeterminate: {
+          '0%': { transform: 'translateX(-100%) scaleX(0.2)' },
+          '50%': { transform: 'translateX(50%) scaleX(0.7)' },
+          '100%': { transform: 'translateX(200%) scaleX(0.2)' },
         }
       },
       animation: {
         fadeIn: 'fadeIn 0.2s ease-out forwards',
+        fadeInUp: 'fadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         slideUp: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         pulseGlow: 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        emeraldFlash: 'emeraldFlash 0.8s ease-out forwards',
         shimmer: 'shimmer 1.8s ease-in-out infinite',
+        indeterminate: 'indeterminate 1.5s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite',
       }
     },
   },

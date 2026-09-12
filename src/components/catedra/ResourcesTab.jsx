@@ -19,6 +19,9 @@ import Card from '../common/Card';
 import Badge from '../common/Badge';
 import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
+import EmptyState from '../common/EmptyState';
+import MinimalSpinner from '../common/MinimalSpinner';
+import CloudUploadIllustration from '../illustrations/CloudUploadIllustration';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -281,21 +284,17 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       {/* Resource Grid / List */}
       {loading ? (
         <div className="flex justify-center items-center py-16">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <MinimalSpinner size="lg" color="primary" />
         </div>
       ) : filteredResources.length === 0 ? (
-        <Card className="text-center py-12">
-          <div className="w-12 h-12 rounded-full bg-surface-hover flex items-center justify-center mx-auto mb-3 text-text-muted">
-            <FolderOpen className="w-6 h-6" />
-          </div>
-          <h4 className="text-sm font-semibold text-text-primary mb-1">No hay recursos en esta categoría</h4>
-          <p className="text-xs text-text-muted max-w-sm mx-auto mb-4">
-            Sube archivos a Supabase Storage o vincula carpetas compartidas de Google Drive.
-          </p>
-          <Button variant="outline" size="sm" icon={Plus} onClick={() => setIsModalOpen(true)}>
-            Agregar primer recurso
-          </Button>
-        </Card>
+        <EmptyState
+          illustration="folder"
+          title="No hay recursos en esta categoría"
+          description="Sube archivos a Supabase Storage o vincula carpetas compartidas de Google Drive."
+          actionLabel="Agregar primer recurso"
+          actionIcon={Plus}
+          onAction={() => setIsModalOpen(true)}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredResources.map((res) => {
@@ -431,11 +430,9 @@ export default function ResourcesTab({ catedraId, catedraName }) {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="cursor-pointer flex flex-col items-center justify-center gap-2"
+                  className="cursor-pointer flex flex-col items-center justify-center gap-2 group"
                 >
-                  <div className="p-2.5 rounded-full bg-primary/10 text-primary">
-                    <UploadCloud className="w-6 h-6" />
-                  </div>
+                  <CloudUploadIllustration className="w-20 h-16 text-primary shrink-0 transition-transform duration-200 group-hover:scale-105" />
                   {selectedFile ? (
                     <div>
                       <p className="text-xs font-bold text-text-primary break-all">{selectedFile.name}</p>

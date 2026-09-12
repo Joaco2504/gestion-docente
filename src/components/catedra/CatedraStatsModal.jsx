@@ -12,6 +12,7 @@ import {
   X
 } from 'lucide-react';
 import Modal from '../common/Modal';
+import MinimalSpinner from '../common/MinimalSpinner';
 import InteractiveDonutChart from '../charts/InteractiveDonutChart';
 import InteractiveBarChart from '../charts/InteractiveBarChart';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -286,7 +287,7 @@ export default function CatedraStatsModal({
             <button
               type="button"
               onClick={() => setChartType('bar')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none touch-target-44 ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none touch-target-44 active:scale-95 duration-100 ${
                 chartType === 'bar'
                   ? 'bg-white dark:bg-slate-800 text-primary shadow-xs font-bold'
                   : 'text-text-muted hover:text-text-primary'
@@ -299,7 +300,7 @@ export default function CatedraStatsModal({
             <button
               type="button"
               onClick={() => setChartType('donut')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none touch-target-44 ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none touch-target-44 active:scale-95 duration-100 ${
                 chartType === 'donut'
                   ? 'bg-white dark:bg-slate-800 text-primary shadow-xs font-bold'
                   : 'text-text-muted hover:text-text-primary'
@@ -311,10 +312,10 @@ export default function CatedraStatsModal({
           </div>
         </div>
 
-        {/* Chart View Container */}
+        {/* Chart View Container con animación de transición */}
         {loading ? (
           <div className="py-16 flex flex-col items-center justify-center space-y-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <MinimalSpinner size="lg" color="primary" />
             <span className="text-xs text-text-muted font-mono">Calculando rendimiento académico...</span>
           </div>
         ) : stats.totalMatricula === 0 ? (
@@ -324,7 +325,10 @@ export default function CatedraStatsModal({
             <p className="text-xs">Carga alumnos en la cátedra para visualizar las estadísticas de rendimiento.</p>
           </div>
         ) : (
-          <div className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/40 rounded-3xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-6 shadow-xs">
+          <div
+            key={chartType}
+            className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/40 rounded-3xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-6 shadow-xs animate-fadeInUp"
+          >
             {chartType === 'bar' ? (
               <InteractiveBarChart
                 data={stats.chartData}

@@ -4,6 +4,10 @@ import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Users, ArrowRi
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 import CustomSelect from '../common/CustomSelect';
+import ProgressBar from '../common/ProgressBar';
+import MinimalSpinner from '../common/MinimalSpinner';
+import CloudUploadIllustration from '../illustrations/CloudUploadIllustration';
+import SuccessCheckIllustration from '../illustrations/SuccessCheckIllustration';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -243,24 +247,31 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
   return (
     <div className="space-y-6 animate-fadeIn">
       {importSuccessCount && (
-        <div className="p-4 bg-green-50 border border-green-200 text-green-700 text-xs rounded-xl flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-success" />
-            <span className="font-semibold">
-              ¡Se han importado exitosamente {importSuccessCount} estudiantes a esta cátedra!
-            </span>
+        <div className="p-5 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-text-primary rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-fadeInUp">
+          <div className="flex items-center gap-4">
+            <SuccessCheckIllustration className="w-16 h-16 sm:w-20 sm:h-20 shrink-0" />
+            <div>
+              <span className="font-bold text-sm text-emerald-800 dark:text-emerald-300 block">
+                ¡Importación completada con éxito!
+              </span>
+              <p className="text-xs text-text-muted mt-0.5">
+                Se han incorporado exitosamente <strong className="font-mono text-emerald-700 dark:text-emerald-300">{importSuccessCount}</strong> estudiantes a la nómina de esta cátedra.
+              </p>
+            </div>
           </div>
           <button 
+            type="button"
             onClick={() => setImportSuccessCount(null)}
-            className="text-green-700 hover:text-green-900 font-bold"
+            className="p-2 rounded-xl text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 transition-all active:scale-95 duration-100 cursor-pointer self-end sm:self-center"
+            title="Cerrar notificación"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       )}
 
       {step === 1 ? (
-        <div className="border-2 border-dashed border-surface-border hover:border-primary/60 rounded-xl p-8 text-center transition-colors bg-surface">
+        <div className="border-2 border-dashed border-surface-border hover:border-primary/60 rounded-3xl p-8 sm:p-10 text-center transition-all bg-surface shadow-xs animate-fadeInUp">
           <input
             ref={fileInputRef}
             type="file"
@@ -269,23 +280,27 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
             className="hidden"
             id="excel-upload"
           />
-          <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <FileSpreadsheet className="w-7 h-7" />
-          </div>
-          <h4 className="text-base font-bold text-text-primary mb-1">
+          <CloudUploadIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />
+          <h4 className="text-base sm:text-lg font-bold text-text-primary mb-1">
             Importar Nómina de Alumnos desde Excel o CSV
           </h4>
-          <p className="text-xs text-text-muted max-w-md mx-auto mb-5 leading-relaxed">
-            Sube un archivo <code>.xlsx</code> o <code>.csv</code> con las columnas de <strong>DNI, Apellido y Nombre</strong>.
-            Se detectarán automáticamente las columnas y se verificarán duplicados.
+          <p className="text-xs sm:text-sm text-text-muted max-w-md mx-auto mb-5 leading-relaxed">
+            Sube un archivo <code className="px-1.5 py-0.5 rounded bg-surface-hover font-mono text-primary text-xs">.xlsx</code> o <code className="px-1.5 py-0.5 rounded bg-surface-hover font-mono text-primary text-xs">.csv</code> con las columnas de <strong>DNI, Apellido y Nombre</strong>. Se detectarán automáticamente las columnas y se verificarán duplicados.
           </p>
-          <label
-            htmlFor="excel-upload"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-semibold cursor-pointer shadow-sm transition-all"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Seleccionar Archivo</span>
-          </label>
+
+          {isProcessing ? (
+            <div className="max-w-xs mx-auto space-y-2 py-2">
+              <ProgressBar label="Procesando archivo..." />
+            </div>
+          ) : (
+            <label
+              htmlFor="excel-upload"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-hover active:scale-95 transition-transform duration-100 text-white rounded-xl text-xs sm:text-sm font-semibold cursor-pointer shadow-md shadow-primary/20"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Seleccionar Archivo</span>
+            </label>
+          )}
         </div>
       ) : (
         <div className="bg-surface rounded-xl border border-surface-border p-6 space-y-6">

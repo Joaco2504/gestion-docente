@@ -24,6 +24,7 @@ import Badge from '../common/Badge';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
+import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -43,6 +44,7 @@ export default function AttendanceTab({
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [flashingStudentId, setFlashingStudentId] = useState(null);
 
   // Mapa de estadísticas y porcentaje acumulado de asistencia por estudiante
   const studentStatsMap = React.useMemo(() => {
@@ -280,6 +282,8 @@ export default function AttendanceTab({
   const handleToggle = async (estudianteId, nuevoEstado) => {
     if (!activeClase) return;
     triggerHapticFeedback();
+    setFlashingStudentId(estudianteId);
+    setTimeout(() => setFlashingStudentId(null), 800);
 
     // Preserve previous state for rollback on error
     const previousState = [...asistencias];
@@ -320,6 +324,8 @@ export default function AttendanceTab({
   const handleMarcarTodosPresentes = async () => {
     if (!activeClase || estudiantes.length === 0) return;
     triggerHapticFeedback();
+    setFlashingStudentId('ALL');
+    setTimeout(() => setFlashingStudentId(null), 800);
 
     const previousState = [...asistencias];
     const newRecords = estudiantes.map(e => ({
@@ -634,24 +640,22 @@ export default function AttendanceTab({
 
       {/* Students list */}
       {estudiantes.length === 0 ? (
-        <Card className="text-center py-12">
-          <Users className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-50" />
-          <h4 className="text-base font-semibold text-text-primary">No hay estudiantes inscriptos en esta cátedra</h4>
-          <p className="text-xs text-text-muted mt-1 mb-4">
-            Ve a la pestaña "Alumnos" para cargar manualmente o importar la nómina de estudiantes desde Excel.
-          </p>
-        </Card>
+        <EmptyState
+          illustration="folder"
+          title="No hay estudiantes inscriptos en esta cátedra"
+          description="Ve a la pestaña 'Alumnos' para cargar manualmente o importar la nómina de estudiantes desde Excel."
+        />
       ) : !activeClase ? (
-        <Card className="text-center py-12">
-          <CalendarIcon className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-50" />
-          <h4 className="text-base font-semibold text-text-primary">No se ha creado ninguna clase</h4>
-          <p className="text-xs text-text-muted mt-1 mb-4">
-            Haz clic en "Nueva Clase" arriba para registrar la primera fecha y comenzar a tomar asistencia.
-          </p>
-          <Button variant="primary" size="sm" icon={Plus} onClick={() => setIsModalOpen(true)}>
-            Crear Primera Clase
-          </Button>
-        </Card>
+        <EmptyState
+          illustration="folder"
+          title="No se ha creado ninguna clase"
+          description="Haz clic en 'Nueva Clase' arriba para registrar la primera fecha y comenzar a tomar asistencia."
+          action={
+            <Button variant="primary" size="sm" icon={Plus} onClick={() => setIsModalOpen(true)}>
+              Crear Primera Clase
+            </Button>
+          }
+        />
       ) : (
         <>
           {/* ========================================================
@@ -672,11 +676,14 @@ export default function AttendanceTab({
               const isPresente = estado === 'PRESENTE';
               const asistPct = studentStatsMap.get(est.id) ?? 100;
               const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
+              const isFlashing = flashingStudentId === est.id || flashingStudentId === 'ALL';
 
               return (
                 <div
                   key={est.id}
-                  className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3 transition-all"
+                  className={`backdrop-blur-xl bg-white/80 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3 transition-all ${
+                    isFlashing ? 'animate-flash-success' : ''
+                  }`}
                 >
                   {/* Fila Superior: Datos del Alumno y Porcentaje visible en esquina */}
                   <div className="flex items-start justify-between gap-2.5">
@@ -707,12 +714,12 @@ export default function AttendanceTab({
                     </span>
                   </div>
 
-                  {/* Dos botones táctiles grandes y ergonómicos (mínimo 48px de alto) */}
+                  {/* Dos botones táctiles grandes y ergonómicos (mínimo 48px de alto) con micro-escala 100ms */}
                   <div className="grid grid-cols-2 gap-2.5 pt-1">
                     <button
                       type="button"
                       onClick={() => handleToggle(est.id, 'PRESENTE')}
-                      className={`h-12 min-h-[48px] rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-150 active:scale-95 cursor-pointer select-none ${
+                      className={`h-12 min-h-[48px] rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
                         isPresente
                           ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 scale-[1.02] border border-emerald-500'
                           : 'bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100/70'
@@ -725,7 +732,7 @@ export default function AttendanceTab({
                     <button
                       type="button"
                       onClick={() => handleToggle(est.id, 'AUSENTE')}
-                      className={`h-12 min-h-[48px] rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-150 active:scale-95 cursor-pointer select-none ${
+                      className={`h-12 min-h-[48px] rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
                         !isPresente
                           ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 scale-[1.02] border border-rose-500'
                           : 'bg-rose-50/70 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100/70'
@@ -758,9 +765,15 @@ export default function AttendanceTab({
                   {estudiantes.map((est, index) => {
                     const estado = getEstado(est.id);
                     const isPresente = estado === 'PRESENTE';
+                    const isFlashing = flashingStudentId === est.id || flashingStudentId === 'ALL';
 
                     return (
-                      <tr key={est.id} className="hover:bg-slate-100/40 dark:hover:bg-white/[0.03] transition-colors">
+                      <tr
+                        key={est.id}
+                        className={`hover:bg-slate-100/40 dark:hover:bg-white/[0.03] transition-colors ${
+                          isFlashing ? 'animate-flash-success' : ''
+                        }`}
+                      >
                         <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
                         <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
                         <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary">
@@ -771,7 +784,7 @@ export default function AttendanceTab({
                             <button
                               type="button"
                               onClick={() => handleToggle(est.id, 'PRESENTE')}
-                              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+                              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
                                 isPresente
                                   ? 'bg-emerald-600 text-white shadow-xs font-bold'
                                   : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
@@ -784,7 +797,7 @@ export default function AttendanceTab({
                             <button
                               type="button"
                               onClick={() => handleToggle(est.id, 'AUSENTE')}
-                              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+                              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
                                 !isPresente
                                   ? 'bg-rose-600 text-white shadow-xs font-bold'
                                   : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200 dark:border-white/10'

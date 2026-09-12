@@ -20,6 +20,7 @@ import Badge from '../common/Badge';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
+import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import ExcelImporter from './ExcelImporter';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -683,45 +684,27 @@ export default function StudentsTab({
               <SkeletonTable rows={5} cols={5} />
             </div>
           ) : estudiantes.length === 0 ? (
-            <Card className="text-center py-16">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
-                <Users className="w-7 h-7 opacity-70" />
-              </div>
-              <h4 className="text-base font-bold text-text-primary">
-                Aún no hay alumnos matriculados en esta cátedra
-              </h4>
-              <p className="text-xs text-text-muted max-w-md mx-auto mt-1 mb-5">
-                Comienza agregando el primer estudiante individualmente o importa tu planilla de Excel con un solo clic.
-              </p>
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={FileSpreadsheet}
-                  onClick={() => setViewMode('import-excel')}
-                >
-                  Importar Planilla Excel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={UserPlus}
-                  onClick={() => setIsManualModalOpen(true)}
-                >
-                  Carga Manual Rápida
-                </Button>
-              </div>
-            </Card>
+            <EmptyState
+              illustration="folder"
+              title="Aún no hay alumnos matriculados en esta cátedra"
+              description="Comienza agregando el primer estudiante individualmente o importa tu planilla de Excel con un solo clic."
+              actionLabel="Carga Manual Rápida"
+              actionIcon={UserPlus}
+              onAction={() => setIsManualModalOpen(true)}
+              secondaryActionLabel="Importar Planilla Excel"
+              secondaryActionIcon={FileSpreadsheet}
+              onSecondaryAction={() => setViewMode('import-excel')}
+              secondaryActionVariant="secondary"
+            />
           ) : filteredAndSortedStudents.length === 0 ? (
-            <Card className="text-center py-12">
-              <Search className="w-8 h-8 text-text-muted mx-auto mb-2 opacity-50" />
-              <p className="text-sm font-semibold text-text-primary">
-                No se encontraron alumnos para "{searchTerm}"
-              </p>
-              <p className="text-xs text-text-muted mt-0.5">
-                Verifica los términos de búsqueda o borra el filtro.
-              </p>
-            </Card>
+            <EmptyState
+              illustration="folder"
+              title={`No se encontraron alumnos para "${searchTerm}"`}
+              description="Verifica los términos de búsqueda o borra el filtro para ver la nómina completa."
+              actionLabel="Borrar Búsqueda"
+              actionVariant="outline"
+              onAction={() => setSearchTerm('')}
+            />
           ) : (
             <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
               <div className="overflow-x-auto">

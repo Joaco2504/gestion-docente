@@ -270,7 +270,7 @@ export default function CatedraDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-200 active:scale-95 duration-100 cursor-pointer ${
                     isActive
                       ? 'bg-primary text-white shadow-md shadow-primary/25 font-bold scale-[1.02]'
                       : 'text-text-muted hover:text-text-primary hover:bg-slate-100/70 dark:hover:bg-white/[0.05]'
@@ -285,8 +285,8 @@ export default function CatedraDetailPage() {
         </div>
       </div>
 
-      {/* Tab Contents */}
-      <div className="mt-4">
+      {/* Tab Contents con micro-animación suave de entrada (200ms) */}
+      <div key={activeTab} className="mt-4 animate-fadeInUp">
         {activeTab === 'asistencias' && (
           <AttendanceTab catedraId={catedra.id} catedraName={catedra.nombre} />
         )}

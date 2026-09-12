@@ -133,3 +133,23 @@
   background-color: rgba(30, 41, 59, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
+
+/* ==========================================================================
+   MICRO-ANIMATIONS SYSTEM (UIverse & Animista Inspired)
+   ========================================================================== */
+.animate-fadeInUp {
+  animation: fadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-flash-success {
+  animation: emeraldFlash 0.8s ease-out forwards;
+}
+
+/* Reduced motion safety */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

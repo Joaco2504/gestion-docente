@@ -34,6 +34,7 @@ import Badge from '../common/Badge';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
+import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { exportGradesToExcel, exportGradesToCsv } from '../../lib/excel';
@@ -55,6 +56,7 @@ export default function GradesTab({
   const [clases, setClases] = useState([]);
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
+  const [flashingGradeKey, setFlashingGradeKey] = useState(null);
   const [criterios, setCriterios] = useState({
     min_asist_promo: 80,
     min_asist_reg: 70,
@@ -433,6 +435,8 @@ export default function GradesTab({
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updated));
 
       toast.success(`Nota de ${selectedStudentForNota.apellido} actualizada a ${valNum}`);
+      setFlashingGradeKey(`${selectedStudentForNota.id}_${selectedEvalForNota.id}`);
+      setTimeout(() => setFlashingGradeKey(null), 1200);
       setIsEditNotaModalOpen(false);
     } catch (err) {
       console.error('Error al guardar nota:', err);
@@ -971,21 +975,14 @@ export default function GradesTab({
           </div>
 
           {evaluaciones.length === 0 ? (
-            <Card className="text-center py-12">
-              <ListChecks className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-50" />
-              <h4 className="text-base font-semibold text-text-primary">No hay evaluaciones registradas en esta cátedra</h4>
-              <p className="text-xs text-text-muted mt-1 mb-4">
-                Crea Trabajos Prácticos, Parciales o Recuperatorios para comenzar a calificar a tus alumnos.
-              </p>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={Plus}
-                onClick={() => setIsNewEvalModalOpen(true)}
-              >
-                Crear Primera Evaluación
-              </Button>
-            </Card>
+            <EmptyState
+              illustration="folder"
+              title="No hay evaluaciones registradas en esta cátedra"
+              description="Crea Trabajos Prácticos, Parciales o Recuperatorios para comenzar a calificar a tus alumnos."
+              actionLabel="Crear Primera Evaluación"
+              actionIcon={Plus}
+              onAction={() => setIsNewEvalModalOpen(true)}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {evaluaciones.map(ev => {
@@ -1154,13 +1151,11 @@ export default function GradesTab({
           )}
         </div>
       ) : estudiantes.length === 0 ? (
-        <Card className="text-center py-12">
-          <GraduationCap className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-50" />
-          <h4 className="text-base font-semibold text-text-primary">No hay estudiantes inscriptos en esta cátedra</h4>
-          <p className="text-xs text-text-muted mt-1 mb-4">
-            Ve a la pestaña "Cargar Alumnos (Excel)" para importar la nómina de estudiantes.
-          </p>
-        </Card>
+        <EmptyState
+          illustration="folder"
+          title="No hay estudiantes inscriptos en esta cátedra"
+          description="Ve a la pestaña &quot;Cargar Alumnos (Excel)&quot; para importar la nómina de estudiantes."
+        />
       ) : viewMode === 'cards' ? (
         /* Mobile-First Student Cards View with Accordion */
         <div className="space-y-4">
@@ -1325,7 +1320,9 @@ export default function GradesTab({
                                   <button
                                     type="button"
                                     onClick={() => handleOpenEditNota(est, ev)}
-                                    className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 ${
+                                    className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 active:scale-95 duration-100 ${
+                                      flashingGradeKey === `${est.id}_${ev.id}` ? 'animate-flash-success' : ''
+                                    } ${
                                       notaOriginal !== null
                                         ? notaOriginal >= 7
                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -1348,7 +1345,9 @@ export default function GradesTab({
                                     <button
                                       type="button"
                                       onClick={() => handleOpenEditNota(est, recup)}
-                                      className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 ${
+                                      className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 active:scale-95 duration-100 ${
+                                        flashingGradeKey === `${est.id}_${recup.id}` ? 'animate-flash-success' : ''
+                                      } ${
                                         notaRecup !== null
                                           ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300'
                                           : 'bg-purple-50/40 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
@@ -1512,7 +1511,9 @@ export default function GradesTab({
                                 type="button"
                                 onClick={() => handleOpenEditNota(est, ev)}
                                 title={`Editar nota de ${ev.titulo}`}
-                                className={`min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center ${
+                                className={`min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center active:scale-95 duration-100 ${
+                                  flashingGradeKey === `${est.id}_${ev.id}` ? 'animate-flash-success' : ''
+                                } ${
                                   notaOriginal !== null
                                     ? notaOriginal >= 7
                                       ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100'
@@ -1531,7 +1532,9 @@ export default function GradesTab({
                                   type="button"
                                   onClick={() => handleOpenEditNota(est, recup)}
                                   title={`Editar ${recup.titulo}`}
-                                  className={`min-h-[44px] min-w-[44px] px-2 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center ${
+                                  className={`min-h-[44px] min-w-[44px] px-2 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center active:scale-95 duration-100 ${
+                                    flashingGradeKey === `${est.id}_${recup.id}` ? 'animate-flash-success' : ''
+                                  } ${
                                     notaRecup !== null
                                       ? notaRecup >= 4
                                         ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-100'
