@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check, Search, X } from 'lucide-react';
 
 /**
@@ -34,6 +35,31 @@ export default function CustomSelect({
   const containerRef = useRef(null);
   const searchInputRef = useRef(null);
   const id = useId();
+
+  // Mobile viewport detection (< 768px)
+  const [isMobile, setIsMobile] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Lock body scroll when mobile bottom sheet is open
+  useEffect(() => {
+    if (isOpen && isMobile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, isMobile]);
 
   // Normalizar opciones a formato objeto { value, label, icon, badge }
   const normalizedOptions = options.map((opt) => {
@@ -160,8 +186,126 @@ export default function CustomSelect({
         />
       </button>
 
-      {/* Menú Desplegable Flotante */}
-      {isOpen && (
+      {/* Mobile Bottom Sheet Modal via Portal */}
+      {isOpen && isMobile && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm animate-fadeIn"
+            onClick={() => { setIsOpen(false); setSearch(''); }}
+            aria-hidden="true"
+          />
+
+          {/* Bottom Sheet Modal */}
+          <div
+            role="listbox"
+            className="relative w-full max-w-lg bg-surface border-t border-surface-border rounded-t-3xl shadow-2xl p-4 pb-6 max-h-[82vh] flex flex-col z-10 animate-slideUp overscroll-contain"
+          >
+            {/* Mobile Drag Indicator */}
+            <div className="w-12 h-1.5 bg-text-muted/30 rounded-full mx-auto mb-3 shrink-0" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-surface-border shrink-0">
+              <h4 className="text-sm font-bold text-text-primary truncate">
+                {placeholder || 'Seleccionar opción'}
+              </h4>
+              <button
+                type="button"
+                onClick={() => { setIsOpen(false); setSearch(''); }}
+                className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover touch-target-44 flex items-center justify-center cursor-pointer"
+                title="Cerrar"
+                aria-label="Cerrar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search if enabled or > 5 items */}
+            {(isSearchEnabled || normalizedOptions.length > 5) && (
+              <div className="pt-3 pb-2 shrink-0">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar..."
+                    className="w-full pl-9 pr-8 py-2.5 text-sm bg-surface-hover text-text-primary rounded-xl border border-surface-border focus:border-primary focus:outline-none placeholder:text-text-muted"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Options List with comfortable touch targets */}
+            <div className="overflow-y-auto py-2 divide-y divide-surface-border/40 flex-1 overscroll-contain scrollbar-thin">
+              {filteredOptions.length === 0 ? (
+                <div className="py-8 text-center text-text-muted text-sm">
+                  No se encontraron opciones
+                </div>
+              ) : (
+                filteredOptions.map((opt) => {
+                  const isSelected = String(opt.value) === String(value);
+                  const ItemIcon = opt.icon;
+
+                  return (
+                    <button
+                      key={String(opt.value)}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => handleSelect(opt.value)}
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-3.5 text-left rounded-xl transition-colors min-h-[48px] touch-target-48 select-none ${
+                        isSelected
+                          ? 'bg-primary/10 text-primary font-bold'
+                          : 'text-text-primary hover:bg-surface-hover active:bg-surface-hover/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {ItemIcon && (
+                          <ItemIcon className={`w-5 h-5 shrink-0 ${isSelected ? 'text-primary' : 'text-text-muted'}`} />
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-sm truncate">{opt.label}</div>
+                          {opt.description && (
+                            <div className="text-xs text-text-muted font-normal truncate mt-0.5">
+                              {opt.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {opt.badge && (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-surface-hover text-text-secondary border border-surface-border">
+                            {opt.badge}
+                          </span>
+                        )}
+                        {isSelected && (
+                          <Check className="w-5 h-5 text-primary shrink-0 animate-fadeIn" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Menú Desplegable Flotante para Pantallas Grandes (Desktop) */}
+      {isOpen && !isMobile && (
         <div
           role="listbox"
           className={`

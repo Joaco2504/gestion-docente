@@ -12,6 +12,8 @@ import {
   LayoutGrid,
   Table as TableIcon,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   UserCheck,
   Percent,
   Calendar,
@@ -62,12 +64,35 @@ export default function GradesTab({
   });
   const [loading, setLoading] = useState(true);
 
-  // Mobile View mode: 'table' | 'cards'
-  const [viewMode, setViewMode] = useState('table');
+  // Mobile View mode: 'table' | 'cards' | 'evaluaciones'
+  // Default to cards on mobile screens (< 768px)
+  const [viewMode, setViewMode] = useState(() => {
+    return typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'table';
+  });
 
-  // Auto-switch to cards on very small mobile screens
+  // Expandable accordions for student cards in mobile mode
+  const [expandedStudents, setExpandedStudents] = useState({});
+
+  const toggleStudentAccordion = (studentId) => {
+    setExpandedStudents((prev) => ({
+      ...prev,
+      [studentId]: !prev[studentId]
+    }));
+  };
+
+  const expandAllStudents = () => {
+    const all = {};
+    estudiantes.forEach((e) => { all[e.id] = true; });
+    setExpandedStudents(all);
+  };
+
+  const collapseAllStudents = () => {
+    setExpandedStudents({});
+  };
+
+  // Auto-switch to cards on mobile screens (< 768px)
   useEffect(() => {
-    if (window.innerWidth < 640) {
+    if (window.innerWidth < 768) {
       setViewMode('cards');
     }
   }, []);
@@ -1137,145 +1162,220 @@ export default function GradesTab({
           </p>
         </Card>
       ) : viewMode === 'cards' ? (
-        /* Mobile-First Student Cards View */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {matrixData.map((item, idx) => {
-            const est = item.estudiante;
-            const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
+        /* Mobile-First Student Cards View with Accordion */
+        <div className="space-y-4">
+          {/* Quick Actions Bar for Cards View */}
+          <div className="flex items-center justify-between px-1 py-1">
+            <span className="text-xs font-semibold text-text-muted">
+              {matrixData.length} estudiante{matrixData.length !== 1 ? 's' : ''} en nómina
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={expandAllStudents}
+                className="text-xs font-semibold text-primary hover:underline px-2 py-1"
+              >
+                Expandir todos
+              </button>
+              <span className="text-text-muted">•</span>
+              <button
+                type="button"
+                onClick={collapseAllStudents}
+                className="text-xs font-semibold text-text-muted hover:text-text-primary px-2 py-1"
+              >
+                Colapsar todos
+              </button>
+            </div>
+          </div>
 
-            return (
-              <Card key={est.id} className="p-4 sm:p-5 flex flex-col justify-between space-y-4">
-                {/* Student header */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary font-bold text-sm flex items-center justify-center shrink-0">
-                      {initials}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {matrixData.map((item, idx) => {
+              const est = item.estudiante;
+              const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
+              const isExpanded = !!expandedStudents[est.id];
+
+              // Count how many evaluations have grades
+              const gradedCount = mainEvaluations.filter(ev => getNotaValue(est.id, ev.id) !== null).length;
+
+              return (
+                <Card key={est.id} className="p-4 sm:p-5 flex flex-col justify-between space-y-4 border border-surface-border hover:shadow-md transition-all">
+                  {/* Student Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary font-bold text-sm flex items-center justify-center shrink-0">
+                        {initials}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-text-primary leading-tight">
+                          {est.apellido}, {est.nombre}
+                        </h4>
+                        <span className="text-[11px] font-mono text-text-muted">
+                          DNI: {est.dni}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-text-primary leading-tight">
-                        {est.apellido}, {est.nombre}
-                      </h4>
-                      <span className="text-[11px] font-mono text-text-muted">
-                        DNI: {est.dni}
+
+                    {/* Condition Badge */}
+                    <Badge variant={getCondBadgeVariant(item.condicion.condicion)}>
+                      {item.condicion.condicion}
+                    </Badge>
+                  </div>
+
+                  {/* Attendance Mini Bar */}
+                  <div className="bg-surface-hover/60 p-2.5 rounded-xl border border-surface-border">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-text-muted font-medium flex items-center gap-1">
+                        <Percent className="w-3.5 h-3.5" /> Asistencia
+                      </span>
+                      <span className={`font-mono font-bold ${
+                        item.asistenciaPct < 70 ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {item.asistenciaPct}%
                       </span>
                     </div>
+                    <div className="w-full bg-surface rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          item.asistenciaPct < 70 ? 'bg-rose-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${Math.min(100, item.asistenciaPct)}%` }}
+                      />
+                    </div>
                   </div>
 
-                  {/* Condition Badge */}
-                  <Badge variant={getCondBadgeVariant(item.condicion.condicion)}>
-                    {item.condicion.condicion}
-                  </Badge>
-                </div>
-
-                {/* Attendance Mini Bar */}
-                <div className="bg-surface-hover/60 p-2.5 rounded-xl border border-surface-border">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-text-muted font-medium flex items-center gap-1">
-                      <Percent className="w-3.5 h-3.5" /> Asistencia
-                    </span>
-                    <span className={`font-mono font-bold ${
-                      item.asistenciaPct < 70 ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'
-                    }`}>
-                      {item.asistenciaPct}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-surface rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        item.asistenciaPct < 70 ? 'bg-rose-500' : 'bg-emerald-500'
+                  {/* Accordion Trigger for Evaluations */}
+                  <button
+                    type="button"
+                    onClick={() => toggleStudentAccordion(est.id)}
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl bg-surface-hover hover:bg-surface-hover/80 border border-surface-border transition-colors touch-target-44 text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ListChecks className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-bold text-text-primary">
+                        Evaluaciones ({mainEvaluations.length})
+                      </span>
+                      <span className="text-[11px] font-mono text-text-muted">
+                        • {gradedCount}/{mainEvaluations.length} calificados
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-text-muted transition-transform duration-200 ${
+                        isExpanded ? 'rotate-180 text-primary' : ''
                       }`}
-                      style={{ width: `${Math.min(100, item.asistenciaPct)}%` }}
                     />
-                  </div>
-                </div>
+                  </button>
 
-                {/* Evaluation grades pills */}
-                <div className="space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
-                    Evaluaciones y Notas:
-                  </span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {mainEvaluations.map(ev => {
-                      const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
-                      const notaOriginal = getNotaValue(est.id, ev.id);
-                      const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
+                  {/* Accordion Content: Vertical Rows for Evaluations */}
+                  {isExpanded && (
+                    <div className="space-y-2.5 pt-1 border-t border-surface-border animate-fadeIn">
+                      {mainEvaluations.length === 0 ? (
+                        <p className="text-xs text-text-muted text-center py-2 italic">
+                          No hay evaluaciones cargadas en esta cátedra.
+                        </p>
+                      ) : (
+                        mainEvaluations.map(ev => {
+                          const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
+                          const notaOriginal = getNotaValue(est.id, ev.id);
+                          const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
 
-                      return (
-                        <div
-                          key={ev.id}
-                          className="p-2.5 rounded-xl bg-surface-hover/40 border border-surface-border flex flex-col justify-between"
-                        >
-                          <div>
-                            <span className="text-[11px] font-bold text-text-primary block truncate" title={ev.titulo}>
-                              {ev.titulo}
-                            </span>
-                            {ev.fecha_entrega && (
-                              <span className="text-[10px] font-mono text-text-muted flex items-center gap-1 mt-0.5" title={`Fecha de entrega: ${formatFechaDMY(ev.fecha_entrega)}`}>
-                                <Clock className="w-2.5 h-2.5 text-primary/70 shrink-0" />
-                                <span>Entrega: {formatFechaDMY(ev.fecha_entrega)}</span>
-                              </span>
-                            )}
-                            {ev.archivo_url && (
-                              <a
-                                href={ev.archivo_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1 mt-1 font-semibold"
-                                title={`Abrir en Google Drive: ${ev.archivo_nombre || 'Google Drive'}`}
-                              >
-                                <ExternalLink className="w-2.5 h-2.5" />
-                                <span className="truncate max-w-[120px]">{ev.archivo_nombre || 'Drive TP'}</span>
-                              </a>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-2">
-                            {/* Original note */}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditNota(est, ev)}
-                              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-mono font-bold transition-all touch-target-44 text-center border ${
-                                notaOriginal !== null
-                                  ? notaOriginal >= 7
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                    : notaOriginal >= 4
-                                    ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300'
-                                    : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300'
-                                  : 'bg-surface hover:bg-surface-hover text-text-muted border-dashed border-surface-border'
-                              }`}
+                          return (
+                            <div
+                              key={ev.id}
+                              className="p-3 rounded-xl bg-surface-hover/50 border border-surface-border/80 flex flex-col gap-2"
                             >
-                              {notaOriginal !== null ? notaOriginal : '—'}
-                            </button>
+                              {/* Evaluation Info */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs font-bold text-text-primary">
+                                      {ev.titulo}
+                                    </span>
+                                    <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">
+                                      {ev.tipo}
+                                    </span>
+                                  </div>
 
-                            {/* Recuperatorio if exists */}
-                            {recup && (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditNota(est, recup)}
-                                title={`Recuperatorio: ${recup.titulo}`}
-                                className={`py-1.5 px-2 rounded-lg text-[11px] font-mono font-bold transition-all touch-target-44 text-center border ${
-                                  notaRecup !== null
-                                    ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300'
-                                    : 'bg-purple-50/50 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
-                                }`}
-                              >
-                                {notaRecup !== null ? `R:${notaRecup}` : 'R:—'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                                  {ev.fecha_entrega && (
+                                    <div className="text-[11px] font-mono text-text-muted flex items-center gap-1 mt-1">
+                                      <Clock className="w-3 h-3 text-primary/70 shrink-0" />
+                                      <span>Entrega: {formatFechaDMY(ev.fecha_entrega)}</span>
+                                    </div>
+                                  )}
 
-                {item.condicion.motivo && (
-                  <p className="text-[10px] text-text-muted pt-2 border-t border-surface-border">
-                    {item.condicion.motivo}
-                  </p>
-                )}
-              </Card>
-            );
-          })}
+                                  {ev.archivo_url && (
+                                    <a
+                                      href={ev.archivo_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1 mt-1 font-semibold"
+                                    >
+                                      <ExternalLink className="w-3 h-3 shrink-0" />
+                                      <span className="truncate max-w-[180px]">{ev.archivo_nombre || 'Drive Consignas TP'}</span>
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Touch Action Buttons for Grades (min 44x44px ergonomic) */}
+                              <div className="flex items-center gap-2 pt-1 border-t border-surface-border/40">
+                                <div className="flex-1">
+                                  <span className="text-[10px] text-text-muted block font-semibold mb-1">
+                                    Nota {ev.tipo === 'PARCIAL' ? 'Parcial' : 'Eval'}:
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditNota(est, ev)}
+                                    className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 ${
+                                      notaOriginal !== null
+                                        ? notaOriginal >= 7
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                          : notaOriginal >= 4
+                                          ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300'
+                                          : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300'
+                                        : 'bg-surface hover:bg-surface-hover text-text-muted border-dashed border-surface-border hover:border-primary/50'
+                                    }`}
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 opacity-60" />
+                                    <span>{notaOriginal !== null ? notaOriginal : 'Sin nota — Calificar'}</span>
+                                  </button>
+                                </div>
+
+                                {recup && (
+                                  <div className="flex-1">
+                                    <span className="text-[10px] text-purple-600 dark:text-purple-400 block font-semibold mb-1">
+                                      Recuperatorio:
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditNota(est, recup)}
+                                      className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 ${
+                                        notaRecup !== null
+                                          ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300'
+                                          : 'bg-purple-50/40 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
+                                      }`}
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5 opacity-60" />
+                                      <span>{notaRecup !== null ? `R: ${notaRecup}` : 'R: Sin nota'}</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {item.condicion.motivo && (
+                    <p className="text-[10px] text-text-muted pt-2 border-t border-surface-border">
+                      {item.condicion.motivo}
+                    </p>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
         </div>
       ) : (
         /* High-Density Panoramic Table View with sticky student column */
@@ -1284,9 +1384,11 @@ export default function GradesTab({
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead className="bg-surface-hover/80 text-text-secondary border-b border-surface-border">
                 <tr>
-                  <th className="px-3 sm:px-4 py-3 text-center w-12 font-mono">#</th>
-                  <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
-                  <th className="px-3 sm:px-4 py-3 min-w-[180px] sm:min-w-[210px]">Estudiante</th>
+                  <th className="hidden md:table-cell px-3 sm:px-4 py-3 text-center w-12 font-mono">#</th>
+                  <th className="hidden md:table-cell px-3 sm:px-4 py-3 font-mono">DNI</th>
+                  <th className="sticky left-0 z-20 bg-surface dark:bg-slate-900 px-3 sm:px-4 py-3 min-w-[160px] sm:min-w-[210px] border-r border-surface-border shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)] font-bold text-text-primary">
+                    Estudiante
+                  </th>
                   <th className="px-3 py-3 text-center w-24 font-mono">% Asist.</th>
 
                   {/* Main Evaluation Columns */}
@@ -1374,10 +1476,15 @@ export default function GradesTab({
                   const est = item.estudiante;
                   return (
                     <tr key={est.id} className="hover:bg-surface-hover/40 transition-colors">
-                      <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{idx + 1}</td>
-                      <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
-                      <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary whitespace-nowrap">
-                        {est.apellido}, {est.nombre}
+                      <td className="hidden md:table-cell px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{idx + 1}</td>
+                      <td className="hidden md:table-cell px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
+                      <td className="sticky left-0 z-10 bg-surface dark:bg-slate-900 px-3 sm:px-4 py-3 font-semibold text-text-primary whitespace-nowrap border-r border-surface-border shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)]">
+                        <div className="font-semibold text-text-primary">
+                          {est.apellido}, {est.nombre}
+                        </div>
+                        <div className="text-[10px] font-mono text-text-muted md:hidden">
+                          DNI: {est.dni}
+                        </div>
                       </td>
 
                       {/* Attendance % */}
@@ -1405,7 +1512,7 @@ export default function GradesTab({
                                 type="button"
                                 onClick={() => handleOpenEditNota(est, ev)}
                                 title={`Editar nota de ${ev.titulo}`}
-                                className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center ${
+                                className={`min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center ${
                                   notaOriginal !== null
                                     ? notaOriginal >= 7
                                       ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100'
@@ -1424,7 +1531,7 @@ export default function GradesTab({
                                   type="button"
                                   onClick={() => handleOpenEditNota(est, recup)}
                                   title={`Editar ${recup.titulo}`}
-                                  className={`px-2 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center ${
+                                  className={`min-h-[44px] min-w-[44px] px-2 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center ${
                                     notaRecup !== null
                                       ? notaRecup >= 4
                                         ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-100'

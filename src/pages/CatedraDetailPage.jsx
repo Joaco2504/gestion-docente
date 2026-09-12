@@ -13,7 +13,8 @@ import {
   AlertCircle,
   ShieldCheck,
   Calendar,
-  Percent
+  Percent,
+  BarChart3
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
@@ -23,6 +24,7 @@ import GradesTab from '../components/catedra/GradesTab';
 import StudentsTab from '../components/catedra/StudentsTab';
 import ResourcesTab from '../components/catedra/ResourcesTab';
 import SettingsTab from '../components/catedra/SettingsTab';
+import CatedraStatsModal from '../components/catedra/CatedraStatsModal';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -34,6 +36,7 @@ export default function CatedraDetailPage() {
   const { user, isDemo } = useAuth();
   const { catedras, activeCiclo } = useApp();
 
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(() => {
     return ['alumnos', 'asistencias', 'calificaciones', 'recursos', 'configuracion'].includes(tabFromUrl)
@@ -62,6 +65,13 @@ export default function CatedraDetailPage() {
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
+    if (id) {
+      try {
+        localStorage.setItem('last_active_catedra_id', id);
+      } catch (e) {
+        // ignore localStorage errors
+      }
+    }
     fetchCatedraData();
   }, [id]);
 
@@ -218,22 +228,36 @@ export default function CatedraDetailPage() {
               )}
             </div>
 
-            {/* Quick stats on header */}
-            <div className="flex items-center gap-3 sm:gap-4 bg-slate-100/60 dark:bg-white/[0.04] p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-white/5 shrink-0">
-              <div className="text-center px-2 sm:px-3">
-                <span className="text-[10px] uppercase font-bold text-text-muted block">Ciclo</span>
-                <span className="text-sm sm:text-base font-mono font-bold text-text-primary">{activeCiclo?.anio || '2026'}</span>
+            {/* Action buttons and quick stats on header */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+              {/* Quick stats on header */}
+              <div className="flex items-center gap-3 sm:gap-4 bg-slate-100/60 dark:bg-white/[0.04] p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-white/5 shrink-0">
+                <div className="text-center px-2 sm:px-3">
+                  <span className="text-[10px] uppercase font-bold text-text-muted block">Ciclo</span>
+                  <span className="text-sm sm:text-base font-mono font-bold text-text-primary">{activeCiclo?.anio || '2026'}</span>
+                </div>
+                <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
+                <div className="text-center px-2 sm:px-3">
+                  <span className="text-[10px] uppercase font-bold text-text-muted block">Régimen</span>
+                  <span className="text-sm sm:text-base font-semibold text-text-primary">{catedra.modalidad}</span>
+                </div>
+                <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
+                <div className="text-center px-2 sm:px-3">
+                  <span className="text-[10px] uppercase font-bold text-text-muted block">Aprobación</span>
+                  <span className="text-sm sm:text-base font-mono font-bold text-primary">{criterios.nota_min_reg}+ / 10</span>
+                </div>
               </div>
-              <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
-              <div className="text-center px-2 sm:px-3">
-                <span className="text-[10px] uppercase font-bold text-text-muted block">Régimen</span>
-                <span className="text-sm sm:text-base font-semibold text-text-primary">{catedra.modalidad}</span>
-              </div>
-              <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
-              <div className="text-center px-2 sm:px-3">
-                <span className="text-[10px] uppercase font-bold text-text-muted block">Aprobación</span>
-                <span className="text-sm sm:text-base font-mono font-bold text-primary">{criterios.nota_min_reg}+ / 10</span>
-              </div>
+
+              {/* Botón Disparador: Estadísticas de Cátedra */}
+              <Button
+                variant="outline"
+                icon={BarChart3}
+                onClick={() => setIsStatsModalOpen(true)}
+                className="text-xs sm:text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-2xl min-h-[44px] shadow-xs px-3.5"
+                title="Ver gráficos estadísticos y distribución de rendimiento de los alumnos"
+              >
+                Estadísticas de Cátedra
+              </Button>
             </div>
           </div>
 
@@ -294,6 +318,16 @@ export default function CatedraDetailPage() {
           <SettingsTab catedra={catedra} onCatedraUpdated={handleCatedraUpdated} />
         )}
       </div>
+
+      {/* Modal Bento de Rendimiento Académico y Estadísticas */}
+      <CatedraStatsModal
+        isOpen={isStatsModalOpen}
+        onClose={() => setIsStatsModalOpen(false)}
+        catedraId={catedra.id}
+        catedraName={catedra.nombre}
+        academicLevel={catedra.nivel}
+        modalidad={catedra.modalidad}
+      />
     </div>
   );
 }

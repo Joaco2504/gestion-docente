@@ -28,6 +28,7 @@ import { SkeletonTable } from '../common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { formatFechaDMY, parseDMYtoYMD, getTodayYMD } from '../../lib/dateUtils';
+import { calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { DECRETO_1092_CATAMARCA } from '../../data/decreto1092Catamarca';
 import LicenciasDecreto1092Table from './LicenciasDecreto1092Table';
 
@@ -42,6 +43,31 @@ export default function AttendanceTab({
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Mapa de estadísticas y porcentaje acumulado de asistencia por estudiante
+  const studentStatsMap = React.useMemo(() => {
+    const totalClases = clases.length;
+    const clasesConLicencia = inasistenciasDocente.filter(
+      i => i.tipo === 'LICENCIA' && clases.some(c => c.fecha === i.fecha)
+    ).length;
+
+    const map = new Map();
+    estudiantes.forEach(est => {
+      const studentAsist = asistencias.filter(a => a.estudiante_id === est.id);
+      const pct = calcularPorcentajeAsistencia(studentAsist, totalClases, clasesConLicencia);
+      map.set(est.id, pct);
+    });
+    return map;
+  }, [estudiantes, asistencias, clases, inasistenciasDocente]);
+
+  // Retroalimentación háptica en dispositivos móviles táctiles
+  const triggerHapticFeedback = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try {
+        navigator.vibrate(25);
+      } catch (_) {}
+    }
+  };
 
   const [selectedClaseId, setSelectedClaseId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -253,6 +279,7 @@ export default function AttendanceTab({
   // Toggle or set state
   const handleToggle = async (estudianteId, nuevoEstado) => {
     if (!activeClase) return;
+    triggerHapticFeedback();
 
     // Preserve previous state for rollback on error
     const previousState = [...asistencias];
@@ -292,6 +319,7 @@ export default function AttendanceTab({
 
   const handleMarcarTodosPresentes = async () => {
     if (!activeClase || estudiantes.length === 0) return;
+    triggerHapticFeedback();
 
     const previousState = [...asistencias];
     const newRecords = estudiantes.map(e => ({
@@ -441,8 +469,8 @@ export default function AttendanceTab({
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
-      {/* Top selector & action bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-surface p-4 rounded-2xl border border-surface-border shadow-xs">
+      {/* Top selector & action bar (Sticky on mobile for quick access while scrolling) */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm sticky top-0 sm:static z-20 transition-all">
         <div className="flex items-center gap-3 flex-1 min-w-[240px]">
           <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5" />
@@ -473,6 +501,19 @@ export default function AttendanceTab({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {activeClase && estudiantes.length > 0 && (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={CheckCheck}
+              onClick={handleMarcarTodosPresentes}
+              className="flex-1 sm:flex-initial text-xs font-bold shadow-xs min-h-[44px] sm:min-h-0 touch-target-44"
+              title="Marcar todos los alumnos como presentes en esta fecha"
+            >
+              Todos Presentes
+            </Button>
+          )}
+
           <Button
             variant={inasistenciaActual ? 'secondary' : 'outline'}
             size="sm"
@@ -492,24 +533,13 @@ export default function AttendanceTab({
               }
               setIsInasistenciaModalOpen(true);
             }}
-            className="flex-1 sm:flex-initial text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+            className="flex-1 sm:flex-initial text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 min-h-[44px] sm:min-h-0 touch-target-44"
             title="Registrar o editar inasistencia / licencia del docente"
           >
             {inasistenciaActual ? 'Ver Licencia Docente' : 'Inasistencia Docente'}
           </Button>
 
-          {activeClase && estudiantes.length > 0 && (
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={CheckCheck}
-              onClick={handleMarcarTodosPresentes}
-              className="flex-1 sm:flex-initial text-xs"
-            >
-              Todos Presentes
-            </Button>
-          )}
-
+          {/* Botón Nueva Clase */}
           <Button
             variant="primary"
             size="sm"
@@ -551,7 +581,7 @@ export default function AttendanceTab({
           <div className="flex items-center gap-2 self-end sm:self-center">
             <button
               onClick={handleDeleteInasistencia}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-danger hover:bg-danger/10 border border-danger/20 transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-danger hover:bg-danger/10 border border-danger/20 transition-all cursor-pointer"
               title="Cancelar inasistencia docente de esta fecha"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -608,7 +638,7 @@ export default function AttendanceTab({
           <Users className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-50" />
           <h4 className="text-base font-semibold text-text-primary">No hay estudiantes inscriptos en esta cátedra</h4>
           <p className="text-xs text-text-muted mt-1 mb-4">
-            Ve a la pestaña "Cargar Alumnos (Excel)" para importar la nómina de estudiantes.
+            Ve a la pestaña "Alumnos" para cargar manualmente o importar la nómina de estudiantes desde Excel.
           </p>
         </Card>
       ) : !activeClase ? (
@@ -623,65 +653,156 @@ export default function AttendanceTab({
           </Button>
         </Card>
       ) : (
-        <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-surface-hover/80 text-text-secondary font-semibold border-b border-surface-border">
-                <tr>
-                  <th className="px-3 sm:px-4 py-3 w-12 text-center">#</th>
-                  <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
-                  <th className="px-3 sm:px-4 py-3">Estudiante</th>
-                  <th className="px-3 sm:px-4 py-3 text-center min-w-[180px]">Estado de Asistencia</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-border">
-                {estudiantes.map((est, index) => {
-                  const estado = getEstado(est.id);
-                  const isPresente = estado === 'PRESENTE';
+        <>
+          {/* ========================================================
+              VISTA MÓVIL: TARJETAS RÁPIDAS TÁCTILES TOUCH (< 768px)
+             ======================================================== */}
+          <div className="block md:hidden space-y-3">
+            <div className="flex items-center justify-between px-1 text-xs text-text-muted">
+              <span className="font-semibold uppercase tracking-wider text-[11px]">
+                {estudiantes.length} {estudiantes.length === 1 ? 'Estudiante' : 'Estudiantes'} en Nómina
+              </span>
+              <span className="font-mono text-[11px]">
+                {presentesCount} P / {ausentesCount} A
+              </span>
+            </div>
 
-                  return (
-                    <tr key={est.id} className="hover:bg-surface-hover/40 transition-colors">
-                      <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
-                      <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
-                      <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary">
-                        {est.apellido}, {est.nombre}
-                      </td>
-                      <td className="px-3 sm:px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleToggle(est.id, 'PRESENTE')}
-                            className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-all touch-target-44 active:scale-95 flex-1 sm:flex-initial ${
-                              isPresente
-                                ? 'bg-emerald-600 text-white shadow-xs font-bold'
-                                : 'bg-surface-hover text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-surface-border'
-                            }`}
-                          >
-                            <Check className="w-4 h-4 shrink-0" />
-                            <span>Presente</span>
-                          </button>
+            {estudiantes.map((est) => {
+              const estado = getEstado(est.id);
+              const isPresente = estado === 'PRESENTE';
+              const asistPct = studentStatsMap.get(est.id) ?? 100;
+              const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
 
-                          <button
-                            type="button"
-                            onClick={() => handleToggle(est.id, 'AUSENTE')}
-                            className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-all touch-target-44 active:scale-95 flex-1 sm:flex-initial ${
-                              !isPresente
-                                ? 'bg-rose-600 text-white shadow-xs font-bold'
-                                : 'bg-surface-hover text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-surface-border'
-                            }`}
-                          >
-                            <X className="w-4 h-4 shrink-0" />
-                            <span>Ausente</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              return (
+                <div
+                  key={est.id}
+                  className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3 transition-all"
+                >
+                  {/* Fila Superior: Datos del Alumno y Porcentaje visible en esquina */}
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-bold text-text-primary truncate leading-tight">
+                          {est.apellido}, {est.nombre}
+                        </h4>
+                        <span className="text-[11px] font-mono text-text-muted">
+                          DNI: {est.dni}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Porcentaje acumulado de asistencia en la esquina */}
+                    <span
+                      className={`shrink-0 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border ${
+                        asistPct >= 70
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
+                          : 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40'
+                      }`}
+                      title="Porcentaje acumulado de asistencia"
+                    >
+                      {asistPct}% Asist.
+                    </span>
+                  </div>
+
+                  {/* Dos botones táctiles grandes y ergonómicos (mínimo 48px de alto) */}
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(est.id, 'PRESENTE')}
+                      className={`h-12 min-h-[48px] rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-150 active:scale-95 cursor-pointer select-none ${
+                        isPresente
+                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 scale-[1.02] border border-emerald-500'
+                          : 'bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100/70'
+                      }`}
+                    >
+                      <Check className={`w-5 h-5 ${isPresente ? 'stroke-[2.5]' : ''}`} />
+                      <span>✓ Presente</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(est.id, 'AUSENTE')}
+                      className={`h-12 min-h-[48px] rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-150 active:scale-95 cursor-pointer select-none ${
+                        !isPresente
+                          ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 scale-[1.02] border border-rose-500'
+                          : 'bg-rose-50/70 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100/70'
+                      }`}
+                    >
+                      <X className={`w-5 h-5 ${!isPresente ? 'stroke-[2.5]' : ''}`} />
+                      <span>✗ Ausente</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+
+          {/* ========================================================
+              VISTA DESKTOP / TABLET (>= 768px): TABLA TRADICIONAL
+             ======================================================== */}
+          <div className="hidden md:block backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-slate-100/80 dark:bg-white/[0.04] text-text-secondary font-semibold border-b border-slate-200/80 dark:border-white/10">
+                  <tr>
+                    <th className="px-3 sm:px-4 py-3 w-12 text-center">#</th>
+                    <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
+                    <th className="px-3 sm:px-4 py-3">Estudiante</th>
+                    <th className="px-3 sm:px-4 py-3 text-center min-w-[180px]">Estado de Asistencia</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
+                  {estudiantes.map((est, index) => {
+                    const estado = getEstado(est.id);
+                    const isPresente = estado === 'PRESENTE';
+
+                    return (
+                      <tr key={est.id} className="hover:bg-slate-100/40 dark:hover:bg-white/[0.03] transition-colors">
+                        <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
+                        <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
+                        <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary">
+                          {est.apellido}, {est.nombre}
+                        </td>
+                        <td className="px-3 sm:px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleToggle(est.id, 'PRESENTE')}
+                              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+                                isPresente
+                                  ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                                  : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
+                              }`}
+                            >
+                              <Check className="w-4 h-4 shrink-0" />
+                              <span>Presente</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleToggle(est.id, 'AUSENTE')}
+                              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+                                !isPresente
+                                  ? 'bg-rose-600 text-white shadow-xs font-bold'
+                                  : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200 dark:border-white/10'
+                              }`}
+                            >
+                              <X className="w-4 h-4 shrink-0" />
+                              <span>Ausente</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ========================================================
