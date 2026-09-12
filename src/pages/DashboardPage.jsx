@@ -1066,16 +1066,16 @@ const normalizeSearchText = (str) => {
            ========================================================= */}
         <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 relative overflow-hidden group">
           <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted truncate">
                   Métricas Rápidas
                 </span>
               </div>
-              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border shrink-0 ${
                 globalMetrics.averageAttendance >= 75
                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                   : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
@@ -1084,9 +1084,10 @@ const normalizeSearchText = (str) => {
               </span>
             </div>
 
-            {/* Circular Progress Ring & Numbers */}
-            <div className="my-auto py-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="relative w-20 h-20 shrink-0 flex items-center justify-center mx-auto sm:mx-0">
+            {/* Circular Progress Ring & Numbers - Balanced 2 columns on desktop */}
+            <div className="my-auto py-3 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              {/* Columna Izquierda: Donut SVG proporcional centrado */}
+              <div className="relative w-28 h-28 sm:w-32 sm:h-32 mx-auto flex items-center justify-center shrink-0">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
                   <circle
                     cx="40"
@@ -1113,32 +1114,45 @@ const normalizeSearchText = (str) => {
                   />
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-base font-mono font-bold text-text-primary">
+                  <span className="text-base sm:text-lg font-mono font-bold text-text-primary">
                     {globalMetrics.averageAttendance}%
                   </span>
-                  <span className="text-[9px] font-mono uppercase text-text-muted -mt-0.5">Asist.</span>
+                  <span className="text-[9px] font-mono uppercase text-text-muted -mt-0.5">Asistencia</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 w-full sm:flex sm:flex-col sm:space-y-1.5 sm:gap-0 sm:w-auto min-w-0">
-                <div className="p-2.5 rounded-xl bg-surface-hover/50 sm:bg-transparent sm:p-0 border border-surface-border/40 sm:border-0 text-center sm:text-left">
-                  <span className="text-base font-bold font-mono text-text-primary block leading-none">
-                    {globalMetrics.totalStudents}
-                  </span>
-                  <span className="text-[11px] text-text-muted">Alumnos activos</span>
+              {/* Columna Derecha: Grilla vertical de indicadores clave */}
+              <div className="grid grid-cols-3 sm:grid-cols-1 gap-2 w-full">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-text-muted block truncate">Alumnos Activos</span>
+                    <span className="text-sm sm:text-base font-bold font-mono text-text-primary">{globalMetrics.totalStudents}</span>
+                  </div>
+                  <span className="hidden sm:inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                 </div>
-                <div className="p-2.5 rounded-xl bg-surface-hover/50 sm:bg-transparent sm:p-0 border border-surface-border/40 sm:border-0 text-center sm:text-left">
-                  <span className="text-base font-bold font-mono text-text-primary block leading-none">
-                    {globalMetrics.activeCatedras}
-                  </span>
-                  <span className="text-[11px] text-text-muted">Cátedras activas</span>
+                <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-text-muted block truncate">Cátedras en Dictado</span>
+                    <span className="text-sm sm:text-base font-bold font-mono text-text-primary">{globalMetrics.activeCatedras}</span>
+                  </div>
+                  <span className="hidden sm:inline-block w-2 h-2 rounded-full bg-primary shrink-0" />
+                </div>
+                <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-text-muted block truncate">Clases Totales</span>
+                    <span className="text-sm sm:text-base font-bold font-mono text-text-primary">{globalMetrics.totalClasses}</span>
+                  </div>
+                  <span className="hidden sm:inline-block w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                 </div>
               </div>
             </div>
           </div>
 
           <div className="pt-3 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs">
-            <span className="text-[11px] text-text-muted font-mono">{globalMetrics.totalClasses} clases dictadas</span>
+            <span className="text-[11px] text-text-muted font-mono flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>Datos sincronizados</span>
+            </span>
             <span className="text-[11px] font-semibold text-primary">Ciclo {activeCiclo?.anio || '2026'}</span>
           </div>
         </div>

@@ -29,6 +29,7 @@ import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
+import ExpandableSearch from '../common/ExpandableSearch';
 import EditClassModal from './EditClassModal';
 import ConfirmDeleteClassModal from './ConfirmDeleteClassModal';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -111,6 +112,62 @@ export default function AttendanceTab({
   const [nuevaFecha, setNuevaFecha] = useState(new Date().toISOString().split('T')[0]);
   const [nuevoTema, setNuevoTema] = useState('');
   const [savingClase, setSavingClase] = useState(false);
+
+  // Estados de Búsqueda Rápida y Filtros de Asistencia
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [attendanceFilter, setAttendanceFilter] = useState('TODOS'); // 'TODOS' | 'AUSENTES' | 'RIESGO'
+
+  // Total de alumnos en riesgo (< 75% de asistencia)
+  const totalEnRiesgo = React.useMemo(() => {
+    return estudiantes.filter(e => (studentStatsMap.get(e.id) ?? 100) < 75).length;
+  }, [estudiantes, studentStatsMap]);
+
+  // Normalizador de búsqueda insensible a tildes y diacríticos
+  const normalizeSearchText = (text) => {
+    if (!text) return '';
+    return String(text)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  };
+
+  // Lista filtrada de estudiantes según búsqueda y píldora de filtro
+  const filteredEstudiantes = React.useMemo(() => {
+    const rawQuery = (studentSearchQuery || '').trim();
+    const normalizedQuery = normalizeSearchText(rawQuery);
+    const digitsOnlyQuery = rawQuery.replace(/\D/g, '');
+
+    return estudiantes.filter(est => {
+      // 1. Filtro por píldoras
+      if (attendanceFilter === 'AUSENTES') {
+        const estado = getEstado(est.id);
+        if (estado !== 'AUSENTE') return false;
+      } else if (attendanceFilter === 'RIESGO') {
+        const asistPct = studentStatsMap.get(est.id) ?? 100;
+        if (asistPct >= 75) return false;
+      }
+
+      // 2. Filtro por texto si hay búsqueda
+      if (!normalizedQuery) return true;
+
+      const normApellido = normalizeSearchText(est.apellido);
+      const normNombre = normalizeSearchText(est.nombre);
+      const normFullName1 = `${normApellido} ${normNombre}`;
+      const normFullName2 = `${normNombre} ${normApellido}`;
+
+      const matchApellido = normApellido.includes(normalizedQuery);
+      const matchNombre = normNombre.includes(normalizedQuery);
+      const matchFullName = normFullName1.includes(normalizedQuery) || normFullName2.includes(normalizedQuery);
+
+      const rawDni = String(est.dni || '');
+      const digitsOnlyDni = rawDni.replace(/\D/g, '');
+      const matchDni = rawDni.toLowerCase().includes(normalizedQuery) ||
+        (digitsOnlyQuery.length > 0 && digitsOnlyDni.includes(digitsOnlyQuery));
+
+      return matchApellido || matchNombre || matchFullName || matchDni;
+    });
+  }, [estudiantes, studentSearchQuery, attendanceFilter, asistencias, activeClase, studentStatsMap]);
 
   // Estados Modal Edición Rápida y Eliminación Segura de Clase
   const [isEditClassModalOpen, setIsEditClassModalOpen] = useState(false);
@@ -1013,201 +1070,295 @@ export default function AttendanceTab({
       ) : (
         <>
           {/* ========================================================
-              VISTA MÓVIL: TARJETAS RÁPIDAS TÁCTILES TOUCH (< 768px)
+              BARRA SUPERIOR: BÚSQUEDA RÁPIDA DE ALUMNOS Y FILTROS RÁPIDOS
              ======================================================== */}
-          <div className="block md:hidden space-y-3">
-            <div className="flex items-center justify-between px-1 text-xs text-text-muted">
-              <span className="font-semibold uppercase tracking-wider text-[11px]">
-                {estudiantes.length} {estudiantes.length === 1 ? 'Estudiante' : 'Estudiantes'} en Nómina
-              </span>
-              <span className="font-mono text-[11px]">
-                {presentesCount} P / {ausentesCount} A {justificadasCount > 0 ? `/ ${justificadasCount} J` : ''}
-              </span>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-surface border border-surface-border shadow-xs">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <ExpandableSearch
+                value={studentSearchQuery}
+                onChange={(e) => setStudentSearchQuery(e.target.value)}
+                onClear={() => setStudentSearchQuery('')}
+                placeholder="Buscar por Apellido, Nombre o DNI..."
+                widthClass="w-full sm:w-80 md:w-96"
+              />
+
+              {studentSearchQuery.trim() && (
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold font-mono shrink-0 animate-fadeIn">
+                  {filteredEstudiantes.length} {filteredEstudiantes.length === 1 ? 'coincidencia' : 'coincidencias'}
+                </span>
+              )}
             </div>
 
-            {estudiantes.map((est) => {
-              const estado = getEstado(est.id);
-              const isPresente = estado === 'PRESENTE';
-              const isAusente = estado === 'AUSENTE';
-              const isJustificada = estado === 'JUSTIFICADA';
-              const asistPct = studentStatsMap.get(est.id) ?? 100;
-              const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
-              const isFlashing = flashingStudentId === est.id || flashingStudentId === 'ALL';
+            {/* Píldoras de Filtro Rápido */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-hover/70 border border-surface-border shrink-0 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setAttendanceFilter('TODOS')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  attendanceFilter === 'TODOS'
+                    ? 'bg-surface text-text-primary shadow-xs font-extrabold'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <span>Todos</span>
+                <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/60 dark:bg-white/10 text-text-secondary">
+                  {estudiantes.length}
+                </span>
+              </button>
 
-              return (
-                <div
-                  key={est.id}
-                  className={`backdrop-blur-xl bg-white/80 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3 transition-all ${
-                    isFlashing ? 'animate-flash-success' : ''
-                  }`}
-                >
-                  {/* Fila Superior: Datos del Alumno y Porcentaje visible en esquina */}
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary font-mono font-bold text-xs flex items-center justify-center shrink-0">
-                        {initials}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="text-sm font-bold text-text-primary truncate leading-tight">
-                            {est.apellido}, {est.nombre}
-                          </h4>
-                          <RiskBadge risk={studentRiskMap.get(est.id)} compact />
+              <button
+                type="button"
+                onClick={() => setAttendanceFilter('AUSENTES')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  attendanceFilter === 'AUSENTES'
+                    ? 'bg-rose-500 text-white shadow-xs font-extrabold'
+                    : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
+                }`}
+              >
+                <span>Solo Ausentes (✗)</span>
+                <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
+                  attendanceFilter === 'AUSENTES' ? 'bg-white/20 text-white' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                }`}>
+                  {ausentesCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAttendanceFilter('RIESGO')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  attendanceFilter === 'RIESGO'
+                    ? 'bg-amber-500 text-white shadow-xs font-extrabold'
+                    : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                }`}
+              >
+                <span>En Riesgo (⚠️)</span>
+                <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
+                  attendanceFilter === 'RIESGO' ? 'bg-white/20 text-white' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                }`}>
+                  {totalEnRiesgo}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {filteredEstudiantes.length === 0 ? (
+            <div className="py-12 px-4 text-center rounded-2xl border border-dashed border-surface-border bg-surface/40 space-y-3">
+              <Users className="w-8 h-8 text-text-muted/40 mx-auto" />
+              <p className="text-sm font-semibold text-text-primary">
+                No se encontraron alumnos con los filtros seleccionados
+              </p>
+              <p className="text-xs text-text-muted">
+                Prueba cambiando el término de búsqueda o selecciona "Todos".
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setStudentSearchQuery('');
+                  setAttendanceFilter('TODOS');
+                }}
+                className="text-xs mx-auto"
+              >
+                Limpiar Filtros
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* ========================================================
+                  VISTA MÓVIL: TARJETAS RÁPIDAS TÁCTILES TOUCH (< 768px)
+                 ======================================================== */}
+              <div className="block md:hidden space-y-3">
+                <div className="flex items-center justify-between px-1 text-xs text-text-muted">
+                  <span className="font-semibold uppercase tracking-wider text-[11px]">
+                    Mostrando {filteredEstudiantes.length} de {estudiantes.length} Alumnos
+                  </span>
+                  <span className="font-mono text-[11px]">
+                    {presentesCount} P / {ausentesCount} A {justificadasCount > 0 ? `/ ${justificadasCount} J` : ''}
+                  </span>
+                </div>
+
+                {filteredEstudiantes.map((est) => {
+                  const estado = getEstado(est.id);
+                  const isPresente = estado === 'PRESENTE';
+                  const isAusente = estado === 'AUSENTE';
+                  const isJustificada = estado === 'JUSTIFICADA';
+                  const asistPct = studentStatsMap.get(est.id) ?? 100;
+                  const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
+                  const isFlashing = flashingStudentId === est.id || flashingStudentId === 'ALL';
+
+                  return (
+                    <div
+                      key={est.id}
+                      className={`backdrop-blur-xl bg-white/80 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3 transition-all ${
+                        isFlashing ? 'animate-flash-success' : ''
+                      }`}
+                    >
+                      {/* Fila Superior: Datos del Alumno y Porcentaje visible en esquina */}
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                            {initials}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-sm font-bold text-text-primary truncate leading-tight">
+                                {est.apellido}, {est.nombre}
+                              </h4>
+                              <RiskBadge risk={studentRiskMap.get(est.id)} compact />
+                            </div>
+                            <p className="text-[11px] font-mono text-text-muted mt-0.5">
+                              DNI: {est.dni || 'S/D'}
+                            </p>
+                          </div>
                         </div>
-                        <span className="text-[11px] font-mono text-text-muted">
-                          DNI: {est.dni}
-                        </span>
+
+                        {/* Porcentaje Histórico de Asistencia */}
+                        <div className="text-right shrink-0">
+                          <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg border ${
+                            asistPct >= 75
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300/40'
+                              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300/40'
+                          }`}>
+                            {asistPct}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Botonera Tri-Estado Táctil Horizontal */}
+                      <div className="grid grid-cols-3 gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(est.id, 'PRESENTE')}
+                          className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+                            isPresente
+                              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-extrabold'
+                              : 'bg-slate-100/90 dark:bg-white/[0.05] text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200/80 dark:border-white/10'
+                          }`}
+                        >
+                          <Check className="w-3.5 h-3.5 shrink-0" />
+                          <span>Presente</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(est.id, 'AUSENTE')}
+                          className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+                            isAusente
+                              ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-extrabold'
+                              : 'bg-slate-100/90 dark:bg-white/[0.05] text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200/80 dark:border-white/10'
+                          }`}
+                        >
+                          <X className="w-3.5 h-3.5 shrink-0" />
+                          <span>Ausente</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(est.id, 'JUSTIFICADA')}
+                          className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+                            isJustificada
+                              ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30 font-extrabold'
+                              : 'bg-slate-100/90 dark:bg-white/[0.05] text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200/80 dark:border-white/10'
+                          }`}
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>Justificada</span>
+                        </button>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* Porcentaje acumulado de asistencia en la esquina */}
-                    <span
-                      className={`shrink-0 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border ${
-                        asistPct >= 70
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
-                          : 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40'
-                      }`}
-                      title="Porcentaje acumulado de asistencia"
-                    >
-                      {asistPct}% Asist.
-                    </span>
-                  </div>
-
-                  {/* Tres botones táctiles ergonómicos (mínimo 44px de alto) con micro-escala 100ms */}
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(est.id, 'PRESENTE')}
-                      className={`h-11 min-h-[44px] rounded-xl flex items-center justify-center gap-1.5 font-bold text-xs transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
-                        isPresente
-                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 scale-[1.02] border border-emerald-500'
-                          : 'bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100/70'
-                      }`}
-                      title="Marcar presente"
-                    >
-                      <Check className={`w-4 h-4 ${isPresente ? 'stroke-[2.5]' : ''}`} />
-                      <span className="truncate">✓ Presente</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(est.id, 'AUSENTE')}
-                      className={`h-11 min-h-[44px] rounded-xl flex items-center justify-center gap-1.5 font-bold text-xs transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
-                        isAusente
-                          ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 scale-[1.02] border border-rose-500'
-                          : 'bg-rose-50/70 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100/70'
-                      }`}
-                      title="Marcar ausente"
-                    >
-                      <X className={`w-4 h-4 ${isAusente ? 'stroke-[2.5]' : ''}`} />
-                      <span className="truncate">✗ Ausente</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(est.id, 'JUSTIFICADA')}
-                      className={`h-11 min-h-[44px] rounded-xl flex items-center justify-center gap-1.5 font-bold text-xs transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
-                        isJustificada
-                          ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30 scale-[1.02] border border-amber-500'
-                          : 'bg-amber-50/70 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100/70'
-                      }`}
-                      title="Marcar inasistencia justificada"
-                    >
-                      <AlertCircle className={`w-4 h-4 ${isJustificada ? 'stroke-[2.5]' : ''}`} />
-                      <span className="truncate">⚠️ Justificada</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ========================================================
-              VISTA DESKTOP / TABLET (>= 768px): TABLA TRADICIONAL
-             ======================================================== */}
-          <div className="hidden md:block backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="bg-slate-100/80 dark:bg-white/[0.04] text-text-secondary font-semibold border-b border-slate-200/80 dark:border-white/10">
-                  <tr>
-                    <th className="px-3 sm:px-4 py-3 w-12 text-center">#</th>
-                    <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
-                    <th className="px-3 sm:px-4 py-3">Estudiante</th>
-                    <th className="px-3 sm:px-4 py-3 text-center min-w-[240px]">Estado de Asistencia</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
-                  {estudiantes.map((est, index) => {
-                    const estado = getEstado(est.id);
-                    const isPresente = estado === 'PRESENTE';
-                    const isAusente = estado === 'AUSENTE';
-                    const isJustificada = estado === 'JUSTIFICADA';
-                    const isFlashing = flashingStudentId === est.id || flashingStudentId === 'ALL';
-
-                    return (
-                      <tr
-                        key={est.id}
-                        className={`hover:bg-slate-100/40 dark:hover:bg-white/[0.03] transition-colors ${
-                          isFlashing ? 'animate-flash-success' : ''
-                        }`}
-                      >
-                        <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
-                        <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
-                        <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary">
-                          <div className="flex items-center gap-2">
-                            <span>{est.apellido}, {est.nombre}</span>
-                            <RiskBadge risk={studentRiskMap.get(est.id)} compact />
-                          </div>
-                        </td>
-                        <td className="px-3 sm:px-4 py-3">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleToggle(est.id, 'PRESENTE')}
-                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
-                                isPresente
-                                  ? 'bg-emerald-600 text-white shadow-xs font-bold'
-                                  : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
-                              }`}
-                            >
-                              <Check className="w-3.5 h-3.5 shrink-0" />
-                              <span>Presente</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleToggle(est.id, 'AUSENTE')}
-                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
-                                isAusente
-                                  ? 'bg-rose-600 text-white shadow-xs font-bold'
-                                  : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200 dark:border-white/10'
-                              }`}
-                            >
-                              <X className="w-3.5 h-3.5 shrink-0" />
-                              <span>Ausente</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleToggle(est.id, 'JUSTIFICADA')}
-                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
-                                isJustificada
-                                  ? 'bg-amber-600 text-white shadow-xs font-bold'
-                                  : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200 dark:border-white/10'
-                              }`}
-                            >
-                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                              <span>Justificada</span>
-                            </button>
-                          </div>
-                        </td>
+              {/* ========================================================
+                  VISTA DESKTOP / TABLET (>= 768px): TABLA TRADICIONAL
+                 ======================================================== */}
+              <div className="hidden md:block backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-slate-100/80 dark:bg-white/[0.04] text-text-secondary font-semibold border-b border-slate-200/80 dark:border-white/10">
+                      <tr>
+                        <th className="px-3 sm:px-4 py-3 w-12 text-center">#</th>
+                        <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
+                        <th className="px-3 sm:px-4 py-3">Estudiante</th>
+                        <th className="px-3 sm:px-4 py-3 text-center min-w-[240px]">Estado de Asistencia</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
+                      {filteredEstudiantes.map((est, index) => {
+                        const estado = getEstado(est.id);
+                        const isPresente = estado === 'PRESENTE';
+                        const isAusente = estado === 'AUSENTE';
+                        const isJustificada = estado === 'JUSTIFICADA';
+                        const isFlashing = flashingStudentId === est.id || flashingStudentId === 'ALL';
+
+                        return (
+                          <tr
+                            key={est.id}
+                            className={`hover:bg-slate-100/40 dark:hover:bg-white/[0.03] transition-colors ${
+                              isFlashing ? 'animate-flash-success' : ''
+                            }`}
+                          >
+                            <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
+                            <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
+                            <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary">
+                              <div className="flex items-center gap-2">
+                                <span>{est.apellido}, {est.nombre}</span>
+                                <RiskBadge risk={studentRiskMap.get(est.id)} compact />
+                              </div>
+                            </td>
+                            <td className="px-3 sm:px-4 py-3">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggle(est.id, 'PRESENTE')}
+                                  className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+                                    isPresente
+                                      ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                                      : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
+                                  }`}
+                                >
+                                  <Check className="w-3.5 h-3.5 shrink-0" />
+                                  <span>Presente</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggle(est.id, 'AUSENTE')}
+                                  className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+                                    isAusente
+                                      ? 'bg-rose-600 text-white shadow-xs font-bold'
+                                      : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200 dark:border-white/10'
+                                  }`}
+                                >
+                                  <X className="w-3.5 h-3.5 shrink-0" />
+                                  <span>Ausente</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggle(est.id, 'JUSTIFICADA')}
+                                  className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+                                    isJustificada
+                                      ? 'bg-amber-500 text-white shadow-xs font-bold'
+                                      : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200 dark:border-white/10'
+                                  }`}
+                                >
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  <span>Justificada</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
 

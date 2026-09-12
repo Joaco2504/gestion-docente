@@ -18,7 +18,8 @@ import {
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
-import TeacherSupportDrawer from './TeacherSupportDrawer';
+import ExpandableSearch from '../common/ExpandableSearch';
+import SupportHubModal from './SupportHubModal';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { formatFechaDMY } from '../../lib/dateUtils';
 import { toast } from 'sonner';
@@ -188,25 +189,16 @@ export default function TeachersDirectory({ isDemo = false }) {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        {/* Buscador */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input
-            type="text"
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        {/* Buscador animado */}
+        <div className="w-full sm:w-auto">
+          <ExpandableSearch
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onClear={() => setSearchQuery('')}
             placeholder="Buscar docente por nombre o correo electrónico..."
-            className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl bg-surface border border-surface-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            widthClass="w-full sm:w-80 md:w-96"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary rounded-lg"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
 
         {/* Role Filter Chips */}
@@ -353,8 +345,8 @@ export default function TeachersDirectory({ isDemo = false }) {
         </table>
       </div>
 
-      {/* Drawer de Soporte */}
-      <TeacherSupportDrawer
+      {/* Modal Bento Centrado de Soporte */}
+      <SupportHubModal
         isOpen={isDrawerOpen}
         onClose={() => {
           setIsDrawerOpen(false);
@@ -362,6 +354,7 @@ export default function TeachersDirectory({ isDemo = false }) {
         }}
         teacher={selectedTeacher}
         isDemo={isDemo}
+        onTeacherUpdated={(t) => setTeachers(prev => prev.map(item => item.id === t.id ? t : item))}
       />
     </Card>
   );

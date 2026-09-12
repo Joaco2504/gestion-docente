@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -388,6 +389,28 @@ export default function CalendarPage() {
   }, [miniCalDate]);
 
   /**
+   * Días del mes para el Calendario Principal Mensual (reacciona a currentDate)
+   */
+  const mainCalMonthDays = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    // Normalizar a Lunes = 0
+    const offset = (firstDayIndex + 6) % 7;
+    const days = [];
+
+    for (let i = 0; i < offset; i++) {
+      days.push(null);
+    }
+    for (let d = 1; d <= totalDays; d++) {
+      days.push(new Date(year, month, d));
+    }
+    return days;
+  }, [currentDate]);
+
+  /**
    * Colores y Estilos Pastel según la Categoría
    */
   const getEventStyle = (tipo) => {
@@ -494,14 +517,15 @@ export default function CalendarPage() {
             Sincronizar (.ics)
           </Button>
 
-          <Button
-            variant="primary"
-            icon={Plus}
+          <button
+            type="button"
             onClick={() => setIsNewEventModalOpen(true)}
-            className="text-xs shadow-xs"
+            className="group relative inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/35 border border-indigo-400/30 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 cursor-pointer shrink-0"
+            title="Registrar nuevo compromiso, mesa de examen o reunión"
           >
-            Nuevo Evento / Mesa
-          </Button>
+            <Plus className="w-4 h-4 transition-transform duration-300 ease-out group-hover:rotate-90 shrink-0" />
+            <span>Agregar Compromiso</span>
+          </button>
         </div>
       </div>
 
@@ -749,311 +773,337 @@ export default function CalendarPage() {
           </div>
 
           {/* ========================================================
-              VISTA 1: DÍA (DAY VIEW)
+              CONTENEDOR DINÁMICO DE VISTAS CON ANIMACIÓN FRAMER MOTION
              ======================================================== */}
-          {viewMode === 'dia' && (
-            <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 space-y-4 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
-              <div className="border-b border-slate-200/60 dark:border-white/10 pb-3 flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-text-primary">
-                    Agenda del {formatFechaLegible(currentDate)}
-                  </h3>
-                  <p className="text-xs text-text-muted">Horarios y compromisos asignados para la jornada</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  icon={Plus}
-                  onClick={() => {
-                    setFecha(currentDate.toISOString().split('T')[0]);
-                    setIsNewEventModalOpen(true);
-                  }}
-                  className="text-xs"
-                >
-                  Agregar a este día
-                </Button>
-              </div>
-
-              {/* Eventos y Clases de este Día */}
-              <div className="space-y-3">
-                {(() => {
-                  const currIso = currentDate.toISOString().split('T')[0];
-                  const currDayName = DAYS_OF_WEEK[(currentDate.getDay() + 6) % 7];
-
-                  // Filtrar clases de cátedra regulares para este día
-                  const matchingClasses = (selectedCategory === 'TODOS' || selectedCategory === 'CLASE')
-                    ? regularClasses.filter(c => c.dia_semana === currDayName)
-                    : [];
-
-                  // Filtrar eventos de calendario
-                  const matchingEvents = events.filter(e => {
-                    if (selectedCategory !== 'TODOS' && e.tipo !== selectedCategory) return false;
-                    const evIso = (e.fecha_inicio || e.fecha || '').split('T')[0];
-                    return evIso === currIso;
-                  });
-
-                  if (matchingClasses.length === 0 && matchingEvents.length === 0) {
-                    return (
-                      <div className="py-12 text-center text-text-muted space-y-2 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01]">
-                        <CalendarIcon className="w-8 h-8 mx-auto opacity-40" />
-                        <p className="text-xs">No tienes clases ni eventos programados para este día.</p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-3">
-                      {/* Clases regulares */}
-                      {matchingClasses.map(cls => {
-                        const styles = getEventStyle('CLASE');
-                        return (
-                          <div
-                            key={cls.id}
-                            className={`p-4 rounded-2xl border transition-all ${styles.bg} flex items-start justify-between gap-3`}
-                          >
-                            <div className="space-y-1">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles.badge}`}>
-                                Clase de Cátedra
-                              </span>
-                              <h4 className={`text-sm font-bold ${styles.text}`}>
-                                {cls.catedra_nombre}
-                              </h4>
-                              <p className="text-xs text-text-secondary">
-                                {cls.nivel} • {cls.aula}
-                              </p>
-                            </div>
-                            <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary shrink-0">
-                              {cls.desde} - {cls.hasta} hs
-                            </span>
-                          </div>
-                        );
-                      })}
-
-                      {/* Eventos registrados */}
-                      {matchingEvents.map(ev => {
-                        const styles = getEventStyle(ev.tipo);
-                        const timeBadge = ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : '08:00';
-                        return (
-                          <div
-                            key={ev.id}
-                            onClick={() => setSelectedEventForDetail(ev)}
-                            className={`p-4 rounded-2xl border cursor-pointer transition-all ${styles.bg} flex items-start justify-between gap-3`}
-                          >
-                            <div className="space-y-1">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles.badge}`}>
-                                {styles.tag}
-                              </span>
-                              <h4 className={`text-sm font-bold ${styles.text}`}>
-                                {ev.titulo}
-                              </h4>
-                              {ev.notas && (
-                                <p className="text-xs text-text-secondary line-clamp-2">
-                                  {ev.notas}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary">
-                                {timeBadge} hs
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteEvent(ev.id);
-                                }}
-                                className="p-1 text-text-muted hover:text-rose-600 rounded"
-                                title="Eliminar evento"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================
-              VISTA 2: SEMANAL (WEEK VIEW)
-             ======================================================== */}
-          {viewMode === 'semanal' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
-              {DAYS_OF_WEEK.map((diaName) => {
-                // Clases regulares de este día de la semana
-                const dayClasses = (selectedCategory === 'TODOS' || selectedCategory === 'CLASE')
-                  ? regularClasses.filter(c => c.dia_semana === diaName)
-                  : [];
-
-                return (
-                  <div
-                    key={diaName}
-                    className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 space-y-3 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] flex flex-col justify-between hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-200"
-                  >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${viewMode}-${currentDate.getFullYear()}-${currentDate.getMonth()}-${viewMode === 'semanal' ? Math.floor(currentDate.getDate() / 7) : currentDate.getDate()}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+            >
+              {/* ========================================================
+                  VISTA 1: DÍA (DAY VIEW)
+                 ======================================================== */}
+              {viewMode === 'dia' && (
+                <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 space-y-4 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+                  <div className="border-b border-slate-200/60 dark:border-white/10 pb-3 flex items-center justify-between">
                     <div>
-                      {/* Cabecera del Día */}
-                      <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-2.5">
-                        <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
-                          {diaName}
-                        </span>
-                        <span className="text-[10px] font-mono font-bold text-text-muted">
-                          {dayClasses.length} {dayClasses.length === 1 ? 'materia' : 'materias'}
-                        </span>
-                      </div>
+                      <h3 className="text-base font-bold text-text-primary">
+                        Agenda del {formatFechaLegible(currentDate)}
+                      </h3>
+                      <p className="text-xs text-text-muted">Horarios y compromisos asignados para la jornada</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFecha(currentDate.toISOString().split('T')[0]);
+                        setIsNewEventModalOpen(true);
+                      }}
+                      className="group relative inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/35 border border-indigo-400/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5 transition-transform duration-300 ease-out group-hover:rotate-90 shrink-0" />
+                      <span>Agregar a este día</span>
+                    </button>
+                  </div>
 
-                      {/* Tarjetas de clases del día */}
-                      <div className="mt-3 space-y-2">
-                        {dayClasses.length === 0 ? (
-                          <p className="text-[11px] text-text-muted italic py-3 text-center">
-                            Sin cátedras fijas este día
-                          </p>
-                        ) : (
-                          dayClasses.map(cls => {
+                  {/* Eventos y Clases de este Día */}
+                  <div className="space-y-3">
+                    {(() => {
+                      const currIso = currentDate.toISOString().split('T')[0];
+                      const currDayName = DAYS_OF_WEEK[(currentDate.getDay() + 6) % 7];
+
+                      // Filtrar clases de cátedra regulares para este día
+                      const matchingClasses = (selectedCategory === 'TODOS' || selectedCategory === 'CLASE')
+                        ? regularClasses.filter(c => c.dia_semana === currDayName)
+                        : [];
+
+                      // Filtrar eventos de calendario
+                      const matchingEvents = events.filter(e => {
+                        if (selectedCategory !== 'TODOS' && e.tipo !== selectedCategory) return false;
+                        const evIso = (e.fecha_inicio || e.fecha || '').split('T')[0];
+                        return evIso === currIso;
+                      });
+
+                      if (matchingClasses.length === 0 && matchingEvents.length === 0) {
+                        return (
+                          <div className="py-12 text-center text-text-muted space-y-2 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01]">
+                            <CalendarIcon className="w-8 h-8 mx-auto opacity-40" />
+                            <p className="text-xs">No tienes clases ni eventos programados para este día.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-3">
+                          {/* Clases regulares */}
+                          {matchingClasses.map(cls => {
                             const styles = getEventStyle('CLASE');
                             return (
                               <div
                                 key={cls.id}
-                                className={`p-3 rounded-xl border transition-all ${styles.bg} space-y-1.5`}
+                                className={`p-4 rounded-2xl border transition-all ${styles.bg} flex items-start justify-between gap-3`}
                               >
-                                <div className="flex items-center justify-between gap-1">
-                                  <h4 className="text-xs font-bold text-text-primary truncate">
+                                <div className="space-y-1">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles.badge}`}>
+                                    Clase de Cátedra
+                                  </span>
+                                  <h4 className={`text-sm font-bold ${styles.text}`}>
                                     {cls.catedra_nombre}
                                   </h4>
-                                  <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.2 rounded shrink-0">
-                                    {cls.desde}
-                                  </span>
+                                  <p className="text-xs text-text-secondary">
+                                    {cls.nivel} • {cls.aula}
+                                  </p>
                                 </div>
-                                <div className="flex items-center justify-between text-[10px] text-text-muted">
-                                  <span>{cls.aula || 'Aula regular'}</span>
-                                  <span>{cls.hasta} hs</span>
+                                <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary shrink-0">
+                                  {cls.desde} - {cls.hasta} hs
+                                </span>
+                              </div>
+                            );
+                          })}
+
+                          {/* Eventos registrados */}
+                          {matchingEvents.map(ev => {
+                            const styles = getEventStyle(ev.tipo);
+                            const timeBadge = ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : '08:00';
+                            return (
+                              <div
+                                key={ev.id}
+                                onClick={() => setSelectedEventForDetail(ev)}
+                                className={`p-4 rounded-2xl border cursor-pointer transition-all ${styles.bg} flex items-start justify-between gap-3`}
+                              >
+                                <div className="space-y-1">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles.badge}`}>
+                                    {styles.tag}
+                                  </span>
+                                  <h4 className={`text-sm font-bold ${styles.text}`}>
+                                    {ev.titulo}
+                                  </h4>
+                                  {ev.notas && (
+                                    <p className="text-xs text-text-secondary line-clamp-2">
+                                      {ev.notas}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary">
+                                    {timeBadge} hs
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteEvent(ev.id);
+                                    }}
+                                    className="p-1 text-text-muted hover:text-rose-600 rounded"
+                                    title="Eliminar evento"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
                             );
-                          })
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsNewEventModalOpen(true);
-                      }}
-                      className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-primary hover:underline pt-2.5 border-t border-slate-200/60 dark:border-white/10 cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>Agregar Compromiso</span>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ========================================================
-              VISTA 3: MENSUAL (MONTH VIEW)
-             ======================================================== */}
-          {viewMode === 'mensual' && (
-            <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-6 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] space-y-3">
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono font-bold text-text-muted pb-2.5 border-b border-slate-200/60 dark:border-white/10">
-                {DAYS_OF_WEEK.map((d, i) => (
-                  <span key={i} className="truncate">{d.substring(0, 3)}</span>
-                ))}
-                <span className="truncate">Dom</span>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1.5">
-                {miniCalMonthDays.map((d, idx) => {
-                  if (!d) {
-                    return <div key={`empty-month-${idx}`} className="min-h-[70px] bg-slate-100/30 dark:bg-white/[0.02] rounded-xl" />;
-                  }
-
-                  const dStr = d.toISOString().split('T')[0];
-                  const isToday = d.toDateString() === new Date().toDateString();
-                  const isSelected = d.toDateString() === currentDate.toDateString();
-
-                  // Eventos de este día
-                  const dayEvents = events.filter(e => {
-                    const evDate = (e.fecha_inicio || e.fecha || '').split('T')[0];
-                    return evDate === dStr;
-                  });
-
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        setCurrentDate(d);
-                        setViewMode('dia');
-                      }}
-                      className={`
-                        min-h-[70px] p-1.5 rounded-xl border text-xs cursor-pointer transition-all flex flex-col justify-between
-                        ${isSelected 
-                          ? 'border-primary bg-primary/10 shadow-xs' 
-                          : isToday 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-slate-200/70 dark:border-white/10 hover:border-primary/40 hover:bg-slate-100/40 dark:hover:bg-white/[0.04]'
-                        }
-                      `}
-                    >
-                      <span className={`font-mono font-bold text-[11px] ${isToday ? 'text-primary font-extrabold' : 'text-text-primary'}`}>
-                        {d.getDate()}
-                      </span>
-
-                      <div className="space-y-1 overflow-hidden">
-                        {dayEvents.slice(0, 2).map((ev) => (
-                          <div
-                            key={ev.id}
-                            className="text-[9px] font-semibold px-1 py-0.5 rounded bg-rose-500/10 text-rose-700 dark:text-rose-300 truncate"
-                            title={ev.titulo}
-                          >
-                            {ev.titulo}
-                          </div>
-                        ))}
-                        {dayEvents.length > 2 && (
-                          <span className="text-[9px] font-mono text-text-muted">
-                            +{dayEvents.length - 2} más
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================
-              VISTA 4: ANUAL (YEAR VIEW)
-             ======================================================== */}
-          {viewMode === 'anual' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {MONTH_NAMES.map((mName, mIdx) => (
-                <div
-                  key={mName}
-                  onClick={() => {
-                    const d = new Date(currentDate);
-                    d.setMonth(mIdx);
-                    setCurrentDate(d);
-                    setViewMode('mensual');
-                  }}
-                  className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 p-4 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 hover:border-primary/40 hover:-translate-y-0.5 cursor-pointer transition-all duration-200 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] space-y-2"
-                >
-                  <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-1.5">
-                    <span className="text-xs font-bold text-text-primary">{mName}</span>
-                    <span className="text-[10px] font-mono text-text-muted">{currentDate.getFullYear()}</span>
-                  </div>
-
-                  <div className="py-2 text-center text-xs text-text-muted">
-                    <span>Haz clic para explorar el mes</span>
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              )}
+
+              {/* ========================================================
+                  VISTA 2: SEMANAL (WEEK VIEW)
+                 ======================================================== */}
+              {viewMode === 'semanal' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                  {DAYS_OF_WEEK.map((diaName) => {
+                    // Clases regulares de este día de la semana
+                    const dayClasses = (selectedCategory === 'TODOS' || selectedCategory === 'CLASE')
+                      ? regularClasses.filter(c => c.dia_semana === diaName)
+                      : [];
+
+                    return (
+                      <div
+                        key={diaName}
+                        className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 space-y-3 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] flex flex-col justify-between hover:border-indigo-400/40 hover:-translate-y-0.5 transition-all duration-200"
+                      >
+                        <div>
+                          {/* Cabecera del Día */}
+                          <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-2.5">
+                            <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
+                              {diaName}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-text-muted">
+                              {dayClasses.length} {dayClasses.length === 1 ? 'materia' : 'materias'}
+                            </span>
+                          </div>
+
+                          {/* Tarjetas de clases del día */}
+                          <div className="mt-3 space-y-2">
+                            {dayClasses.length === 0 ? (
+                              <p className="text-[11px] text-text-muted italic py-3 text-center">
+                                Sin cátedras fijas este día
+                              </p>
+                            ) : (
+                              dayClasses.map(cls => {
+                                const styles = getEventStyle('CLASE');
+                                return (
+                                  <div
+                                    key={cls.id}
+                                    className={`p-3 rounded-xl border transition-all ${styles.bg} space-y-1.5`}
+                                  >
+                                    <div className="flex items-center justify-between gap-1">
+                                      <h4 className="text-xs font-bold text-text-primary truncate">
+                                        {cls.catedra_nombre}
+                                      </h4>
+                                      <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.2 rounded shrink-0">
+                                        {cls.desde}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[10px] text-text-muted">
+                                      <span>{cls.aula || 'Aula regular'}</span>
+                                      <span>{cls.hasta} hs</span>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsNewEventModalOpen(true);
+                          }}
+                          className="group inline-flex items-center justify-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 py-2 px-3 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800/60 hover:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all duration-200 cursor-pointer active:scale-95"
+                        >
+                          <Plus className="w-3.5 h-3.5 transition-transform duration-300 group-hover:rotate-90 shrink-0" />
+                          <span>Agregar Compromiso</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ========================================================
+                  VISTA 3: MENSUAL (MONTH VIEW)
+                 ======================================================== */}
+              {viewMode === 'mensual' && (
+                <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-6 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] space-y-3">
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono font-bold text-text-muted pb-2.5 border-b border-slate-200/60 dark:border-white/10">
+                    {DAYS_OF_WEEK.map((d, i) => (
+                      <span key={i} className="truncate">{d.substring(0, 3)}</span>
+                    ))}
+                    <span className="truncate">Dom</span>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {mainCalMonthDays.map((d, idx) => {
+                      if (!d) {
+                        return <div key={`empty-month-${idx}`} className="min-h-[72px] bg-slate-100/30 dark:bg-white/[0.02] rounded-xl" />;
+                      }
+
+                      const dStr = d.toISOString().split('T')[0];
+                      const isToday = d.toDateString() === new Date().toDateString();
+                      const isSelected = d.toDateString() === currentDate.toDateString();
+
+                      // Eventos de este día
+                      const dayEvents = events.filter(e => {
+                        const evDate = (e.fecha_inicio || e.fecha || '').split('T')[0];
+                        return evDate === dStr;
+                      });
+
+                      return (
+                        <motion.div
+                          key={idx}
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                          onClick={() => {
+                            setCurrentDate(d);
+                            setViewMode('dia');
+                          }}
+                          className={`
+                            relative min-h-[72px] p-2 rounded-xl border text-xs cursor-pointer transition-colors flex flex-col justify-between overflow-hidden
+                            ${isSelected 
+                              ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 shadow-xs' 
+                              : isToday 
+                                ? 'border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20' 
+                                : 'border-slate-200/70 dark:border-white/10 hover:border-indigo-400/50 hover:bg-slate-100/40 dark:hover:bg-white/[0.04]'
+                            }
+                          `}
+                        >
+                          {/* Animación de pulso sutil en el día actual */}
+                          {isToday && (
+                            <motion.div
+                              className="absolute inset-0 rounded-xl border-2 border-indigo-500 pointer-events-none"
+                              animate={{ opacity: [0.35, 0.85, 0.35] }}
+                              transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
+                            />
+                          )}
+
+                          <span className={`font-mono font-bold text-[11px] ${isToday ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-text-primary'}`}>
+                            {d.getDate()}
+                          </span>
+
+                          <div className="space-y-1 overflow-hidden">
+                            {dayEvents.slice(0, 2).map((ev) => (
+                              <motion.div
+                                key={ev.id}
+                                initial={{ scale: 0.85, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                                className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 truncate"
+                                title={ev.titulo}
+                              >
+                                {ev.titulo}
+                              </motion.div>
+                            ))}
+                            {dayEvents.length > 2 && (
+                              <span className="text-[9px] font-mono text-text-muted">
+                                +{dayEvents.length - 2} más
+                              </span>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================
+                  VISTA 4: ANUAL (YEAR VIEW)
+                 ======================================================== */}
+              {viewMode === 'anual' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {MONTH_NAMES.map((mName, mIdx) => (
+                    <div
+                      key={mName}
+                      onClick={() => {
+                        const d = new Date(currentDate);
+                        d.setMonth(mIdx);
+                        setCurrentDate(d);
+                        setViewMode('mensual');
+                      }}
+                      className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 p-4 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 hover:border-primary/40 hover:-translate-y-0.5 cursor-pointer transition-all duration-200 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] space-y-2"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-1.5">
+                        <span className="text-xs font-bold text-text-primary">{mName}</span>
+                        <span className="text-[10px] font-mono text-text-muted">{currentDate.getFullYear()}</span>
+                      </div>
+
+                      <div className="py-2 text-center text-xs text-text-muted">
+                        <span>Haz clic para explorar el mes</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 
