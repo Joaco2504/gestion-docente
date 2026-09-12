@@ -93,7 +93,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     fetchMesas();
   }, [catedraId]);
 
-  const fetchMesas = async () => {
+  async function fetchMesas() {
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
@@ -121,9 +121,9 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const loadFallbackMesas = () => {
+  function loadFallbackMesas() {
     try {
       const stored = localStorage.getItem(`mesas_examen_${catedraId}`);
       if (stored) {
@@ -152,7 +152,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     } catch (_) {
       setMesas([]);
     }
-  };
+  }
 
   // =========================================================================
   // CARGA DE ACTA / ALUMNOS DE LA MESA SELECCIONADA
@@ -166,7 +166,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     }
   }, [selectedMesa]);
 
-  const fetchActaAlumnos = async (mesaId) => {
+  async function fetchActaAlumnos(mesaId) {
     setLoadingActa(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
@@ -194,9 +194,9 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     } finally {
       setLoadingActa(false);
     }
-  };
+  }
 
-  const loadFallbackActas = (mesaId) => {
+  function loadFallbackActas(mesaId) {
     try {
       const stored = localStorage.getItem(`actas_examen_${mesaId}`);
       if (stored) {
@@ -207,10 +207,10 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     } catch (_) {
       setActasAlumnos([]);
     }
-  };
+  }
 
   // Carga lista de alumnos regulares de la cátedra para autocompletar
-  const fetchAvailableStudents = async () => {
+  async function fetchAvailableStudents() {
     try {
       if (isSupabaseConfigured && !isDemo) {
         const { data } = await supabase

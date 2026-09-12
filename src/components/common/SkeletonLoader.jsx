@@ -129,9 +129,25 @@ export function CatedraDetailSkeleton() {
   );
 }
 
+export function CatedraTabSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse p-4 sm:p-6 rounded-3xl bg-white/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-white/5">
+      <div className="flex items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-white/5">
+        <div className="w-48 h-6 bg-slate-200/70 dark:bg-slate-800 rounded-xl" />
+        <div className="flex gap-2">
+          <div className="w-24 h-8 bg-slate-200/70 dark:bg-slate-800 rounded-xl" />
+          <div className="w-24 h-8 bg-slate-200/70 dark:bg-slate-800 rounded-xl" />
+        </div>
+      </div>
+      <SkeletonTable rows={5} cols={4} />
+    </div>
+  );
+}
+
 export default {
   SkeletonItem,
   SkeletonCatedraCard,
   SkeletonTable,
-  CatedraDetailSkeleton
+  CatedraDetailSkeleton,
+  CatedraTabSkeleton
 };

@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   CheckSquare, 
   GraduationCap, 
-  FileSpreadsheet, 
   FolderOpen, 
   Settings as SettingsIcon, 
   Clock, 
@@ -12,8 +11,6 @@ import {
   Building,
   AlertCircle,
   ShieldCheck,
-  Calendar,
-  Percent,
   BarChart3,
   BookOpen,
   Award,
@@ -21,23 +18,41 @@ import {
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
-import Card from '../components/common/Card';
-import AttendanceTab from '../components/catedra/AttendanceTab';
-import GradesTab from '../components/catedra/GradesTab';
-import StudentsTab from '../components/catedra/StudentsTab';
-import ResourcesTab from '../components/catedra/ResourcesTab';
-import SettingsTab from '../components/catedra/SettingsTab';
-import LibroTemasTab from '../components/catedra/LibroTemasTab';
-import MesasExamenTab from '../components/catedra/MesasExamenTab';
-import UnidadesTab from '../components/catedra/UnidadesTab';
 import EarlyWarningCard from '../components/catedra/EarlyWarningCard';
 import ProgramaProgressCard from '../components/catedra/ProgramaProgressCard';
-import CatedraStatsModal from '../components/catedra/CatedraStatsModal';
 import ErrorBoundary from '../components/common/ErrorBoundary';
-import { CatedraDetailSkeleton } from '../components/common/SkeletonLoader';
+import { CatedraDetailSkeleton, CatedraTabSkeleton } from '../components/common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { 
+  VALID_CATEDRA_TABS, 
+  DEFAULT_CRITERIOS_EVALUACION
+} from '../types/catedra';
+import { isValidCatedraTab } from '../utils/catedraUtils';
+
+// Importaciones dinámicas lazy de pestañas y modales pesados
+const AttendanceTab = lazy(() => import('../components/catedra/AttendanceTab'));
+const GradesTab = lazy(() => import('../components/catedra/GradesTab'));
+const StudentsTab = lazy(() => import('../components/catedra/StudentsTab'));
+const ResourcesTab = lazy(() => import('../components/catedra/ResourcesTab'));
+const SettingsTab = lazy(() => import('../components/catedra/SettingsTab'));
+const LibroTemasTab = lazy(() => import('../components/catedra/LibroTemasTab'));
+const MesasExamenTab = lazy(() => import('../components/catedra/MesasExamenTab'));
+const UnidadesTab = lazy(() => import('../components/catedra/UnidadesTab'));
+const CatedraStatsModal = lazy(() => import('../components/catedra/CatedraStatsModal'));
+
+// Configuración estática de pestañas (definida a nivel de módulo para evitar reinicializaciones)
+const TABS_CONFIG = [
+  { id: 'alumnos', label: 'Alumnos', icon: Users },
+  { id: 'asistencias', label: 'Asistencias', icon: CheckSquare },
+  { id: 'calificaciones', label: 'Calificaciones', icon: GraduationCap },
+  { id: 'unidades', label: 'Programa / Unidades', icon: Layers },
+  { id: 'libro-temas', label: 'Libro de Temas', icon: BookOpen },
+  { id: 'mesas-examen', label: 'Mesas de Examen', icon: Award },
+  { id: 'recursos', label: 'Recursos y Archivos', icon: FolderOpen },
+  { id: 'configuracion', label: 'Configuración y Criterios', icon: SettingsIcon }
+];
 
 export default function CatedraDetailPage() {
   const { id } = useParams();
@@ -48,44 +63,33 @@ export default function CatedraDetailPage() {
 
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const tabFromUrl = searchParams.get('tab');
-  const validTabs = ['alumnos', 'asistencias', 'calificaciones', 'unidades', 'libro-temas', 'mesas-examen', 'recursos', 'configuracion'];
+  
   const [activeTab, setActiveTab] = useState(() => {
-    return validTabs.includes(tabFromUrl) ? tabFromUrl : 'asistencias';
+    return isValidCatedraTab(tabFromUrl) ? tabFromUrl : 'asistencias';
   });
 
-  useEffect(() => {
-    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [tabFromUrl]);
-
-  const handleTabChange = (newTab) => {
-    setActiveTab(newTab);
-    setSearchParams({ tab: newTab });
-  };
   const [catedra, setCatedra] = useState(null);
-  const [criterios, setCriterios] = useState({
-    min_asist_promo: 80,
-    min_asist_reg: 70,
-    nota_min_promo: 7,
-    nota_min_reg: 4
-  });
+  const [criterios, setCriterios] = useState(DEFAULT_CRITERIOS_EVALUACION);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
-  useEffect(() => {
-    if (id) {
-      try {
-        localStorage.setItem('last_active_catedra_id', id);
-      } catch (e) {
-        // ignore localStorage errors
-      }
-    }
-    fetchCatedraData();
-  }, [id]);
+  // =========================================================================
+  // 1. FUNCIONES AUXILIARES DECLARADAS Y HOISTEADAS ANTES DE LOS EFECTOS
+  // =========================================================================
 
-  const fetchCatedraData = async () => {
+  function handleTabChange(newTab) {
+    setActiveTab(newTab);
+    setSearchParams({ tab: newTab });
+  }
+
+  function handleCatedraUpdated(updated) {
+    setCatedra(updated);
+  }
+
+  async function fetchCatedraData() {
+    if (!id) return;
     setLoading(true);
+    setErrorMsg('');
     try {
       if (isSupabaseConfigured && !isDemo) {
         const { data, error } = await supabase
@@ -95,6 +99,11 @@ export default function CatedraDetailPage() {
             instituciones (
               nombre,
               nivel
+            ),
+            ciclos_lectivos (
+              id,
+              nombre,
+              anio
             )
           `)
           .eq('id', id)
@@ -106,7 +115,7 @@ export default function CatedraDetailPage() {
         try {
           const { data: critData } = await supabase
             .from('criterios_evaluacion')
-            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg')
+            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg, nota_min_sec')
             .eq('catedra_id', id)
             .maybeSingle();
           if (critData) {
@@ -114,22 +123,25 @@ export default function CatedraDetailPage() {
               min_asist_promo: Number(critData.min_asist_promo) || 80,
               min_asist_reg: Number(critData.min_asist_reg) || 70,
               nota_min_promo: Number(critData.nota_min_promo) || 7,
-              nota_min_reg: Number(critData.nota_min_reg) || 4
+              nota_min_reg: Number(critData.nota_min_reg) || 4,
+              nota_min_sec: Number(critData.nota_min_sec) || 6
             });
           }
         } catch (_) {}
       } else {
-        // Look up in AppContext catedras or localStorage
-        let found = catedras.find((c) => c.id === id);
+        // Modo demo / LocalStorage
+        let found = (catedras ?? []).find((c) => c.id === id);
         if (!found) {
-          const stored = JSON.parse(localStorage.getItem('demo_catedras') || '[]');
-          found = stored.find((c) => c.id === id);
+          try {
+            const stored = JSON.parse(localStorage.getItem('demo_catedras') || '[]');
+            found = stored.find((c) => c.id === id);
+          } catch (_) {}
         }
 
         if (found) {
           setCatedra(found);
         } else {
-          // Fallback mock
+          // Fallback mock seguro
           setCatedra({
             id,
             nombre: 'Programación Web II',
@@ -149,11 +161,24 @@ export default function CatedraDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleCatedraUpdated = (updated) => {
-    setCatedra(updated);
-  };
+  // Sincronizar pestaña desde URL
+  useEffect(() => {
+    if (tabFromUrl && isValidCatedraTab(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  // Carga inicial de datos de la cátedra
+  useEffect(() => {
+    if (id) {
+      try {
+        localStorage.setItem('last_active_catedra_id', id);
+      } catch (_) {}
+      fetchCatedraData();
+    }
+  }, [id]);
 
   if (loading) {
     return <CatedraDetailSkeleton />;
@@ -182,17 +207,6 @@ export default function CatedraDetailPage() {
   }
 
   const schedules = Array.isArray(catedra?.horarios_semanales) ? catedra.horarios_semanales : [];
-
-  const tabs = [
-    { id: 'alumnos', label: 'Alumnos', icon: Users },
-    { id: 'asistencias', label: 'Asistencias', icon: CheckSquare },
-    { id: 'calificaciones', label: 'Calificaciones', icon: GraduationCap },
-    { id: 'unidades', label: 'Programa / Unidades', icon: Layers },
-    { id: 'libro-temas', label: 'Libro de Temas', icon: BookOpen },
-    { id: 'mesas-examen', label: 'Mesas de Examen', icon: Award },
-    { id: 'recursos', label: 'Recursos y Archivos', icon: FolderOpen },
-    { id: 'configuracion', label: 'Configuración y Criterios', icon: SettingsIcon }
-  ];
 
   return (
     <ErrorBoundary onReset={fetchCatedraData} title="Error al visualizar la cátedra">
@@ -252,141 +266,153 @@ export default function CatedraDetailPage() {
                 <div className="flex items-center gap-3 sm:gap-4 bg-slate-100/60 dark:bg-white/[0.04] p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-white/5 shrink-0">
                   <div className="text-center px-2 sm:px-3">
                     <span className="text-[10px] uppercase font-bold text-text-muted block">Ciclo</span>
-                    <span className="text-sm sm:text-base font-mono font-bold text-text-primary">{catedra?.ciclos_lectivos?.nombre ?? catedra?.ciclos_lectivos?.anio ?? activeCiclo?.anio ?? 'Ciclo Actual'}</span>
+                    <span className="text-sm sm:text-base font-mono font-bold text-text-primary">
+                      {catedra?.ciclos_lectivos?.nombre ?? catedra?.ciclos_lectivos?.anio ?? activeCiclo?.anio ?? 'Ciclo Actual'}
+                    </span>
                   </div>
                   <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
                   <div className="text-center px-2 sm:px-3">
                     <span className="text-[10px] uppercase font-bold text-text-muted block">Régimen</span>
-                    <span className="text-sm sm:text-base font-semibold text-text-primary">{catedra?.modalidad ?? 'ANUAL'}</span>
+                    <span className="text-sm sm:text-base font-semibold text-text-primary">
+                      {catedra?.modalidad ?? 'ANUAL'}
+                    </span>
                   </div>
                   <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
                   <div className="text-center px-2 sm:px-3">
                     <span className="text-[10px] uppercase font-bold text-text-muted block">Aprobación</span>
-                    <span className="text-sm sm:text-base font-mono font-bold text-primary">{criterios?.nota_min_reg ?? 4}+ / 10</span>
+                    <span className="text-sm sm:text-base font-mono font-bold text-primary">
+                      {criterios?.nota_min_reg ?? 4}+ / 10
+                    </span>
                   </div>
                 </div>
 
-              {/* Botón Disparador: Estadísticas de Cátedra */}
-              <Button
-                variant="outline"
-                icon={BarChart3}
-                onClick={() => setIsStatsModalOpen(true)}
-                className="text-xs sm:text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-2xl min-h-[44px] shadow-xs px-3.5 whitespace-nowrap shrink-0"
-                title="Ver gráficos estadísticos y distribución de rendimiento de los alumnos"
-              >
-                <span className="hidden sm:inline">Estadísticas de Cátedra</span>
-                <span className="sm:hidden">Estadísticas</span>
-              </Button>
+                {/* Botón Disparador: Estadísticas de Cátedra */}
+                <Button
+                  variant="outline"
+                  icon={BarChart3}
+                  onClick={() => setIsStatsModalOpen(true)}
+                  className="text-xs sm:text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-2xl min-h-[44px] shadow-xs px-3.5 whitespace-nowrap shrink-0"
+                  title="Ver gráficos estadísticos y distribución de rendimiento de los alumnos"
+                >
+                  <span className="hidden sm:inline">Estadísticas de Cátedra</span>
+                  <span className="sm:hidden">Estadísticas</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Floating Pill Tab Navigation with 44px touch targets */}
+            <div className="flex items-center gap-1.5 overflow-x-auto border-t border-slate-200/60 dark:border-white/10 mt-6 pt-4 pb-1 scrollbar-thin scroll-smooth -mx-2 px-2">
+              {TABS_CONFIG.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] rounded-2xl text-xs font-medium whitespace-nowrap transition-all duration-200 active:scale-95 cursor-pointer ${
+                      isActive
+                        ? 'bg-primary text-white shadow-md shadow-primary/25 font-bold scale-[1.02]'
+                        : 'text-text-muted hover:text-text-primary hover:bg-slate-100/70 dark:hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate text-xs font-medium px-2.5 py-1.5 whitespace-nowrap">{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-
-          {/* Floating Pill Tab Navigation with 44px touch targets */}
-          <div className="flex items-center gap-1.5 overflow-x-auto border-t border-slate-200/60 dark:border-white/10 mt-6 pt-4 pb-1 scrollbar-thin scroll-smooth -mx-2 px-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] rounded-2xl text-xs font-medium whitespace-nowrap transition-all duration-200 active:scale-95 cursor-pointer ${
-                    isActive
-                      ? 'bg-primary text-white shadow-md shadow-primary/25 font-bold scale-[1.02]'
-                      : 'text-text-muted hover:text-text-primary hover:bg-slate-100/70 dark:hover:bg-white/[0.05]'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate text-xs font-medium px-2.5 py-1.5 whitespace-nowrap">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
         </div>
+
+        {/* Tarjeta Bento: Avance del Programa Curricular y Unidades */}
+        <ProgramaProgressCard
+          catedraId={catedra.id}
+          onSelectTab={handleTabChange}
+        />
+
+        {/* Tarjeta Bento: Alertas Preventivas y Semáforo de Riesgo */}
+        <EarlyWarningCard
+          catedraId={catedra.id}
+          criterios={criterios}
+          academicLevel={catedra.nivel}
+          modalidad={catedra.modalidad}
+          onSelectTab={handleTabChange}
+        />
+
+        {/* Tab Contents envuelto en Suspense con esqueleto especializado CatedraTabSkeleton */}
+        <div key={activeTab} className="mt-4 animate-fadeInUp">
+          <Suspense fallback={<CatedraTabSkeleton />}>
+            {activeTab === 'asistencias' && (
+              <AttendanceTab catedraId={catedra.id} catedraName={catedra.nombre} />
+            )}
+
+            {activeTab === 'calificaciones' && (
+              <GradesTab 
+                catedraId={catedra.id} 
+                catedraName={catedra.nombre} 
+                academicLevel={catedra.nivel}
+                modalidad={catedra.modalidad}
+              />
+            )}
+
+            {activeTab === 'alumnos' && (
+              <StudentsTab 
+                catedraId={catedra.id} 
+                catedraName={catedra.nombre} 
+                academicLevel={catedra.nivel}
+                modalidad={catedra.modalidad}
+                cicloId={catedra.ciclo_id || activeCiclo?.id}
+              />
+            )}
+
+            {activeTab === 'unidades' && (
+              <UnidadesTab 
+                catedraId={catedra.id} 
+                catedraName={catedra.nombre} 
+                onNavigateToLibroTemas={() => handleTabChange('libro-temas')}
+              />
+            )}
+
+            {activeTab === 'libro-temas' && (
+              <LibroTemasTab 
+                catedraId={catedra.id} 
+                catedraName={catedra.nombre} 
+              />
+            )}
+
+            {activeTab === 'mesas-examen' && (
+              <MesasExamenTab 
+                catedraId={catedra.id} 
+                catedraName={catedra.nombre} 
+                academicLevel={catedra.nivel}
+                modalidad={catedra.modalidad}
+              />
+            )}
+
+            {activeTab === 'recursos' && (
+              <ResourcesTab catedraId={catedra.id} catedraName={catedra.nombre} />
+            )}
+
+            {activeTab === 'configuracion' && (
+              <SettingsTab catedra={catedra} onCatedraUpdated={handleCatedraUpdated} />
+            )}
+          </Suspense>
+        </div>
+
+        {/* Modal Bento de Rendimiento Académico y Estadísticas (Cargado en Suspense) */}
+        {isStatsModalOpen && (
+          <Suspense fallback={null}>
+            <CatedraStatsModal
+              isOpen={isStatsModalOpen}
+              onClose={() => setIsStatsModalOpen(false)}
+              catedraId={catedra?.id}
+              catedraName={catedra?.nombre}
+              academicLevel={catedra?.nivel}
+              modalidad={catedra?.modalidad}
+            />
+          </Suspense>
+        )}
       </div>
-
-      {/* Tarjeta Bento: Avance del Programa Curricular y Unidades */}
-      <ProgramaProgressCard
-        catedraId={catedra.id}
-        onSelectTab={handleTabChange}
-      />
-
-      {/* Tarjeta Bento: Alertas Preventivas y Semáforo de Riesgo */}
-      <EarlyWarningCard
-        catedraId={catedra.id}
-        criterios={criterios}
-        academicLevel={catedra.nivel}
-        modalidad={catedra.modalidad}
-        onSelectTab={handleTabChange}
-      />
-
-      {/* Tab Contents con micro-animación suave de entrada (200ms) */}
-      <div key={activeTab} className="mt-4 animate-fadeInUp">
-        {activeTab === 'asistencias' && (
-          <AttendanceTab catedraId={catedra.id} catedraName={catedra.nombre} />
-        )}
-
-        {activeTab === 'calificaciones' && (
-          <GradesTab 
-            catedraId={catedra.id} 
-            catedraName={catedra.nombre} 
-            academicLevel={catedra.nivel}
-            modalidad={catedra.modalidad}
-          />
-        )}
-
-        {activeTab === 'alumnos' && (
-          <StudentsTab 
-            catedraId={catedra.id} 
-            catedraName={catedra.nombre} 
-            academicLevel={catedra.nivel}
-            modalidad={catedra.modalidad}
-            cicloId={catedra.ciclo_id || activeCiclo?.id}
-          />
-        )}
-
-        {activeTab === 'unidades' && (
-          <UnidadesTab 
-            catedraId={catedra.id} 
-            catedraName={catedra.nombre} 
-            onNavigateToLibroTemas={() => handleTabChange('libro-temas')}
-          />
-        )}
-
-        {activeTab === 'libro-temas' && (
-          <LibroTemasTab 
-            catedraId={catedra.id} 
-            catedraName={catedra.nombre} 
-          />
-        )}
-
-        {activeTab === 'mesas-examen' && (
-          <MesasExamenTab 
-            catedraId={catedra.id} 
-            catedraName={catedra.nombre} 
-            academicLevel={catedra.nivel}
-            modalidad={catedra.modalidad}
-          />
-        )}
-
-        {activeTab === 'recursos' && (
-          <ResourcesTab catedraId={catedra.id} catedraName={catedra.nombre} />
-        )}
-
-        {activeTab === 'configuracion' && (
-          <SettingsTab catedra={catedra} onCatedraUpdated={handleCatedraUpdated} />
-        )}
-      </div>
-
-      {/* Modal Bento de Rendimiento Académico y Estadísticas */}
-      <CatedraStatsModal
-        isOpen={isStatsModalOpen}
-        onClose={() => setIsStatsModalOpen(false)}
-        catedraId={catedra?.id}
-        catedraName={catedra?.nombre}
-        academicLevel={catedra?.nivel}
-        modalidad={catedra?.modalidad}
-      />
-    </div>
-  </ErrorBoundary>
-);
+    </ErrorBoundary>
+  );
 }

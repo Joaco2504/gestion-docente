@@ -141,7 +141,7 @@ export default function GradesTab({
     fetchData();
   }, [catedraId]);
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {

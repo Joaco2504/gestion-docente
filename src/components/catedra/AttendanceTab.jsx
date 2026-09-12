@@ -121,6 +121,18 @@ export default function AttendanceTab({
   const [nuevoTema, setNuevoTema] = useState('');
   const [savingClase, setSavingClase] = useState(false);
 
+  // Clase actualmente seleccionada (declarada antes de cualquier hook o cálculo derivado)
+  const activeClase = (clases ?? []).find(c => c.id === selectedClaseId) || (clases ?? [])[0];
+
+  // Función de estado de asistencia de estudiante (declarada antes de filteredEstudiantes)
+  const getEstado = (estudianteId) => {
+    if (!activeClase) return 'AUSENTE';
+    const record = (asistencias ?? []).find(
+      a => a.clase_id === activeClase.id && a.estudiante_id === estudianteId
+    );
+    return record?.estado || 'AUSENTE';
+  };
+
   // Estados de Búsqueda Rápida y Filtros de Asistencia
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [attendanceFilter, setAttendanceFilter] = useState('TODOS'); // 'TODOS' | 'AUSENTES' | 'RIESGO'
@@ -213,7 +225,7 @@ export default function AttendanceTab({
     fetchData();
   }, [catedraId]);
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
@@ -366,9 +378,7 @@ export default function AttendanceTab({
     } finally {
       setLoading(false);
     }
-  };
-
-  const activeClase = clases.find(c => c.id === selectedClaseId) || clases[0];
+  }
 
   // Creación rápida de unidad temática al vuelo
   const handleQuickCreateUnidad = async ({ numero, titulo }) => {
@@ -817,14 +827,6 @@ export default function AttendanceTab({
     } finally {
       setDeletingClass(false);
     }
-  };
-
-  const getEstado = (estudianteId) => {
-    if (!activeClase) return 'AUSENTE';
-    const record = asistencias.find(
-      a => a.clase_id === activeClase.id && a.estudiante_id === estudianteId
-    );
-    return record?.estado || 'AUSENTE';
   };
 
   const presentesCount = estudiantes.filter(e => getEstado(e.id) === 'PRESENTE').length;

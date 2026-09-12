@@ -109,7 +109,7 @@ export default function StudentsTab({
     fetchStudents();
   }, [catedraId]);
 
-  const fetchStudents = async () => {
+  async function fetchStudents() {
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {

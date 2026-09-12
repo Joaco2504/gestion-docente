@@ -76,7 +76,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     }
   }, [catedra]);
 
-  const loadAllSettings = async (initNombre, initMod, initNivel, initHorarios) => {
+  async function loadAllSettings(initNombre, initMod, initNivel, initHorarios) {
     let loadedCrit = {
       min_asist_promo: 80,
       min_asist_reg: 70,

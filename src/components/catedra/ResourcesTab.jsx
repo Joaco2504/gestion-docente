@@ -55,7 +55,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
     fetchResources();
   }, [catedraId]);
 
-  const fetchResources = async () => {
+  async function fetchResources() {
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {

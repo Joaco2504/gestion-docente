@@ -27,7 +27,7 @@ export default function ProgramaProgressCard({
     }
   }, [catedraId]);
 
-  const loadCardData = async () => {
+  async function loadCardData() {
     if (!catedraId) return;
     try {
       // 1. Cargar unidades

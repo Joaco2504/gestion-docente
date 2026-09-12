@@ -50,7 +50,7 @@ export default function UnidadesTab({ catedraId, catedraName, onNavigateToLibroT
     }
   }, [catedraId]);
 
-  const loadData = async () => {
+  async function loadData() {
     setLoading(true);
     try {
       let loadedUnidades = [];

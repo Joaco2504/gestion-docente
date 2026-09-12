@@ -45,7 +45,7 @@ export default function EarlyWarningCard({
     }
   }, [catedraId]);
 
-  const loadData = async () => {
+  async function loadData() {
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {

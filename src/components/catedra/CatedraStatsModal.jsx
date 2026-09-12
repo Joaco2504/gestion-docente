@@ -52,7 +52,7 @@ export default function CatedraStatsModal({
     }
   }, [isOpen, catedraId]);
 
-  const loadStatsData = async () => {
+  async function loadStatsData() {
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {

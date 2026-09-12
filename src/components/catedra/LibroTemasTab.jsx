@@ -145,7 +145,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     }
   };
 
-  const fetchClases = async () => {
+  async function fetchClases() {
     setLoading(true);
     try {
       // 1. Cargar unidades
