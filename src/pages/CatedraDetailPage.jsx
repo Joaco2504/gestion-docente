@@ -33,6 +33,8 @@ import UnidadesTab from '../components/catedra/UnidadesTab';
 import EarlyWarningCard from '../components/catedra/EarlyWarningCard';
 import ProgramaProgressCard from '../components/catedra/ProgramaProgressCard';
 import CatedraStatsModal from '../components/catedra/CatedraStatsModal';
+import ErrorBoundary from '../components/common/ErrorBoundary';
+import { CatedraDetailSkeleton } from '../components/common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -154,27 +156,32 @@ export default function CatedraDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center py-24">
-        <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <CatedraDetailSkeleton />;
   }
 
   if (errorMsg || !catedra) {
     return (
-      <Card className="text-center py-16">
-        <AlertCircle className="w-10 h-10 text-danger mx-auto mb-3" />
-        <h3 className="text-base font-bold text-text-primary mb-1">Cátedra no encontrada</h3>
-        <p className="text-xs text-text-muted mb-4">{errorMsg || 'La cátedra seleccionada no existe o no tienes acceso.'}</p>
-        <Button variant="primary" icon={ArrowLeft} onClick={() => navigate('/dashboard')}>
-          Volver al Panel
-        </Button>
-      </Card>
+      <div className="p-8 sm:p-12 text-center rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-white/10 shadow-sm max-w-xl mx-auto my-12 animate-fadeIn">
+        <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4 border border-rose-500/20 shadow-xs">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-black text-text-primary mb-1.5">Cátedra no encontrada</h2>
+        <p className="text-xs sm:text-sm text-text-muted mb-6 leading-relaxed">
+          {errorMsg || 'La cátedra seleccionada no existe en el sistema o no tienes los permisos requeridos para acceder a ella.'}
+        </p>
+        <div className="flex items-center justify-center gap-3 flex-wrap">
+          <Button variant="primary" icon={ArrowLeft} onClick={() => navigate('/dashboard')} className="text-xs font-bold">
+            ← Volver al Dashboard
+          </Button>
+          <Button variant="outline" onClick={fetchCatedraData} className="text-xs font-semibold">
+            Reintentar Carga
+          </Button>
+        </div>
+      </div>
     );
   }
 
-  const schedules = Array.isArray(catedra.horarios_semanales) ? catedra.horarios_semanales : [];
+  const schedules = Array.isArray(catedra?.horarios_semanales) ? catedra.horarios_semanales : [];
 
   const tabs = [
     { id: 'alumnos', label: 'Alumnos', icon: Users },
@@ -188,75 +195,76 @@ export default function CatedraDetailPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Top navigation back button */}
-      <div>
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-primary transition-colors mb-3.5 group cursor-pointer"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-          <span>Volver al Panel de Cátedras</span>
-        </button>
+    <ErrorBoundary onReset={fetchCatedraData} title="Error al visualizar la cátedra">
+      <div className="space-y-6">
+        {/* Top navigation back button */}
+        <div>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-primary transition-colors mb-3.5 group cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Volver al Panel de Cátedras</span>
+          </button>
 
-        {/* Bento Workspace Header Card */}
-        <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant={catedra.nivel === 'TERCIARIO' ? 'primary' : 'warning'}>
-                  {catedra.nivel}
-                </Badge>
-                <Badge variant="default">
-                  {catedra.modalidad}
-                </Badge>
-                <span className="text-xs text-text-muted flex items-center gap-1 font-medium bg-slate-100/60 dark:bg-white/[0.04] px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
-                  <Building className="w-3.5 h-3.5 text-primary" />
-                  <span>{catedra.instituciones?.nombre || catedra.institucion_nombre || 'Institución'}</span>
-                </span>
-                <span className="text-xs text-text-muted flex items-center gap-1 font-medium bg-slate-100/60 dark:bg-white/[0.04] px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Asist. Mín: <b>{criterios.min_asist_reg}%</b> Reg. / <b>{criterios.min_asist_promo}%</b> Promo</span>
-                </span>
+          {/* Bento Workspace Header Card */}
+          <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={catedra?.nivel === 'TERCIARIO' ? 'primary' : 'warning'}>
+                    {catedra?.nivel ?? 'TERCIARIO'}
+                  </Badge>
+                  <Badge variant="default">
+                    {catedra?.modalidad ?? 'ANUAL'}
+                  </Badge>
+                  <span className="text-xs text-text-muted flex items-center gap-1 font-medium bg-slate-100/60 dark:bg-white/[0.04] px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
+                    <Building className="w-3.5 h-3.5 text-primary" />
+                    <span>{catedra?.instituciones?.nombre ?? catedra?.institucion_nombre ?? 'Sin Institución'}</span>
+                  </span>
+                  <span className="text-xs text-text-muted flex items-center gap-1 font-medium bg-slate-100/60 dark:bg-white/[0.04] px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Asist. Mín: <b>{criterios?.min_asist_reg ?? 70}%</b> Reg. / <b>{criterios?.min_asist_promo ?? 80}%</b> Promo</span>
+                  </span>
+                </div>
+
+                <h1 className="text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">
+                  {catedra?.nombre ?? 'Cátedra'}
+                </h1>
+
+                {/* Schedules display */}
+                {schedules.length > 0 && (
+                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                    <Clock className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                    <span className="text-xs text-text-muted font-medium">Horarios:</span>
+                    {schedules.map((s, idx) => (
+                      <span key={idx} className="text-xs bg-slate-100/80 dark:bg-white/[0.06] border border-slate-200/60 dark:border-white/5 px-2.5 py-0.5 rounded-lg text-text-secondary font-mono">
+                        {s.dia} {s.desde}-{s.hasta} {s.aula ? `(${s.aula})` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">
-                {catedra.nombre}
-              </h1>
-
-              {/* Schedules display */}
-              {schedules.length > 0 && (
-                <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                  <Clock className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                  <span className="text-xs text-text-muted font-medium">Horarios:</span>
-                  {schedules.map((s, idx) => (
-                    <span key={idx} className="text-xs bg-slate-100/80 dark:bg-white/[0.06] border border-slate-200/60 dark:border-white/5 px-2.5 py-0.5 rounded-lg text-text-secondary font-mono">
-                      {s.dia} {s.desde}-{s.hasta} {s.aula ? `(${s.aula})` : ''}
-                    </span>
-                  ))}
+              {/* Action buttons and quick stats on header */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                {/* Quick stats on header */}
+                <div className="flex items-center gap-3 sm:gap-4 bg-slate-100/60 dark:bg-white/[0.04] p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-white/5 shrink-0">
+                  <div className="text-center px-2 sm:px-3">
+                    <span className="text-[10px] uppercase font-bold text-text-muted block">Ciclo</span>
+                    <span className="text-sm sm:text-base font-mono font-bold text-text-primary">{catedra?.ciclos_lectivos?.nombre ?? catedra?.ciclos_lectivos?.anio ?? activeCiclo?.anio ?? 'Ciclo Actual'}</span>
+                  </div>
+                  <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
+                  <div className="text-center px-2 sm:px-3">
+                    <span className="text-[10px] uppercase font-bold text-text-muted block">Régimen</span>
+                    <span className="text-sm sm:text-base font-semibold text-text-primary">{catedra?.modalidad ?? 'ANUAL'}</span>
+                  </div>
+                  <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
+                  <div className="text-center px-2 sm:px-3">
+                    <span className="text-[10px] uppercase font-bold text-text-muted block">Aprobación</span>
+                    <span className="text-sm sm:text-base font-mono font-bold text-primary">{criterios?.nota_min_reg ?? 4}+ / 10</span>
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Action buttons and quick stats on header */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-              {/* Quick stats on header */}
-              <div className="flex items-center gap-3 sm:gap-4 bg-slate-100/60 dark:bg-white/[0.04] p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-white/5 shrink-0">
-                <div className="text-center px-2 sm:px-3">
-                  <span className="text-[10px] uppercase font-bold text-text-muted block">Ciclo</span>
-                  <span className="text-sm sm:text-base font-mono font-bold text-text-primary">{activeCiclo?.anio || '2026'}</span>
-                </div>
-                <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
-                <div className="text-center px-2 sm:px-3">
-                  <span className="text-[10px] uppercase font-bold text-text-muted block">Régimen</span>
-                  <span className="text-sm sm:text-base font-semibold text-text-primary">{catedra.modalidad}</span>
-                </div>
-                <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
-                <div className="text-center px-2 sm:px-3">
-                  <span className="text-[10px] uppercase font-bold text-text-muted block">Aprobación</span>
-                  <span className="text-sm sm:text-base font-mono font-bold text-primary">{criterios.nota_min_reg}+ / 10</span>
-                </div>
-              </div>
 
               {/* Botón Disparador: Estadísticas de Cátedra */}
               <Button
@@ -373,11 +381,12 @@ export default function CatedraDetailPage() {
       <CatedraStatsModal
         isOpen={isStatsModalOpen}
         onClose={() => setIsStatsModalOpen(false)}
-        catedraId={catedra.id}
-        catedraName={catedra.nombre}
-        academicLevel={catedra.nivel}
-        modalidad={catedra.modalidad}
+        catedraId={catedra?.id}
+        catedraName={catedra?.nombre}
+        academicLevel={catedra?.nivel}
+        modalidad={catedra?.modalidad}
       />
     </div>
-  );
+  </ErrorBoundary>
+);
 }

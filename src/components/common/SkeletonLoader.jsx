@@ -69,8 +69,69 @@ export function SkeletonTable({ rows = 5, cols = 4 }) {
   );
 }
 
+export function CatedraDetailSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {/* Top back button skeleton */}
+      <div className="w-40 h-4 bg-slate-200/70 dark:bg-slate-800 rounded-lg mb-3.5" />
+
+      {/* Bento Header Skeleton */}
+      <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 space-y-6 shadow-xs relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-200/30 dark:via-white/5 to-transparent animate-shimmer pointer-events-none" />
+        
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+          <div className="space-y-3 w-full max-w-xl">
+            {/* Badges row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="w-20 h-6 bg-slate-200/70 dark:bg-slate-800 rounded-full" />
+              <div className="w-16 h-6 bg-slate-200/70 dark:bg-slate-800 rounded-full" />
+              <div className="w-28 h-6 bg-slate-200/70 dark:bg-slate-800 rounded-lg" />
+              <div className="w-36 h-6 bg-slate-200/70 dark:bg-slate-800 rounded-lg" />
+            </div>
+
+            {/* Title skeleton */}
+            <div className="w-3/4 h-8 bg-slate-200/80 dark:bg-slate-800 rounded-xl" />
+
+            {/* Schedules skeleton */}
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-slate-200/70 dark:bg-slate-800 rounded" />
+              <div className="w-48 h-5 bg-slate-200/70 dark:bg-slate-800 rounded-lg" />
+            </div>
+          </div>
+
+          {/* Quick stats on right */}
+          <div className="flex items-center gap-3 bg-slate-100/60 dark:bg-white/[0.04] p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-white/5 shrink-0">
+            <div className="w-16 h-10 bg-slate-200/60 dark:bg-slate-800 rounded-lg" />
+            <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
+            <div className="w-16 h-10 bg-slate-200/60 dark:bg-slate-800 rounded-lg" />
+            <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
+            <div className="w-20 h-10 bg-slate-200/60 dark:bg-slate-800 rounded-lg" />
+          </div>
+        </div>
+
+        {/* Tab pills bar */}
+        <div className="flex items-center gap-2 overflow-x-auto border-t border-slate-200/60 dark:border-white/10 pt-4">
+          {Array.from({ length: 7 }).map((_, idx) => (
+            <div key={idx} className="w-28 h-10 bg-slate-200/70 dark:bg-slate-800/80 rounded-2xl shrink-0" />
+          ))}
+        </div>
+      </div>
+
+      {/* Bento Progress / Alert Cards skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="h-28 rounded-3xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 p-5" />
+        <div className="h-28 rounded-3xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 p-5" />
+      </div>
+
+      {/* Main Tab Table Skeleton */}
+      <SkeletonTable rows={6} cols={4} />
+    </div>
+  );
+}
+
 export default {
   SkeletonItem,
   SkeletonCatedraCard,
-  SkeletonTable
+  SkeletonTable,
+  CatedraDetailSkeleton
 };

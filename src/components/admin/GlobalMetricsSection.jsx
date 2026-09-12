@@ -353,123 +353,118 @@ export default function GlobalMetricsSection({ isDemo = false, onRunDiagnostic }
 
       {/* Gráfico Resumen Bento & Métricas Secundarias */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Columna Principal: Gráfico Interactivo (Barras / Donut con toggle) */}
+        {/* Columna Principal: Gráfico Interactivo (4 Contenedores Estrictamente Separados) */}
         <Card className="lg:col-span-2 p-4 sm:p-6 border border-surface-border flex flex-col justify-between">
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-surface-border">
-              <div>
-                <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
-                  <span>Distribución y Carga de la Plataforma</span>
-                  <Sparkles className="w-4 h-4 text-primary" />
-                </h3>
-                <p className="text-xs text-text-muted">
-                  Comparativa de volumen entre las entidades clave registradas en el sistema
-                </p>
-              </div>
-
-              {/* Botón Switcher Bento de Tipo de Gráfico */}
-              <div className="inline-flex p-1 rounded-xl bg-surface-hover border border-surface-border self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setChartType('bars')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer touch-target-44 sm:touch-target-auto ${
-                    chartType === 'bars'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-text-muted hover:text-text-primary'
-                  }`}
-                  title="Ver como gráfico de barras"
-                >
-                  <BarChart2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Barras</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChartType('donut')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer touch-target-44 sm:touch-target-auto ${
-                    chartType === 'donut'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-text-muted hover:text-text-primary'
-                  }`}
-                  title="Ver como gráfico circular tipo donut"
-                >
-                  <PieChart className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Donut</span>
-                </button>
-              </div>
+          {/* Contenedor 1: Cabecera con título, subtítulo e icono */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-surface-border">
+            <div>
+              <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
+                <span>Distribución y Carga de la Plataforma</span>
+                <Sparkles className="w-4 h-4 text-primary" />
+              </h3>
+              <p className="text-xs text-text-muted">
+                Comparativa de volumen entre las entidades clave registradas en el sistema
+              </p>
             </div>
 
-            {/* Contenedor del Gráfico con Altura Responsiva */}
-            <div className="w-full h-64 sm:h-72 md:h-80 min-h-[220px] flex items-center justify-center mt-4">
-              {loading ? (
-                <div className="flex flex-col items-center gap-2 text-text-muted">
-                  <RefreshCw className="w-6 h-6 animate-spin text-primary" />
-                  <span className="text-xs">Cargando gráfico...</span>
-                </div>
-              ) : chartType === 'bars' ? (
-                <InteractiveBarChart
-                  data={chartData}
-                  heightClass="h-56 sm:h-64 md:h-72"
-                  valueSuffix="registros"
-                />
-              ) : (
-                <InteractiveDonutChart
-                  data={chartData}
-                  title="Total"
-                  subtitle="Registros"
-                  size={240}
-                  valueSuffix="registros"
-                />
-              )}
+            {/* Botón Switcher Bento de Tipo de Gráfico */}
+            <div className="inline-flex p-1 rounded-xl bg-surface-hover border border-surface-border self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setChartType('bars')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer touch-target-44 sm:touch-target-auto ${
+                  chartType === 'bars'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+                title="Ver como gráfico de barras"
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Barras</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('donut')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer touch-target-44 sm:touch-target-auto ${
+                  chartType === 'donut'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+                title="Ver como gráfico circular tipo donut"
+              >
+                <PieChart className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Donut</span>
+              </button>
             </div>
           </div>
 
-          <div className="mt-4 relative block w-full pt-3 border-t border-surface-border text-center sm:text-left">
-            <span className="text-[11px] text-text-muted">
-              💡 <strong>Tip para dispositivos móviles:</strong> Toca cualquier barra o sección para ver el porcentaje exacto y el conteo del recurso.
-            </span>
+          {/* Contenedor 2: Gráfico Donut interactivo centrado */}
+          <div className="relative flex justify-center items-center my-4">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center gap-2 text-text-muted py-12">
+                <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                <span className="text-xs">Cargando gráfico...</span>
+              </div>
+            ) : chartType === 'bars' ? (
+              <div className="w-full h-56 sm:h-64">
+                <InteractiveBarChart
+                  data={chartData}
+                  heightClass="h-56 sm:h-64"
+                  valueSuffix="registros"
+                />
+              </div>
+            ) : (
+              <InteractiveDonutChart
+                data={chartData}
+                title="Total"
+                subtitle="Registros"
+                size={220}
+                valueSuffix="registros"
+                showLegend={false}
+              />
+            )}
+          </div>
+
+          {/* Contenedor 3: Desglose de entidades apiladas en tarjetas horizontales compactas */}
+          <div className="space-y-2 my-4">
+            {chartData.map((item) => {
+              const totalAll = chartData.reduce((acc, curr) => acc + curr.value, 0);
+              const percent = totalAll > 0 ? ((item.value / totalAll) * 100).toFixed(1) : 0;
+              return (
+                <div 
+                  key={item.label}
+                  className="p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/60 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div 
+                      className="w-3 h-3 rounded-full shrink-0 shadow-xs"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-xs font-semibold text-text-primary truncate">
+                      {item.label}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0 flex items-baseline gap-2">
+                    <span className="text-xs font-mono font-bold text-text-primary">
+                      {item.value.toLocaleString()}
+                    </span>
+                    <span className="text-[10px] font-medium text-text-muted">
+                      ({percent}%)
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Contenedor 4: Tarjeta de tip / sugerencia al final del flujo */}
+          <div className="mt-4 relative w-full p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+            💡 <strong>Tip para dispositivos móviles:</strong> Toca cualquier barra o sección del gráfico para ver el porcentaje exacto y el conteo del recurso en tiempo real.
           </div>
         </Card>
 
-        {/* Columna Lateral: Desglose Analítico y Salud del Sistema */}
+        {/* Columna Lateral: Rendimiento y Capacidad */}
         <div className="space-y-4">
-          <Card className="p-4 sm:p-5 border border-surface-border">
-            <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
-              <Database className="w-4 h-4 text-primary" />
-              <span>Desglose por Entidad</span>
-            </h3>
-
-            <div className="space-y-2.5">
-              {chartData.map((item) => {
-                const totalAll = chartData.reduce((acc, curr) => acc + curr.value, 0);
-                const percent = totalAll > 0 ? ((item.value / totalAll) * 100).toFixed(1) : 0;
-                return (
-                  <div 
-                    key={item.label}
-                    className="p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/60 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div 
-                        className="w-3 h-3 rounded-full shrink-0 shadow-sm"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-xs font-semibold text-text-primary">
-                        {item.label}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-mono font-bold text-text-primary block">
-                        {item.value}
-                      </span>
-                      <span className="text-[10px] text-text-muted block">
-                        {percent}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
           <Card className="p-4 sm:p-5 border border-surface-border bg-gradient-to-br from-surface-card to-primary/5">
             <h3 className="text-sm font-bold text-text-primary mb-2 flex items-center gap-2">
               <Layers className="w-4 h-4 text-primary" />
@@ -479,24 +474,51 @@ export default function GlobalMetricsSection({ isDemo = false, onRunDiagnostic }
               Métricas calculadas con <code>head: true</code> para optimizar cuotas de red y base de datos.
             </p>
 
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-surface-border/60">
+            <div className="space-y-2.5 text-xs">
+              <div className="flex justify-between py-2 border-b border-surface-border/60">
                 <span className="text-text-muted">Cátedras por Docente:</span>
-                <span className="font-bold text-text-primary">
+                <span className="font-bold text-text-primary font-mono">
                   {metrics.docentes > 0 ? (metrics.catedras / metrics.docentes).toFixed(1) : '0'}
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-surface-border/60">
+              <div className="flex justify-between py-2 border-b border-surface-border/60">
                 <span className="text-text-muted">Asistencias por Clase:</span>
-                <span className="font-bold text-text-primary">
+                <span className="font-bold text-text-primary font-mono">
                   {metrics.clases > 0 ? (metrics.asistencias / metrics.clases).toFixed(1) : '0'}
                 </span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-2 border-b border-surface-border/60">
+                <span className="text-text-muted">Alumnos por Cátedra:</span>
+                <span className="font-bold text-text-primary font-mono">
+                  {avgStudentsPerCatedra}
+                </span>
+              </div>
+              <div className="flex justify-between py-2">
                 <span className="text-text-muted">Evaluaciones registradas:</span>
-                <span className="font-bold text-primary">
+                <span className="font-bold text-primary font-mono">
                   {metrics.evaluaciones}
                 </span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 sm:p-5 border border-surface-border">
+            <h3 className="text-sm font-bold text-text-primary mb-2 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <span>Estado de la Plataforma</span>
+            </h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between py-1.5 border-b border-surface-border/60">
+                <span className="text-text-muted">Base de Datos Supabase:</span>
+                <Badge variant="success" className="text-[10px]">OPERATIVO</Badge>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-surface-border/60">
+                <span className="text-text-muted">Políticas RLS Activas:</span>
+                <Badge variant="primary" className="text-[10px]">AUDITADAS</Badge>
+              </div>
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-text-muted">Modo de Operación:</span>
+                <span className="font-semibold text-text-primary">{isDemo ? 'Demostración Local' : 'Producción'}</span>
               </div>
             </div>
           </Card>

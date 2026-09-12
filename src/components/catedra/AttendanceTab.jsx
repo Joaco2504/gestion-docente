@@ -67,14 +67,20 @@ export default function AttendanceTab({
 
   // Mapa de estadísticas y porcentaje acumulado de asistencia por estudiante
   const studentStatsMap = React.useMemo(() => {
-    const totalClases = clases.length;
-    const clasesConLicencia = inasistenciasDocente.filter(
-      i => i.tipo === 'LICENCIA' && clases.some(c => c.fecha === i.fecha)
+    const safeClases = clases ?? [];
+    const safeAsistencias = asistencias ?? [];
+    const safeEstudiantes = estudiantes ?? [];
+    const safeInasistencias = inasistenciasDocente ?? [];
+
+    const totalClases = safeClases.length;
+    const clasesConLicencia = safeInasistencias.filter(
+      i => i.tipo === 'LICENCIA' && safeClases.some(c => c.fecha === i.fecha)
     ).length;
 
     const map = new Map();
-    estudiantes.forEach(est => {
-      const studentAsist = asistencias.filter(a => a.estudiante_id === est.id);
+    safeEstudiantes.forEach(est => {
+      if (!est?.id) return;
+      const studentAsist = safeAsistencias.filter(a => a.estudiante_id === est.id);
       const pct = calcularPorcentajeAsistencia(studentAsist, totalClases, clasesConLicencia);
       map.set(est.id, pct);
     });
@@ -83,15 +89,17 @@ export default function AttendanceTab({
 
   // Mapa reactivo del Semáforo de Riesgo por estudiante
   const studentRiskMap = React.useMemo(() => {
+    const safeEstudiantes = estudiantes ?? [];
     const map = new Map();
-    estudiantes.forEach(est => {
+    safeEstudiantes.forEach(est => {
+      if (!est?.id) return;
       const risk = calculateStudentRisk(est.id, {
-        asistencias,
-        clases,
-        inasistenciasDocente,
-        evaluaciones,
-        notas,
-        criterios
+        asistencias: asistencias ?? [],
+        clases: clases ?? [],
+        inasistenciasDocente: inasistenciasDocente ?? [],
+        evaluaciones: evaluaciones ?? [],
+        notas: notas ?? [],
+        criterios: criterios ?? {}
       });
       map.set(est.id, risk);
     });
@@ -119,7 +127,7 @@ export default function AttendanceTab({
 
   // Total de alumnos en riesgo (< 75% de asistencia)
   const totalEnRiesgo = React.useMemo(() => {
-    return estudiantes.filter(e => (studentStatsMap.get(e.id) ?? 100) < 75).length;
+    return (estudiantes ?? []).filter(e => (studentStatsMap.get(e?.id) ?? 100) < 75).length;
   }, [estudiantes, studentStatsMap]);
 
   // Normalizador de búsqueda insensible a tildes y diacríticos
@@ -138,7 +146,8 @@ export default function AttendanceTab({
     const normalizedQuery = normalizeSearchText(rawQuery);
     const digitsOnlyQuery = rawQuery.replace(/\D/g, '');
 
-    return estudiantes.filter(est => {
+    return (estudiantes ?? []).filter(est => {
+      if (!est) return false;
       // 1. Filtro por píldoras
       if (attendanceFilter === 'AUSENTES') {
         const estado = getEstado(est.id);
@@ -854,14 +863,15 @@ export default function AttendanceTab({
                   <CustomSelect
                     value={activeClase?.id || ''}
                     onChange={(val) => setSelectedClaseId(typeof val === 'object' ? val.target.value : val)}
-                    options={clases.map(c => {
-                      const hasAbsence = inasistenciasDocente.some(i => i.fecha === c.fecha);
-                      const matchedUnit = unidades.find(u => u.id === c.unidad_id);
-                      const unitPrefix = matchedUnit ? `[U${matchedUnit.numero}] ` : '';
+                    options={(clases ?? []).map(c => {
+                      const hasAbsence = (inasistenciasDocente ?? []).some(i => i?.fecha === c?.fecha);
+                      const matchedUnit = (unidades ?? []).find(u => u?.id === c?.unidad_id);
+                      const unitNum = c?.unidades_tematicas?.numero ?? matchedUnit?.numero ?? c?.unidad_numero ?? null;
+                      const unitPrefix = unitNum ? `[U${unitNum}] ` : '';
                       return {
                         value: c.id,
                         label: `${formatFechaDMY(c.fecha)} — ${unitPrefix}${c.tema || 'Sin tema especificado'}`,
-                        badge: hasAbsence ? 'Licencia' : matchedUnit ? `U${matchedUnit.numero}` : undefined
+                        badge: hasAbsence ? 'Licencia' : unitNum ? `U${unitNum}` : undefined
                       };
                     })}
                     placeholder="Seleccionar clase..."

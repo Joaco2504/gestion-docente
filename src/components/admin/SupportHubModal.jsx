@@ -450,7 +450,7 @@ export default function SupportHubModal({
     : 'DO';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
       {/* Fondo desenfocado backdrop-blur-md */}
       <div 
         onClick={onClose}
@@ -458,55 +458,70 @@ export default function SupportHubModal({
         aria-hidden="true"
       />
 
-      {/* MODAL BENTO CENTRADO DE GRAN FORMATO */}
-      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 shadow-2xl overflow-hidden z-10 animate-scaleIn">
+      {/* MODAL CONTENEDOR RESPONSIVO */}
+      <div className="relative w-[95vw] md:max-w-3xl max-h-[88vh] flex flex-col rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden z-10 animate-scaleIn">
         
         {/* ========================================================
-            1. CABECERA DE USUARIO BENTO GLASS
+            1. CABECERA DE USUARIO (2 FILAS CLARAS)
            ======================================================== */}
-        <div className="p-5 sm:p-6 border-b border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-slate-800/50 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white flex items-center justify-center font-extrabold text-base shadow-lg shadow-primary/25 shrink-0">
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-bold text-text-primary truncate">
-                  {teacher?.nombre || 'Docente'}
-                </h2>
-                <Badge variant={teacher?.rol === 'superadmin' ? 'primary' : 'default'} className="font-mono text-[10px] font-bold">
-                  {teacher?.rol?.toUpperCase() || 'DOCENTE'}
-                </Badge>
+        <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-slate-800/50 backdrop-blur-xl flex flex-col gap-3">
+          {/* Fila 1: Avatar, Nombre, Email a la izquierda; Botón accesible [ ✕ ] a la derecha */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-500/20 shrink-0">
+                {initials}
               </div>
-              <p className="text-xs text-text-muted font-mono truncate mt-0.5">
-                {teacher?.email}
-              </p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[10px] font-mono text-text-muted truncate max-w-[180px] sm:max-w-[280px]">
-                  UUID: {teacher?.id}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyId}
-                  className="p-1 text-text-muted hover:text-primary rounded transition-colors cursor-pointer"
-                  title="Copiar ID de Supabase"
-                >
-                  {copiedId ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                </button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 truncate">
+                  <h2 className="text-sm sm:text-base font-bold text-text-primary truncate">
+                    {teacher?.nombre || 'Docente'}
+                  </h2>
+                  <Badge variant={teacher?.rol === 'superadmin' ? 'primary' : 'default'} className="font-mono text-[10px] font-bold shrink-0">
+                    {teacher?.rol?.toUpperCase() || 'DOCENTE'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-text-muted font-mono truncate">
+                  {teacher?.email || 'Sin correo registrado'}
+                </p>
               </div>
             </div>
+
+            {/* Botón accesible [ ✕ ] de cierre (área de toque 44x44px) */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-11 h-11 flex items-center justify-center rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              title="Cerrar modal de soporte"
+              aria-label="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Selector de Rol y Botón Cerrar */}
-          <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
-            <div className="flex items-center p-1 rounded-xl bg-slate-200/60 dark:bg-white/10 border border-slate-300/60 dark:border-white/5">
+          {/* Fila 2: Badge UUID con botón de copia rápida + selector de rol compacto */}
+          <div className="flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-slate-200/60 dark:border-white/5">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/80 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 max-w-[210px] sm:max-w-xs">
+              <span className="text-[10px] sm:text-xs font-mono text-text-muted truncate">
+                UUID: {teacher?.id}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyId}
+                className="p-1 text-text-muted hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition-colors cursor-pointer shrink-0"
+                title="Copiar ID de Supabase"
+              >
+                {copiedId ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              </button>
+            </div>
+
+            <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
               <button
                 type="button"
                 disabled={changingRole}
                 onClick={() => handleRoleChange('docente')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   teacher?.rol !== 'superadmin'
-                    ? 'bg-white dark:bg-slate-800 text-text-primary shadow-xs'
+                    ? 'bg-white dark:bg-slate-800 text-text-primary shadow-xs font-bold'
                     : 'text-text-muted hover:text-text-primary'
                 }`}
               >
@@ -516,69 +531,57 @@ export default function SupportHubModal({
                 type="button"
                 disabled={changingRole}
                 onClick={() => handleRoleChange('superadmin')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
                   teacher?.rol === 'superadmin'
-                    ? 'bg-gradient-to-r from-rose-500 to-primary text-white shadow-xs'
+                    ? 'bg-gradient-to-r from-rose-500 to-indigo-600 text-white shadow-xs font-bold'
                     : 'text-text-muted hover:text-text-primary'
                 }`}
               >
-                <ShieldAlert className="w-3.5 h-3.5" />
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
                 <span>Superadmin</span>
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 text-text-muted hover:text-text-primary rounded-xl hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Cerrar modal de soporte"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
         </div>
 
         {/* ========================================================
-            2. BARRA DE ACCIONES RÁPIDAS DE SUPERUSUARIO
+            2. BARRA DE ACCIONES DE SUPERUSUARIO (LUCIDE SVG ONLY)
            ======================================================== */}
-        <div className="px-5 sm:px-6 py-3 border-b border-slate-200/60 dark:border-white/5 bg-slate-100/60 dark:bg-white/[0.02] flex items-center justify-between gap-2 overflow-x-auto">
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              icon={Eraser}
+        <div className="p-3 sm:px-5 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 flex-1">
+            <button
+              type="button"
               onClick={handlePurgeOrphans}
               disabled={purging}
-              className="text-xs font-bold border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 whitespace-nowrap"
+              className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/5 rounded-xl py-2.5 px-3 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-2 transition-colors cursor-pointer text-slate-700 dark:text-slate-200 disabled:opacity-60"
             >
-              {purging ? 'Purgando...' : '🧹 Purgar Huérfanos'}
-            </Button>
+              <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>{purging ? 'Purgando...' : 'Purgar Huérfanos'}</span>
+            </button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              icon={Eye}
+            <button
+              type="button"
               onClick={handleInspectAsTeacher}
-              className="text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 whitespace-nowrap"
+              className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/5 rounded-xl py-2.5 px-3 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-2 transition-colors cursor-pointer text-slate-700 dark:text-slate-200"
             >
-              👁️ Inspeccionar como Docente
-            </Button>
+              <Eye className="w-4 h-4 text-indigo-500 shrink-0" />
+              <span>Inspeccionar</span>
+            </button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              icon={Download}
+            <button
+              type="button"
               onClick={handleExportJson}
-              className="text-xs font-bold border-slate-300 dark:border-white/20 whitespace-nowrap"
+              className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/5 rounded-xl py-2.5 px-3 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-2 transition-colors cursor-pointer text-slate-700 dark:text-slate-200"
             >
-              📥 Volcado de Datos JSON
-            </Button>
+              <Download className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Exportar JSON</span>
+            </button>
           </div>
 
           <button
             type="button"
-            onClick={() => loadTeacherData(teacher.id)}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors shrink-0"
+            onClick={() => loadTeacherData(teacher?.id)}
+            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200/80 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-slate-800 text-text-muted hover:text-text-primary transition-colors shrink-0 cursor-pointer"
             title="Recargar datos del docente"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -586,72 +589,63 @@ export default function SupportHubModal({
         </div>
 
         {/* ========================================================
-            3. PESTAÑAS DE GESTIÓN BENTO
+            3. PESTAÑAS DE NAVEGACIÓN
            ======================================================== */}
-        <div className="flex items-center gap-2 px-5 sm:px-6 pt-3 border-b border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900 shrink-0">
+        <div className="flex items-center border-b border-slate-100 dark:border-white/5 px-4 overflow-x-auto no-scrollbar gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('catedras')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            className={`whitespace-nowrap px-3 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'catedras'
-                ? 'border-primary text-primary'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-bold'
                 : 'border-transparent text-text-secondary hover:text-text-primary'
             }`}
           >
-            <BookOpen className="w-4 h-4" />
-            <span>Cátedras</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-mono">
-              {catedras.length}
-            </span>
+            <BookOpen className="w-4 h-4 shrink-0" />
+            <span>Cátedras ({catedras.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('alumnos')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            className={`whitespace-nowrap px-3 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'alumnos'
-                ? 'border-primary text-primary'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-bold'
                 : 'border-transparent text-text-secondary hover:text-text-primary'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>Alumnos</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-mono">
-              {alumnos.length}
-            </span>
+            <Users className="w-4 h-4 shrink-0" />
+            <span>Alumnos ({alumnos.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('clases')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+            className={`whitespace-nowrap px-3 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'clases'
-                ? 'border-primary text-primary'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-bold'
                 : 'border-transparent text-text-secondary hover:text-text-primary'
             }`}
           >
-            <GraduationCap className="w-4 h-4" />
-            <span>Evaluaciones & Clases</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-mono">
-              {clases.length + evaluaciones.length}
-            </span>
+            <GraduationCap className="w-4 h-4 shrink-0" />
+            <span>Clases ({clases.length + evaluaciones.length})</span>
           </button>
         </div>
 
         {/* ========================================================
-            4. CONTENIDO DE LAS PESTAÑAS (TARJETAS ESTILIZADAS)
+            4. CONTENIDO DE LAS PESTAÑAS (TARJETAS TRUNCADAS ESTILIZADAS)
            ======================================================== */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
           
           {loading ? (
             <div className="flex justify-center items-center py-16">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
             </div>
           ) : (
             <>
-              {/* PESTAÑA CÁTEDRAS: Tarjetas estilizadas en cuadrícula */}
+              {/* PESTAÑA CÁTEDRAS */}
               {activeTab === 'catedras' && (
-                <div className="space-y-4">
+                <div className="space-y-2.5">
                   {catedras.length === 0 ? (
                     <EmptyState
                       icon={BookOpen}
@@ -659,69 +653,52 @@ export default function SupportHubModal({
                       description="El docente no tiene espacios curriculares asignados en este momento."
                     />
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {catedras.map((cat) => (
-                        <div
-                          key={cat.id}
-                          className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                            cat.isOrphan 
-                              ? 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-500/10' 
-                              : 'bg-slate-50/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/10 hover:border-primary/40'
-                          }`}
-                        >
-                          <div className="space-y-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <h4 className="text-sm font-bold text-text-primary leading-snug">
-                                {cat.nombre}
-                              </h4>
-                              {cat.isOrphan && (
-                                <Badge variant="warning" className="text-[10px] font-mono font-bold shrink-0">
-                                  Huérfana
-                                </Badge>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant={cat.nivel === 'TERCIARIO' ? 'primary' : 'default'} className="text-[10px]">
-                                {cat.nivel || 'N/A'}
+                    catedras.map((cat) => (
+                      <div
+                        key={cat.id}
+                        className={`flex items-center justify-between p-3.5 rounded-xl border gap-3 transition-colors ${
+                          cat.isOrphan 
+                            ? 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-500/10' 
+                            : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200/80 dark:border-white/5 hover:border-indigo-500/30'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1 truncate">
+                          <div className="flex items-center gap-2 truncate">
+                            <h4 className="text-xs sm:text-sm font-bold text-text-primary truncate">
+                              {cat.nombre}
+                            </h4>
+                            {cat.isOrphan && (
+                              <Badge variant="warning" className="text-[10px] font-mono shrink-0">
+                                Huérfana
                               </Badge>
-                              <Badge variant="default" className="text-[10px]">
-                                {cat.modalidad || 'ANUAL'}
-                              </Badge>
-                              <span className="text-[11px] text-text-muted flex items-center gap-1 font-mono">
-                                <Users className="w-3 h-3 text-primary" />
-                                {cat.estudiantes_count} {cat.estudiantes_count === 1 ? 'alumno' : 'alumnos'}
-                              </span>
-                            </div>
-
-                            <p className="text-xs text-text-muted flex items-center gap-1.5 truncate">
-                              <Building className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                              <span className="truncate">{cat.institucion_nombre || 'Sin institución asignada'}</span>
-                            </p>
+                            )}
                           </div>
-
-                          <div className="pt-3 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between">
-                            <span className="text-[10px] font-mono text-text-muted">
-                              ID: {cat.id?.substring(0, 8)}...
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCatedra(cat)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
-                              title="Eliminar cátedra"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>Borrado Seguro</span>
-                            </button>
+                          <div className="flex items-center gap-1.5 text-xs text-text-muted mt-1 truncate">
+                            <span className="font-medium text-text-secondary">{cat.nivel || 'N/A'}</span>
+                            <span>•</span>
+                            <span>{cat.modalidad || 'ANUAL'}</span>
+                            <span>•</span>
+                            <span className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">{cat.estudiantes_count} alums</span>
+                            <span>•</span>
+                            <span className="truncate">{cat.institucion_nombre || 'Sin institución'}</span>
                           </div>
                         </div>
-                      ))}
-                    </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCatedra(cat)}
+                          className="shrink-0 p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                          title="Eliminar cátedra"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))
                   )}
                 </div>
               )}
 
-              {/* PESTAÑA ALUMNOS: Tabla estilizada con buscador interno */}
+              {/* PESTAÑA ALUMNOS */}
               {activeTab === 'alumnos' && (
                 <div className="space-y-3">
                   <div className="relative">
@@ -731,7 +708,7 @@ export default function SupportHubModal({
                       value={studentSearch}
                       onChange={(e) => setStudentSearch(e.target.value)}
                       placeholder="Buscar alumno por apellido, nombre o DNI..."
-                      className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 text-text-primary focus:outline-none focus:border-primary"
+                      className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 text-text-primary focus:outline-none focus:border-indigo-600"
                     />
                     {studentSearch && (
                       <button
@@ -750,63 +727,56 @@ export default function SupportHubModal({
                       description="No se encontraron estudiantes para los criterios ingresados."
                     />
                   ) : (
-                    <div className="border border-slate-200/80 dark:border-white/10 rounded-2xl overflow-hidden shadow-xs">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-100/80 dark:bg-white/[0.04] text-text-secondary font-semibold border-b border-slate-200/80 dark:border-white/10">
-                          <tr>
-                            <th className="px-4 py-3 font-mono">DNI</th>
-                            <th className="px-4 py-3">Estudiante</th>
-                            <th className="px-4 py-3">Cátedras Vinculadas</th>
-                            <th className="px-4 py-3 text-right">Acción</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
-                          {filteredAlumnos.map((alu) => {
-                            const catList = Array.isArray(alu.catedras)
-                              ? alu.catedras
-                              : (alu.inscripciones || []).map(i => i.catedras?.nombre).filter(Boolean);
+                    <div className="space-y-2.5">
+                      {filteredAlumnos.map((alu) => {
+                        const catList = Array.isArray(alu.catedras)
+                          ? alu.catedras
+                          : (alu.inscripciones || []).map(i => i.catedras?.nombre).filter(Boolean);
 
-                            return (
-                              <tr key={alu.id} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02]">
-                                <td className="px-4 py-3 font-mono text-text-muted">{alu.dni || 'S/D'}</td>
-                                <td className="px-4 py-3 font-bold text-text-primary">
+                        return (
+                          <div
+                            key={alu.id}
+                            className="flex items-center justify-between p-3.5 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-200/80 dark:border-white/5 gap-3"
+                          >
+                            <div className="min-w-0 flex-1 truncate">
+                              <div className="flex items-center gap-2 truncate">
+                                <span className="text-xs sm:text-sm font-bold text-text-primary truncate">
                                   {alu.apellido}, {alu.nombre}
-                                </td>
-                                <td className="px-4 py-3 text-text-muted">
-                                  <div className="flex flex-wrap gap-1">
-                                    {catList.length > 0 ? (
-                                      catList.map((cName, idx) => (
-                                        <span key={idx} className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium">
-                                          {cName}
-                                        </span>
-                                      ))
-                                    ) : (
-                                      <span className="italic text-text-muted text-[11px]">Sin matrícula activa</span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteAlumno(alu)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
-                                    title="Eliminar matrícula"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span>Eliminar Matrícula</span>
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                                </span>
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200/60 dark:bg-white/10 text-text-muted shrink-0">
+                                  DNI {alu.dni || 'S/D'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 mt-1 truncate text-xs text-text-muted">
+                                {catList.length > 0 ? (
+                                  catList.map((cName, idx) => (
+                                    <span key={idx} className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-medium truncate max-w-[140px]">
+                                      {cName}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="italic text-text-muted text-[11px]">Sin cátedras activas</span>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAlumno(alu)}
+                              className="shrink-0 p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Eliminar matrícula"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* PESTAÑA EVALUACIONES & CLASES: Lista cronológica con botón de depuración */}
+              {/* PESTAÑA EVALUACIONES & CLASES */}
               {activeTab === 'clases' && (
                 <div className="space-y-4">
                   {/* Evaluaciones */}
@@ -821,14 +791,14 @@ export default function SupportHubModal({
                         {evaluaciones.map((ev) => (
                           <div
                             key={ev.id}
-                            className="p-3 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] flex items-center justify-between gap-3"
+                            className="flex items-center justify-between p-3.5 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-200/80 dark:border-white/5 gap-3"
                           >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="primary" className="text-[10px]">
+                            <div className="min-w-0 flex-1 truncate">
+                              <div className="flex items-center gap-2 truncate">
+                                <Badge variant="primary" className="text-[10px] font-mono shrink-0">
                                   {ev.tipo || 'EVAL'}
                                 </Badge>
-                                <span className="text-xs font-bold text-text-primary truncate">
+                                <span className="text-xs sm:text-sm font-semibold text-text-primary truncate">
                                   {ev.titulo}
                                 </span>
                               </div>
@@ -840,10 +810,10 @@ export default function SupportHubModal({
                             <button
                               type="button"
                               onClick={() => handleDeleteEvaluacion(ev)}
-                              className="p-1.5 text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0 cursor-pointer"
+                              className="shrink-0 p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
                               title="Eliminar evaluación"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         ))}
@@ -863,14 +833,14 @@ export default function SupportHubModal({
                         {clases.map((cla) => (
                           <div
                             key={cla.id}
-                            className="p-3 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] flex items-center justify-between gap-3"
+                            className="flex items-center justify-between p-3.5 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-200/80 dark:border-white/5 gap-3"
                           >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-mono font-bold text-primary">
+                            <div className="min-w-0 flex-1 truncate">
+                              <div className="flex items-center gap-2 truncate">
+                                <span className="text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
                                   {formatFechaDMY(cla.fecha)}
                                 </span>
-                                <span className="text-xs font-semibold text-text-primary truncate">
+                                <span className="text-xs sm:text-sm font-medium text-text-primary truncate">
                                   {cla.tema || 'Sin tema especificado'}
                                 </span>
                               </div>
@@ -882,10 +852,10 @@ export default function SupportHubModal({
                             <button
                               type="button"
                               onClick={() => handleDeleteClase(cla)}
-                              className="p-1.5 text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0 cursor-pointer"
+                              className="shrink-0 p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
                               title="Depurar registro de clase"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         ))}

@@ -89,7 +89,7 @@ export default function GradesTab({
 
   const expandAllStudents = () => {
     const all = {};
-    estudiantes.forEach((e) => { all[e.id] = true; });
+    (estudiantes ?? []).forEach((e) => { if (e?.id) all[e.id] = true; });
     setExpandedStudents(all);
   };
 

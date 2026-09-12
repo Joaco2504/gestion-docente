@@ -456,10 +456,10 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
                 Libro de Temas Digital
               </h2>
               <Badge variant="primary" className="font-mono text-[11px]">
-                {clases.length} {clases.length === 1 ? 'clase' : 'clases'}
+                {(clases ?? []).length} {(clases ?? []).length === 1 ? 'clase' : 'clases'}
               </Badge>
               <Badge variant="default" className="font-mono text-[11px]">
-                {totalHoras} hs dictadas
+                {totalHoras ?? 0} hs dictadas
               </Badge>
             </div>
             <p className="text-xs text-text-muted mt-0.5">
@@ -635,14 +635,16 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
                     </span>
                     {getCaracterBadge(cls.caracter)}
 
-                    {/* Badge Semántico de Unidad Temática (Requerimiento 3) */}
+                    {/* Badge Semántico de Unidad Temática */}
                     {(() => {
-                      const matchedUnit = unidades.find(u => u.id === cls.unidad_id);
-                      if (!matchedUnit) return null;
+                      const matchedUnit = (unidades ?? []).find(u => u?.id === cls?.unidad_id);
+                      const unitTitle = cls?.unidades_tematicas?.titulo ?? cls?.unidad_texto ?? matchedUnit?.titulo;
+                      const unitNum = cls?.unidades_tematicas?.numero ?? matchedUnit?.numero ?? cls?.unidad_numero;
+                      if (!unitTitle && !unitNum && !cls?.unidad_id) return null;
                       return (
                         <span className="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold text-xs px-2 py-0.5 rounded-md border border-indigo-200/50 dark:border-indigo-800/40 inline-flex items-center gap-1">
                           <Layers className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                          <span>Unidad {matchedUnit.numero}: {matchedUnit.titulo}</span>
+                          <span>{unitNum ? `Unidad ${unitNum}: ` : ''}{unitTitle ?? 'Sin Unidad'}</span>
                         </span>
                       );
                     })()}
