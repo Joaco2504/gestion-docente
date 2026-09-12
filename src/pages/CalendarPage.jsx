@@ -91,6 +91,7 @@ export default function CalendarPage() {
         const { data: evData } = await supabase
           .from('eventos_calendario')
           .select('*')
+          .eq('docente_id', user.id)
           .order('fecha_inicio', { ascending: true });
         setEvents(evData || []);
 
@@ -280,21 +281,21 @@ export default function CalendarPage() {
     setErrorMsg('');
 
     try {
-      const startIso = `${fecha}T${horaInicio}:00`;
-      const endIso = `${fecha}T${horaFin}:00`;
+      const startDateObj = new Date(`${fecha}T${horaInicio}:00`);
+      const endDateObj = new Date(`${fecha}T${horaFin}:00`);
+      const startIso = isNaN(startDateObj.getTime()) ? `${fecha}T${horaInicio}:00Z` : startDateObj.toISOString();
+      const endIso = isNaN(endDateObj.getTime()) ? `${fecha}T${horaFin}:00Z` : endDateObj.toISOString();
 
       if (isSupabaseConfigured && !isDemo && user) {
         const { data, error } = await supabase
           .from('eventos_calendario')
           .insert({
             docente_id: user.id,
-            institucion_id: activeInstitucion?.id || null,
-            ciclo_id: activeCiclo?.id || null,
             titulo: titulo.trim(),
             tipo,
             fecha_inicio: startIso,
             fecha_fin: endIso,
-            notas: notas.trim()
+            notas: notas.trim() || null
           })
           .select()
           .single();
@@ -309,7 +310,7 @@ export default function CalendarPage() {
           tipo,
           fecha_inicio: startIso,
           fecha_fin: endIso,
-          notas: notas.trim(),
+          notas: notas.trim() || null,
           editable: true
         };
         setEvents(prev => [...prev, newEv]);

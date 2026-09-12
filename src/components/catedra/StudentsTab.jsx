@@ -24,15 +24,18 @@ import { SkeletonTable } from '../common/SkeletonLoader';
 import ExcelImporter from './ExcelImporter';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 
 export default function StudentsTab({ 
   catedraId, 
   catedraName, 
   academicLevel = 'TERCIARIO', 
-  modalidad = 'ANUAL' 
+  modalidad = 'ANUAL',
+  cicloId
 }) {
   const { user, isDemo } = useAuth();
+  const { activeCiclo } = useApp();
 
   const [estudiantes, setEstudiantes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -262,6 +265,35 @@ export default function StudentsTab({
     );
   };
 
+  // Resolver ciclo_id de la cátedra de manera infalible
+  const getResolvedCicloId = async () => {
+    if (cicloId) return cicloId;
+    if (activeCiclo?.id) return activeCiclo.id;
+    if (isSupabaseConfigured && !isDemo) {
+      try {
+        const { data: catData } = await supabase
+          .from('catedras')
+          .select('ciclo_id')
+          .eq('id', catedraId)
+          .maybeSingle();
+        if (catData?.ciclo_id) return catData.ciclo_id;
+
+        if (user?.id) {
+          const { data: cicloData } = await supabase
+            .from('ciclos_lectivos')
+            .select('id')
+            .eq('docente_id', user.id)
+            .eq('activo', true)
+            .maybeSingle();
+          if (cicloData?.id) return cicloData.id;
+        }
+      } catch (err) {
+        console.warn('Error resolviendo ciclo_id:', err);
+      }
+    }
+    return null;
+  };
+
   // Carga Manual de Alumno
   const handleManualSubmit = async (e) => {
     e.preventDefault();
@@ -277,7 +309,16 @@ export default function StudentsTab({
     setSavingManual(true);
     try {
       let studentId;
-      if (isSupabaseConfigured && !isDemo && user) {
+      if (isSupabaseConfigured && !isDemo) {
+        if (!user?.id) {
+          throw new Error('Sesión de usuario no válida. Inicia sesión nuevamente.');
+        }
+
+        const currentCicloId = await getResolvedCicloId();
+        if (!currentCicloId) {
+          throw new Error('No se pudo determinar el ciclo lectivo de la cátedra. Verifica que exista un ciclo lectivo activo.');
+        }
+
         // 1. Buscar si el estudiante ya existe para este docente
         const { data: existingStudent, error: findErr } = await supabase
           .from('estudiantes')
@@ -291,7 +332,7 @@ export default function StudentsTab({
         studentId = existingStudent?.id;
 
         if (!studentId) {
-          // Crear nuevo estudiante
+          // Crear nuevo estudiante incluyendo explícitamente docente_id
           const { data: newEst, error: insertEstErr } = await supabase
             .from('estudiantes')
             .insert({
@@ -307,30 +348,35 @@ export default function StudentsTab({
           studentId = newEst.id;
         } else {
           // Actualizar apellido y nombre
-          await supabase
+          const { error: updateEstErr } = await supabase
             .from('estudiantes')
             .update({
               apellido: cleanApellido,
               nombre: cleanNombre
             })
             .eq('id', studentId);
+
+          if (updateEstErr) throw updateEstErr;
         }
 
-        // 2. Inscribir en la cátedra si no lo estaba
-        const { data: existingInsc } = await supabase
+        // 2. Inscribir en la cátedra enviando explícitamente estudiante_id, catedra_id y ciclo_id
+        const { data: existingInsc, error: inscFindErr } = await supabase
           .from('inscripciones')
           .select('id')
           .eq('catedra_id', catedraId)
           .eq('estudiante_id', studentId)
           .maybeSingle();
 
+        if (inscFindErr) throw inscFindErr;
+
         if (!existingInsc) {
           const { error: inscErr } = await supabase
             .from('inscripciones')
-            .insert({
+            .upsert({
+              estudiante_id: studentId,
               catedra_id: catedraId,
-              estudiante_id: studentId
-            });
+              ciclo_id: currentCicloId
+            }, { onConflict: 'estudiante_id, catedra_id', ignoreDuplicates: true });
 
           if (inscErr) throw inscErr;
         } else {
@@ -535,6 +581,7 @@ export default function StudentsTab({
 
           <ExcelImporter
             catedraId={catedraId}
+            cicloId={cicloId || activeCiclo?.id}
             onStudentsImported={() => {
               fetchStudents();
               setViewMode('list');

@@ -44,7 +44,7 @@ import {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, isDemo } = useAuth();
-  const { instituciones, activeInstitucion, activeCiclo, refreshData } = useApp();
+  const { instituciones, activeInstitucion, activeCiclo, ciclosLectivos, refreshData } = useApp();
 
   // Primary Data States
   const [loading, setLoading] = useState(true);
@@ -508,10 +508,25 @@ export default function DashboardPage() {
 
     try {
       if (isSupabaseConfigured && !isDemo && user) {
+        let resolvedCicloId = activeCiclo?.id;
+        if (!resolvedCicloId && ciclosLectivos?.length > 0) {
+          resolvedCicloId = ciclosLectivos.find(c => c.activo)?.id || ciclosLectivos[0]?.id;
+        }
+        if (!resolvedCicloId) {
+          const { data: cDb } = await supabase
+            .from('ciclos_lectivos')
+            .select('id')
+            .eq('docente_id', user.id)
+            .order('anio', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (cDb?.id) resolvedCicloId = cDb.id;
+        }
+
         let insertPayload = {
           docente_id: user.id,
           institucion_id: targetInstId,
-          ciclo_id: activeCiclo?.id || null,
+          ciclo_id: resolvedCicloId || null,
           nombre: newNombre.trim(),
           nivel: newNivel,
           modalidad: newModalidad,
@@ -622,7 +637,12 @@ export default function DashboardPage() {
             estudiante_id: i.estudiante_id,
             estado: 'PRESENTE'
           }));
-          await supabase.from('asistencias').upsert(autoAsist, { onConflict: 'clase_id,estudiante_id' });
+          const { error: asistErr } = await supabase
+            .from('asistencias')
+            .upsert(autoAsist, { onConflict: 'clase_id,estudiante_id' });
+          if (asistErr) {
+            console.warn('Aviso al guardar asistencias automáticas:', asistErr);
+          }
         }
 
         toast.success(`Primera clase registrada el ${formatFechaDMY(quickFecha)}.`);
@@ -668,8 +688,10 @@ export default function DashboardPage() {
     setSavingEvent(true);
     try {
       const fechaIso = parseDMYtoYMD(newEventFecha);
-      const startDateTime = `${fechaIso}T${newEventHora || '08:00'}:00`;
-      const endDateTime = `${fechaIso}T10:00:00`;
+      const startDateObj = new Date(`${fechaIso}T${newEventHora || '08:00'}:00`);
+      const endDateObj = new Date(`${fechaIso}T10:00:00`);
+      const startDateTime = isNaN(startDateObj.getTime()) ? `${fechaIso}T${newEventHora || '08:00'}:00Z` : startDateObj.toISOString();
+      const endDateTime = isNaN(endDateObj.getTime()) ? `${fechaIso}T10:00:00Z` : endDateObj.toISOString();
 
       if (isSupabaseConfigured && !isDemo && user) {
         const { data, error } = await supabase

@@ -241,18 +241,21 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
 
         // 3. Upsert / update periodos
         if (catedra.ciclo_id) {
+          const today = new Date().toISOString().split('T')[0];
           for (const p of periodos) {
             const pPayload = {
               ciclo_id: catedra.ciclo_id,
               nombre: p.nombre.trim(),
               tipo: p.tipo,
-              fecha_inicio: p.fecha_inicio || null,
-              fecha_fin: p.fecha_fin || null
+              fecha_inicio: p.fecha_inicio || today,
+              fecha_fin: p.fecha_fin || today
             };
             if (p.id && !String(p.id).startsWith('per-')) {
-              await supabase.from('periodos_academicos').update(pPayload).eq('id', p.id);
+              const { error: pErr } = await supabase.from('periodos_academicos').update(pPayload).eq('id', p.id);
+              if (pErr) console.warn('Aviso actualizando período:', pErr);
             } else {
-              await supabase.from('periodos_academicos').insert(pPayload);
+              const { error: pErr } = await supabase.from('periodos_academicos').insert(pPayload);
+              if (pErr) console.warn('Aviso insertando período:', pErr);
             }
           }
         }

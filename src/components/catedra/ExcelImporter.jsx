@@ -9,7 +9,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 
-export default function ExcelImporter({ onImportSuccess, onStudentsImported, catedraId }) {
+export default function ExcelImporter({ onImportSuccess, onStudentsImported, catedraId, cicloId }) {
   const { user, isDemo } = useAuth();
   const { activeCiclo } = useApp();
 
@@ -144,6 +144,30 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
 
         // 6. Inscribir en la cátedra verificando inscripciones previas para no duplicar
         if (allStudentIds.length > 0) {
+          // Resolver ciclo_id de la cátedra de forma infalible
+          let currentCicloId = cicloId || activeCiclo?.id;
+          if (!currentCicloId) {
+            const { data: catData } = await supabase
+              .from('catedras')
+              .select('ciclo_id')
+              .eq('id', catedraId)
+              .maybeSingle();
+            currentCicloId = catData?.ciclo_id;
+          }
+          if (!currentCicloId && user?.id) {
+            const { data: cicloData } = await supabase
+              .from('ciclos_lectivos')
+              .select('id')
+              .eq('docente_id', user.id)
+              .eq('activo', true)
+              .maybeSingle();
+            currentCicloId = cicloData?.id;
+          }
+
+          if (!currentCicloId) {
+            throw new Error('No se pudo determinar el ciclo lectivo activo para registrar las inscripciones.');
+          }
+
           const { data: existingInsc, error: inscFetchErr } = await supabase
             .from('inscripciones')
             .select('estudiante_id')
@@ -158,13 +182,13 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
             .map(id => ({
               estudiante_id: id,
               catedra_id: catedraId,
-              ciclo_id: activeCiclo?.id || null
+              ciclo_id: currentCicloId
             }));
 
           if (inscriptionsToInsert.length > 0) {
             const { error: inscInsertErr } = await supabase
               .from('inscripciones')
-              .insert(inscriptionsToInsert);
+              .upsert(inscriptionsToInsert, { onConflict: 'estudiante_id, catedra_id', ignoreDuplicates: true });
 
             if (inscInsertErr) throw inscInsertErr;
           }

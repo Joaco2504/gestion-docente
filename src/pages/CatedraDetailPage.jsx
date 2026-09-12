@@ -248,6 +248,7 @@ export default function CatedraDetailPage() {
             catedraName={catedra.nombre} 
             academicLevel={catedra.nivel}
             modalidad={catedra.modalidad}
+            cicloId={catedra.ciclo_id || activeCiclo?.id}
           />
         )}
 

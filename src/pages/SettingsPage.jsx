@@ -118,6 +118,8 @@ export default function SettingsPage() {
     }
   };
 
+  const [deletedPeriodIds, setDeletedPeriodIds] = useState([]);
+
   const handlePeriodChange = (index, field, value) => {
     const updated = [...periodos];
     updated[index][field] = value;
@@ -140,6 +142,10 @@ export default function SettingsPage() {
       toast.error('Debe mantenerse al menos un período configurado.');
       return;
     }
+    const target = periodos[index];
+    if (target?.id && !String(target.id).startsWith('per-')) {
+      setDeletedPeriodIds(prev => [...prev, target.id]);
+    }
     setPeriodos(periodos.filter((_, i) => i !== index));
   };
 
@@ -155,21 +161,43 @@ export default function SettingsPage() {
     setSavingPeriods(true);
     try {
       if (isSupabaseConfigured && !isDemo && selectedCiclo?.id && user) {
-        const toUpsert = periodos.map(p => ({
-          ...(p.id.startsWith('per-') ? {} : { id: p.id }),
-          ciclo_id: selectedCiclo.id,
-          docente_id: user.id,
-          nombre: p.nombre,
-          tipo: p.tipo,
-          fecha_inicio: p.fecha_inicio,
-          fecha_fin: p.fecha_fin
-        }));
+        // 1. Eliminar períodos borrados por el usuario
+        if (deletedPeriodIds.length > 0) {
+          const { error: delErr } = await supabase
+            .from('periodos_academicos')
+            .delete()
+            .in('id', deletedPeriodIds);
+          if (delErr) {
+            console.warn('Aviso al eliminar períodos:', delErr);
+          }
+        }
 
-        const { error } = await supabase
+        // 2. Upsert de períodos (la tabla periodos_academicos NO tiene columna docente_id)
+        const toUpsert = periodos.map(p => {
+          const item = {
+            ciclo_id: selectedCiclo.id,
+            nombre: p.nombre,
+            tipo: p.tipo,
+            fecha_inicio: p.fecha_inicio,
+            fecha_fin: p.fecha_fin
+          };
+          if (p.id && !String(p.id).startsWith('per-')) {
+            item.id = p.id;
+          }
+          return item;
+        });
+
+        const { data, error } = await supabase
           .from('periodos_academicos')
-          .upsert(toUpsert);
+          .upsert(toUpsert)
+          .select();
 
         if (error) throw error;
+
+        if (data && data.length > 0) {
+          setPeriodos(data);
+        }
+        setDeletedPeriodIds([]);
       }
 
       localStorage.setItem('docentepro_academic_periods', JSON.stringify(periodos));

@@ -83,6 +83,8 @@ export default function GradesTab({
   // New Eval form
   const [evalTitulo, setEvalTitulo] = useState('');
   const [evalTipo, setEvalTipo] = useState(academicLevel === 'SECUNDARIO' ? 'PRUEBA' : 'PARCIAL');
+  const [evalPeriodoId, setEvalPeriodoId] = useState('');
+  const [periodos, setPeriodos] = useState([]);
   const [evalOrigenId, setEvalOrigenId] = useState('');
   const [evalFechaEntrega, setEvalFechaEntrega] = useState('');
   const [evalDriveUrl, setEvalDriveUrl] = useState('');
@@ -201,6 +203,26 @@ export default function GradesTab({
           .eq('catedra_id', catedraId)
           .maybeSingle();
 
+        // 7. Períodos Académicos del ciclo de la cátedra
+        try {
+          const { data: catInfo } = await supabase
+            .from('catedras')
+            .select('ciclo_id')
+            .eq('id', catedraId)
+            .maybeSingle();
+
+          if (catInfo?.ciclo_id) {
+            const { data: pData } = await supabase
+              .from('periodos_academicos')
+              .select('*')
+              .eq('ciclo_id', catInfo.ciclo_id)
+              .order('fecha_inicio', { ascending: true });
+            setPeriodos(pData || []);
+          }
+        } catch (perErr) {
+          console.warn('Aviso cargando periodos en calificaciones:', perErr);
+        }
+
         setEstudiantes(estList);
         setEvaluaciones(mergedEvals);
         setNotas(notasList);
@@ -317,13 +339,14 @@ export default function GradesTab({
     setSavingNota(true);
     try {
       if (isSupabaseConfigured && !isDemo && !String(selectedEvalForNota.id).startsWith('eval-')) {
-        await supabase
+        const { error } = await supabase
           .from('notas')
           .delete()
           .match({
             evaluacion_id: selectedEvalForNota.id,
             estudiante_id: selectedStudentForNota.id
           });
+        if (error) throw error;
       }
 
       const updated = notas.filter(
@@ -361,13 +384,15 @@ export default function GradesTab({
     setSavingNota(true);
     try {
       if (isSupabaseConfigured && !isDemo && !String(selectedEvalForNota.id).startsWith('eval-')) {
-        await supabase
+        const { error } = await supabase
           .from('notas')
           .upsert({
             evaluacion_id: selectedEvalForNota.id,
             estudiante_id: selectedStudentForNota.id,
             valor: valNum
-          }, { onConflict: 'evaluacion_id,estudiante_id' });
+          }, { onConflict: 'evaluacion_id, estudiante_id' });
+
+        if (error) throw error;
       }
 
       // Local update
@@ -385,6 +410,7 @@ export default function GradesTab({
       toast.success(`Nota de ${selectedStudentForNota.apellido} actualizada a ${valNum}`);
       setIsEditNotaModalOpen(false);
     } catch (err) {
+      console.error('Error al guardar nota:', err);
       toast.error('Error al guardar la calificación: ' + err.message);
     } finally {
       setSavingNota(false);
@@ -429,6 +455,7 @@ export default function GradesTab({
       const newEvalObj = {
         id: localId,
         catedra_id: catedraId,
+        periodo_id: evalPeriodoId || null,
         titulo: evalTitulo.trim(),
         tipo: evalTipo,
         evaluacion_origen_id: evalTipo === 'RECUPERATORIO' && evalOrigenId ? evalOrigenId : null,
@@ -448,6 +475,7 @@ export default function GradesTab({
         try {
           const insertPayload = {
             catedra_id: catedraId,
+            periodo_id: evalPeriodoId || null,
             titulo: newEvalObj.titulo,
             tipo: newEvalObj.tipo,
             evaluacion_origen_id: newEvalObj.evaluacion_origen_id,
@@ -464,9 +492,10 @@ export default function GradesTab({
 
           if (error) {
             // Si la tabla no tiene las columnas extendidas
-            if (error.message && (error.message.includes('column') || error.message.includes('fecha_entrega') || error.message.includes('archivo_url'))) {
+            if (error.message && (error.message.includes('column') || error.message.includes('fecha_entrega') || error.message.includes('archivo_url') || error.message.includes('periodo_id'))) {
               const baseObj = {
                 catedra_id: catedraId,
+                periodo_id: evalPeriodoId || null,
                 titulo: newEvalObj.titulo,
                 tipo: newEvalObj.tipo,
                 evaluacion_origen_id: newEvalObj.evaluacion_origen_id
@@ -504,6 +533,7 @@ export default function GradesTab({
       toast.success(`Evaluación "${evalTitulo}" guardada correctamente.`);
       setIsNewEvalModalOpen(false);
       setEvalTitulo('');
+      setEvalPeriodoId('');
       setEvalOrigenId('');
       setEvalFechaEntrega('');
       setEvalDriveUrl('');
@@ -674,16 +704,18 @@ export default function GradesTab({
 
       if (isSupabaseConfigured && !isDemo && !String(evalId).startsWith('eval-')) {
         if (upsertsSupabase.length > 0) {
-          await supabase
+          const { error: upsertErr } = await supabase
             .from('notas')
             .upsert(upsertsSupabase, { onConflict: 'evaluacion_id,estudiante_id' });
+          if (upsertErr) throw upsertErr;
         }
         if (deletesEstIds.length > 0) {
-          await supabase
+          const { error: delErr } = await supabase
             .from('notas')
             .delete()
             .eq('evaluacion_id', evalId)
             .in('estudiante_id', deletesEstIds);
+          if (delErr) throw delErr;
         }
       }
 
@@ -1555,6 +1587,26 @@ export default function GradesTab({
               />
             </div>
           </div>
+
+          {periodos.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+                Período Académico (Opcional)
+              </label>
+              <CustomSelect
+                value={evalPeriodoId}
+                onChange={(val) => setEvalPeriodoId(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: '', label: '-- General / Todo el Ciclo --' },
+                  ...periodos.map(p => ({
+                    value: p.id,
+                    label: p.nombre || `Período ${p.numero}`
+                  }))
+                ]}
+                placeholder="Seleccionar período académico..."
+              />
+            </div>
+          )}
 
           {evalTipo === 'RECUPERATORIO' && (
             <div>

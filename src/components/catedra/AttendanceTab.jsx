@@ -185,13 +185,16 @@ export default function AttendanceTab({
     if (!nuevaFecha) return;
     setSavingClase(true);
     try {
+      if (isSupabaseConfigured && !isDemo && !user?.id) {
+        throw new Error('Sesión no válida. Inicia sesión nuevamente.');
+      }
       const fechaIso = parseDMYtoYMD(nuevaFecha);
       const fechaDmy = formatFechaDMY(nuevaFecha);
 
       const newClaseObj = {
         catedra_id: catedraId,
         fecha: fechaIso,
-        tema: nuevoTema.trim()
+        tema: nuevoTema.trim() || 'Clase Regular'
       };
 
       let claseId = null;
@@ -227,7 +230,7 @@ export default function AttendanceTab({
         if (isSupabaseConfigured && !isDemo) {
           const { error: asistError } = await supabase
             .from('asistencias')
-            .upsert(defaultAttendance, { onConflict: 'clase_id,estudiante_id' });
+            .upsert(defaultAttendance, { onConflict: 'clase_id, estudiante_id' });
           if (asistError) console.warn('Aviso al autocompletar asistencias:', asistError);
         } else {
           const prevStored = JSON.parse(localStorage.getItem(`asistencias_${catedraId}`) || '[]');
@@ -251,6 +254,9 @@ export default function AttendanceTab({
   const handleToggle = async (estudianteId, nuevoEstado) => {
     if (!activeClase) return;
 
+    // Preserve previous state for rollback on error
+    const previousState = [...asistencias];
+
     // Optimistic local update
     const filtered = asistencias.filter(
       a => !(a.clase_id === activeClase.id && a.estudiante_id === estudianteId)
@@ -258,22 +264,36 @@ export default function AttendanceTab({
     const updated = [...filtered, { clase_id: activeClase.id, estudiante_id: estudianteId, estado: nuevoEstado }];
     setAsistencias(updated);
 
-    if (isSupabaseConfigured && !isDemo) {
-      await supabase
-        .from('asistencias')
-        .upsert({
-          clase_id: activeClase.id,
-          estudiante_id: estudianteId,
-          estado: nuevoEstado
-        }, { onConflict: 'clase_id,estudiante_id' });
-    } else {
-      localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(updated));
+    try {
+      if (isSupabaseConfigured && !isDemo) {
+        if (!user?.id) {
+          throw new Error('Sesión de usuario requerida para registrar asistencias.');
+        }
+
+        const { error } = await supabase
+          .from('asistencias')
+          .upsert({
+            clase_id: activeClase.id,
+            estudiante_id: estudianteId,
+            estado: nuevoEstado
+          }, { onConflict: 'clase_id, estudiante_id' });
+
+        if (error) throw error;
+      } else {
+        localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(updated));
+      }
+    } catch (err) {
+      console.error('Error actualizando asistencia:', err);
+      // Revert optimistic state
+      setAsistencias(previousState);
+      toast.error('Error al guardar asistencia: ' + (err.message || 'Error en el servidor'));
     }
   };
 
   const handleMarcarTodosPresentes = async () => {
     if (!activeClase || estudiantes.length === 0) return;
 
+    const previousState = [...asistencias];
     const newRecords = estudiantes.map(e => ({
       clase_id: activeClase.id,
       estudiante_id: e.id,
@@ -284,15 +304,27 @@ export default function AttendanceTab({
     const updated = [...otherClases, ...newRecords];
     setAsistencias(updated);
 
-    if (isSupabaseConfigured && !isDemo) {
-      await supabase
-        .from('asistencias')
-        .upsert(newRecords, { onConflict: 'clase_id,estudiante_id' });
-    } else {
-      localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(updated));
-    }
+    try {
+      if (isSupabaseConfigured && !isDemo) {
+        if (!user?.id) {
+          throw new Error('Sesión requerida.');
+        }
 
-    toast.success('Todos los estudiantes marcados como presentes.');
+        const { error } = await supabase
+          .from('asistencias')
+          .upsert(newRecords, { onConflict: 'clase_id, estudiante_id' });
+
+        if (error) throw error;
+      } else {
+        localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(updated));
+      }
+
+      toast.success('Todos los estudiantes marcados como presentes.');
+    } catch (err) {
+      console.error('Error marcando todos presentes:', err);
+      setAsistencias(previousState);
+      toast.error('Error al marcar presentes: ' + (err.message || 'Error en el servidor'));
+    }
   };
 
   const inasistenciaActual = activeClase
@@ -318,6 +350,10 @@ export default function AttendanceTab({
 
     setSavingInasistencia(true);
     try {
+      if (isSupabaseConfigured && !isDemo && !user?.id) {
+        throw new Error('Usuario no autenticado.');
+      }
+
       const payload = {
         catedra_id: catedraId,
         docente_id: user?.id,
@@ -330,7 +366,7 @@ export default function AttendanceTab({
       if (isSupabaseConfigured && !isDemo) {
         const { data, error } = await supabase
           .from('inasistencias_docente')
-          .upsert(payload, { onConflict: 'catedra_id,fecha' })
+          .upsert(payload, { onConflict: 'catedra_id, fecha' })
           .select()
           .single();
 
