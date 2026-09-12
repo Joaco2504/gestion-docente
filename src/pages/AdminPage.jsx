@@ -12,7 +12,9 @@ import {
   Sparkles,
   ToggleLeft,
   ToggleRight,
-  BarChart3
+  BarChart3,
+  TestTube2,
+  RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
@@ -21,6 +23,7 @@ import Badge from '../components/common/Badge';
 import RealtimeSwitchboard from '../components/admin/RealtimeSwitchboard';
 import TeachersDirectory from '../components/admin/TeachersDirectory';
 import GlobalMetricsSection from '../components/admin/GlobalMetricsSection';
+import QADiagnosticModal from '../components/admin/QADiagnosticModal';
 import { useAuth } from '../context/AuthContext';
 import { useSystemConfig } from '../context/SystemConfigContext';
 
@@ -29,6 +32,8 @@ export default function AdminPage() {
   const { user, isDemo, toggleDemoRole, esSuperadmin, rol } = useAuth();
   const { modoMantenimiento, bannerActivo, isRealtimeConnected } = useSystemConfig();
   const [activeTab, setActiveTab] = useState('configuracion'); // 'configuracion' | 'metricas' | 'directorio'
+  const [isQAModalOpen, setIsQAModalOpen] = useState(false);
+  const [isRunningDiagnostic, setIsRunningDiagnostic] = useState(false);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
@@ -63,8 +68,28 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Action / Demo switcher pill */}
-        <div className="flex items-center gap-2 self-start md:self-center">
+        {/* Action / Demo switcher pill & QA Diagnostic Button */}
+        <div className="flex items-center gap-2.5 self-start md:self-center flex-wrap">
+          {/* Botón de Diagnóstico en Tiempo Real */}
+          <button
+            type="button"
+            onClick={() => setIsQAModalOpen(true)}
+            disabled={isRunningDiagnostic}
+            className="relative inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer group disabled:opacity-75 disabled:cursor-not-allowed"
+            title="Ejecutar suite de autodiagnóstico integral y pruebas automatizadas"
+          >
+            {isRunningDiagnostic ? (
+              <RefreshCw className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <TestTube2 className="w-4 h-4 text-emerald-200 group-hover:rotate-12 transition-transform duration-300" />
+            )}
+            <span>Ejecutar Diagnóstico del Sistema</span>
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+            </span>
+          </button>
+
           {isDemo && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs">
               <span className="text-amber-700 dark:text-amber-400 font-semibold text-[11px]">
@@ -231,7 +256,10 @@ export default function AdminPage() {
       )}
 
       {activeTab === 'metricas' && (
-        <GlobalMetricsSection isDemo={isDemo} />
+        <GlobalMetricsSection 
+          isDemo={isDemo} 
+          onRunDiagnostic={() => setIsQAModalOpen(true)}
+        />
       )}
 
       {activeTab === 'directorio' && (
@@ -239,6 +267,14 @@ export default function AdminPage() {
           <TeachersDirectory isDemo={isDemo} />
         </div>
       )}
+
+      {/* Modal Bento de Resultados QA */}
+      <QADiagnosticModal
+        isOpen={isQAModalOpen}
+        onClose={() => setIsQAModalOpen(false)}
+        isDemo={isDemo}
+        onRunningStateChange={setIsRunningDiagnostic}
+      />
 
     </div>
   );
