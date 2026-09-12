@@ -8,9 +8,34 @@ import React, { useState } from 'react';
  * @param {string} heightClass - Clase de altura (default "h-52")
  * @param {string} valueSuffix - Sufijo para los valores (ej: "alumnos")
  */
+function formatMobileLabel(label) {
+  if (!label) return '';
+  const map = {
+    'promocionales': 'Prom.',
+    'promocional': 'Prom.',
+    'promoción': 'Prom.',
+    'regulares': 'Reg.',
+    'regular': 'Reg.',
+    'libres': 'Lib.',
+    'libre': 'Lib.',
+    'aprobados': 'Aprob.',
+    'aprobado': 'Aprob.',
+    'desaprobados': 'Desap.',
+    'desaprobado': 'Desap.',
+    'ausentes': 'Aus.',
+    'ausente': 'Aus.',
+    'docentes': 'Doc.',
+    'cátedras': 'Cát.',
+    'estudiantes': 'Alum.',
+    'evaluaciones': 'Eval.'
+  };
+  const lower = label.toLowerCase().trim();
+  return map[lower] || (label.length > 8 ? label.slice(0, 7) + '.' : label);
+}
+
 export default function InteractiveBarChart({
   data = [],
-  heightClass = "h-52",
+  heightClass = "h-56 sm:h-64 md:h-72",
   valueSuffix = "alumnos"
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
@@ -19,8 +44,8 @@ export default function InteractiveBarChart({
   const maxValue = Math.max(...data.map(d => d.value || 0), 1);
 
   return (
-    <div className="w-full flex flex-col p-2 sm:p-4">
-      <div className={`relative w-full ${heightClass} flex items-end gap-3 sm:gap-6 pt-10 pb-2 px-2`}>
+    <div className="w-full h-full flex flex-col justify-between p-1 sm:p-3">
+      <div className={`relative w-full ${heightClass} flex items-end gap-2 sm:gap-4 md:gap-6 pt-10 pb-2 px-1 sm:px-2`}>
         {/* Líneas guía horizontales de fondo */}
         <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 dark:opacity-10 py-2">
           <div className="border-b border-dashed border-slate-400 w-full" />
@@ -38,28 +63,29 @@ export default function InteractiveBarChart({
           return (
             <div
               key={idx}
-              className="relative flex-1 flex flex-col items-center h-full justify-end group cursor-pointer select-none"
+              className="relative flex-1 flex flex-col items-center h-full justify-end group cursor-pointer select-none touch-manipulation"
               onMouseEnter={() => setHoveredIdx(idx)}
               onMouseLeave={() => setHoveredIdx(null)}
+              onClick={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
               onTouchStart={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
             >
               {/* Tooltip flotante */}
               {isHovered && (
-                <div className="absolute -top-9 z-20 px-2.5 py-1 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 rounded-xl shadow-lg border border-white/10 pointer-events-none whitespace-nowrap animate-fadeIn scale-105 transition-all">
+                <div className="absolute -top-9 z-20 px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 rounded-xl shadow-lg border border-white/10 pointer-events-none whitespace-nowrap animate-fadeIn scale-105 transition-all">
                   <span className="font-bold">{val}</span> {valueSuffix} <span className="text-slate-300 font-mono text-[10px]">({pctOfTotal}%)</span>
                 </div>
               )}
 
               {/* Valor numérico superior estático si no está en hover */}
               {!isHovered && (
-                <span className="text-[11px] sm:text-xs font-mono font-bold text-text-primary mb-1">
+                <span className="text-[10px] sm:text-xs font-mono font-bold text-text-primary mb-1">
                   {val}
                 </span>
               )}
 
               {/* Barra interactiva con radio redondeado superior */}
               <div
-                className="w-full max-w-[48px] sm:max-w-[64px] rounded-t-2xl transition-all duration-300 ease-out"
+                className="w-full max-w-[36px] sm:max-w-[48px] md:max-w-[64px] rounded-t-2xl transition-all duration-300 ease-out"
                 style={{
                   height: `${heightPercent}%`,
                   backgroundColor: barColor,
@@ -73,12 +99,17 @@ export default function InteractiveBarChart({
       </div>
 
       {/* Etiquetas del eje X */}
-      <div className="flex justify-between gap-3 sm:gap-6 pt-2.5 border-t border-slate-200/60 dark:border-white/10 text-xs font-semibold text-text-secondary">
+      <div className="flex justify-between gap-1 sm:gap-4 md:gap-6 pt-2.5 border-t border-slate-200/60 dark:border-white/10 text-[11px] sm:text-xs font-semibold text-text-secondary">
         {data.map((item, idx) => (
-          <div key={idx} className="flex-1 text-center truncate px-1" title={item.label}>
-            <span className="block truncate">{item.label}</span>
-            <span className="block text-[10px] font-mono text-text-muted font-normal mt-0.5">
-              {total > 0 ? `${(( (item.value || 0) / total) * 100).toFixed(0)}%` : '0%'}
+          <div key={idx} className="flex-1 text-center truncate px-0.5 sm:px-1" title={item.label}>
+            <span className="block truncate sm:hidden text-[10px] font-bold">
+              {formatMobileLabel(item.label)}
+            </span>
+            <span className="hidden sm:block truncate">
+              {item.label}
+            </span>
+            <span className="block text-[9px] sm:text-[10px] font-mono text-text-muted font-normal mt-0.5">
+              {total > 0 ? `${(((item.value || 0) / total) * 100).toFixed(0)}%` : '0%'}
             </span>
           </div>
         ))}

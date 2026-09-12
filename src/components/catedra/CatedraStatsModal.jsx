@@ -327,23 +327,25 @@ export default function CatedraStatsModal({
         ) : (
           <div
             key={chartType}
-            className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/40 rounded-3xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-6 shadow-xs animate-fadeInUp"
+            className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/40 rounded-3xl border border-slate-200/80 dark:border-white/10 p-3 sm:p-5 md:p-6 shadow-xs animate-fadeInUp w-full"
           >
-            {chartType === 'bar' ? (
-              <InteractiveBarChart
-                data={stats.chartData}
-                heightClass="h-56"
-                valueSuffix="alumnos"
-              />
-            ) : (
-              <InteractiveDonutChart
-                data={stats.chartData}
-                title={academicLevel === 'SECUNDARIO' ? 'Aprobados' : 'Promocionales'}
-                subtitle="Matrícula Total"
-                size={210}
-                valueSuffix="estudiantes"
-              />
-            )}
+            <div className="w-full h-64 sm:h-72 md:h-80 min-h-[220px] flex items-center justify-center">
+              {chartType === 'bar' ? (
+                <InteractiveBarChart
+                  data={stats.chartData}
+                  heightClass="h-48 sm:h-56 md:h-64"
+                  valueSuffix="alumnos"
+                />
+              ) : (
+                <InteractiveDonutChart
+                  data={stats.chartData}
+                  title={academicLevel === 'SECUNDARIO' ? 'Aprobados' : 'Promocionales'}
+                  subtitle="Matrícula Total"
+                  size={210}
+                  valueSuffix="estudiantes"
+                />
+              )}
+            </div>
           </div>
         )}
 

@@ -109,8 +109,8 @@ export default function InteractiveDonutChart({
         </div>
       </div>
 
-      {/* Leyenda interactiva inferior tipo chips Bento */}
-      <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs w-full max-w-sm">
+      {/* Leyenda interactiva inferior tipo chips Bento (columna única en mobile, flex en desktop) */}
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap justify-center gap-2 text-xs w-full max-w-md">
         {segments.map((seg) => {
           const isCurrent = activeIndex === seg.index;
           return (
@@ -118,16 +118,20 @@ export default function InteractiveDonutChart({
               key={seg.index}
               type="button"
               onClick={() => setActiveIndex(isCurrent ? null : seg.index)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer select-none touch-target-44 ${
+              className={`flex items-center justify-between md:justify-start gap-2 px-3.5 py-2 rounded-xl border transition-all cursor-pointer select-none touch-target-44 w-full md:w-auto ${
                 isCurrent 
-                  ? 'bg-white dark:bg-slate-800 font-bold text-text-primary shadow-sm scale-105 border-slate-300 dark:border-white/20 ring-2 ring-primary/20' 
+                  ? 'bg-white dark:bg-slate-800 font-bold text-text-primary shadow-sm scale-102 border-slate-300 dark:border-white/20 ring-2 ring-primary/20' 
                   : 'bg-slate-100/70 dark:bg-white/[0.04] text-text-secondary border-slate-200/70 dark:border-white/5 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
               }`}
             >
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-              <span className="truncate">{seg.label}:</span>
-              <span className="font-mono font-bold text-text-primary">{seg.value}</span>
-              <span className="text-[10px] font-mono text-text-muted">({seg.rawPercent.toFixed(0)}%)</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                <span className="truncate">{seg.label}:</span>
+              </div>
+              <div className="flex items-center gap-1 font-mono shrink-0">
+                <span className="font-bold text-text-primary">{seg.value}</span>
+                <span className="text-[10px] text-text-muted">({seg.rawPercent.toFixed(0)}%)</span>
+              </div>
             </button>
           );
         })}

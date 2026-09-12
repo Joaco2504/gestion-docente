@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ShieldAlert, 
   Users, 
@@ -11,7 +11,8 @@ import {
   ArrowLeft,
   Sparkles,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  BarChart3
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/common/Card';
@@ -19,6 +20,7 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import RealtimeSwitchboard from '../components/admin/RealtimeSwitchboard';
 import TeachersDirectory from '../components/admin/TeachersDirectory';
+import GlobalMetricsSection from '../components/admin/GlobalMetricsSection';
 import { useAuth } from '../context/AuthContext';
 import { useSystemConfig } from '../context/SystemConfigContext';
 
@@ -26,6 +28,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const { user, isDemo, toggleDemoRole, esSuperadmin, rol } = useAuth();
   const { modoMantenimiento, bannerActivo, isRealtimeConnected } = useSystemConfig();
+  const [activeTab, setActiveTab] = useState('control'); // 'control' | 'metricas'
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
@@ -85,100 +88,135 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* 2. Bento Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Estado del Sistema */}
-        <Card className="p-4 border border-surface-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
-              Estado Operativo
-            </span>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-              modoMantenimiento ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-            }`}>
-              <Activity className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-lg font-black text-text-primary block">
-              {modoMantenimiento ? 'Mantenimiento' : 'Producción Activa'}
-            </span>
-            <span className="text-[11px] text-text-muted">
-              {modoMantenimiento ? 'Acceso restringido / Alerta visible' : 'Servicios funcionando con normalidad'}
-            </span>
-          </div>
-        </Card>
+      {/* 2. Navegación por pestañas Bento del Superadmin */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-surface-card border border-surface-border w-full sm:w-auto overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setActiveTab('control')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
+            activeTab === 'control'
+              ? 'bg-primary text-white shadow-sm shadow-primary/25'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+          }`}
+        >
+          <Sliders className="w-4 h-4" />
+          <span>Control & Switchboard</span>
+        </button>
 
-        {/* Card 2: Aviso Global */}
-        <Card className="p-4 border border-surface-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
-              Aviso en Vivo
-            </span>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-              bannerActivo ? 'bg-primary/15 text-primary' : 'bg-surface-hover text-text-muted'
-            }`}>
-              <Radio className={`w-4 h-4 ${bannerActivo ? 'animate-pulse' : ''}`} />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-lg font-black text-text-primary block">
-              {bannerActivo ? 'Banner Transmitiendo' : 'Sin Aviso Activo'}
-            </span>
-            <span className="text-[11px] text-text-muted">
-              {bannerActivo ? 'Visible en todas las sesiones docentes' : 'Cintillo superior desactivado'}
-            </span>
-          </div>
-        </Card>
-
-        {/* Card 3: WebSocket Realtime */}
-        <Card className="p-4 border border-surface-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
-              Canal Realtime
-            </span>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-              isRealtimeConnected ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-            }`}>
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-lg font-black text-text-primary block">
-              {isRealtimeConnected ? 'Conectado (WS)' : 'Polling / Local'}
-            </span>
-            <span className="text-[11px] text-text-muted">
-              Canal: <code>config-realtime</code>
-            </span>
-          </div>
-        </Card>
-
-        {/* Card 4: Seguridad & RLS */}
-        <Card className="p-4 border border-surface-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
-              Seguridad RLS
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-lg font-black text-text-primary block">
-              Superadmin Nivel 1
-            </span>
-            <span className="text-[11px] text-text-muted font-mono truncate block">
-              {user?.email}
-            </span>
-          </div>
-        </Card>
+        <button
+          type="button"
+          onClick={() => setActiveTab('metricas')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
+            activeTab === 'metricas'
+              ? 'bg-primary text-white shadow-sm shadow-primary/25'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Métricas del Sistema</span>
+        </button>
       </div>
 
-      {/* 3. Panel A: Realtime Switchboard */}
-      <RealtimeSwitchboard />
+      {activeTab === 'control' ? (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Bento Stat Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1: Estado del Sistema */}
+            <Card className="p-4 border border-surface-border">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  Estado Operativo
+                </span>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                  modoMantenimiento ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  <Activity className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <span className="text-lg font-black text-text-primary block">
+                  {modoMantenimiento ? 'Mantenimiento' : 'Producción Activa'}
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  {modoMantenimiento ? 'Acceso restringido / Alerta visible' : 'Servicios funcionando con normalidad'}
+                </span>
+              </div>
+            </Card>
 
-      {/* 4. Panel B: Directorio Global de Docentes & Soporte */}
-      <TeachersDirectory isDemo={isDemo} />
+            {/* Card 2: Aviso Global */}
+            <Card className="p-4 border border-surface-border">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  Aviso en Vivo
+                </span>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                  bannerActivo ? 'bg-primary/15 text-primary' : 'bg-surface-hover text-text-muted'
+                }`}>
+                  <Radio className={`w-4 h-4 ${bannerActivo ? 'animate-pulse' : ''}`} />
+                </div>
+              </div>
+              <div className="mt-2">
+                <span className="text-lg font-black text-text-primary block">
+                  {bannerActivo ? 'Banner Transmitiendo' : 'Sin Aviso Activo'}
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  {bannerActivo ? 'Visible en todas las sesiones docentes' : 'Cintillo superior desactivado'}
+                </span>
+              </div>
+            </Card>
+
+            {/* Card 3: WebSocket Realtime */}
+            <Card className="p-4 border border-surface-border">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  Canal Realtime
+                </span>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                  isRealtimeConnected ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                }`}>
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <span className="text-lg font-black text-text-primary block">
+                  {isRealtimeConnected ? 'Conectado (WS)' : 'Polling / Local'}
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  Canal: <code>config-realtime</code>
+                </span>
+              </div>
+            </Card>
+
+            {/* Card 4: Seguridad & RLS */}
+            <Card className="p-4 border border-surface-border">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  Seguridad RLS
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <ShieldAlert className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <span className="text-lg font-black text-text-primary block">
+                  Superadmin Nivel 1
+                </span>
+                <span className="text-[11px] text-text-muted font-mono truncate block">
+                  {user?.email}
+                </span>
+              </div>
+            </Card>
+          </div>
+
+          {/* Panel A: Realtime Switchboard */}
+          <RealtimeSwitchboard />
+
+          {/* Panel B: Directorio Global de Docentes & Soporte */}
+          <TeachersDirectory isDemo={isDemo} />
+        </div>
+      ) : (
+        <GlobalMetricsSection isDemo={isDemo} />
+      )}
 
     </div>
   );

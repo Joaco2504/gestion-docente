@@ -386,19 +386,21 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
             variant="outline"
             icon={Printer}
             onClick={() => setIsPrintModalOpen(true)}
-            className="flex-1 sm:flex-initial text-xs rounded-xl shadow-xs font-semibold"
+            className="flex-1 sm:flex-initial text-xs rounded-xl shadow-xs font-semibold whitespace-nowrap shrink-0"
             title="Generar formato membretado oficial para firma"
           >
-            Exportar Libro (PDF / Imprimir)
+            <span className="hidden sm:inline">Exportar Libro (PDF / Imprimir)</span>
+            <span className="sm:hidden">🖨️ Libro</span>
           </Button>
 
           <Button
             variant="primary"
             icon={Plus}
             onClick={handleOpenCreate}
-            className="flex-1 sm:flex-initial text-xs rounded-xl shadow-xs font-bold"
+            className="flex-1 sm:flex-initial text-xs rounded-xl shadow-xs font-bold whitespace-nowrap shrink-0"
           >
-            Registrar Clase
+            <span className="hidden sm:inline">Registrar Clase</span>
+            <span className="sm:hidden">+ Clase</span>
           </Button>
         </div>
       </div>

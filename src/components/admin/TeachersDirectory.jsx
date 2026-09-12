@@ -252,11 +252,11 @@ export default function TeachersDirectory({ isDemo = false }) {
         <table className="w-full text-left border-collapse text-xs">
           <thead>
             <tr className="bg-surface-hover/60 border-b border-surface-border text-text-secondary uppercase font-bold text-[11px] tracking-wider">
-              <th className="py-3 px-4">Docente</th>
-              <th className="py-3 px-4">Correo Electrónico</th>
-              <th className="py-3 px-4">Fecha de Alta</th>
-              <th className="py-3 px-4 text-center">Rol Activo</th>
-              <th className="py-3 px-4 text-right">Acciones de Soporte</th>
+              <th className="py-2.5 px-3 sm:py-3 sm:px-4">Docente</th>
+              <th className="py-2.5 px-3 sm:py-3 sm:px-4">Correo Electrónico</th>
+              <th className="py-2.5 px-3 sm:py-3 sm:px-4">Fecha de Alta</th>
+              <th className="py-2.5 px-3 sm:py-3 sm:px-4 text-center">Rol Activo</th>
+              <th className="py-2.5 px-3 sm:py-3 sm:px-4 text-right">Acciones de Soporte</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border">
@@ -282,7 +282,7 @@ export default function TeachersDirectory({ isDemo = false }) {
                     className="hover:bg-surface-hover/50 transition-colors group"
                   >
                     {/* Docente */}
-                    <td className="py-3.5 px-4 font-semibold text-text-primary">
+                    <td className="py-2.5 px-3 sm:py-3.5 sm:px-4 font-semibold text-text-primary">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-blue-500/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                           {teacher.nombre ? teacher.nombre.charAt(0).toUpperCase() : 'D'}
@@ -299,7 +299,7 @@ export default function TeachersDirectory({ isDemo = false }) {
                     </td>
 
                     {/* Email */}
-                    <td className="py-3.5 px-4 font-mono text-text-secondary text-xs">
+                    <td className="py-2.5 px-3 sm:py-3.5 sm:px-4 font-mono text-text-secondary text-xs">
                       <div className="flex items-center gap-1.5">
                         <Mail className="w-3.5 h-3.5 text-text-muted" />
                         <span>{teacher.email}</span>
@@ -307,7 +307,7 @@ export default function TeachersDirectory({ isDemo = false }) {
                     </td>
 
                     {/* Fecha de Registro */}
-                    <td className="py-3.5 px-4 font-mono text-text-muted text-xs">
+                    <td className="py-2.5 px-3 sm:py-3.5 sm:px-4 font-mono text-text-muted text-xs">
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-text-muted" />
                         <span>{teacher.created_at ? formatFechaDMY(teacher.created_at) : '—'}</span>
@@ -315,7 +315,7 @@ export default function TeachersDirectory({ isDemo = false }) {
                     </td>
 
                     {/* Rol y Switch de Rol */}
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-2.5 px-3 sm:py-3.5 sm:px-4 text-center">
                       <button
                         type="button"
                         onClick={() => handleToggleRole(teacher)}
@@ -332,16 +332,17 @@ export default function TeachersDirectory({ isDemo = false }) {
                     </td>
 
                     {/* Botón Gestión / Soporte */}
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-2.5 px-3 sm:py-3.5 sm:px-4 text-right">
                       <Button
                         variant="outline"
                         size="sm"
                         icon={Wrench}
                         onClick={() => handleOpenSupport(teacher)}
-                        className="text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 touch-target-44 sm:touch-target-auto"
+                        className="text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0"
                         title="Abrir panel de inspección y soporte técnico para este docente"
                       >
-                        Gestionar Datos / Soporte
+                        <span className="hidden sm:inline">Gestionar Datos / Soporte</span>
+                        <span className="sm:hidden">Soporte</span>
                       </Button>
                     </td>
                   </tr>

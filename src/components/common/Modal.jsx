@@ -27,7 +27,7 @@ export default function Modal({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200"
@@ -37,7 +37,7 @@ export default function Modal({
 
       {/* Modal Dialog (Bottom Sheet on Mobile, Centered Modal on Tablet/Desktop) */}
       <div
-        className={`relative w-full ${maxWidth} backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden z-10 animate-slideUp sm:animate-fadeIn max-h-[90vh] sm:max-h-[85vh] flex flex-col`}
+        className={`relative w-full sm:w-auto ${maxWidth} max-w-[92vw] sm:max-w-xl md:max-w-2xl backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden z-10 animate-slideUp sm:animate-fadeIn max-h-[90vh] sm:max-h-[85vh] flex flex-col`}
         role="dialog"
         aria-modal="true"
       >

@@ -590,10 +590,20 @@ export default function AttendanceTab({
               }
               setIsInasistenciaModalOpen(true);
             }}
-            className="flex-1 sm:flex-initial text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 min-h-[44px] sm:min-h-0 touch-target-44"
+            className="flex-1 sm:flex-initial text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 min-h-[44px] sm:min-h-0 touch-target-44 whitespace-nowrap shrink-0"
             title="Registrar o editar inasistencia / licencia del docente"
           >
-            {inasistenciaActual ? 'Ver Licencia Docente' : 'Inasistencia Docente'}
+            {inasistenciaActual ? (
+              <>
+                <span className="hidden sm:inline">Ver Licencia Docente</span>
+                <span className="sm:hidden">Licencia</span>
+              </>
+            ) : (
+              <>
+                <span className="hidden sm:inline">Registrar Inasistencia</span>
+                <span className="sm:hidden">+ Inasistencia</span>
+              </>
+            )}
           </Button>
 
           {/* Botón Imprimir / PDF Oficial */}
@@ -603,10 +613,11 @@ export default function AttendanceTab({
             icon={Printer}
             onClick={() => setIsPrintModalOpen(true)}
             disabled={estudiantes.length === 0}
-            className="flex-1 sm:flex-initial text-xs border-primary/30 text-primary hover:bg-primary/10 min-h-[44px] sm:min-h-0 touch-target-44"
+            className="flex-1 sm:flex-initial text-xs border-primary/30 text-primary hover:bg-primary/10 min-h-[44px] sm:min-h-0 touch-target-44 whitespace-nowrap shrink-0"
             title="Abrir visor de impresión y PDF oficial de la planilla de asistencias"
           >
-            Imprimir Registro (PDF)
+            <span className="hidden sm:inline">Imprimir Registro (PDF)</span>
+            <span className="sm:hidden">Imprimir (PDF)</span>
           </Button>
 
           {/* Botón Nueva Clase */}
@@ -615,9 +626,10 @@ export default function AttendanceTab({
             size="sm"
             icon={Plus}
             onClick={() => setIsModalOpen(true)}
-            className="flex-1 sm:flex-initial text-xs"
+            className="flex-1 sm:flex-initial text-xs whitespace-nowrap shrink-0"
           >
-            Nueva Clase
+            <span className="hidden sm:inline">Nueva Clase</span>
+            <span className="sm:hidden">+ Clase</span>
           </Button>
         </div>
       </div>

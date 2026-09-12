@@ -633,28 +633,31 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                 variant="outline"
                 icon={Printer}
                 onClick={() => handleOpenPrintModal(selectedMesa)}
-                className="text-xs font-bold rounded-2xl min-h-[44px]"
+                className="text-xs font-bold rounded-2xl min-h-[44px] whitespace-nowrap shrink-0"
               >
-                Imprimir Acta Volante
+                <span className="hidden sm:inline">Imprimir Acta Volante</span>
+                <span className="sm:hidden">🖨️ Acta</span>
               </Button>
 
               <Button
                 variant="outline"
                 icon={UserCheck}
                 onClick={handleCargarAlumnosRegulares}
-                className="text-xs font-bold rounded-2xl min-h-[44px]"
+                className="text-xs font-bold rounded-2xl min-h-[44px] whitespace-nowrap shrink-0"
                 title="Cargar alumnos inscriptos regulares de la cátedra que aún no figuren en la mesa"
               >
-                Cargar Regulares
+                <span className="hidden sm:inline">Cargar Regulares</span>
+                <span className="sm:hidden">Regulares</span>
               </Button>
 
               <Button
                 variant="secondary"
                 icon={Plus}
                 onClick={() => setIsInscribirModalOpen(true)}
-                className="text-xs font-bold rounded-2xl min-h-[44px]"
+                className="text-xs font-bold rounded-2xl min-h-[44px] whitespace-nowrap shrink-0"
               >
-                Inscribir Alumno
+                <span className="hidden sm:inline">Inscribir Alumno</span>
+                <span className="sm:hidden">+ Alumno</span>
               </Button>
 
               <Button
@@ -662,9 +665,10 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                 icon={CheckCircle2}
                 onClick={handleSaveActaCalificaciones}
                 loading={savingActa}
-                className="text-xs font-bold rounded-2xl min-h-[44px] shadow-sm"
+                className="text-xs font-bold rounded-2xl min-h-[44px] shadow-sm whitespace-nowrap shrink-0"
               >
-                Guardar Notas
+                <span className="hidden sm:inline">Guardar Notas</span>
+                <span className="sm:hidden">Guardar</span>
               </Button>
             </div>
           </div>

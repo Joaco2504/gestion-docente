@@ -74,7 +74,7 @@ export default function App() {
     <BrowserRouter>
       {/* Scroll restoration helper: resets scroll to top on every navigation */}
       <ScrollToTop />
-      <div className="min-h-screen flex flex-col bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary">
+      <div className="min-h-screen flex flex-col bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary overflow-x-hidden">
         {/* Sonner Floating Notifications */}
         <Toaster 
           richColors 
@@ -98,7 +98,7 @@ export default function App() {
           />
 
           {/* Content Area with extra bottom padding on mobile for BottomNav */}
-          <main className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 w-full">
+          <main className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 w-full max-w-full overflow-x-hidden">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Global Context Bar: Institución y Ciclo Activo */}
               <HeaderSelector />

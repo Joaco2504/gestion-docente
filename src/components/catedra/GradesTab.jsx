@@ -942,10 +942,11 @@ export default function GradesTab({
               icon={Printer}
               onClick={() => setIsPrintModalOpen(true)}
               disabled={estudiantes.length === 0}
-              className="text-xs font-bold border-primary/40 text-primary hover:bg-primary/10"
+              className="text-xs font-bold border-primary/40 text-primary hover:bg-primary/10 whitespace-nowrap shrink-0"
               title="Abrir visor interactivo de impresión y PDF oficial de la sábana de notas"
             >
-              <span className="hidden sm:inline">Imprimir / </span>PDF
+              <span className="hidden sm:inline">Imprimir / PDF</span>
+              <span className="sm:hidden">PDF</span>
             </Button>
 
             <Button
@@ -2006,8 +2007,9 @@ export default function GradesTab({
               >
                 Cancelar
               </Button>
-              <Button type="submit" loading={savingBatchGrades}>
-                Guardar Calificaciones
+              <Button type="submit" loading={savingBatchGrades} className="whitespace-nowrap shrink-0">
+                <span className="hidden sm:inline">Guardar Calificaciones</span>
+                <span className="sm:hidden">Guardar</span>
               </Button>
             </div>
           </div>

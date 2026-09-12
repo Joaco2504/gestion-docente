@@ -259,10 +259,11 @@ export default function CatedraDetailPage() {
                 variant="outline"
                 icon={BarChart3}
                 onClick={() => setIsStatsModalOpen(true)}
-                className="text-xs sm:text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-2xl min-h-[44px] shadow-xs px-3.5"
+                className="text-xs sm:text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-2xl min-h-[44px] shadow-xs px-3.5 whitespace-nowrap shrink-0"
                 title="Ver gráficos estadísticos y distribución de rendimiento de los alumnos"
               >
-                Estadísticas de Cátedra
+                <span className="hidden sm:inline">Estadísticas de Cátedra</span>
+                <span className="sm:hidden">Estadísticas</span>
               </Button>
             </div>
           </div>
