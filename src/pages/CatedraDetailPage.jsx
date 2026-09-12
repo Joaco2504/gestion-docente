@@ -10,7 +10,10 @@ import {
   Clock, 
   Users, 
   Building,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck,
+  Calendar,
+  Percent
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
@@ -49,6 +52,12 @@ export default function CatedraDetailPage() {
     setSearchParams({ tab: newTab });
   };
   const [catedra, setCatedra] = useState(null);
+  const [criterios, setCriterios] = useState({
+    min_asist_promo: 80,
+    min_asist_reg: 70,
+    nota_min_promo: 7,
+    nota_min_reg: 4
+  });
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -74,6 +83,22 @@ export default function CatedraDetailPage() {
 
         if (error) throw error;
         setCatedra(data);
+
+        try {
+          const { data: critData } = await supabase
+            .from('criterios_evaluacion')
+            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg')
+            .eq('catedra_id', id)
+            .maybeSingle();
+          if (critData) {
+            setCriterios({
+              min_asist_promo: Number(critData.min_asist_promo) || 80,
+              min_asist_reg: Number(critData.min_asist_reg) || 70,
+              nota_min_promo: Number(critData.nota_min_promo) || 7,
+              nota_min_reg: Number(critData.nota_min_reg) || 4
+            });
+          }
+        } catch (_) {}
       } else {
         // Look up in AppContext catedras or localStorage
         let found = catedras.find((c) => c.id === id);
@@ -148,26 +173,30 @@ export default function CatedraDetailPage() {
       <div>
         <button
           onClick={() => navigate('/dashboard')}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-primary transition-colors mb-3"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-primary transition-colors mb-3.5 group cursor-pointer"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
           <span>Volver al Panel de Cátedras</span>
         </button>
 
-        {/* Cátedra Header Card */}
-        <div className="bg-surface p-6 rounded-2xl border border-surface-border shadow-sm">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
+        {/* Bento Workspace Header Card */}
+        <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant={catedra.nivel === 'TERCIARIO' ? 'primary' : 'warning'}>
                   {catedra.nivel}
                 </Badge>
                 <Badge variant="default">
                   {catedra.modalidad}
                 </Badge>
-                <span className="text-xs text-text-muted flex items-center gap-1">
-                  <Building className="w-3.5 h-3.5" />
+                <span className="text-xs text-text-muted flex items-center gap-1 font-medium bg-slate-100/60 dark:bg-white/[0.04] px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
+                  <Building className="w-3.5 h-3.5 text-primary" />
                   <span>{catedra.instituciones?.nombre || catedra.institucion_nombre || 'Institución'}</span>
+                </span>
+                <span className="text-xs text-text-muted flex items-center gap-1 font-medium bg-slate-100/60 dark:bg-white/[0.04] px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Asist. Mín: <b>{criterios.min_asist_reg}%</b> Reg. / <b>{criterios.min_asist_promo}%</b> Promo</span>
                 </span>
               </div>
 
@@ -177,11 +206,11 @@ export default function CatedraDetailPage() {
 
               {/* Schedules display */}
               {schedules.length > 0 && (
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <Clock className="w-3.5 h-3.5 text-text-muted" />
+                <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                  <Clock className="w-3.5 h-3.5 text-text-muted shrink-0" />
                   <span className="text-xs text-text-muted font-medium">Horarios:</span>
                   {schedules.map((s, idx) => (
-                    <span key={idx} className="text-xs bg-surface-hover px-2 py-0.5 rounded text-text-secondary font-mono">
+                    <span key={idx} className="text-xs bg-slate-100/80 dark:bg-white/[0.06] border border-slate-200/60 dark:border-white/5 px-2.5 py-0.5 rounded-lg text-text-secondary font-mono">
                       {s.dia} {s.desde}-{s.hasta} {s.aula ? `(${s.aula})` : ''}
                     </span>
                   ))}
@@ -190,21 +219,26 @@ export default function CatedraDetailPage() {
             </div>
 
             {/* Quick stats on header */}
-            <div className="flex items-center gap-4 bg-surface-hover/50 p-3 rounded-xl border border-surface-border">
-              <div className="text-center px-2">
+            <div className="flex items-center gap-3 sm:gap-4 bg-slate-100/60 dark:bg-white/[0.04] p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-white/5 shrink-0">
+              <div className="text-center px-2 sm:px-3">
                 <span className="text-[10px] uppercase font-bold text-text-muted block">Ciclo</span>
-                <span className="text-sm font-mono font-bold text-text-primary">{activeCiclo?.anio || '2026'}</span>
+                <span className="text-sm sm:text-base font-mono font-bold text-text-primary">{activeCiclo?.anio || '2026'}</span>
               </div>
-              <div className="h-6 w-px bg-surface-border" />
-              <div className="text-center px-2">
+              <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
+              <div className="text-center px-2 sm:px-3">
                 <span className="text-[10px] uppercase font-bold text-text-muted block">Régimen</span>
-                <span className="text-sm font-semibold text-text-primary">{catedra.modalidad}</span>
+                <span className="text-sm sm:text-base font-semibold text-text-primary">{catedra.modalidad}</span>
+              </div>
+              <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
+              <div className="text-center px-2 sm:px-3">
+                <span className="text-[10px] uppercase font-bold text-text-muted block">Aprobación</span>
+                <span className="text-sm sm:text-base font-mono font-bold text-primary">{criterios.nota_min_reg}+ / 10</span>
               </div>
             </div>
           </div>
 
-          {/* Tab Navigation with 44px touch targets on mobile */}
-          <div className="flex items-center gap-1.5 overflow-x-auto border-t border-surface-border mt-6 pt-3 pb-1 scrollbar-thin scroll-smooth -mx-2 px-2">
+          {/* Floating Pill Tab Navigation with 44px touch targets */}
+          <div className="flex items-center gap-1.5 overflow-x-auto border-t border-slate-200/60 dark:border-white/10 mt-6 pt-4 pb-1 scrollbar-thin scroll-smooth -mx-2 px-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -212,10 +246,10 @@ export default function CatedraDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                     isActive
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-text-muted hover:text-text-primary hover:bg-surface-hover'
+                      ? 'bg-primary text-white shadow-md shadow-primary/25 font-bold scale-[1.02]'
+                      : 'text-text-muted hover:text-text-primary hover:bg-slate-100/70 dark:hover:bg-white/[0.05]'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />

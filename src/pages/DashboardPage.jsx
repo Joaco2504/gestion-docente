@@ -22,14 +22,18 @@ import {
   Layers,
   Percent,
   CalendarDays,
-  ExternalLink
+  ExternalLink,
+  CheckSquare,
+  TrendingUp,
+  Zap,
+  ShieldAlert
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
-import { SkeletonCatedraCard } from '../components/common/SkeletonLoader';
+import { SkeletonCatedraCard, SkeletonBentoGrid } from '../components/common/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -489,6 +493,109 @@ export default function DashboardPage() {
   };
 
   /**
+   * Bento Box 1: Próxima Clase Inminente (Cálculo Dinámico por Horarios Semanales)
+   */
+  const upcomingClass = useMemo(() => {
+    if (!catedrasList || catedrasList.length === 0) return null;
+
+    const daysMap = { 'Domingo': 0, 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6 };
+    const now = new Date();
+    const currentDay = now.getDay();
+    const candidates = [];
+
+    catedrasList.forEach(cat => {
+      const schedules = Array.isArray(cat.horarios_semanales) ? cat.horarios_semanales : [];
+      schedules.forEach(h => {
+        const targetDay = daysMap[h.dia];
+        if (targetDay !== undefined) {
+          const diff = (targetDay - currentDay + 7) % 7;
+          const classDate = new Date();
+          classDate.setDate(now.getDate() + diff);
+          const [hh, mm] = (h.desde || '18:00').split(':');
+          classDate.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
+
+          candidates.push({
+            catedraId: cat.id,
+            nombre: cat.nombre,
+            institucion: cat.institucion_nombre,
+            nivel: cat.nivel,
+            modalidad: cat.modalidad,
+            dia: h.dia,
+            desde: h.desde || '18:00',
+            hasta: h.hasta || '20:00',
+            aula: h.aula || 'Aula Principal',
+            isToday: diff === 0,
+            date: classDate,
+            ultimaClase: cat.ultima_clase,
+            estudiantesCount: cat.estudiantes_count || 0
+          });
+        }
+      });
+    });
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => a.date - b.date);
+      return candidates[0];
+    }
+
+    // Si no hay horarios específicos configurados, seleccionar la primera cátedra activa
+    const firstCat = catedrasList[0];
+    return {
+      catedraId: firstCat.id,
+      nombre: firstCat.nombre,
+      institucion: firstCat.institucion_nombre,
+      nivel: firstCat.nivel,
+      modalidad: firstCat.modalidad,
+      dia: 'Próxima Sesión',
+      desde: '18:00',
+      hasta: '20:00',
+      aula: 'Aula de Cátedra',
+      isToday: false,
+      date: new Date(),
+      ultimaClase: firstCat.ultima_clase,
+      estudiantesCount: firstCat.estudiantes_count || 0
+    };
+  }, [catedrasList]);
+
+  /**
+   * Bento Box 2: Próximo Evento de la Agenda Crítica
+   */
+  const nextCriticalEvent = useMemo(() => {
+    if (!agendaItems || agendaItems.length === 0) return null;
+    const examOrPeriod = agendaItems.find(a => a.tipo === 'TRIBUNAL_EXAMEN' || a.tipo === 'PERIODO');
+    return examOrPeriod || agendaItems[0];
+  }, [agendaItems]);
+
+  /**
+   * Bento Box 3: Métricas Rápidas Globales
+   */
+  const globalMetrics = useMemo(() => {
+    let totalStudents = 0;
+    let validAttendanceSum = 0;
+    let attendanceCount = 0;
+    let totalClasses = 0;
+
+    catedrasList.forEach(c => {
+      totalStudents += (c.estudiantes_count || 0);
+      if (c.asistencia_promedio !== null && !isNaN(c.asistencia_promedio)) {
+        validAttendanceSum += Number(c.asistencia_promedio);
+        attendanceCount += 1;
+      }
+      if (c.ultima_clase) {
+        totalClasses += 1;
+      }
+    });
+
+    const averageAttendance = attendanceCount > 0 ? Math.round(validAttendanceSum / attendanceCount) : 0;
+    return {
+      totalStudents,
+      averageAttendance,
+      totalClasses,
+      activeCatedras: catedrasList.length
+    };
+  }, [catedrasList]);
+
+  /**
    * Crear Cátedra
    */
   const handleCreateCatedra = async (e) => {
@@ -736,18 +843,18 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn pb-12">
-      {/* 1. WELCOME HEADER & QUICK SUMMARY */}
-      <div className="bg-surface rounded-3xl p-5 sm:p-7 border border-surface-border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
-        {/* Glow decorativo sutil en azul Francia */}
-        <div className="absolute -right-10 -top-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="space-y-6 sm:space-y-8 animate-fadeIn pb-12">
+      {/* 1. WELCOME BENTO HEADER */}
+      <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl p-5 sm:p-7 border border-slate-200/80 dark:border-white/10 shadow-xs relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-5">
+        {/* Glow decorativo sutil */}
+        <div className="absolute -right-10 -top-10 w-52 h-52 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
               Panel de Control Central
             </span>
-            <span className="text-xs text-text-muted flex items-center gap-1">
+            <span className="text-xs text-text-muted flex items-center gap-1 font-medium">
               <CalendarDays className="w-3.5 h-3.5" />
               <span>{formatFechaLegible(new Date())}</span>
             </span>
@@ -757,7 +864,7 @@ export default function DashboardPage() {
             ¡Hola, {user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Profesor'}!
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary max-w-2xl leading-relaxed">
-            Vista unificada de todas tus cátedras, agenda de compromisos para los próximos 15 días y seguimiento de la última clase dictada.
+            Arquitectura visual unificada para el seguimiento de cátedras, asistencias y agenda académica.
           </p>
         </div>
 
@@ -770,7 +877,7 @@ export default function DashboardPage() {
               window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
               document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
             }}
-            className="flex-1 sm:flex-initial text-xs"
+            className="flex-1 sm:flex-initial text-xs rounded-xl"
           >
             Ver Calendario
           </Button>
@@ -782,27 +889,328 @@ export default function DashboardPage() {
               setErrorMsg('');
               setIsModalOpen(true);
             }}
-            className="flex-1 sm:flex-initial text-xs shadow-xs"
+            className="flex-1 sm:flex-initial text-xs shadow-xs rounded-xl"
           >
             Nueva Cátedra
           </Button>
         </div>
       </div>
 
-      {/* 2. SECCIÓN PRINCIPAL: TODAS MIS CÁTEDRAS (VISTA GLOBAL UNIFICADA) */}
+      {/* 2. BENTO GRID SYSTEM OVERVIEW (ASYMMETRICAL 4-COL GRID) */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 items-stretch">
+        {/* =========================================================
+            BENTO BOX 1 (HERO CARD - col-span-1 md:col-span-2 lg:col-span-2)
+            "Próxima Clase Inminente"
+           ========================================================= */}
+        <div className="col-span-1 md:col-span-2 lg:col-span-2 backdrop-blur-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 group">
+          {/* Ambient Glow */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/15 via-emerald-500/5 to-transparent rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10">
+            {/* Top Bar inside Box 1 */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted">
+                  {upcomingClass?.isToday ? 'Clase de Hoy' : 'Próxima Clase'}
+                </span>
+              </div>
+              <Badge variant={upcomingClass?.nivel === 'TERCIARIO' ? 'primary' : 'warning'}>
+                {upcomingClass?.nivel || 'NIVEL'}
+              </Badge>
+            </div>
+
+            {/* Subject Title */}
+            <h3
+              onClick={() => upcomingClass && navigate(`/catedra/${upcomingClass.catedraId}`)}
+              className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight group-hover:text-primary transition-colors cursor-pointer leading-tight line-clamp-1 mt-3"
+            >
+              {upcomingClass ? upcomingClass.nombre : 'Sin cátedras activas'}
+            </h3>
+
+            <p className="text-xs text-text-muted mt-1.5 flex items-center gap-1.5 truncate font-medium">
+              <Building className="w-3.5 h-3.5 shrink-0 text-primary/70" />
+              <span className="truncate">{upcomingClass?.institucion || 'Registra tu primera materia'}</span>
+            </p>
+
+            {/* Schedule & Room Chips */}
+            <div className="flex items-center gap-2 mt-4 flex-wrap text-xs font-mono">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/5 text-text-secondary font-semibold">
+                <Clock className="w-3.5 h-3.5 text-primary" />
+                <span>{upcomingClass ? `${upcomingClass.dia} • ${upcomingClass.desde || upcomingClass.hora}` : '--:--'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/5 text-text-secondary font-semibold">
+                <span>{upcomingClass?.aula || 'Aula regular'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/5 text-text-secondary font-semibold">
+                <Users className="w-3.5 h-3.5 text-text-muted" />
+                <span>{upcomingClass?.estudiantesCount || 0} alumnos</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Footer Action */}
+          <div className="relative z-10 pt-4 mt-5 border-t border-slate-200/60 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-xs text-text-muted truncate max-w-xs">
+              <span className="text-text-secondary font-medium">Tema: </span>
+              <span className="italic">{upcomingClass?.ultimaClase?.tema ? upcomingClass.ultimaClase.tema : 'Presentación y contenidos'}</span>
+            </div>
+            {upcomingClass && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={CheckSquare}
+                onClick={() => navigate(`/catedra/${upcomingClass.catedraId}?tab=asistencias`)}
+                className="text-xs font-bold shadow-xs whitespace-nowrap rounded-xl"
+              >
+                Iniciar Asistencia Rápida
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* =========================================================
+            BENTO BOX 2 (col-span-1)
+            "Agenda Crítica & Exámenes"
+           ========================================================= */}
+        <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
+
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <Award className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted">
+                  Agenda Crítica
+                </span>
+              </div>
+              {nextCriticalEvent && (
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  {getRelativeDateLabel(nextCriticalEvent.fecha)}
+                </span>
+              )}
+            </div>
+
+            {nextCriticalEvent ? (
+              <div className="my-auto py-3 space-y-2">
+                <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-text-secondary border border-slate-200/60 dark:border-white/5">
+                  {nextCriticalEvent.tipo === 'TRIBUNAL_EXAMEN' ? 'Mesa de Examen Final' : nextCriticalEvent.tipo === 'PERIODO' ? 'Cierre Académico' : 'Reunión Docente'}
+                </span>
+                <h4 className="text-sm font-bold text-text-primary leading-snug line-clamp-2">
+                  {nextCriticalEvent.titulo}
+                </h4>
+                <p className="text-[11px] text-text-muted font-mono flex items-center gap-1">
+                  <CalendarDays className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>{formatFechaLegible(nextCriticalEvent.fecha)}</span>
+                  {nextCriticalEvent.hora && <span>• {nextCriticalEvent.hora} hs</span>}
+                </p>
+              </div>
+            ) : (
+              <div className="my-auto py-6 text-center">
+                <CalendarIcon className="w-7 h-7 text-text-muted/40 mx-auto mb-1.5" />
+                <p className="text-xs text-text-muted">Sin mesas ni vencimientos en los próximos 15 días.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-3 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs">
+            <button
+              type="button"
+              onClick={() => setIsNewEventModalOpen(true)}
+              className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nuevo Recordatorio</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/calendario')}
+              className="text-[11px] text-text-muted hover:text-text-primary flex items-center gap-0.5 cursor-pointer"
+            >
+              <span>Ver todo</span>
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* =========================================================
+            BENTO BOX 3 (col-span-1)
+            "Métricas Rápidas & Asistencia Global"
+           ========================================================= */}
+        <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 relative overflow-hidden group">
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted">
+                  Métricas Rápidas
+                </span>
+              </div>
+              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                globalMetrics.averageAttendance >= 75
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+              }`}>
+                {globalMetrics.averageAttendance >= 75 ? 'Óptimo' : 'Seguimiento'}
+              </span>
+            </div>
+
+            {/* Circular Progress Ring & Numbers */}
+            <div className="my-auto py-2 flex items-center gap-4 justify-center sm:justify-start">
+              <div className="relative w-18 h-18 shrink-0 flex items-center justify-center">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="32"
+                    className="stroke-slate-200/80 dark:stroke-slate-800"
+                    strokeWidth="7"
+                    fill="transparent"
+                  />
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="32"
+                    className={`transition-all duration-1000 ease-out ${
+                      globalMetrics.averageAttendance >= 75
+                        ? 'stroke-emerald-500 dark:stroke-emerald-400'
+                        : 'stroke-amber-500 dark:stroke-amber-400'
+                    }`}
+                    strokeWidth="7"
+                    strokeDasharray={201}
+                    strokeDashoffset={201 - (201 * Math.min(globalMetrics.averageAttendance, 100)) / 100}
+                    strokeLinecap="round"
+                    fill="transparent"
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center text-center">
+                  <span className="text-sm font-mono font-bold text-text-primary">
+                    {globalMetrics.averageAttendance}%
+                  </span>
+                  <span className="text-[8px] font-mono uppercase text-text-muted -mt-0.5">Asist.</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 min-w-0">
+                <div>
+                  <span className="text-base font-bold font-mono text-text-primary block leading-none">
+                    {globalMetrics.totalStudents}
+                  </span>
+                  <span className="text-[11px] text-text-muted">Alumnos activos</span>
+                </div>
+                <div>
+                  <span className="text-base font-bold font-mono text-text-primary block leading-none">
+                    {globalMetrics.activeCatedras}
+                  </span>
+                  <span className="text-[11px] text-text-muted">Cátedras activas</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs">
+            <span className="text-[11px] text-text-muted font-mono">{globalMetrics.totalClasses} clases dictadas</span>
+            <span className="text-[11px] font-semibold text-primary">Ciclo {activeCiclo?.anio || '2026'}</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. BENTO BOX 5: ACCIONES RÁPIDAS Y ATAJOS MODULARES */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button
+          type="button"
+          onClick={() => { setErrorMsg(''); setIsModalOpen(true); }}
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+            <Plus className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-text-primary block truncate">Nueva Cátedra</span>
+            <span className="text-[10px] text-text-muted block truncate">Crear asignatura</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/calendario')}
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
+            <CalendarIcon className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-text-primary block truncate">Calendario y Mesas</span>
+            <span className="text-[10px] text-text-muted block truncate">Cronograma</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (upcomingClass) {
+              navigate(`/catedra/${upcomingClass.catedraId}?tab=asistencias`);
+            } else if (catedrasList.length > 0) {
+              navigate(`/catedra/${catedrasList[0].id}?tab=asistencias`);
+            } else {
+              toast.info('Crea una cátedra primero para gestionar inasistencias docentes.');
+            }
+          }}
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
+            <ShieldAlert className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-text-primary block truncate">Licencia Docente</span>
+            <span className="text-[10px] text-text-muted block truncate">Artículos y partes</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (upcomingClass) {
+              navigate(`/catedra/${upcomingClass.catedraId}?tab=recursos`);
+            } else if (catedrasList.length > 0) {
+              navigate(`/catedra/${catedrasList[0].id}?tab=recursos`);
+            } else {
+              toast.info('Crea una cátedra primero para subir archivos.');
+            }
+          }}
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+            <ExternalLink className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-text-primary block truncate">Recursos y Drive</span>
+            <span className="text-[10px] text-text-muted block truncate">Repositorio de cátedra</span>
+          </div>
+        </button>
+      </section>
+
+      {/* 4. BENTO BOX 4 (GRILLA EXPANDIDA): MIS CÁTEDRAS */}
       <section className="space-y-4">
         {/* Cabecera de Cátedras con Filtros y Buscador */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary">
               <BookOpen className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
-                Todas Mis Cátedras
+                Mis Cátedras Activas
               </h2>
-              <p className="text-[11px] text-text-muted">
-                {catedrasList.length} materias activas (Secundario y Terciario unificadas)
+              <p className="text-[11px] text-text-muted font-mono">
+                {filteredCatedras.length} de {catedrasList.length} materias visibles
               </p>
             </div>
           </div>
@@ -817,13 +1225,13 @@ export default function DashboardPage() {
                 placeholder="Buscar materia o colegio..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-surface-border bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200/80 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary cursor-pointer"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -831,11 +1239,11 @@ export default function DashboardPage() {
             </div>
 
             {/* Chips de filtro por nivel */}
-            <div className="flex items-center bg-surface-hover/80 p-1 rounded-xl border border-surface-border shrink-0">
+            <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/80 dark:border-white/10 shrink-0">
               <button
                 type="button"
                 onClick={() => setLevelFilter('ALL')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   levelFilter === 'ALL'
                     ? 'bg-surface text-primary shadow-xs'
                     : 'text-text-muted hover:text-text-primary'
@@ -846,7 +1254,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setLevelFilter('TERCIARIO')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   levelFilter === 'TERCIARIO'
                     ? 'bg-surface text-primary shadow-xs'
                     : 'text-text-muted hover:text-text-primary'
@@ -857,7 +1265,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setLevelFilter('SECUNDARIO')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   levelFilter === 'SECUNDARIO'
                     ? 'bg-surface text-primary shadow-xs'
                     : 'text-text-muted hover:text-text-primary'
@@ -869,7 +1277,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Grilla Responsive de Cátedras */}
+        {/* Grilla Responsive de Cátedras Bento */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             <SkeletonCatedraCard count={3} />
@@ -905,10 +1313,9 @@ export default function DashboardPage() {
               const asistPromedio = cat.asistencia_promedio;
 
               return (
-                <Card
+                <div
                   key={cat.id}
-                  hover
-                  className="flex flex-col justify-between group transition-all duration-200 border-surface-border hover:border-primary/40 hover:shadow-md p-5"
+                  className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs hover:shadow-md hover:-translate-y-1 hover:border-primary/40 transition-all duration-200 flex flex-col justify-between group"
                 >
                   <div className="space-y-4">
                     {/* Encabezado: Badges Nivel + Modalidad + Flecha de Acceso */}
@@ -925,8 +1332,8 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => navigate(`/catedra/${cat.id}`)}
-                        className="p-1 rounded-lg text-text-muted group-hover:text-primary group-hover:bg-primary/10 transition-all"
-                        title="Ver detalle completo de la cátedra"
+                        className="p-1.5 rounded-xl text-text-muted group-hover:text-primary group-hover:bg-primary/10 transition-all cursor-pointer"
+                        title="Ver detalle de la cátedra"
                       >
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                       </button>
@@ -943,15 +1350,15 @@ export default function DashboardPage() {
                       </h3>
 
                       {/* Etiqueta visual de la Institución con icono */}
-                      <div className="inline-flex items-center gap-1.5 mt-1.5 text-xs text-text-secondary bg-surface-hover/70 px-2.5 py-1 rounded-lg border border-surface-border/60 max-w-full truncate">
+                      <div className="inline-flex items-center gap-1.5 mt-2 text-xs text-text-secondary bg-slate-100/70 dark:bg-slate-800/50 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-white/5 max-w-full truncate font-medium">
                         <Building className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                        <span className="truncate font-medium">{cat.institucion_nombre}</span>
+                        <span className="truncate">{cat.institucion_nombre}</span>
                       </div>
                     </div>
 
                     {/* Métricas Rápidas: Alumnos Inscriptos + Asistencia General */}
                     <div className="grid grid-cols-2 gap-2 pt-1">
-                      <div className="p-2.5 rounded-xl bg-surface-hover/40 border border-surface-border/60 flex items-center gap-2">
+                      <div className="p-2.5 rounded-2xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 flex items-center gap-2">
                         <Users className="w-4 h-4 text-text-muted shrink-0" />
                         <div className="min-w-0">
                           <span className="text-[10px] text-text-muted block uppercase font-bold tracking-wider">Inscriptos</span>
@@ -961,7 +1368,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="p-2.5 rounded-xl bg-surface-hover/40 border border-surface-border/60 flex items-center gap-2">
+                      <div className="p-2.5 rounded-2xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 flex items-center gap-2">
                         <Percent className="w-4 h-4 text-text-muted shrink-0" />
                         <div className="min-w-0">
                           <span className="text-[10px] text-text-muted block uppercase font-bold tracking-wider">Asist. Media</span>
@@ -978,15 +1385,15 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* C. MÓDULO INTEGRADO: "ÚLTIMA CLASE REGISTRADA" */}
-                    <div className="rounded-2xl border border-surface-border bg-surface-hover/60 p-3.5 space-y-2">
+                    {/* MÓDULO INTEGRADO: "ÚLTIMA CLASE REGISTRADA" */}
+                    <div className="rounded-2xl border border-slate-200/60 dark:border-white/5 bg-slate-100/70 dark:bg-slate-800/50 p-3.5 space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-primary" />
                           <span>Última Clase Dictada</span>
                         </span>
                         {hasClases && (
-                          <span className="text-[11px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                             {formatFechaLegible(ultClase.fecha)}
                           </span>
                         )}
@@ -998,9 +1405,9 @@ export default function DashboardPage() {
                             {ultClase.tema || 'Clase regular sin tema especificado'}
                           </p>
 
-                          <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-surface-border/60 font-mono text-text-muted">
-                            <span className="text-text-secondary">Asistencia de la sesión:</span>
-                            <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                          <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-200/50 dark:border-white/5 font-mono text-text-muted">
+                            <span className="text-text-secondary">Asistencia:</span>
+                            <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
                               <CheckCircle2 className="w-3 h-3" />
                               {ultClase.presentes !== undefined 
                                 ? `${ultClase.presentes}/${ultClase.totalAsist || cat.estudiantes_count} presentes` 
@@ -1009,7 +1416,6 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       ) : (
-                        /* Si no tiene clases registradas aún */
                         <div className="text-center py-2 space-y-2">
                           <p className="text-[11px] text-text-muted">
                             Aún no hay sesiones de clase registradas.
@@ -1023,7 +1429,7 @@ export default function DashboardPage() {
                               setQuickTema('');
                               setIsQuickClassModalOpen(true);
                             }}
-                            className="inline-flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-xl text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-all touch-target-44"
+                            className="inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-all cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>+ Registrar Primera Clase</span>
@@ -1033,9 +1439,9 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Footer con Botón Principal "Ingresar a la Cátedra" */}
-                  <div className="pt-4 mt-2 border-t border-surface-border flex items-center justify-between gap-3">
-                    <span className="text-[11px] text-text-muted font-mono">
+                  {/* Footer con Horario y Botón Ingresar */}
+                  <div className="pt-4 mt-2 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-3">
+                    <span className="text-[11px] text-text-muted font-mono truncate max-w-[140px]">
                       {cat.horarios_semanales?.length > 0 
                         ? `${cat.horarios_semanales[0].dia} ${cat.horarios_semanales[0].desde || ''}` 
                         : 'Horario flexible'}
@@ -1046,12 +1452,12 @@ export default function DashboardPage() {
                       size="sm"
                       icon={ArrowRight}
                       onClick={() => navigate(`/catedra/${cat.id}`)}
-                      className="text-xs shadow-xs"
+                      className="text-xs shadow-xs rounded-xl"
                     >
-                      Ingresar a la Cátedra
+                      Ingresar
                     </Button>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
@@ -1093,9 +1499,9 @@ export default function DashboardPage() {
           </div>
         ) : agendaItems.length === 0 ? (
           /* Estado vacío elegante si no hay eventos próximos */
-          <div className="p-6 rounded-2xl bg-surface border border-surface-border text-center space-y-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-surface-hover text-text-muted flex items-center justify-center mx-auto">
-              <CalendarIcon className="w-5 h-5 opacity-60" />
+          <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-8 text-center space-y-3 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/[0.05] text-text-muted flex items-center justify-center mx-auto">
+              <CalendarIcon className="w-6 h-6 opacity-60" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-text-primary">
@@ -1126,7 +1532,7 @@ export default function DashboardPage() {
               return (
                 <div
                   key={item.id}
-                  className={`p-4 rounded-2xl border transition-all shadow-xs flex flex-col justify-between gap-3 ${styles.cardBg}`}
+                  className={`backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-200 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] flex flex-col justify-between gap-3 ${styles.cardBg}`}
                 >
                   <div className="flex items-start justify-between gap-2.5">
                     <div className="flex items-start gap-2.5 min-w-0">

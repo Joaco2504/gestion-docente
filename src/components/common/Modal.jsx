@@ -30,14 +30,14 @@ export default function Modal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200"
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Modal Dialog (Bottom Sheet on Mobile, Centered Modal on Tablet/Desktop) */}
       <div
-        className={`relative w-full ${maxWidth} bg-surface rounded-t-3xl sm:rounded-2xl shadow-elevated border-t sm:border border-surface-border overflow-hidden z-10 animate-slideUp sm:animate-fadeIn max-h-[90vh] sm:max-h-[85vh] flex flex-col`}
+        className={`relative w-full ${maxWidth} backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden z-10 animate-slideUp sm:animate-fadeIn max-h-[90vh] sm:max-h-[85vh] flex flex-col`}
         role="dialog"
         aria-modal="true"
       >
@@ -47,7 +47,7 @@ export default function Modal({
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-surface-border bg-surface-hover/30">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/30">
           <div>
             <h3 className="text-base font-bold text-text-primary">{title}</h3>
             {subtitle && (
