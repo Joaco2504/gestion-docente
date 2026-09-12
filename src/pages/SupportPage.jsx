@@ -30,7 +30,7 @@ import Button from '../components/common/Button';
 import CustomSelect from '../components/common/CustomSelect';
 import Modal from '../components/common/Modal';
 import MinimalSpinner from '../components/common/MinimalSpinner';
-import SupportContactIllustration from '../components/illustrations/SupportContactIllustration';
+import { SupportMailIllustration } from '../components/illustrations';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -411,9 +411,9 @@ export default function SupportPage() {
           <div className="absolute top-4 right-4 w-40 h-40 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="absolute bottom-10 left-4 w-48 h-48 bg-teal-400/20 dark:bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Gráfico Vectorial Pulido Estilo Tabler */}
+          {/* Gráfico Vectorial Pulido Estilo Tabler con avión flotante */}
           <div className="relative z-10 flex flex-col items-center text-center my-auto py-6">
-            <SupportContactIllustration className="w-48 h-48 sm:w-60 sm:h-60 mb-6" />
+            <SupportMailIllustration className="w-48 h-48 sm:w-60 sm:h-60 mb-6" />
 
             <div className="space-y-2 relative z-10">
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold tracking-wide uppercase">

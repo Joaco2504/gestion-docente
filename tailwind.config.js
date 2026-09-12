@@ -84,6 +84,19 @@ export default {
           '0%': { transform: 'translateX(-100%) scaleX(0.2)' },
           '50%': { transform: 'translateX(50%) scaleX(0.7)' },
           '100%': { transform: 'translateX(200%) scaleX(0.2)' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+          '50%': { transform: 'translateY(-6px) rotate(-2deg)' },
+        },
+        drawCheck: {
+          '0%': { strokeDashoffset: '100', opacity: '0' },
+          '40%': { opacity: '1' },
+          '100%': { strokeDashoffset: '0', opacity: '1' },
+        },
+        uploadPulse: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-4px)' },
         }
       },
       animation: {
@@ -94,6 +107,9 @@ export default {
         emeraldFlash: 'emeraldFlash 0.8s ease-out forwards',
         shimmer: 'shimmer 1.8s ease-in-out infinite',
         indeterminate: 'indeterminate 1.5s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite',
+        float: 'float 3s ease-in-out infinite',
+        drawCheck: 'drawCheck 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        uploadPulse: 'uploadPulse 2s ease-in-out infinite',
       }
     },
   },

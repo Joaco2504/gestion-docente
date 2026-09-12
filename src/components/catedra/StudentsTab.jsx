@@ -12,7 +12,8 @@ import {
   ArrowDownAZ,
   ArrowUpZA,
   ArrowUpDown,
-  GraduationCap
+  GraduationCap,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -21,12 +22,28 @@ import Card from '../common/Card';
 import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
+import ExpandableSearch from '../common/ExpandableSearch';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import ExcelImporter from './ExcelImporter';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
+import RiskBadge from '../common/RiskBadge';
+import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
+
+/**
+ * Normalización de texto reactiva:
+ * - Insensible a mayúsculas/minúsculas (.toLowerCase())
+ * - Remueve acentos, tildes y diacríticos (.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+ */
+const normalizeSearchText = (str) => {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+};
 
 export default function StudentsTab({ 
   catedraId, 
@@ -40,8 +57,13 @@ export default function StudentsTab({
 
   const [estudiantes, setEstudiantes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'import-excel'
+
+  // Limpiar automáticamente el campo de búsqueda al cambiar de cátedra o ciclo lectivo
+  useEffect(() => {
+    setSearchQuery('');
+  }, [catedraId, cicloId, activeCiclo?.id]);
 
   // Sorting state: 'apellido' | 'nombre' | 'dni' | 'condicion', 'asc' (A-Z) | 'desc' (Z-A)
   const [sortField, setSortField] = useState('apellido');
@@ -226,6 +248,25 @@ export default function StudentsTab({
 
     return res?.condicion || 'REGULAR';
   };
+
+  // Mapa reactivo del Semáforo de Riesgo por estudiante
+  const studentRiskMap = useMemo(() => {
+    const map = new Map();
+    estudiantes.forEach(st => {
+      const risk = calculateStudentRisk(st.id, {
+        asistencias,
+        clases,
+        inasistenciasDocente,
+        evaluaciones,
+        notas,
+        criterios,
+        academicLevel,
+        modalidad
+      });
+      map.set(st.id, risk);
+    });
+    return map;
+  }, [estudiantes, asistencias, clases, inasistenciasDocente, evaluaciones, notas, criterios, academicLevel, modalidad]);
 
   const getCondBadgeVariant = (cond) => {
     switch (cond) {
@@ -528,18 +569,44 @@ export default function StudentsTab({
     }
   };
 
-  // Filtrado y Ordenamiento A-Z / Z-A en tiempo real
+  // Filtrado reactivo en tiempo real (Client-side) y ordenamiento sin mutar el array original
   const filteredAndSortedStudents = useMemo(() => {
-    const q = searchTerm.toLowerCase().trim();
+    const rawQuery = searchQuery.trim();
+    const normalizedQuery = normalizeSearchText(rawQuery);
+    const digitsOnlyQuery = rawQuery.replace(/\D/g, '');
+
     let list = estudiantes.filter(st => {
-      if (!q) return true;
-      const fullName = `${st.apellido} ${st.nombre}`.toLowerCase();
-      const dni = String(st.dni || '').toLowerCase();
-      const cond = getStudentCondition(st.id).toLowerCase();
-      return fullName.includes(q) || dni.includes(q) || cond.includes(q);
+      if (!normalizedQuery) return true;
+
+      const normApellido = normalizeSearchText(st.apellido);
+      const normNombre = normalizeSearchText(st.nombre);
+      const normFullName1 = `${normApellido} ${normNombre}`;
+      const normFullName2 = `${normNombre} ${normApellido}`;
+
+      // 1. Coincidencia por Apellido (ej. Gomez -> Gómez)
+      const matchApellido = normApellido.includes(normalizedQuery);
+
+      // 2. Coincidencia por Nombre (ej. Maria -> María)
+      const matchNombre = normNombre.includes(normalizedQuery);
+
+      // Coincidencias de nombre y apellido combinados
+      const matchFullName = normFullName1.includes(normalizedQuery) || normFullName2.includes(normalizedQuery);
+
+      // 3. Coincidencia por DNI (insensible a puntos y formato numérico)
+      const rawDni = String(st.dni || '');
+      const digitsOnlyDni = rawDni.replace(/\D/g, '');
+      const matchDni = rawDni.toLowerCase().includes(normalizedQuery) ||
+        (digitsOnlyQuery.length > 0 && digitsOnlyDni.includes(digitsOnlyQuery));
+
+      // 4. Coincidencia por Condición Académica
+      const cond = normalizeSearchText(getStudentCondition(st.id));
+      const matchCond = cond.includes(normalizedQuery);
+
+      return matchApellido || matchNombre || matchFullName || matchDni || matchCond;
     });
 
-    list.sort((a, b) => {
+    // Ordenamiento A-Z / Z-A sin mutar el array original
+    return [...list].sort((a, b) => {
       let valA = '';
       let valB = '';
 
@@ -560,9 +627,7 @@ export default function StudentsTab({
       const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-
-    return list;
-  }, [estudiantes, searchTerm, sortField, sortDirection, asistencias, evaluaciones, notas, clases, inasistenciasDocente, criterios, academicLevel, modalidad]);
+  }, [estudiantes, searchQuery, sortField, sortDirection, asistencias, evaluaciones, notas, clases, inasistenciasDocente, criterios, academicLevel, modalidad]);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
@@ -600,12 +665,18 @@ export default function StudentsTab({
                 <Users className="w-5 h-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-sm font-bold text-text-primary">
                     Nómina de Alumnos
                   </h3>
-                  <Badge variant="default" className="font-mono text-[11px]">
-                    {estudiantes.length} {estudiantes.length === 1 ? 'alumno' : 'alumnos'}
+                  <Badge 
+                    variant={searchQuery.trim() ? "primary" : "default"} 
+                    className="font-mono text-[11px] transition-all"
+                  >
+                    {searchQuery.trim() 
+                      ? `Mostrando ${filteredAndSortedStudents.length} de ${estudiantes.length} alumnos`
+                      : `${estudiantes.length} ${estudiantes.length === 1 ? 'alumno' : 'alumnos'}`
+                    }
                   </Badge>
                 </div>
                 <p className="text-xs text-text-muted mt-0.5">
@@ -636,24 +707,33 @@ export default function StudentsTab({
             </div>
           </div>
 
-          {/* Search bar & Sort A-Z / Z-A Controls */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar alumno por Apellido, Nombre, DNI o Condición..."
-                className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-surface border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none text-text-primary placeholder:text-text-muted transition-all"
+          {/* Search bar expandible reactiva, Contador de Coincidencias & Orden A-Z */}
+          <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <ExpandableSearch
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery('')}
+                placeholder="Buscar por Apellido, Nombre o DNI..."
+                widthClass="w-full sm:w-80 md:w-96"
               />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-text-primary font-medium"
-                >
-                  Limpiar
-                </button>
+
+              {/* Contador de coincidencias en escritorio */}
+              {searchQuery.trim() && (
+                <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary animate-fadeIn shrink-0 shadow-xs">
+                  <span>
+                    Mostrando <strong className="font-mono font-bold text-primary">{filteredAndSortedStudents.length}</strong> de <span className="font-mono">{estudiantes.length}</span> alumnos
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="p-0.5 hover:bg-primary/20 rounded-full transition-colors text-primary ml-0.5 cursor-pointer"
+                    title="Limpiar búsqueda"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
 
@@ -661,7 +741,7 @@ export default function StudentsTab({
             <button
               type="button"
               onClick={toggleSortAZ}
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-text-primary transition-all shadow-xs shrink-0 touch-target-44"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-text-primary transition-all shadow-xs shrink-0 touch-target-44 active:scale-95 duration-100 cursor-pointer"
               title={sortDirection === 'asc' ? 'Orden alfabético A-Z activo. Clic para ordenar Z-A' : 'Orden alfabético Z-A activo. Clic para ordenar A-Z'}
             >
               {sortDirection === 'asc' ? (
@@ -677,6 +757,23 @@ export default function StudentsTab({
               )}
             </button>
           </div>
+
+          {/* Contador de coincidencias visible en dispositivos móviles cuando hay búsqueda activa */}
+          {searchQuery.trim() && (
+            <div className="flex sm:hidden items-center justify-between px-3.5 py-2 rounded-2xl bg-primary/10 border border-primary/20 text-xs font-semibold text-primary animate-fadeIn shadow-xs">
+              <span>
+                Mostrando <strong className="font-mono font-bold">{filteredAndSortedStudents.length}</strong> de <span className="font-mono">{estudiantes.length}</span> alumnos
+              </span>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-xs text-primary font-bold hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <span>Limpiar</span>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Student Table / Cards */}
           {loading ? (
@@ -698,12 +795,13 @@ export default function StudentsTab({
             />
           ) : filteredAndSortedStudents.length === 0 ? (
             <EmptyState
-              illustration="folder"
-              title={`No se encontraron alumnos para "${searchTerm}"`}
-              description="Verifica los términos de búsqueda o borra el filtro para ver la nómina completa."
-              actionLabel="Borrar Búsqueda"
-              actionVariant="outline"
-              onAction={() => setSearchTerm('')}
+              illustration="search"
+              title={`No se encontraron alumnos que coincidan con "${searchQuery}"`}
+              description="Verifica que el apellido, nombre o número de DNI estén bien escritos, o restablece la vista para ver la nómina completa."
+              actionLabel="Restablecer Vista"
+              actionIcon={X}
+              actionVariant="primary"
+              onAction={() => setSearchQuery('')}
             />
           ) : (
             <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
@@ -787,9 +885,12 @@ export default function StudentsTab({
 
                           {/* 4. Condición */}
                           <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                            <Badge variant={getCondBadgeVariant(cond)}>
-                              {cond}
-                            </Badge>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Badge variant={getCondBadgeVariant(cond)}>
+                                {cond}
+                              </Badge>
+                              <RiskBadge risk={studentRiskMap.get(st.id)} compact />
+                            </div>
                           </td>
 
                           {/* 5. Acciones */}

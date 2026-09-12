@@ -34,6 +34,8 @@ import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import EmptyState from '../components/common/EmptyState';
+import ExpandableSearch from '../components/common/ExpandableSearch';
+import { EmptyStateIllustration } from '../components/illustrations';
 import { SkeletonCatedraCard, SkeletonBentoGrid } from '../components/common/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -89,6 +91,11 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchDashboardData();
   }, [user, activeCiclo]);
+
+  // Limpiar campo de búsqueda al cambiar de ciclo lectivo o institución activa
+  useEffect(() => {
+    setSearchQuery('');
+  }, [activeCiclo?.id, activeInstitucion?.id]);
 
   // Set default institution in creation modal
   useEffect(() => {
@@ -426,10 +433,22 @@ export default function DashboardPage() {
     setAgendaItems(demoAgenda);
   };
 
+// Normalización de texto reactiva para búsqueda de cátedras
+const normalizeSearchText = (str) => {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+};
+
   /**
-   * Filtrado y búsqueda interactiva de cátedras
+   * Filtrado y búsqueda reactiva de cátedras (Client-side)
    */
   const filteredCatedras = useMemo(() => {
+    const rawQuery = searchQuery.trim();
+    const normalizedQuery = normalizeSearchText(rawQuery);
+
     return catedrasList.filter(cat => {
       // Filtro por Nivel
       if (levelFilter !== 'ALL' && cat.nivel !== levelFilter) {
@@ -439,12 +458,12 @@ export default function DashboardPage() {
       if (selectedInstFilter !== 'ALL' && cat.institucion_id !== selectedInstFilter) {
         return false;
       }
-      // Búsqueda por texto (nombre de cátedra o institución)
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesName = cat.nombre?.toLowerCase().includes(q);
-        const matchesInst = cat.institucion_nombre?.toLowerCase().includes(q);
-        if (!matchesName && !matchesInst) return false;
+      // Búsqueda por texto insensible a mayúsculas y tildes (nombre de cátedra o institución)
+      if (normalizedQuery) {
+        const matchesName = normalizeSearchText(cat.nombre).includes(normalizedQuery);
+        const matchesInst = normalizeSearchText(cat.institucion_nombre).includes(normalizedQuery);
+        const matchesNivel = normalizeSearchText(cat.nivel).includes(normalizedQuery);
+        if (!matchesName && !matchesInst && !matchesNivel) return false;
       }
       return true;
     });
@@ -1211,33 +1230,42 @@ export default function DashboardPage() {
                 Mis Cátedras Activas
               </h2>
               <p className="text-[11px] text-text-muted font-mono">
-                {filteredCatedras.length} de {catedrasList.length} materias visibles
+                {searchQuery.trim()
+                  ? `Mostrando ${filteredCatedras.length} de ${catedrasList.length} materias`
+                  : `${filteredCatedras.length} de ${catedrasList.length} materias visibles`
+                }
               </p>
             </div>
           </div>
 
           {/* Barra de Filtros interactiva */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {/* Buscador de texto */}
-            <div className="relative flex-1 sm:w-60 min-w-[180px]">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Buscar materia o colegio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200/80 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              />
-              {searchQuery && (
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* Buscador de texto expandible */}
+            <ExpandableSearch
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery('')}
+              placeholder="Buscar materia o colegio..."
+              widthClass="w-56 sm:w-64 md:w-72"
+            />
+
+            {/* Contador de coincidencias en vivo si hay búsqueda activa */}
+            {searchQuery.trim() && (
+              <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary animate-fadeIn shrink-0 shadow-xs">
+                <span>
+                  Mostrando <strong className="font-mono font-bold text-primary">{filteredCatedras.length}</strong> de <span className="font-mono">{catedrasList.length}</span> cátedras
+                </span>
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary cursor-pointer"
+                  className="p-0.5 hover:bg-primary/20 rounded-full transition-colors text-primary ml-0.5 cursor-pointer"
+                  title="Limpiar búsqueda"
+                  aria-label="Limpiar búsqueda"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Chips de filtro por nivel */}
             <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/80 dark:border-white/10 shrink-0">
@@ -1285,15 +1313,15 @@ export default function DashboardPage() {
           </div>
         ) : filteredCatedras.length === 0 ? (
           <EmptyState
-            illustration="folder"
-            title={searchQuery ? "No se encontraron cátedras coincidentes" : "No hay cátedras registradas"}
+            illustration={searchQuery ? "search" : "folder"}
+            title={searchQuery ? `No se encontraron cátedras que coincidan con "${searchQuery}"` : "No hay cátedras registradas"}
             description={
               searchQuery
-                ? `No hay resultados para "${searchQuery}". Intenta con otro término de búsqueda o cambia de nivel.`
+                ? `No hay materias ni colegios que coincidan con "${searchQuery}". Intenta con otro término de búsqueda o cambia de nivel.`
                 : 'Aún no has registrado materias en este ciclo lectivo o nivel educativo.'
             }
-            actionLabel={searchQuery ? "Restablecer Filtros" : "Crear Primera Cátedra"}
-            actionIcon={searchQuery ? undefined : Plus}
+            actionLabel={searchQuery ? "Restablecer Vista" : "Crear Primera Cátedra"}
+            actionIcon={searchQuery ? X : Plus}
             onAction={() => {
               if (searchQuery) {
                 setSearchQuery('');
@@ -1496,16 +1524,14 @@ export default function DashboardPage() {
             <div className="h-24 rounded-2xl bg-surface-hover animate-pulse" />
           </div>
         ) : agendaItems.length === 0 ? (
-          /* Estado vacío elegante si no hay eventos próximos */
-          <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-8 text-center space-y-3 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/[0.05] text-text-muted flex items-center justify-center mx-auto">
-              <CalendarIcon className="w-6 h-6 opacity-60" />
-            </div>
+          /* Estado vacío Bento elegante si no hay eventos próximos con ilustración Tabler */
+          <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-6 sm:p-8 text-center space-y-3 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] flex flex-col items-center justify-center animate-fadeInUp">
+            <EmptyStateIllustration className="w-28 h-28 sm:w-36 sm:h-36 mx-auto" />
             <div>
-              <h3 className="text-sm font-bold text-text-primary">
+              <h3 className="text-sm sm:text-base font-bold text-text-primary">
                 No tienes compromisos ni exámenes programados para los próximos 15 días
               </h3>
-              <p className="text-xs text-text-muted mt-0.5 max-w-md mx-auto">
+              <p className="text-xs text-text-muted mt-1 max-w-md mx-auto">
                 Tu agenda está al día. Puedes registrar mesas examinadoras, reuniones institucionales o entregas de notas.
               </p>
             </div>
@@ -1514,7 +1540,7 @@ export default function DashboardPage() {
               size="sm"
               icon={Plus}
               onClick={() => setIsNewEventModalOpen(true)}
-              className="text-xs mx-auto"
+              className="text-xs mx-auto active:scale-95 duration-100"
             >
               Crear Recordatorio / Evento
             </Button>

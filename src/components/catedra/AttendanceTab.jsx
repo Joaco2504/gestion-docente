@@ -16,7 +16,7 @@ import {
   Trash2,
   BookOpen,
   ChevronDown,
-  ChevronUp
+  Printer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -26,12 +26,15 @@ import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
+import PrintPreviewModal from '../common/PrintPreviewModal';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { formatFechaDMY, parseDMYtoYMD, getTodayYMD } from '../../lib/dateUtils';
 import { calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { DECRETO_1092_CATAMARCA } from '../../data/decreto1092Catamarca';
 import LicenciasDecreto1092Table from './LicenciasDecreto1092Table';
+import RiskBadge from '../common/RiskBadge';
+import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 
 export default function AttendanceTab({
   catedraId,
@@ -43,6 +46,9 @@ export default function AttendanceTab({
   const [estudiantes, setEstudiantes] = useState([]);
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
+  const [evaluaciones, setEvaluaciones] = useState([]);
+  const [notas, setNotas] = useState([]);
+  const [criterios, setCriterios] = useState({});
   const [loading, setLoading] = useState(true);
   const [flashingStudentId, setFlashingStudentId] = useState(null);
 
@@ -61,6 +67,23 @@ export default function AttendanceTab({
     });
     return map;
   }, [estudiantes, asistencias, clases, inasistenciasDocente]);
+
+  // Mapa reactivo del Semáforo de Riesgo por estudiante
+  const studentRiskMap = React.useMemo(() => {
+    const map = new Map();
+    estudiantes.forEach(est => {
+      const risk = calculateStudentRisk(est.id, {
+        asistencias,
+        clases,
+        inasistenciasDocente,
+        evaluaciones,
+        notas,
+        criterios
+      });
+      map.set(est.id, risk);
+    });
+    return map;
+  }, [estudiantes, asistencias, clases, inasistenciasDocente, evaluaciones, notas, criterios]);
 
   // Retroalimentación háptica en dispositivos móviles táctiles
   const triggerHapticFeedback = () => {
@@ -88,7 +111,8 @@ export default function AttendanceTab({
 
   // Estados para Tabla Resumen Decreto Acuerdo N° 1092 Catamarca
   const [isDecretoModalOpen, setIsDecretoModalOpen] = useState(false);
-  const [isLicenciasApartadoOpen, setIsLicenciasApartadoOpen] = useState(true);
+  const [isLicenciasApartadoOpen, setIsLicenciasApartadoOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Opciones completas de artículos oficiales según Decreto Acuerdo N° 1092/2015
   const articuloOptions = React.useMemo(() => [
@@ -143,6 +167,33 @@ export default function AttendanceTab({
           .from('inasistencias_docente')
           .select('*')
           .eq('catedra_id', catedraId);
+
+        // 5. Evaluaciones, Notas y Criterios (para Semáforo de Riesgo)
+        const { data: evData } = await supabase
+          .from('evaluaciones')
+          .select('*')
+          .eq('catedra_id', catedraId);
+        setEvaluaciones(evData || []);
+
+        const evIds = (evData || []).map(e => e.id);
+        if (evIds.length > 0) {
+          const { data: nData } = await supabase
+            .from('notas')
+            .select('*')
+            .in('evaluacion_id', evIds);
+          setNotas(nData || []);
+        } else {
+          setNotas([]);
+        }
+
+        try {
+          const { data: critData } = await supabase
+            .from('criterios_evaluacion')
+            .select('*')
+            .eq('catedra_id', catedraId)
+            .maybeSingle();
+          if (critData) setCriterios(critData);
+        } catch (_) {}
 
         const cls = cData || [];
         setClases(cls);
@@ -545,6 +596,19 @@ export default function AttendanceTab({
             {inasistenciaActual ? 'Ver Licencia Docente' : 'Inasistencia Docente'}
           </Button>
 
+          {/* Botón Imprimir / PDF Oficial */}
+          <Button
+            variant="outline"
+            size="sm"
+            icon={Printer}
+            onClick={() => setIsPrintModalOpen(true)}
+            disabled={estudiantes.length === 0}
+            className="flex-1 sm:flex-initial text-xs border-primary/30 text-primary hover:bg-primary/10 min-h-[44px] sm:min-h-0 touch-target-44"
+            title="Abrir visor de impresión y PDF oficial de la planilla de asistencias"
+          >
+            Imprimir Registro (PDF)
+          </Button>
+
           {/* Botón Nueva Clase */}
           <Button
             variant="primary"
@@ -692,9 +756,12 @@ export default function AttendanceTab({
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-text-primary truncate leading-tight">
-                          {est.apellido}, {est.nombre}
-                        </h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-sm font-bold text-text-primary truncate leading-tight">
+                            {est.apellido}, {est.nombre}
+                          </h4>
+                          <RiskBadge risk={studentRiskMap.get(est.id)} compact />
+                        </div>
                         <span className="text-[11px] font-mono text-text-muted">
                           DNI: {est.dni}
                         </span>
@@ -777,7 +844,10 @@ export default function AttendanceTab({
                         <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
                         <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
                         <td className="px-3 sm:px-4 py-3 font-semibold text-text-primary">
-                          {est.apellido}, {est.nombre}
+                          <div className="flex items-center gap-2">
+                            <span>{est.apellido}, {est.nombre}</span>
+                            <RiskBadge risk={studentRiskMap.get(est.id)} compact />
+                          </div>
                         </td>
                         <td className="px-3 sm:px-4 py-3">
                           <div className="flex items-center justify-center gap-2">
@@ -822,7 +892,10 @@ export default function AttendanceTab({
           APARTADO: RÉGIMEN DE LICENCIAS DOCENTES - DECRETO 1092
          ======================================================== */}
       <div className="mt-8 pt-6 border-t border-surface-border space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 sm:p-5 rounded-2xl border border-surface-border shadow-xs">
+        <div 
+          onClick={() => setIsLicenciasApartadoOpen(!isLicenciasApartadoOpen)}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 sm:p-5 rounded-2xl border border-surface-border shadow-xs cursor-pointer select-none transition-all"
+        >
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/20 shadow-xs">
               <BookOpen className="w-5 h-5" />
@@ -842,16 +915,22 @@ export default function AttendanceTab({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              icon={isLicenciasApartadoOpen ? ChevronUp : ChevronDown}
-              onClick={() => setIsLicenciasApartadoOpen(!isLicenciasApartadoOpen)}
-              className="text-xs"
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsLicenciasApartadoOpen(!isLicenciasApartadoOpen);
+              }}
+              aria-label={isLicenciasApartadoOpen ? "Colapsar tabla" : "Desplegar tabla"}
+              className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer shrink-0 active:scale-95 shadow-xs"
             >
-              {isLicenciasApartadoOpen ? 'Contraer Tabla' : 'Ver Tabla Resumen'}
-            </Button>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
+                  isLicenciasApartadoOpen ? 'rotate-180 text-primary' : 'rotate-0 text-text-muted'
+                }`}
+              />
+            </button>
           </div>
         </div>
 
@@ -1085,6 +1164,28 @@ export default function AttendanceTab({
           </div>
         </div>
       </Modal>
+
+      {/* Visor Unificado de Impresión de Asistencias */}
+      <PrintPreviewModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        type="asistencias"
+        title="Registro Oficial de Asistencias y Permanencia"
+        subtitle="Cómputo reglamentario para archivo en Secretaría Académica"
+        defaultOrientation="landscape"
+        data={{
+          catedra: { id: catedraId, nombre: catedraName },
+          estudiantes,
+          clases,
+          asistencias,
+          inasistenciasDocente,
+          studentStatsMap,
+          criterios,
+          cicloAnio: '2026',
+          institucionNombre: 'INSTITUTO DE EDUCACIÓN SUPERIOR',
+          docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular'
+        }}
+      />
     </div>
   );
 }

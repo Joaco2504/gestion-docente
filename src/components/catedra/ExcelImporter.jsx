@@ -6,8 +6,7 @@ import Badge from '../common/Badge';
 import CustomSelect from '../common/CustomSelect';
 import ProgressBar from '../common/ProgressBar';
 import MinimalSpinner from '../common/MinimalSpinner';
-import CloudUploadIllustration from '../illustrations/CloudUploadIllustration';
-import SuccessCheckIllustration from '../illustrations/SuccessCheckIllustration';
+import { CloudUploadIllustration, SuccessTaskIllustration } from '../illustrations';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -249,7 +248,7 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
       {importSuccessCount && (
         <div className="p-5 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-text-primary rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-fadeInUp">
           <div className="flex items-center gap-4">
-            <SuccessCheckIllustration className="w-16 h-16 sm:w-20 sm:h-20 shrink-0" />
+            <SuccessTaskIllustration className="w-16 h-16 sm:w-20 sm:h-20 shrink-0" />
             <div>
               <span className="font-bold text-sm text-emerald-800 dark:text-emerald-300 block">
                 ¡Importación completada con éxito!

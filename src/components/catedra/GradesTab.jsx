@@ -26,7 +26,8 @@ import {
   Link as LinkIcon,
   Trash2,
   ListChecks,
-  Check
+  Check,
+  Printer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -36,11 +37,14 @@ import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
+import PrintPreviewModal from '../common/PrintPreviewModal';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { exportGradesToExcel, exportGradesToCsv } from '../../lib/excel';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { formatFechaDMY, parseDMYtoYMD } from '../../lib/dateUtils';
 import { useAuth } from '../../context/AuthContext';
+import RiskBadge from '../common/RiskBadge';
+import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 
 export default function GradesTab({
   catedraId,
@@ -65,6 +69,7 @@ export default function GradesTab({
     nota_min_sec: 6
   });
   const [loading, setLoading] = useState(true);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Mobile View mode: 'table' | 'cards' | 'evaluaciones'
   // Default to cards on mobile screens (< 768px)
@@ -765,6 +770,24 @@ export default function GradesTab({
   // Build matrix data
   const mainEvaluations = evaluaciones.filter(e => e.tipo !== 'RECUPERATORIO');
 
+  const studentRiskMap = React.useMemo(() => {
+    const map = new Map();
+    estudiantes.forEach(est => {
+      const risk = calculateStudentRisk(est.id, {
+        asistencias,
+        clases,
+        inasistenciasDocente,
+        evaluaciones,
+        notas,
+        criterios,
+        academicLevel,
+        modalidad
+      });
+      map.set(est.id, risk);
+    });
+    return map;
+  }, [estudiantes, asistencias, clases, inasistenciasDocente, evaluaciones, notas, criterios, academicLevel, modalidad]);
+
   const matrixData = estudiantes.map(est => {
     const studentAsistencias = asistencias.filter(a => a.estudiante_id === est.id);
     const asistPct = calcularPorcentajeAsistencia(
@@ -913,6 +936,18 @@ export default function GradesTab({
 
           {/* Exportación: Excel & CSV */}
           <div className="inline-flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Printer}
+              onClick={() => setIsPrintModalOpen(true)}
+              disabled={estudiantes.length === 0}
+              className="text-xs font-bold border-primary/40 text-primary hover:bg-primary/10"
+              title="Abrir visor interactivo de impresión y PDF oficial de la sábana de notas"
+            >
+              <span className="hidden sm:inline">Imprimir / </span>PDF
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -1201,9 +1236,12 @@ export default function GradesTab({
                         {initials}
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-text-primary leading-tight">
-                          {est.apellido}, {est.nombre}
-                        </h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-sm font-bold text-text-primary leading-tight">
+                            {est.apellido}, {est.nombre}
+                          </h4>
+                          <RiskBadge risk={studentRiskMap.get(est.id)} compact />
+                        </div>
                         <span className="text-[11px] font-mono text-text-muted">
                           DNI: {est.dni}
                         </span>
@@ -1478,8 +1516,11 @@ export default function GradesTab({
                       <td className="hidden md:table-cell px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{idx + 1}</td>
                       <td className="hidden md:table-cell px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
                       <td className="sticky left-0 z-10 bg-surface dark:bg-slate-900 px-3 sm:px-4 py-3 font-semibold text-text-primary whitespace-nowrap border-r border-surface-border shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)]">
-                        <div className="font-semibold text-text-primary">
-                          {est.apellido}, {est.nombre}
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-text-primary">
+                            {est.apellido}, {est.nombre}
+                          </span>
+                          <RiskBadge risk={studentRiskMap.get(est.id)} compact />
                         </div>
                         <div className="text-[10px] font-mono text-text-muted md:hidden">
                           DNI: {est.dni}
@@ -1553,9 +1594,12 @@ export default function GradesTab({
                       {/* Final Condition Badge */}
                       <td className="px-4 py-3 text-center border-l border-surface-border bg-surface-hover/20">
                         <div className="flex flex-col items-center gap-1">
-                          <Badge variant={getCondBadgeVariant(item.condicion.condicion)}>
-                            {item.condicion.condicion}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant={getCondBadgeVariant(item.condicion.condicion)}>
+                              {item.condicion.condicion}
+                            </Badge>
+                            <RiskBadge risk={studentRiskMap.get(est.id)} compact />
+                          </div>
                           {item.condicion.motivo && (
                             <span className="text-[10px] text-text-muted truncate max-w-[130px]" title={item.condicion.motivo}>
                               {item.condicion.motivo}
@@ -1969,6 +2013,27 @@ export default function GradesTab({
           </div>
         </form>
       </Modal>
+
+      {/* Visor Unificado de Impresión de Calificaciones */}
+      <PrintPreviewModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        type="calificaciones"
+        title="Planilla Oficial de Calificaciones y Condiciones Finales"
+        subtitle="Sábana panorámica reglamentaria para archivo institucional y Libro Matriz"
+        defaultOrientation="landscape"
+        data={{
+          catedra: { id: catedraId, nombre: catedraName, nivel: academicLevel, modalidad },
+          estudiantes,
+          evaluaciones,
+          notas,
+          matrixData,
+          criterios,
+          cicloAnio: '2026',
+          institucionNombre: 'INSTITUTO DE EDUCACIÓN SUPERIOR',
+          docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular'
+        }}
+      />
     </div>
   );
 }

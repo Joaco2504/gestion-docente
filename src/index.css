@@ -145,6 +145,20 @@
   animation: emeraldFlash 0.8s ease-out forwards;
 }
 
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-draw-check {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: drawCheck 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.15s;
+}
+
+.animate-upload-pulse {
+  animation: uploadPulse 2s ease-in-out infinite;
+}
+
 /* Reduced motion safety */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
@@ -153,3 +167,86 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   SISTEMA REGLAMENTARIO DE IMPRESIÓN (@media print)
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 1.2cm 1cm;
+  }
+
+  @page landscape {
+    size: A4 landscape;
+    margin: 1cm 0.8cm;
+  }
+
+  .print-landscape {
+    page: landscape;
+  }
+
+  /* Reset global de cuerpo e impresión en blanco puro */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.3 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultar elementos de interfaz de usuario de la app */
+  nav,
+  aside,
+  header,
+  footer,
+  .print-hidden,
+  .no-print,
+  button:not(.allow-print),
+  .sonner-toaster {
+    display: none !important;
+  }
+
+  /* Hoja de Documento Oficial Imprimible */
+  .printable-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    transform: none !important;
+  }
+
+  /* Manejo de quiebres de página (evitar cortes de renglones y firmas) */
+  tr,
+  .print-row,
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border-color: #334155 !important;
+  }
+
+  /* Forzar colores de alto contraste para tinta y PDF */
+  .text-text-primary, .text-slate-900, .text-slate-800, .text-text-secondary {
+    color: #000000 !important;
+  }
+  
+  .border-slate-200, .border-surface-border, .border-slate-300 {
+    border-color: #cbd5e1 !important;
+  }
+}
+

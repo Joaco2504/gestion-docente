@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   Calendar,
   Percent,
-  BarChart3
+  BarChart3,
+  BookOpen,
+  Award
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
@@ -24,6 +26,9 @@ import GradesTab from '../components/catedra/GradesTab';
 import StudentsTab from '../components/catedra/StudentsTab';
 import ResourcesTab from '../components/catedra/ResourcesTab';
 import SettingsTab from '../components/catedra/SettingsTab';
+import LibroTemasTab from '../components/catedra/LibroTemasTab';
+import MesasExamenTab from '../components/catedra/MesasExamenTab';
+import EarlyWarningCard from '../components/catedra/EarlyWarningCard';
 import CatedraStatsModal from '../components/catedra/CatedraStatsModal';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -38,14 +43,13 @@ export default function CatedraDetailPage() {
 
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const tabFromUrl = searchParams.get('tab');
+  const validTabs = ['alumnos', 'asistencias', 'calificaciones', 'libro-temas', 'mesas-examen', 'recursos', 'configuracion'];
   const [activeTab, setActiveTab] = useState(() => {
-    return ['alumnos', 'asistencias', 'calificaciones', 'recursos', 'configuracion'].includes(tabFromUrl)
-      ? tabFromUrl
-      : 'asistencias';
+    return validTabs.includes(tabFromUrl) ? tabFromUrl : 'asistencias';
   });
 
   useEffect(() => {
-    if (tabFromUrl && ['alumnos', 'asistencias', 'calificaciones', 'recursos', 'configuracion'].includes(tabFromUrl)) {
+    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl]);
@@ -173,6 +177,8 @@ export default function CatedraDetailPage() {
     { id: 'alumnos', label: 'Alumnos', icon: Users },
     { id: 'asistencias', label: 'Asistencias', icon: CheckSquare },
     { id: 'calificaciones', label: 'Calificaciones', icon: GraduationCap },
+    { id: 'libro-temas', label: 'Libro de Temas', icon: BookOpen },
+    { id: 'mesas-examen', label: 'Mesas de Examen', icon: Award },
     { id: 'recursos', label: 'Recursos y Archivos', icon: FolderOpen },
     { id: 'configuracion', label: 'Configuración y Criterios', icon: SettingsIcon }
   ];
@@ -285,6 +291,15 @@ export default function CatedraDetailPage() {
         </div>
       </div>
 
+      {/* Tarjeta Bento: Alertas Preventivas y Semáforo de Riesgo */}
+      <EarlyWarningCard
+        catedraId={catedra.id}
+        criterios={criterios}
+        academicLevel={catedra.nivel}
+        modalidad={catedra.modalidad}
+        onSelectTab={handleTabChange}
+      />
+
       {/* Tab Contents con micro-animación suave de entrada (200ms) */}
       <div key={activeTab} className="mt-4 animate-fadeInUp">
         {activeTab === 'asistencias' && (
@@ -307,6 +322,22 @@ export default function CatedraDetailPage() {
             academicLevel={catedra.nivel}
             modalidad={catedra.modalidad}
             cicloId={catedra.ciclo_id || activeCiclo?.id}
+          />
+        )}
+
+        {activeTab === 'libro-temas' && (
+          <LibroTemasTab 
+            catedraId={catedra.id} 
+            catedraName={catedra.nombre} 
+          />
+        )}
+
+        {activeTab === 'mesas-examen' && (
+          <MesasExamenTab 
+            catedraId={catedra.id} 
+            catedraName={catedra.nombre} 
+            academicLevel={catedra.nivel}
+            modalidad={catedra.modalidad}
           />
         )}
 

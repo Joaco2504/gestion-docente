@@ -15,8 +15,7 @@ import {
   Sparkles,
   ShieldCheck,
   GraduationCap,
-  ChevronDown,
-  ChevronUp
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../components/common/Button';
@@ -395,15 +394,15 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-semibold text-primary hidden sm:inline">
-              {isPeriodsOpen ? 'Ocultar' : 'Configurar'}
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-surface-hover flex items-center justify-center text-text-secondary group-hover:text-primary transition-colors">
-              {isPeriodsOpen ? (
-                <ChevronUp className="w-4 h-4 transition-transform" />
-              ) : (
-                <ChevronDown className="w-4 h-4 transition-transform" />
-              )}
+            <div
+              aria-label={isPeriodsOpen ? "Colapsar sección" : "Desplegar sección"}
+              className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface group-hover:bg-primary/10 group-hover:text-primary transition-all duration-200 shrink-0 shadow-xs"
+            >
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
+                  isPeriodsOpen ? 'rotate-180 text-primary' : 'rotate-0 text-text-muted'
+                }`}
+              />
             </div>
           </div>
         </button>

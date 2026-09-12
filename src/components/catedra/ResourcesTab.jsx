@@ -430,9 +430,9 @@ export default function ResourcesTab({ catedraId, catedraName }) {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="cursor-pointer flex flex-col items-center justify-center gap-2 group"
+                  className="cursor-pointer flex flex-col items-center justify-center gap-2 group py-2"
                 >
-                  <CloudUploadIllustration className="w-20 h-16 text-primary shrink-0 transition-transform duration-200 group-hover:scale-105" />
+                  <CloudUploadIllustration className="w-28 h-28 sm:w-32 sm:h-32 shrink-0 transition-transform duration-200 group-hover:scale-105" />
                   {selectedFile ? (
                     <div>
                       <p className="text-xs font-bold text-text-primary break-all">{selectedFile.name}</p>

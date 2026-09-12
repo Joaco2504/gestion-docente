@@ -1,14 +1,18 @@
 import React from 'react';
 import Card from './Card';
 import Button from './Button';
-import EmptyFolderIllustration from '../illustrations/EmptyFolderIllustration';
-import CloudUploadIllustration from '../illustrations/CloudUploadIllustration';
-import SuccessCheckIllustration from '../illustrations/SuccessCheckIllustration';
+import {
+  EmptyStateIllustration,
+  SuccessTaskIllustration,
+  SupportMailIllustration,
+  CloudUploadIllustration,
+  SearchEmptyIllustration
+} from '../illustrations';
 
 /**
  * EmptyState - Componente reutilizable para estados vacíos con ilustraciones vectoriales Tabler.
  * 
- * @param {'folder'|'upload'|'success'|React.ReactNode} illustration - Tipo de ilustración a mostrar
+ * @param {'folder'|'empty'|'upload'|'success'|'task'|'support'|'search'|React.ReactNode} illustration - Tipo de ilustración a mostrar
  * @param {string} title - Título del estado vacío
  * @param {string} description - Explicación o guía para el usuario
  * @param {React.ReactNode} action - Botón o elemento de acción directa (opcional)
@@ -43,13 +47,21 @@ export default function EmptyState({
     }
 
     switch (illustration) {
+      case 'search':
+        return <SearchEmptyIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />;
+      case 'support':
+      case 'mail':
+        return <SupportMailIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />;
       case 'upload':
+      case 'cloud':
         return <CloudUploadIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />;
       case 'success':
-        return <SuccessCheckIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />;
+      case 'task':
+        return <SuccessTaskIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />;
       case 'folder':
+      case 'empty':
       default:
-        return <EmptyFolderIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />;
+        return <EmptyStateIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />;
     }
   };
 

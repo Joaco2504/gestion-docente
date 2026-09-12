@@ -10,7 +10,8 @@ import {
   CheckCircle2, 
   AlertCircle, 
   HelpCircle,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  ChevronDown
 } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
@@ -53,6 +54,10 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
     { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
   ]);
+
+  // Accordion collapse states (OBLIGATORIAMENTE CERRADOS / COLAPSADOS por defecto)
+  const [isPeriodosOpen, setIsPeriodosOpen] = useState(false);
+  const [isCriteriosOpen, setIsCriteriosOpen] = useState(false);
 
   // Initial snapshot to automatically detect dirty/modified state
   const [initialSnapshot, setInitialSnapshot] = useState(null);
@@ -434,204 +439,306 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         )}
       </Card>
 
-      {/* Límites de Períodos Académicos y Receso */}
+      {/* Límites de Períodos Académicos y Receso (Acordeón Bento) */}
       <Card>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 mb-4 border-b border-surface-border">
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold text-text-primary">
-              Límites de Períodos Académicos y Receso Invernal
-            </h3>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            icon={Plus}
-            onClick={handleAddPeriodo}
-            className="text-xs"
-          >
-            Agregar Período
-          </Button>
-        </div>
-
-        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary leading-relaxed mb-4">
-          <strong>Regla Estricta:</strong> Las clases proyectadas y recurrentes en el calendario se limitan a este rango de fechas y se excluyen automáticamente durante los días del Receso Invernal.
-        </div>
-
-        <div className="space-y-3">
-          {periodos.map((p, index) => (
-            <div
-              key={p.id || index}
-              className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
-            >
-              <div className="w-full sm:w-44">
-                <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
-                  Nombre del Período
-                </label>
-                <input
-                  type="text"
-                  value={p.nombre}
-                  onChange={(e) => handlePeriodoChange(index, 'nombre', e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold border border-surface-border rounded-lg bg-surface text-text-primary"
-                  placeholder="Ej: 1° Cuatrimestre"
-                />
-              </div>
-
-              <div className="w-full sm:w-36">
-                <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
-                  Tipo
-                </label>
-                <CustomSelect
-                  value={p.tipo}
-                  onChange={(val) => handlePeriodoChange(index, 'tipo', typeof val === 'object' ? val.target.value : val)}
-                  options={[
-                    { value: 'CUATRIMESTRE', label: 'Cuatrimestre' },
-                    { value: 'TRIMESTRE', label: 'Trimestre' },
-                    { value: 'RECESO', label: 'Receso Invernal' }
-                  ]}
-                  buttonClassName="py-1.5 px-2.5 text-xs font-medium"
-                />
-              </div>
-
-              <div className="flex-1 grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
-                    Fecha Inicio
-                  </label>
-                  <input
-                    type="date"
-                    value={p.fecha_inicio || ''}
-                    onChange={(e) => handlePeriodoChange(index, 'fecha_inicio', e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
-                    Fecha Fin
-                  </label>
-                  <input
-                    type="date"
-                    value={p.fecha_fin || ''}
-                    onChange={(e) => handlePeriodoChange(index, 'fecha_fin', e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleRemovePeriodo(index)}
-                className="p-1.5 text-text-muted hover:text-danger rounded-md hover:bg-danger/10 transition-colors self-end sm:self-center"
-                title="Eliminar período"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+        <div 
+          onClick={() => setIsPeriodosOpen(!isPeriodosOpen)}
+          className={`flex items-center justify-between cursor-pointer select-none transition-all ${
+            isPeriodosOpen ? 'pb-3 mb-4 border-b border-surface-border' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <CalendarIcon className="w-4 h-4" />
             </div>
-          ))}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-text-primary">
+                  Límites de Períodos Académicos y Receso Invernal
+                </h3>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-hover text-text-muted border border-surface-border">
+                  {periodos.length} {periodos.length === 1 ? 'período' : 'períodos'}
+                </span>
+              </div>
+              {!isPeriodosOpen && (
+                <p className="text-xs text-text-muted mt-0.5 truncate hidden sm:block">
+                  {periodos.length > 0 ? periodos.map(p => p.nombre).join(' • ') : 'Sin períodos configurados'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isPeriodosOpen && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={Plus}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddPeriodo();
+                }}
+                className="text-xs hidden sm:inline-flex"
+              >
+                Agregar Período
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPeriodosOpen(!isPeriodosOpen);
+              }}
+              aria-label={isPeriodosOpen ? "Colapsar sección" : "Desplegar sección"}
+              className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer shrink-0 active:scale-95 shadow-xs"
+            >
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
+                  isPeriodosOpen ? 'rotate-180 text-primary' : 'rotate-0 text-text-muted'
+                }`}
+              />
+            </button>
+          </div>
         </div>
+
+        {isPeriodosOpen && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="flex sm:hidden justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                icon={Plus}
+                onClick={handleAddPeriodo}
+                className="text-xs w-full"
+              >
+                Agregar Período
+              </Button>
+            </div>
+
+            <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary leading-relaxed">
+              <strong>Regla Estricta:</strong> Las clases proyectadas y recurrentes en el calendario se limitan a este rango de fechas y se excluyen automáticamente durante los días del Receso Invernal.
+            </div>
+
+            <div className="space-y-3">
+              {periodos.map((p, index) => (
+                <div
+                  key={p.id || index}
+                  className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+                >
+                  <div className="w-full sm:w-44">
+                    <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
+                      Nombre del Período
+                    </label>
+                    <input
+                      type="text"
+                      value={p.nombre}
+                      onChange={(e) => handlePeriodoChange(index, 'nombre', e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs font-semibold border border-surface-border rounded-lg bg-surface text-text-primary"
+                      placeholder="Ej: 1° Cuatrimestre"
+                    />
+                  </div>
+
+                  <div className="w-full sm:w-36">
+                    <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
+                      Tipo
+                    </label>
+                    <CustomSelect
+                      value={p.tipo}
+                      onChange={(val) => handlePeriodoChange(index, 'tipo', typeof val === 'object' ? val.target.value : val)}
+                      options={[
+                        { value: 'CUATRIMESTRE', label: 'Cuatrimestre' },
+                        { value: 'TRIMESTRE', label: 'Trimestre' },
+                        { value: 'RECESO', label: 'Receso Invernal' }
+                      ]}
+                      buttonClassName="py-1.5 px-2.5 text-xs font-medium"
+                    />
+                  </div>
+
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
+                        Fecha Inicio
+                      </label>
+                      <input
+                        type="date"
+                        value={p.fecha_inicio || ''}
+                        onChange={(e) => handlePeriodoChange(index, 'fecha_inicio', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
+                        Fecha Fin
+                      </label>
+                      <input
+                        type="date"
+                        value={p.fecha_fin || ''}
+                        onChange={(e) => handlePeriodoChange(index, 'fecha_fin', e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePeriodo(index)}
+                    className="p-1.5 text-text-muted hover:text-danger rounded-md hover:bg-danger/10 transition-colors self-end sm:self-center"
+                    title="Eliminar período"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
 
-      {/* Academic Evaluation Thresholds */}
+      {/* Criterios de Evaluación y Condiciones Académicas (Acordeón Bento) */}
       <Card>
-        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-surface-border">
-          <Sliders className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-bold text-text-primary">
-            Criterios de Evaluación y Condiciones Académicas
-          </h3>
-        </div>
-
-        <p className="text-xs text-text-muted mb-4">
-          Parámetros para el cálculo automático de regularidad, promoción y aprobación según el nivel {nivel}.
-        </p>
-
-        {nivel === 'TERCIARIO' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                % Asistencia Promoción
-              </label>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={criterios.min_asist_promo}
-                  onChange={(e) => setCriterios({ ...criterios, min_asist_promo: Number(e.target.value) })}
-                  className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
-                />
-                <span className="text-xs font-bold text-text-muted">%</span>
+        <div 
+          onClick={() => setIsCriteriosOpen(!isCriteriosOpen)}
+          className={`flex items-center justify-between cursor-pointer select-none transition-all ${
+            isCriteriosOpen ? 'pb-3 mb-4 border-b border-surface-border' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Sliders className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-text-primary">
+                  Criterios de Evaluación y Condiciones Académicas
+                </h3>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  Nivel {nivel}
+                </span>
               </div>
-              <p className="text-[10px] text-text-muted mt-1">Reglamentario: 80%</p>
-            </div>
-
-            <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                % Asistencia Regularidad
-              </label>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={criterios.min_asist_reg}
-                  onChange={(e) => setCriterios({ ...criterios, min_asist_reg: Number(e.target.value) })}
-                  className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
-                />
-                <span className="text-xs font-bold text-text-muted">%</span>
-              </div>
-              <p className="text-[10px] text-text-muted mt-1">Reglamentario: 70%</p>
-            </div>
-
-            <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Nota Mín. Promoción
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                step="0.5"
-                value={criterios.nota_min_promo}
-                onChange={(e) => setCriterios({ ...criterios, nota_min_promo: Number(e.target.value) })}
-                className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
-              />
-              <p className="text-[10px] text-text-muted mt-1">Por parcial (7 o más)</p>
-            </div>
-
-            <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Nota Mín. Regularidad
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                step="0.5"
-                value={criterios.nota_min_reg}
-                onChange={(e) => setCriterios({ ...criterios, nota_min_reg: Number(e.target.value) })}
-                className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
-              />
-              <p className="text-[10px] text-text-muted mt-1">Por parcial (4 o más)</p>
+              {!isCriteriosOpen && (
+                <p className="text-xs text-text-muted mt-0.5 truncate hidden sm:block">
+                  Regularidad ({criterios.min_asist_reg}% asist. / nota {criterios.nota_min_reg}) • Promoción ({criterios.min_asist_promo}% asist. / nota {criterios.nota_min_promo})
+                </p>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Nota Mínima de Aprobación (Secundario)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                step="0.5"
-                value={criterios.nota_min_sec}
-                onChange={(e) => setCriterios({ ...criterios, nota_min_sec: Number(e.target.value) })}
-                className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCriteriosOpen(!isCriteriosOpen);
+              }}
+              aria-label={isCriteriosOpen ? "Colapsar sección" : "Desplegar sección"}
+              className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer shrink-0 active:scale-95 shadow-xs"
+            >
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
+                  isCriteriosOpen ? 'rotate-180 text-primary' : 'rotate-0 text-text-muted'
+                }`}
               />
-              <p className="text-[10px] text-text-muted mt-1">Por periodo (6 o 7 según jurisdicción)</p>
-            </div>
+            </button>
+          </div>
+        </div>
+
+        {isCriteriosOpen && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <p className="text-xs text-text-muted">
+              Parámetros para el cálculo automático de regularidad, promoción y aprobación según el nivel {nivel}.
+            </p>
+
+            {nivel === 'TERCIARIO' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
+                  <label className="block text-xs font-medium text-text-secondary mb-1">
+                    % Asistencia Promoción
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={criterios.min_asist_promo}
+                      onChange={(e) => setCriterios({ ...criterios, min_asist_promo: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
+                    />
+                    <span className="text-xs font-bold text-text-muted">%</span>
+                  </div>
+                  <p className="text-[10px] text-text-muted mt-1">Reglamentario: 80%</p>
+                </div>
+
+                <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
+                  <label className="block text-xs font-medium text-text-secondary mb-1">
+                    % Asistencia Regularidad
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={criterios.min_asist_reg}
+                      onChange={(e) => setCriterios({ ...criterios, min_asist_reg: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
+                    />
+                    <span className="text-xs font-bold text-text-muted">%</span>
+                  </div>
+                  <p className="text-[10px] text-text-muted mt-1">Reglamentario: 70%</p>
+                </div>
+
+                <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
+                  <label className="block text-xs font-medium text-text-secondary mb-1">
+                    Nota Mín. Promoción
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    step="0.5"
+                    value={criterios.nota_min_promo}
+                    onChange={(e) => setCriterios({ ...criterios, nota_min_promo: Number(e.target.value) })}
+                    className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
+                  />
+                  <p className="text-[10px] text-text-muted mt-1">Por parcial (7 o más)</p>
+                </div>
+
+                <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
+                  <label className="block text-xs font-medium text-text-secondary mb-1">
+                    Nota Mín. Regularidad
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    step="0.5"
+                    value={criterios.nota_min_reg}
+                    onChange={(e) => setCriterios({ ...criterios, nota_min_reg: Number(e.target.value) })}
+                    className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
+                  />
+                  <p className="text-[10px] text-text-muted mt-1">Por parcial (4 o más)</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">
+                  <label className="block text-xs font-medium text-text-secondary mb-1">
+                    Nota Mínima de Aprobación (Secundario)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    step="0.5"
+                    value={criterios.nota_min_sec}
+                    onChange={(e) => setCriterios({ ...criterios, nota_min_sec: Number(e.target.value) })}
+                    className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary"
+                  />
+                  <p className="text-[10px] text-text-muted mt-1">Por periodo (6 o 7 según jurisdicción)</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Card>
