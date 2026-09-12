@@ -254,6 +254,7 @@ function LibroTemasTemplate({ data }) {
   const {
     catedra = {},
     clases = [],
+    unidades = [],
     institucionNombre = '',
     cicloAnio = '2026',
     docenteNombre = ''
@@ -349,7 +350,20 @@ function LibroTemasTemplate({ data }) {
                     {clase.caracter || 'TEÓRICA'}
                   </td>
                   <td className="p-2 border-r border-slate-300 text-slate-900 font-medium leading-relaxed">
-                    {clase.tema || 'Sin tema especificado'}
+                    {(() => {
+                      const matchedUnit = unidades.find(u => u.id === clase.unidad_id) || clase.unidades_tematicas;
+                      const unitNum = matchedUnit ? matchedUnit.numero : clase.unidad_numero;
+                      return (
+                        <>
+                          {unitNum && (
+                            <strong className="font-bold text-slate-900">
+                              [Unidad {unitNum}]{' '}
+                            </strong>
+                          )}
+                          {clase.tema || 'Sin tema especificado'}
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className="p-2 border-r border-slate-300 text-slate-600 text-[11px] italic">
                     {clase.observaciones || '—'}

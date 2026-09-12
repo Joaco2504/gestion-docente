@@ -28,7 +28,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const { user, isDemo, toggleDemoRole, esSuperadmin, rol } = useAuth();
   const { modoMantenimiento, bannerActivo, isRealtimeConnected } = useSystemConfig();
-  const [activeTab, setActiveTab] = useState('control'); // 'control' | 'metricas'
+  const [activeTab, setActiveTab] = useState('configuracion'); // 'configuracion' | 'metricas' | 'directorio'
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
@@ -88,36 +88,53 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* 2. Navegación por pestañas Bento del Superadmin */}
+      {/* 2. Navegación por 3 pestañas Bento del Superadmin */}
       <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-surface-card border border-surface-border w-full sm:w-auto overflow-x-auto">
         <button
           type="button"
-          onClick={() => setActiveTab('control')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
-            activeTab === 'control'
+          onClick={() => setActiveTab('configuracion')}
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
+            activeTab === 'configuracion'
               ? 'bg-primary text-white shadow-sm shadow-primary/25'
               : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
           }`}
         >
           <Sliders className="w-4 h-4" />
-          <span>Control & Switchboard</span>
+          <span className="hidden sm:inline">Configuración en Tiempo Real</span>
+          <span className="sm:hidden">Configuración</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('metricas')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
             activeTab === 'metricas'
               ? 'bg-primary text-white shadow-sm shadow-primary/25'
               : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
           }`}
         >
           <BarChart3 className="w-4 h-4" />
-          <span>Métricas del Sistema</span>
+          <span className="hidden sm:inline">Métricas Globales del Sistema</span>
+          <span className="sm:hidden">Métricas</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('directorio')}
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
+            activeTab === 'directorio'
+              ? 'bg-primary text-white shadow-sm shadow-primary/25'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span className="hidden sm:inline">Directorio de Docentes & Soporte</span>
+          <span className="sm:hidden">Directorio & Soporte</span>
         </button>
       </div>
 
-      {activeTab === 'control' ? (
+      {/* 3. Contenido de las Pestañas */}
+      {activeTab === 'configuracion' && (
         <div className="space-y-6 animate-fadeIn">
           {/* Bento Stat Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -208,14 +225,19 @@ export default function AdminPage() {
             </Card>
           </div>
 
-          {/* Panel A: Realtime Switchboard */}
+          {/* Realtime Switchboard */}
           <RealtimeSwitchboard />
+        </div>
+      )}
 
-          {/* Panel B: Directorio Global de Docentes & Soporte */}
+      {activeTab === 'metricas' && (
+        <GlobalMetricsSection isDemo={isDemo} />
+      )}
+
+      {activeTab === 'directorio' && (
+        <div className="animate-fadeIn">
           <TeachersDirectory isDemo={isDemo} />
         </div>
-      ) : (
-        <GlobalMetricsSection isDemo={isDemo} />
       )}
 
     </div>

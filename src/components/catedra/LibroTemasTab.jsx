@@ -50,7 +50,16 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [caracterFilter, setCaracterFilter] = useState('ALL');
+  const [unidadFilter, setUnidadFilter] = useState('ALL');
   const [sortAsc, setSortAsc] = useState(false); // false = cronológico inverso (recientes primero en pantalla)
+
+  // Unidades Temáticas del Programa
+  const [unidades, setUnidades] = useState([]);
+  const [modalUnidadId, setModalUnidadId] = useState('');
+  const [isQuickCreatingUnidad, setIsQuickCreatingUnidad] = useState(false);
+  const [quickUnidadNum, setQuickUnidadNum] = useState(1);
+  const [quickUnidadTitulo, setQuickUnidadTitulo] = useState('');
+  const [savingQuickUnit, setSavingQuickUnit] = useState(false);
 
   // Modales
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
@@ -91,9 +100,74 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     fetchClases();
   }, [catedraId]);
 
+  const handleQuickCreateUnidad = async ({ numero, titulo }) => {
+    try {
+      const payload = {
+        catedra_id: catedraId,
+        docente_id: user?.id || 'demo-user',
+        numero: Number(numero) || (unidades.length + 1),
+        titulo: titulo.trim(),
+        descripcion: ''
+      };
+
+      let newUnit = null;
+      if (isSupabaseConfigured && !isDemo) {
+        const { data, error } = await supabase
+          .from('unidades_tematicas')
+          .insert([payload])
+          .select()
+          .single();
+        if (error) throw error;
+        newUnit = data;
+      } else {
+        newUnit = { ...payload, id: 'unit-' + Date.now() };
+      }
+
+      const updated = [...unidades, newUnit].sort((a, b) => Number(a.numero) - Number(b.numero));
+      setUnidades(updated);
+      localStorage.setItem(`unidades_tematicas_${catedraId}`, JSON.stringify(updated));
+      toast.success(`Unidad ${newUnit.numero}: ${newUnit.titulo} creada.`);
+      return newUnit;
+    } catch (err) {
+      console.warn('Fallback quick create unit in LibroTemasTab:', err);
+      const fallbackUnit = {
+        id: 'unit-' + Date.now(),
+        catedra_id: catedraId,
+        numero: Number(numero) || (unidades.length + 1),
+        titulo: titulo.trim(),
+        descripcion: ''
+      };
+      const updated = [...unidades, fallbackUnit].sort((a, b) => Number(a.numero) - Number(b.numero));
+      setUnidades(updated);
+      localStorage.setItem(`unidades_tematicas_${catedraId}`, JSON.stringify(updated));
+      toast.success(`Unidad ${fallbackUnit.numero} creada (Modo Local).`);
+      return fallbackUnit;
+    }
+  };
+
   const fetchClases = async () => {
     setLoading(true);
     try {
+      // 1. Cargar unidades
+      let loadedU = [];
+      if (isSupabaseConfigured && !isDemo) {
+        const { data: uData, error: uErr } = await supabase
+          .from('unidades_tematicas')
+          .select('*')
+          .eq('catedra_id', catedraId)
+          .order('numero', { ascending: true });
+        if (!uErr && uData) loadedU = uData;
+        else {
+          const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
+          if (storedU) try { loadedU = JSON.parse(storedU); } catch (e) {}
+        }
+      } else {
+        const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
+        if (storedU) try { loadedU = JSON.parse(storedU); } catch (e) {}
+      }
+      setUnidades(loadedU);
+
+      // 2. Cargar clases
       if (isSupabaseConfigured && !isDemo) {
         const { data, error } = await supabase
           .from('clases')
@@ -117,6 +191,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
               tema: 'Presentación de la cátedra, pautas de cursada y marco metodológico general.',
               horas_catedra: 2,
               caracter: 'TEORICA',
+              unidad_id: loadedU[0]?.id || null,
               observaciones: 'Buena participación del alumnado. Se conformaron los grupos de trabajo.',
               archivo_adjunto: 'https://drive.google.com/programa-2026'
             },
@@ -124,9 +199,10 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
               id: 'cls-demo-2',
               catedra_id: catedraId,
               fecha: '2026-03-16',
-              tema: 'Unidad 1: Fundamentos conceptuales, arquitectura de datos y principios de diseño.',
+              tema: 'Fundamentos conceptuales, arquitectura de datos y principios de diseño.',
               horas_catedra: 3,
               caracter: 'TEORICO_PRACTICA',
+              unidad_id: loadedU[0]?.id || null,
               observaciones: 'Se resolvieron ejercicios de aplicación práctica en pizarrón.',
               archivo_adjunto: ''
             }
@@ -146,6 +222,8 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     setEditingClass(null);
     setModalFecha(getTodayYMD());
     setModalTema('');
+    setModalUnidadId('');
+    setIsQuickCreatingUnidad(false);
     setModalHoras(2);
     setModalCaracter('TEORICA');
     setModalObservaciones('');
@@ -158,6 +236,8 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     setEditingClass(cls);
     setModalFecha(cls.fecha || getTodayYMD());
     setModalTema(cls.tema || '');
+    setModalUnidadId(cls.unidad_id || '');
+    setIsQuickCreatingUnidad(false);
     setModalHoras(cls.horas_catedra || 2);
     setModalCaracter(cls.caracter || 'TEORICA');
     setModalObservaciones(cls.observaciones || '');
@@ -186,6 +266,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
         catedra_id: catedraId,
         fecha: modalFecha,
         tema: modalTema.trim(),
+        unidad_id: modalUnidadId || null,
         horas_catedra: Number(modalHoras) || 2,
         caracter: modalCaracter,
         observaciones: modalObservaciones.trim(),
@@ -318,6 +399,13 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     const q = searchQuery.toLowerCase().trim();
     let filtered = chronologicallyIndexedClases.filter(c => {
       if (caracterFilter !== 'ALL' && c.caracter !== caracterFilter) return false;
+      if (unidadFilter !== 'ALL') {
+        if (unidadFilter === 'NONE') {
+          if (c.unidad_id) return false;
+        } else if (c.unidad_id !== unidadFilter) {
+          return false;
+        }
+      }
       if (q) {
         const matchTema = (c.tema || '').toLowerCase().includes(q);
         const matchObs = (c.observaciones || '').toLowerCase().includes(q);
@@ -331,7 +419,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
       filtered.reverse(); // Más recientes arriba en la vista de pantalla
     }
     return filtered;
-  }, [chronologicallyIndexedClases, searchQuery, caracterFilter, sortAsc]);
+  }, [chronologicallyIndexedClases, searchQuery, caracterFilter, unidadFilter, sortAsc]);
 
   const totalHoras = useMemo(() => {
     return clases.reduce((acc, c) => acc + Number(c.horas_catedra || 2), 0);
@@ -407,7 +495,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
 
       {/* 2. FILTROS Y BÚSQUEDA REACTIVA */}
       <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0 flex-wrap sm:flex-nowrap">
           <ExpandableSearch
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -415,6 +503,27 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
             placeholder="Buscar por tema o contenido..."
             widthClass="w-full sm:w-80 md:w-96"
           />
+
+          {/* Filtro por Unidad Temática */}
+          {unidades.length > 0 && (
+            <div className="w-full sm:w-48 shrink-0">
+              <CustomSelect
+                value={unidadFilter}
+                onChange={(val) => setUnidadFilter(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: 'ALL', label: 'Todas las unidades' },
+                  ...unidades.map(u => ({
+                    value: u.id,
+                    label: `Unidad ${u.numero}: ${u.titulo}`,
+                    badge: `U${u.numero}`
+                  })),
+                  { value: 'NONE', label: 'Sin unidad asignada' }
+                ]}
+                placeholder="Filtrar por unidad..."
+                buttonClassName="py-1 px-2.5 text-xs bg-surface-hover/70"
+              />
+            </div>
+          )}
 
           {/* Filtro por Carácter */}
           <div className="hidden sm:flex items-center bg-surface-hover/50 p-1 rounded-xl border border-surface-border text-xs">
@@ -525,6 +634,18 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
                       <span>{cls.horas_catedra || 2} hs cátedra</span>
                     </span>
                     {getCaracterBadge(cls.caracter)}
+
+                    {/* Badge Semántico de Unidad Temática (Requerimiento 3) */}
+                    {(() => {
+                      const matchedUnit = unidades.find(u => u.id === cls.unidad_id);
+                      if (!matchedUnit) return null;
+                      return (
+                        <span className="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold text-xs px-2 py-0.5 rounded-md border border-indigo-200/50 dark:border-indigo-800/40 inline-flex items-center gap-1">
+                          <Layers className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                          <span>Unidad {matchedUnit.numero}: {matchedUnit.titulo}</span>
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* Acciones Rápidas */}
@@ -645,6 +766,106 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
               options={CARACTER_OPTIONS}
               buttonClassName="py-2 text-xs font-semibold"
             />
+          </div>
+
+          {/* Selector de Unidad Temática / Didáctica */}
+          <div className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Unidad Temática / Didáctica</span>
+              </label>
+              {!isQuickCreatingUnidad && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickUnidadNum(unidades.length + 1);
+                    setIsQuickCreatingUnidad(true);
+                  }}
+                  className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  + Crear Unidad al vuelo
+                </button>
+              )}
+            </div>
+
+            {!isQuickCreatingUnidad ? (
+              <CustomSelect
+                value={modalUnidadId}
+                onChange={(val) => setModalUnidadId(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: '', label: 'Sin Unidad Asignada' },
+                  ...unidades.map(u => ({
+                    value: u.id,
+                    label: `Unidad ${u.numero}: ${u.titulo}`,
+                    badge: `U${u.numero}`
+                  }))
+                ]}
+                placeholder="Seleccionar unidad temática..."
+                buttonClassName="py-2 text-xs font-semibold"
+              />
+            ) : (
+              <div className="p-2.5 rounded-xl bg-surface border border-surface-border space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-text-primary">Nueva Unidad Rápida</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickCreatingUnidad(false)}
+                    className="text-[11px] text-text-muted hover:text-text-primary"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="col-span-1">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="N°"
+                      value={quickUnidadNum}
+                      onChange={(e) => setQuickUnidadNum(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Título de la unidad..."
+                      value={quickUnidadTitulo}
+                      onChange={(e) => setQuickUnidadTitulo(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs border border-surface-border rounded-lg bg-surface text-text-primary outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    onClick={async () => {
+                      if (!quickUnidadTitulo.trim()) return;
+                      setSavingQuickUnit(true);
+                      try {
+                        const created = await handleQuickCreateUnidad({
+                          numero: quickUnidadNum,
+                          titulo: quickUnidadTitulo
+                        });
+                        if (created?.id) setModalUnidadId(created.id);
+                        setIsQuickCreatingUnidad(false);
+                        setQuickUnidadTitulo('');
+                      } finally {
+                        setSavingQuickUnit(false);
+                      }
+                    }}
+                    loading={savingQuickUnit}
+                    disabled={!quickUnidadTitulo.trim()}
+                    className="text-xs py-1 px-3"
+                  >
+                    Crear y Asignar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Tema y Contenidos Desarrollados */}
@@ -800,6 +1021,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
         data={{
           catedra: currentCatedra,
           clases: clases,
+          unidades: unidades,
           docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular',
           institucionNombre: currentCatedra.instituciones?.nombre || currentCatedra.institucion_nombre || 'INSTITUTO DE EDUCACIÓN SUPERIOR',
           cicloAnio: activeCiclo?.anio || '2026'

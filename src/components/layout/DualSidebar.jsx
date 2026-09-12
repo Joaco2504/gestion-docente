@@ -150,6 +150,8 @@ export default function DualSidebar({ isOpen = false, onClose }) {
     { id: 'asistencias', label: 'Asistencia', icon: CheckSquare, query: '?tab=asistencias' },
     { id: 'calificaciones', label: 'Calificaciones', icon: GraduationCap, query: '?tab=calificaciones' },
     { id: 'alumnos', label: 'Alumnos', icon: Users, query: '?tab=alumnos' },
+    { id: 'unidades', label: 'Programa', icon: Layers, query: '?tab=unidades' },
+    { id: 'libro-temas', label: 'Libro Temas', icon: BookOpen, query: '?tab=libro-temas' },
     { id: 'recursos', label: 'Recursos', icon: FolderOpen, query: '?tab=recursos' },
     { id: 'configuracion', label: 'Ajustes', icon: Settings, query: '?tab=configuracion' }
   ];
@@ -456,7 +458,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                                   if (onClose && window.innerWidth < 768) onClose();
                                 }}
                                 className={`
-                                  w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-medium
+                                  w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap
                                   transition-all duration-150 text-left
                                   ${isSubActive
                                     ? 'bg-primary text-white font-semibold shadow-xs'
@@ -464,8 +466,8 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                                   }
                                 `}
                               >
-                                <SubIcon className="w-3 h-3 shrink-0 opacity-80" />
-                                <span className="truncate">{sub.label}</span>
+                                <SubIcon className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                                <span className="truncate text-xs font-medium px-2.5 py-1.5 whitespace-nowrap">{sub.label}</span>
                               </button>
                             );
                           })}

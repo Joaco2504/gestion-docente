@@ -888,7 +888,7 @@ const normalizeSearchText = (str) => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 relative z-10 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-2 sm:gap-3 relative z-10 flex-wrap sm:flex-nowrap">
           <Button
             variant="outline"
             icon={CalendarIcon}
@@ -897,9 +897,10 @@ const normalizeSearchText = (str) => {
               window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
               document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
             }}
-            className="flex-1 sm:flex-initial text-xs rounded-xl"
+            className="flex-1 sm:flex-initial text-xs rounded-xl touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0"
           >
-            Ver Calendario
+            <span className="hidden sm:inline">Ver Calendario</span>
+            <span className="sm:hidden">Calendario</span>
           </Button>
 
           <Button
@@ -909,9 +910,10 @@ const normalizeSearchText = (str) => {
               setErrorMsg('');
               setIsModalOpen(true);
             }}
-            className="flex-1 sm:flex-initial text-xs shadow-xs rounded-xl"
+            className="flex-1 sm:flex-initial text-xs shadow-xs rounded-xl touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0"
           >
-            Nueva Cátedra
+            <span className="hidden sm:inline">Nueva Cátedra</span>
+            <span className="sm:hidden">+ Cátedra</span>
           </Button>
         </div>
       </div>
@@ -1083,8 +1085,8 @@ const normalizeSearchText = (str) => {
             </div>
 
             {/* Circular Progress Ring & Numbers */}
-            <div className="my-auto py-2 flex items-center gap-4 justify-center sm:justify-start">
-              <div className="relative w-18 h-18 shrink-0 flex items-center justify-center">
+            <div className="my-auto py-2 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="relative w-20 h-20 shrink-0 flex items-center justify-center mx-auto sm:mx-0">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
                   <circle
                     cx="40"
@@ -1111,21 +1113,21 @@ const normalizeSearchText = (str) => {
                   />
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-sm font-mono font-bold text-text-primary">
+                  <span className="text-base font-mono font-bold text-text-primary">
                     {globalMetrics.averageAttendance}%
                   </span>
-                  <span className="text-[8px] font-mono uppercase text-text-muted -mt-0.5">Asist.</span>
+                  <span className="text-[9px] font-mono uppercase text-text-muted -mt-0.5">Asist.</span>
                 </div>
               </div>
 
-              <div className="space-y-1.5 min-w-0">
-                <div>
+              <div className="grid grid-cols-2 gap-3 w-full sm:flex sm:flex-col sm:space-y-1.5 sm:gap-0 sm:w-auto min-w-0">
+                <div className="p-2.5 rounded-xl bg-surface-hover/50 sm:bg-transparent sm:p-0 border border-surface-border/40 sm:border-0 text-center sm:text-left">
                   <span className="text-base font-bold font-mono text-text-primary block leading-none">
                     {globalMetrics.totalStudents}
                   </span>
                   <span className="text-[11px] text-text-muted">Alumnos activos</span>
                 </div>
-                <div>
+                <div className="p-2.5 rounded-xl bg-surface-hover/50 sm:bg-transparent sm:p-0 border border-surface-border/40 sm:border-0 text-center sm:text-left">
                   <span className="text-base font-bold font-mono text-text-primary block leading-none">
                     {globalMetrics.activeCatedras}
                   </span>

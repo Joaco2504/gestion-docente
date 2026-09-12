@@ -267,8 +267,8 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     setMesaFolio(mesa.folio || '');
     setMesaActaNumero(mesa.acta_numero || '');
     setMesaPresidente(mesa.presidente || '');
-    setMesaVocal1(mesa.vocal1 || '');
-    setMesaVocal2(mesa.vocal2 || '');
+    setMesaVocal1(mesa.vocal1 || mesa.vocal_1 || '');
+    setMesaVocal2(mesa.vocal2 || mesa.vocal_2 || '');
     setIsMesaModalOpen(true);
   };
 
@@ -284,28 +284,63 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
       docente_id: user?.id,
       fecha: mesaFecha,
       turno_llamado: mesaTurno,
-      libro: mesaLibro.trim(),
-      tomo: mesaTomo.trim(),
-      folio: mesaFolio.trim(),
-      acta_numero: mesaActaNumero.trim(),
-      presidente: mesaPresidente.trim(),
-      vocal1: mesaVocal1.trim(),
-      vocal2: mesaVocal2.trim()
+      libro: (mesaLibro || '').trim(),
+      tomo: (mesaTomo || '').trim(),
+      folio: (mesaFolio || '').trim(),
+      acta_numero: (mesaActaNumero || '').trim(),
+      presidente: (mesaPresidente || '').trim(),
+      vocal_1: (mesaVocal1 || '').trim(),
+      vocal_2: (mesaVocal2 || '').trim()
     };
 
     try {
       if (isSupabaseConfigured && !isDemo) {
         if (editingMesa) {
-          const { error } = await supabase
+          let { error } = await supabase
             .from('mesas_examen')
             .update(mesaPayload)
             .eq('id', editingMesa.id);
+
+          // Si la base de datos utiliza vocal1 en lugar de vocal_1
+          if (error && (error.message?.includes('vocal_1') || error.code === '42703')) {
+            const fallbackPayload = {
+              ...mesaPayload,
+              vocal1: mesaPayload.vocal_1,
+              vocal2: mesaPayload.vocal_2
+            };
+            delete fallbackPayload.vocal_1;
+            delete fallbackPayload.vocal_2;
+
+            const resFallback = await supabase
+              .from('mesas_examen')
+              .update(fallbackPayload)
+              .eq('id', editingMesa.id);
+            error = resFallback.error;
+          }
+
           if (error) throw error;
           toast.success('Mesa de examen actualizada con éxito.');
         } else {
-          const { error } = await supabase
+          let { error } = await supabase
             .from('mesas_examen')
             .insert([mesaPayload]);
+
+          // Si la base de datos utiliza vocal1 en lugar de vocal_1
+          if (error && (error.message?.includes('vocal_1') || error.code === '42703')) {
+            const fallbackPayload = {
+              ...mesaPayload,
+              vocal1: mesaPayload.vocal_1,
+              vocal2: mesaPayload.vocal_2
+            };
+            delete fallbackPayload.vocal_1;
+            delete fallbackPayload.vocal_2;
+
+            const resFallback = await supabase
+              .from('mesas_examen')
+              .insert([fallbackPayload]);
+            error = resFallback.error;
+          }
+
           if (error) throw error;
           toast.success('Mesa de examen constituida exitosamente.');
         }

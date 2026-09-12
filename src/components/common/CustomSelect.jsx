@@ -247,7 +247,7 @@ export default function CustomSelect({
             )}
 
             {/* Options List with comfortable touch targets */}
-            <div className="overflow-y-auto py-2 divide-y divide-surface-border/40 flex-1 overscroll-contain scrollbar-thin">
+            <div className="overflow-y-auto py-1 flex-1 overscroll-contain scrollbar-thin">
               {filteredOptions.length === 0 ? (
                 <div className="py-8 text-center text-text-muted text-sm">
                   No se encontraron opciones
@@ -264,7 +264,7 @@ export default function CustomSelect({
                       role="option"
                       aria-selected={isSelected}
                       onClick={() => handleSelect(opt.value)}
-                      className={`w-full flex items-center justify-between gap-3 px-3 py-3.5 text-left rounded-xl transition-colors min-h-[48px] touch-target-48 select-none ${
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left rounded-none border-b border-slate-100 dark:border-white/5 last:border-b-0 transition-colors min-h-[48px] touch-target-48 select-none ${
                         isSelected
                           ? 'bg-primary/10 text-primary font-bold'
                           : 'text-text-primary hover:bg-surface-hover active:bg-surface-hover/80'
@@ -344,7 +344,7 @@ export default function CustomSelect({
           )}
 
           {/* Lista de Opciones */}
-          <div className="max-h-60 overflow-y-auto py-1 scrollbar-thin">
+          <div className="max-h-60 overflow-y-auto py-0 scrollbar-thin">
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-4 text-xs text-center text-text-muted">
                 No se encontraron opciones
@@ -361,8 +361,8 @@ export default function CustomSelect({
                     aria-selected={isSelected}
                     onClick={() => handleSelect(opt.value)}
                     className={`
-                      w-full flex items-center justify-between gap-2.5 px-3 py-2 text-xs sm:text-sm
-                      cursor-pointer transition-colors select-none text-left
+                      w-full flex items-center justify-between gap-2.5 px-4 py-3 text-xs sm:text-sm
+                      cursor-pointer transition-colors select-none text-left rounded-none border-b border-slate-100 dark:border-white/5 last:border-b-0
                       ${isSelected
                         ? 'bg-primary/10 text-primary font-semibold'
                         : 'text-text-primary hover:bg-surface-hover hover:text-text-primary'

@@ -93,8 +93,12 @@ export function AppProvider({ children }) {
         }
       ];
 
+      const savedActiveInstId = localStorage.getItem('institucion_activa_id');
+      const activeInst = (savedActiveInstId && instList.find(i => i.id === savedActiveInstId)) || instList[0] || null;
+      if (activeInst?.id) localStorage.setItem('institucion_activa_id', activeInst.id);
+
       setInstituciones(instList);
-      setSelectedInstitucion(instList[0] ?? null);
+      setSelectedInstitucion(activeInst);
       setCiclosLectivos(ciclosList);
       setSelectedCiclo(ciclosList.find(c => c.activo) ?? ciclosList[0] ?? null);
       setCatedras(catList);
@@ -146,10 +150,20 @@ export function AppProvider({ children }) {
         institucion_nombre: c.instituciones?.nombre || ''
       }));
 
+      const savedActiveInstId = localStorage.getItem('institucion_activa_id');
+
       setInstituciones(insts);
       setSelectedInstitucion(prev => {
+        if (savedActiveInstId) {
+          const found = insts.find(i => i.id === savedActiveInstId);
+          if (found) return found;
+        }
         if (prev && insts.some(i => i.id === prev.id)) return prev;
-        return insts[0] ?? null;
+        const dbActive = insts.find(i => i.activa) || insts[0] || null;
+        if (dbActive?.id) {
+          localStorage.setItem('institucion_activa_id', dbActive.id);
+        }
+        return dbActive;
       });
 
       setCiclosLectivos(ciclos);
@@ -240,12 +254,21 @@ export function AppProvider({ children }) {
     return data;
   };
 
+  const handleSetActiveInstitucion = (inst) => {
+    setSelectedInstitucion(inst);
+    if (inst?.id) {
+      localStorage.setItem('institucion_activa_id', inst.id);
+    } else {
+      localStorage.removeItem('institucion_activa_id');
+    }
+  };
+
   const value = {
     instituciones,
     selectedInstitucion,
-    setSelectedInstitucion,
+    setSelectedInstitucion: handleSetActiveInstitucion,
     activeInstitucion: selectedInstitucion,
-    setActiveInstitucion: setSelectedInstitucion,
+    setActiveInstitucion: handleSetActiveInstitucion,
     ciclosLectivos,
     selectedCiclo,
     setSelectedCiclo,

@@ -409,7 +409,7 @@ export default function GlobalMetricsSection({ isDemo = false }) {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-surface-border text-center sm:text-left">
+          <div className="mt-4 relative block w-full pt-3 border-t border-surface-border text-center sm:text-left">
             <span className="text-[11px] text-text-muted">
               💡 <strong>Tip para dispositivos móviles:</strong> Toca cualquier barra o sección para ver el porcentaje exacto y el conteo del recurso.
             </span>

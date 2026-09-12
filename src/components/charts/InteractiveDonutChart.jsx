@@ -47,7 +47,7 @@ export default function InteractiveDonutChart({
   const activeItem = activeIndex !== null ? segments[activeIndex] : null;
 
   return (
-    <div className="flex flex-col items-center justify-center p-3 sm:p-5 w-full">
+    <div className="flex flex-col items-center justify-center p-2 sm:p-4 w-full h-full min-h-[220px]">
       {/* SVG Donut Visualizer */}
       <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
         <svg

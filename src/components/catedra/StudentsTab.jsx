@@ -361,45 +361,20 @@ export default function StudentsTab({
           throw new Error('No se pudo determinar el ciclo lectivo de la cátedra. Verifica que exista un ciclo lectivo activo.');
         }
 
-        // 1. Buscar si el estudiante ya existe para este docente
-        const { data: existingStudent, error: findErr } = await supabase
+        // 1. Guardar o actualizar estudiante mediante upsert seguro con onConflict: 'docente_id,dni'
+        const { data: studentRecord, error: upsertEstErr } = await supabase
           .from('estudiantes')
-          .select('id, dni')
-          .eq('docente_id', user.id)
-          .eq('dni', cleanDni)
-          .maybeSingle();
+          .upsert({
+            docente_id: user.id,
+            dni: cleanDni,
+            apellido: cleanApellido,
+            nombre: cleanNombre
+          }, { onConflict: 'docente_id,dni' })
+          .select()
+          .single();
 
-        if (findErr) throw findErr;
-
-        studentId = existingStudent?.id;
-
-        if (!studentId) {
-          // Crear nuevo estudiante incluyendo explícitamente docente_id
-          const { data: newEst, error: insertEstErr } = await supabase
-            .from('estudiantes')
-            .insert({
-              docente_id: user.id,
-              dni: cleanDni,
-              apellido: cleanApellido,
-              nombre: cleanNombre
-            })
-            .select()
-            .single();
-
-          if (insertEstErr) throw insertEstErr;
-          studentId = newEst.id;
-        } else {
-          // Actualizar apellido y nombre
-          const { error: updateEstErr } = await supabase
-            .from('estudiantes')
-            .update({
-              apellido: cleanApellido,
-              nombre: cleanNombre
-            })
-            .eq('id', studentId);
-
-          if (updateEstErr) throw updateEstErr;
-        }
+        if (upsertEstErr) throw upsertEstErr;
+        studentId = studentRecord.id;
 
         // 2. Inscribir en la cátedra enviando explícitamente estudiante_id, catedra_id y ciclo_id
         const { data: existingInsc, error: inscFindErr } = await supabase
@@ -487,14 +462,14 @@ export default function StudentsTab({
     setSavingEdit(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('estudiantes')
-          .update({
-            dni: cleanDni,
+          .upsert({
+            nombre: cleanNombre,
             apellido: cleanApellido,
-            nombre: cleanNombre
-          })
-          .eq('id', editingStudent.id);
+            dni: cleanDni,
+            docente_id: user.id
+          }, { onConflict: 'docente_id,dni' });
 
         if (error) throw error;
       }

@@ -16,7 +16,9 @@ import {
   Trash2,
   BookOpen,
   ChevronDown,
-  Printer
+  Printer,
+  Pencil,
+  Layers
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -27,6 +29,8 @@ import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
+import EditClassModal from './EditClassModal';
+import ConfirmDeleteClassModal from './ConfirmDeleteClassModal';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { formatFechaDMY, parseDMYtoYMD, getTodayYMD } from '../../lib/dateUtils';
@@ -51,6 +55,14 @@ export default function AttendanceTab({
   const [criterios, setCriterios] = useState({});
   const [loading, setLoading] = useState(true);
   const [flashingStudentId, setFlashingStudentId] = useState(null);
+
+  // Unidades Temáticas del Programa Didáctico
+  const [unidades, setUnidades] = useState([]);
+  const [nuevaUnidadId, setNuevaUnidadId] = useState('');
+  const [isQuickCreatingUnidad, setIsQuickCreatingUnidad] = useState(false);
+  const [quickUnidadNum, setQuickUnidadNum] = useState(1);
+  const [quickUnidadTitulo, setQuickUnidadTitulo] = useState('');
+  const [savingQuickUnit, setSavingQuickUnit] = useState(false);
 
   // Mapa de estadísticas y porcentaje acumulado de asistencia por estudiante
   const studentStatsMap = React.useMemo(() => {
@@ -99,6 +111,13 @@ export default function AttendanceTab({
   const [nuevaFecha, setNuevaFecha] = useState(new Date().toISOString().split('T')[0]);
   const [nuevoTema, setNuevoTema] = useState('');
   const [savingClase, setSavingClase] = useState(false);
+
+  // Estados Modal Edición Rápida y Eliminación Segura de Clase
+  const [isEditClassModalOpen, setIsEditClassModalOpen] = useState(false);
+  const [isDeleteClassModalOpen, setIsDeleteClassModalOpen] = useState(false);
+  const [deleteClassCount, setDeleteClassCount] = useState(0);
+  const [savingEditClass, setSavingEditClass] = useState(false);
+  const [deletingClass, setDeletingClass] = useState(false);
 
   // Modal Inasistencia Docente
   const [isInasistenciaModalOpen, setIsInasistenciaModalOpen] = useState(false);
@@ -195,6 +214,24 @@ export default function AttendanceTab({
           if (critData) setCriterios(critData);
         } catch (_) {}
 
+        // 6. Unidades Temáticas del Programa
+        try {
+          const { data: uData, error: uErr } = await supabase
+            .from('unidades_tematicas')
+            .select('*')
+            .eq('catedra_id', catedraId)
+            .order('numero', { ascending: true });
+          if (!uErr && uData) {
+            setUnidades(uData);
+          } else {
+            const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
+            if (storedU) setUnidades(JSON.parse(storedU));
+          }
+        } catch (_) {
+          const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
+          if (storedU) setUnidades(JSON.parse(storedU));
+        }
+
         const cls = cData || [];
         setClases(cls);
         setEstudiantes(estList);
@@ -209,10 +246,16 @@ export default function AttendanceTab({
         const storedEst = localStorage.getItem(`estudiantes_${catedraId}`);
         const storedAsist = localStorage.getItem(`asistencias_${catedraId}`);
         const storedInasist = localStorage.getItem(`inasistencias_docente_${catedraId}`);
+        const storedUnidades = localStorage.getItem(`unidades_tematicas_${catedraId}`);
 
         let cls = storedClases ? JSON.parse(storedClases) : [
-          { id: 'clase-1', catedra_id: catedraId, fecha: '2026-03-02', tema: 'Presentación de la Cátedra y Pautas' },
-          { id: 'clase-2', catedra_id: catedraId, fecha: '2026-03-09', tema: 'Unidad 1 - Fundamentos y Arquitectura' }
+          { id: 'clase-1', catedra_id: catedraId, fecha: '2026-03-02', tema: 'Presentación de la Cátedra y Pautas', unidad_id: 'unit-1' },
+          { id: 'clase-2', catedra_id: catedraId, fecha: '2026-03-09', tema: 'Fundamentos y Arquitectura de Datos', unidad_id: 'unit-1' }
+        ];
+
+        let uList = storedUnidades ? JSON.parse(storedUnidades) : [
+          { id: 'unit-1', catedra_id: catedraId, numero: 1, titulo: 'Fundamentos y Arquitectura de Datos' },
+          { id: 'unit-2', catedra_id: catedraId, numero: 2, titulo: 'Diseño y Modelado Conceptual' }
         ];
 
         let estList = storedEst ? JSON.parse(storedEst) : [
@@ -239,12 +282,14 @@ export default function AttendanceTab({
         let inasist = storedInasist ? JSON.parse(storedInasist) : [];
 
         setClases(cls);
+        setUnidades(uList);
         setEstudiantes(estList);
         setAsistencias(asist);
         setInasistenciasDocente(inasist);
         if (cls.length > 0) setSelectedClaseId(cls[0].id);
 
         localStorage.setItem(`clases_${catedraId}`, JSON.stringify(cls));
+        localStorage.setItem(`unidades_tematicas_${catedraId}`, JSON.stringify(uList));
         localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(estList));
         localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(asist));
         localStorage.setItem(`inasistencias_docente_${catedraId}`, JSON.stringify(inasist));
@@ -258,6 +303,52 @@ export default function AttendanceTab({
   };
 
   const activeClase = clases.find(c => c.id === selectedClaseId) || clases[0];
+
+  // Creación rápida de unidad temática al vuelo
+  const handleQuickCreateUnidad = async ({ numero, titulo }) => {
+    try {
+      const payload = {
+        catedra_id: catedraId,
+        docente_id: user?.id || 'demo-user',
+        numero: Number(numero) || (unidades.length + 1),
+        titulo: titulo.trim(),
+        descripcion: ''
+      };
+
+      let newUnit = null;
+      if (isSupabaseConfigured && !isDemo) {
+        const { data, error } = await supabase
+          .from('unidades_tematicas')
+          .insert([payload])
+          .select()
+          .single();
+        if (error) throw error;
+        newUnit = data;
+      } else {
+        newUnit = { ...payload, id: 'unit-' + Date.now() };
+      }
+
+      const updated = [...unidades, newUnit].sort((a, b) => Number(a.numero) - Number(b.numero));
+      setUnidades(updated);
+      localStorage.setItem(`unidades_tematicas_${catedraId}`, JSON.stringify(updated));
+      toast.success(`Unidad ${newUnit.numero}: ${newUnit.titulo} creada.`);
+      return newUnit;
+    } catch (err) {
+      console.warn('Fallback quick create unit locally:', err);
+      const fallbackUnit = {
+        id: 'unit-' + Date.now(),
+        catedra_id: catedraId,
+        numero: Number(numero) || (unidades.length + 1),
+        titulo: titulo.trim(),
+        descripcion: ''
+      };
+      const updated = [...unidades, fallbackUnit].sort((a, b) => Number(a.numero) - Number(b.numero));
+      setUnidades(updated);
+      localStorage.setItem(`unidades_tematicas_${catedraId}`, JSON.stringify(updated));
+      toast.success(`Unidad ${fallbackUnit.numero} creada (Modo Local).`);
+      return fallbackUnit;
+    }
+  };
 
   const handleCreateClase = async (e) => {
     e.preventDefault();
@@ -273,22 +364,40 @@ export default function AttendanceTab({
       const newClaseObj = {
         catedra_id: catedraId,
         fecha: fechaIso,
-        tema: nuevoTema.trim() || 'Clase Regular'
+        tema: nuevoTema.trim() || 'Clase Regular',
+        unidad_id: nuevaUnidadId || null
       };
 
       let claseId = null;
       if (isSupabaseConfigured && !isDemo) {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('clases')
           .insert(newClaseObj)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error && (error.message?.includes('column') || error.code === '42703')) {
+          // Fallback si la columna unidad_id aún no existe
+          const { data: fbData, error: fbErr } = await supabase
+            .from('clases')
+            .insert({
+              catedra_id: catedraId,
+              fecha: fechaIso,
+              tema: nuevoTema.trim() || 'Clase Regular'
+            })
+            .select()
+            .single();
+          if (fbErr) throw fbErr;
+          data = { ...fbData, unidad_id: nuevaUnidadId || null };
+        } else if (error) {
+          throw error;
+        }
+
         claseId = data.id;
         const updated = [data, ...clases];
         setClases(updated);
         setSelectedClaseId(data.id);
+        localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updated));
       } else {
         const created = { ...newClaseObj, id: 'clase-' + Date.now() };
         claseId = created.id;
@@ -322,6 +431,8 @@ export default function AttendanceTab({
       toast.success(`Clase del ${fechaDmy} guardada. Todos los alumnos fueron marcados como presentes.`);
       setIsModalOpen(false);
       setNuevoTema('');
+      setNuevaUnidadId('');
+      setIsQuickCreatingUnidad(false);
     } catch (err) {
       toast.error('Error al crear clase: ' + err.message);
     } finally {
@@ -358,7 +469,7 @@ export default function AttendanceTab({
             clase_id: activeClase.id,
             estudiante_id: estudianteId,
             estado: nuevoEstado
-          }, { onConflict: 'clase_id, estudiante_id' });
+          }, { onConflict: 'clase_id,estudiante_id' });
 
         if (error) throw error;
       } else {
@@ -397,7 +508,7 @@ export default function AttendanceTab({
 
         const { error } = await supabase
           .from('asistencias')
-          .upsert(newRecords, { onConflict: 'clase_id, estudiante_id' });
+          .upsert(newRecords, { onConflict: 'clase_id,estudiante_id' });
 
         if (error) throw error;
       } else {
@@ -502,6 +613,146 @@ export default function AttendanceTab({
     }
   };
 
+  // =========================================================================
+  // GESTIÓN RÁPIDA DE TEMA, DETALLES Y ELIMINACIÓN SEGURA DE CLASE
+  // =========================================================================
+  const handleOpenEditClass = () => {
+    if (!activeClase) return;
+    setIsEditClassModalOpen(true);
+  };
+
+  const handleSaveEditClass = async (updatedData) => {
+    if (!activeClase?.id) return;
+    setSavingEditClass(true);
+    try {
+      const payload = {
+        fecha: updatedData.fecha,
+        tema: updatedData.tema.trim(),
+        unidad_id: updatedData.unidad_id || null,
+        caracter_clase: updatedData.caracter_clase,
+        horas_catedra: updatedData.horas_catedra,
+        observaciones: updatedData.observaciones?.trim() || null
+      };
+
+      if (isSupabaseConfigured && !isDemo) {
+        let { error } = await supabase
+          .from('clases')
+          .update(payload)
+          .eq('id', activeClase.id);
+
+        // Fallback si la columna caracter_clase o unidad_id no existen aún
+        if (error && (error.message?.includes('column') || error.code === '42703')) {
+          const fallbackPayload = {
+            fecha: updatedData.fecha,
+            tema: updatedData.tema.trim(),
+            unidad_id: updatedData.unidad_id || null,
+            caracter: updatedData.caracter_clase,
+            horas_catedra: updatedData.horas_catedra,
+            observaciones: updatedData.observaciones?.trim() || null
+          };
+          let fbRes = await supabase
+            .from('clases')
+            .update(fallbackPayload)
+            .eq('id', activeClase.id);
+          
+          if (fbRes.error) {
+            const minRes = await supabase
+              .from('clases')
+              .update({ fecha: updatedData.fecha, tema: updatedData.tema.trim() })
+              .eq('id', activeClase.id);
+            if (minRes.error) throw minRes.error;
+          }
+        } else if (error) {
+          throw error;
+        }
+      }
+
+      // Sincronización reactiva del estado local
+      const updatedClases = clases.map(c => 
+        c.id === activeClase.id 
+          ? { ...c, ...payload } 
+          : c
+      );
+      updatedClases.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      setClases(updatedClases);
+      localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updatedClases));
+
+      toast.success('Detalles de clase actualizados correctamente');
+      setIsEditClassModalOpen(false);
+    } catch (err) {
+      console.error('Error updating class:', err);
+      toast.error('Error al actualizar clase: ' + err.message);
+    } finally {
+      setSavingEditClass(false);
+    }
+  };
+
+  const handleRequestDeleteClass = async () => {
+    if (!activeClase?.id) return;
+    setIsEditClassModalOpen(false);
+    try {
+      if (isSupabaseConfigured && !isDemo) {
+        const { count, error } = await supabase
+          .from('asistencias')
+          .select('*', { count: 'exact', head: true })
+          .eq('clase_id', activeClase.id);
+        
+        setDeleteClassCount(count ?? 0);
+      } else {
+        const count = asistencias.filter(a => a.clase_id === activeClase.id).length;
+        setDeleteClassCount(count);
+      }
+    } catch (err) {
+      console.warn('Error counting asistencias for pre-delete check:', err);
+      setDeleteClassCount(0);
+    }
+    setIsDeleteClassModalOpen(true);
+  };
+
+  const handleConfirmDeleteClass = async () => {
+    if (!activeClase?.id) return;
+    setDeletingClass(true);
+    try {
+      if (isSupabaseConfigured && !isDemo) {
+        // En Supabase: borrar asistencias asociadas y la sesión de clase
+        await supabase
+          .from('asistencias')
+          .delete()
+          .eq('clase_id', activeClase.id);
+
+        const { error } = await supabase
+          .from('clases')
+          .delete()
+          .eq('id', activeClase.id);
+
+        if (error) throw error;
+      }
+
+      const remainingClases = clases.filter(c => c.id !== activeClase.id);
+      const remainingAsist = asistencias.filter(a => a.clase_id !== activeClase.id);
+      setClases(remainingClases);
+      setAsistencias(remainingAsist);
+
+      localStorage.setItem(`clases_${catedraId}`, JSON.stringify(remainingClases));
+      localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(remainingAsist));
+
+      // Reasignación automática de clase seleccionada
+      if (remainingClases.length > 0) {
+        setSelectedClaseId(remainingClases[0].id);
+      } else {
+        setSelectedClaseId('');
+      }
+
+      toast.success('Clase y registros de asistencia eliminados correctamente.');
+      setIsDeleteClassModalOpen(false);
+    } catch (err) {
+      console.error('Error deleting class:', err);
+      toast.error('Error al eliminar clase: ' + err.message);
+    } finally {
+      setDeletingClass(false);
+    }
+  };
+
   const getEstado = (estudianteId) => {
     if (!activeClase) return 'AUSENTE';
     const record = asistencias.find(
@@ -511,7 +762,8 @@ export default function AttendanceTab({
   };
 
   const presentesCount = estudiantes.filter(e => getEstado(e.id) === 'PRESENTE').length;
-  const ausentesCount = estudiantes.length - presentesCount;
+  const ausentesCount = estudiantes.filter(e => getEstado(e.id) === 'AUSENTE').length;
+  const justificadasCount = estudiantes.filter(e => getEstado(e.id) === 'JUSTIFICADA').length;
   const presentismoPct = estudiantes.length > 0 
     ? ((presentesCount / estudiantes.length) * 100).toFixed(1) 
     : 0;
@@ -527,49 +779,76 @@ export default function AttendanceTab({
   return (
     <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
       {/* Top selector & action bar (Sticky on mobile for quick access while scrolling) */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm sticky top-0 sm:static z-20 transition-all">
-        <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center shrink-0">
-            <Clock className="w-5 h-5" />
+      <div className="backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm sticky top-0 sm:static z-20 transition-all space-y-3">
+        {/* Fila 1: Sesión de Clase, Selector con botón Editar Tema, y Badge de Edición Activa */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">
+                Sesión de Clase {activeClase ? `• ${formatFechaDMY(activeClase.fecha)}` : ''}
+              </label>
+              {clases.length === 0 ? (
+                <span className="text-xs font-medium text-text-muted">No hay clases registradas aún. Pulsa [+ Clase] para iniciar.</span>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <CustomSelect
+                    value={activeClase?.id || ''}
+                    onChange={(val) => setSelectedClaseId(typeof val === 'object' ? val.target.value : val)}
+                    options={clases.map(c => {
+                      const hasAbsence = inasistenciasDocente.some(i => i.fecha === c.fecha);
+                      const matchedUnit = unidades.find(u => u.id === c.unidad_id);
+                      const unitPrefix = matchedUnit ? `[U${matchedUnit.numero}] ` : '';
+                      return {
+                        value: c.id,
+                        label: `${formatFechaDMY(c.fecha)} — ${unitPrefix}${c.tema || 'Sin tema especificado'}`,
+                        badge: hasAbsence ? 'Licencia' : matchedUnit ? `U${matchedUnit.numero}` : undefined
+                      };
+                    })}
+                    placeholder="Seleccionar clase..."
+                    buttonClassName="py-1 px-2 text-xs sm:text-sm font-semibold border-transparent hover:border-surface-border bg-transparent shadow-none flex-1"
+                  />
+                  {activeClase && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={Pencil}
+                      onClick={handleOpenEditClass}
+                      title="Editar fecha, tema y detalles de la clase"
+                      className="shrink-0 text-xs px-2.5 py-1.5 touch-target-44"
+                    >
+                      <span className="hidden sm:inline">✏️ Editar Tema</span>
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">
-              Sesión de Clase {activeClase ? `• ${formatFechaDMY(activeClase.fecha)}` : ''}
-            </label>
-            {clases.length === 0 ? (
-              <span className="text-xs font-medium text-text-muted">No hay clases registradas</span>
-            ) : (
-              <CustomSelect
-                value={activeClase?.id || ''}
-                onChange={(val) => setSelectedClaseId(typeof val === 'object' ? val.target.value : val)}
-                options={clases.map(c => {
-                  const hasAbsence = inasistenciasDocente.some(i => i.fecha === c.fecha);
-                  return {
-                    value: c.id,
-                    label: `${formatFechaDMY(c.fecha)} — ${c.tema || 'Sin tema especificado'}`,
-                    badge: hasAbsence ? 'Licencia' : undefined
-                  };
-                })}
-                placeholder="Seleccionar clase..."
-                buttonClassName="py-1 px-2 text-xs sm:text-sm font-semibold border-transparent hover:border-surface-border bg-transparent shadow-none"
-              />
-            )}
-          </div>
+
+          {/* Badge visible con la fecha de la clase que se está editando activamente */}
+          {activeClase && (
+            <div className="self-start sm:self-center inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold font-mono">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span>Modificando asistencia del {formatFechaDMY(activeClase.fecha)}</span>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          {activeClase && estudiantes.length > 0 && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon={CheckCheck}
-              onClick={handleMarcarTodosPresentes}
-              className="flex-1 sm:flex-initial text-xs font-bold shadow-xs min-h-[44px] sm:min-h-0 touch-target-44"
-              title="Marcar todos los alumnos como presentes en esta fecha"
-            >
-              Todos Presentes
-            </Button>
-          )}
+        {/* Fila 2: Grilla Flexible de Botones de Asistencia (Captura 1) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full mt-3">
+          <Button
+            variant="primary"
+            size="sm"
+            icon={CheckCheck}
+            onClick={handleMarcarTodosPresentes}
+            disabled={!activeClase || estudiantes.length === 0}
+            className="w-full text-xs font-bold shadow-xs min-h-[44px] touch-target-44"
+            title="Marcar todos los alumnos como presentes en esta fecha"
+          >
+            ✓ Todos
+          </Button>
 
           <Button
             variant={inasistenciaActual ? 'secondary' : 'outline'}
@@ -590,46 +869,33 @@ export default function AttendanceTab({
               }
               setIsInasistenciaModalOpen(true);
             }}
-            className="flex-1 sm:flex-initial text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 min-h-[44px] sm:min-h-0 touch-target-44 whitespace-nowrap shrink-0"
+            className="w-full text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
             title="Registrar o editar inasistencia / licencia del docente"
           >
-            {inasistenciaActual ? (
-              <>
-                <span className="hidden sm:inline">Ver Licencia Docente</span>
-                <span className="sm:hidden">Licencia</span>
-              </>
-            ) : (
-              <>
-                <span className="hidden sm:inline">Registrar Inasistencia</span>
-                <span className="sm:hidden">+ Inasistencia</span>
-              </>
-            )}
+            {inasistenciaActual ? 'Licencia' : '+ Falta'}
           </Button>
 
-          {/* Botón Imprimir / PDF Oficial */}
           <Button
             variant="outline"
             size="sm"
             icon={Printer}
             onClick={() => setIsPrintModalOpen(true)}
             disabled={estudiantes.length === 0}
-            className="flex-1 sm:flex-initial text-xs border-primary/30 text-primary hover:bg-primary/10 min-h-[44px] sm:min-h-0 touch-target-44 whitespace-nowrap shrink-0"
+            className="w-full text-xs border-primary/30 text-primary hover:bg-primary/10 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
             title="Abrir visor de impresión y PDF oficial de la planilla de asistencias"
           >
-            <span className="hidden sm:inline">Imprimir Registro (PDF)</span>
-            <span className="sm:hidden">Imprimir (PDF)</span>
+            🖨️ PDF
           </Button>
 
-          {/* Botón Nueva Clase */}
           <Button
             variant="primary"
             size="sm"
             icon={Plus}
             onClick={() => setIsModalOpen(true)}
-            className="flex-1 sm:flex-initial text-xs whitespace-nowrap shrink-0"
+            className="w-full text-xs min-h-[44px] touch-target-44 font-semibold whitespace-nowrap shrink-0"
+            title="Crear nueva sesión de clase"
           >
-            <span className="hidden sm:inline">Nueva Clase</span>
-            <span className="sm:hidden">+ Clase</span>
+            Clase
           </Button>
         </div>
       </div>
@@ -675,11 +941,11 @@ export default function AttendanceTab({
 
       {/* Attendance summary cards */}
       {activeClase && (
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <Card className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
             <div>
               <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Presentes</p>
-              <p className="text-xl sm:text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 sm:mt-1">
+              <p className="text-xl sm:text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
                 {presentesCount}
               </p>
             </div>
@@ -688,10 +954,10 @@ export default function AttendanceTab({
             </div>
           </Card>
 
-          <Card className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
             <div>
               <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Ausentes</p>
-              <p className="text-xl sm:text-2xl font-mono font-bold text-rose-600 dark:text-rose-400 mt-0.5 sm:mt-1">
+              <p className="text-xl sm:text-2xl font-mono font-bold text-rose-600 dark:text-rose-400 mt-0.5">
                 {ausentesCount}
               </p>
             </div>
@@ -700,10 +966,22 @@ export default function AttendanceTab({
             </div>
           </Card>
 
-          <Card className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Justificadas</p>
+              <p className="text-xl sm:text-2xl font-mono font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+                {justificadasCount}
+              </p>
+            </div>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+          </Card>
+
+          <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
             <div>
               <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Presentismo</p>
-              <p className="text-xl sm:text-2xl font-mono font-bold text-primary mt-0.5 sm:mt-1">
+              <p className="text-xl sm:text-2xl font-mono font-bold text-primary mt-0.5">
                 {presentismoPct}%
               </p>
             </div>
@@ -724,11 +1002,11 @@ export default function AttendanceTab({
       ) : !activeClase ? (
         <EmptyState
           illustration="folder"
-          title="No se ha creado ninguna clase"
-          description="Haz clic en 'Nueva Clase' arriba para registrar la primera fecha y comenzar a tomar asistencia."
+          title="No hay clases registradas aún"
+          description="No hay clases registradas aún. Pulsa [+ Clase] para iniciar."
           action={
             <Button variant="primary" size="sm" icon={Plus} onClick={() => setIsModalOpen(true)}>
-              Crear Primera Clase
+              Clase
             </Button>
           }
         />
@@ -743,13 +1021,15 @@ export default function AttendanceTab({
                 {estudiantes.length} {estudiantes.length === 1 ? 'Estudiante' : 'Estudiantes'} en Nómina
               </span>
               <span className="font-mono text-[11px]">
-                {presentesCount} P / {ausentesCount} A
+                {presentesCount} P / {ausentesCount} A {justificadasCount > 0 ? `/ ${justificadasCount} J` : ''}
               </span>
             </div>
 
             {estudiantes.map((est) => {
               const estado = getEstado(est.id);
               const isPresente = estado === 'PRESENTE';
+              const isAusente = estado === 'AUSENTE';
+              const isJustificada = estado === 'JUSTIFICADA';
               const asistPct = studentStatsMap.get(est.id) ?? 100;
               const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
               const isFlashing = flashingStudentId === est.id || flashingStudentId === 'ALL';
@@ -793,32 +1073,48 @@ export default function AttendanceTab({
                     </span>
                   </div>
 
-                  {/* Dos botones táctiles grandes y ergonómicos (mínimo 48px de alto) con micro-escala 100ms */}
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  {/* Tres botones táctiles ergonómicos (mínimo 44px de alto) con micro-escala 100ms */}
+                  <div className="grid grid-cols-3 gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => handleToggle(est.id, 'PRESENTE')}
-                      className={`h-12 min-h-[48px] rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
+                      className={`h-11 min-h-[44px] rounded-xl flex items-center justify-center gap-1.5 font-bold text-xs transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
                         isPresente
                           ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 scale-[1.02] border border-emerald-500'
                           : 'bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100/70'
                       }`}
+                      title="Marcar presente"
                     >
-                      <Check className={`w-5 h-5 ${isPresente ? 'stroke-[2.5]' : ''}`} />
-                      <span>✓ Presente</span>
+                      <Check className={`w-4 h-4 ${isPresente ? 'stroke-[2.5]' : ''}`} />
+                      <span className="truncate">✓ Presente</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleToggle(est.id, 'AUSENTE')}
-                      className={`h-12 min-h-[48px] rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
-                        !isPresente
+                      className={`h-11 min-h-[44px] rounded-xl flex items-center justify-center gap-1.5 font-bold text-xs transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
+                        isAusente
                           ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 scale-[1.02] border border-rose-500'
                           : 'bg-rose-50/70 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100/70'
                       }`}
+                      title="Marcar ausente"
                     >
-                      <X className={`w-5 h-5 ${!isPresente ? 'stroke-[2.5]' : ''}`} />
-                      <span>✗ Ausente</span>
+                      <X className={`w-4 h-4 ${isAusente ? 'stroke-[2.5]' : ''}`} />
+                      <span className="truncate">✗ Ausente</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(est.id, 'JUSTIFICADA')}
+                      className={`h-11 min-h-[44px] rounded-xl flex items-center justify-center gap-1.5 font-bold text-xs transition-transform duration-100 active:scale-95 cursor-pointer select-none ${
+                        isJustificada
+                          ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30 scale-[1.02] border border-amber-500'
+                          : 'bg-amber-50/70 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100/70'
+                      }`}
+                      title="Marcar inasistencia justificada"
+                    >
+                      <AlertCircle className={`w-4 h-4 ${isJustificada ? 'stroke-[2.5]' : ''}`} />
+                      <span className="truncate">⚠️ Justificada</span>
                     </button>
                   </div>
                 </div>
@@ -837,13 +1133,15 @@ export default function AttendanceTab({
                     <th className="px-3 sm:px-4 py-3 w-12 text-center">#</th>
                     <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
                     <th className="px-3 sm:px-4 py-3">Estudiante</th>
-                    <th className="px-3 sm:px-4 py-3 text-center min-w-[180px]">Estado de Asistencia</th>
+                    <th className="px-3 sm:px-4 py-3 text-center min-w-[240px]">Estado de Asistencia</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
                   {estudiantes.map((est, index) => {
                     const estado = getEstado(est.id);
                     const isPresente = estado === 'PRESENTE';
+                    const isAusente = estado === 'AUSENTE';
+                    const isJustificada = estado === 'JUSTIFICADA';
                     const isFlashing = flashingStudentId === est.id || flashingStudentId === 'ALL';
 
                     return (
@@ -862,31 +1160,44 @@ export default function AttendanceTab({
                           </div>
                         </td>
                         <td className="px-3 sm:px-4 py-3">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleToggle(est.id, 'PRESENTE')}
-                              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
                                 isPresente
                                   ? 'bg-emerald-600 text-white shadow-xs font-bold'
                                   : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
                               }`}
                             >
-                              <Check className="w-4 h-4 shrink-0" />
+                              <Check className="w-3.5 h-3.5 shrink-0" />
                               <span>Presente</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleToggle(est.id, 'AUSENTE')}
-                              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
-                                !isPresente
+                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+                                isAusente
                                   ? 'bg-rose-600 text-white shadow-xs font-bold'
                                   : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200 dark:border-white/10'
                               }`}
                             >
-                              <X className="w-4 h-4 shrink-0" />
+                              <X className="w-3.5 h-3.5 shrink-0" />
                               <span>Ausente</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleToggle(est.id, 'JUSTIFICADA')}
+                              className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+                                isJustificada
+                                  ? 'bg-amber-600 text-white shadow-xs font-bold'
+                                  : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200 dark:border-white/10'
+                              }`}
+                            >
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>Justificada</span>
                             </button>
                           </div>
                         </td>
@@ -1001,6 +1312,105 @@ export default function AttendanceTab({
               onChange={(e) => setNuevoTema(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
+          </div>
+
+          {/* Selector de Unidad Temática / Didáctica */}
+          <div className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Unidad Temática / Didáctica</span>
+              </label>
+              {!isQuickCreatingUnidad && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickUnidadNum(unidades.length + 1);
+                    setIsQuickCreatingUnidad(true);
+                  }}
+                  className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  + Crear Unidad al vuelo
+                </button>
+              )}
+            </div>
+
+            {!isQuickCreatingUnidad ? (
+              <CustomSelect
+                value={nuevaUnidadId}
+                onChange={(val) => setNuevaUnidadId(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: '', label: 'Sin Unidad Asignada' },
+                  ...unidades.map(u => ({
+                    value: u.id,
+                    label: `Unidad ${u.numero}: ${u.titulo}`,
+                    badge: `U${u.numero}`
+                  }))
+                ]}
+                placeholder="Seleccionar unidad temática..."
+              />
+            ) : (
+              <div className="p-2.5 rounded-xl bg-surface border border-surface-border space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-text-primary">Nueva Unidad Rápida</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickCreatingUnidad(false)}
+                    className="text-[11px] text-text-muted hover:text-text-primary"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="col-span-1">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="N°"
+                      value={quickUnidadNum}
+                      onChange={(e) => setQuickUnidadNum(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs font-mono font-bold border border-surface-border rounded-lg bg-surface text-text-primary outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Título de la unidad..."
+                      value={quickUnidadTitulo}
+                      onChange={(e) => setQuickUnidadTitulo(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs border border-surface-border rounded-lg bg-surface text-text-primary outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    onClick={async () => {
+                      if (!quickUnidadTitulo.trim()) return;
+                      setSavingQuickUnit(true);
+                      try {
+                        const created = await handleQuickCreateUnidad({
+                          numero: quickUnidadNum,
+                          titulo: quickUnidadTitulo
+                        });
+                        if (created?.id) setNuevaUnidadId(created.id);
+                        setIsQuickCreatingUnidad(false);
+                        setQuickUnidadTitulo('');
+                      } finally {
+                        setSavingQuickUnit(false);
+                      }
+                    }}
+                    loading={savingQuickUnit}
+                    disabled={!quickUnidadTitulo.trim()}
+                    className="text-xs py-1 px-3"
+                  >
+                    Crear y Asignar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
@@ -1176,6 +1586,28 @@ export default function AttendanceTab({
           </div>
         </div>
       </Modal>
+
+      {/* Modal de Edición de Clase */}
+      <EditClassModal
+        isOpen={isEditClassModalOpen}
+        onClose={() => setIsEditClassModalOpen(false)}
+        clase={activeClase}
+        unidades={unidades}
+        onQuickCreateUnidad={handleQuickCreateUnidad}
+        onSave={handleSaveEditClass}
+        onDeleteRequest={handleRequestDeleteClass}
+        saving={savingEditClass}
+      />
+
+      {/* Modal de Confirmación de Borrado Seguro */}
+      <ConfirmDeleteClassModal
+        isOpen={isDeleteClassModalOpen}
+        onClose={() => setIsDeleteClassModalOpen(false)}
+        clase={activeClase}
+        totalAsistencias={deleteClassCount}
+        onConfirmDelete={handleConfirmDeleteClass}
+        deleting={deletingClass}
+      />
 
       {/* Visor Unificado de Impresión de Asistencias */}
       <PrintPreviewModal
