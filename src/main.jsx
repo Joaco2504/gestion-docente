@@ -4,6 +4,7 @@ import App from './App.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { AppProvider } from './context/AppContext.jsx';
+import { SystemConfigProvider } from './context/SystemConfigContext.jsx';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -11,7 +12,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ThemeProvider>
       <AuthProvider>
         <AppProvider>
-          <App />
+          <SystemConfigProvider>
+            <App />
+          </SystemConfigProvider>
         </AppProvider>
       </AuthProvider>
     </ThemeProvider>

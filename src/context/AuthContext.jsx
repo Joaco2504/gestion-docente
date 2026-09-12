@@ -8,8 +8,68 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
+  const [perfil, setPerfil] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
+
+  // Consulta el perfil del usuario desde Supabase o mock en localStorage
+  const fetchPerfil = async (currentUser) => {
+    if (!currentUser) {
+      setPerfil(null);
+      return null;
+    }
+
+    if (!isSupabaseConfigured || !supabase || isDemo) {
+      const savedDemoPerfil = localStorage.getItem('docentepro_demo_perfil');
+      if (savedDemoPerfil) {
+        try {
+          const parsed = JSON.parse(savedDemoPerfil);
+          setPerfil(parsed);
+          return parsed;
+        } catch (_) {}
+      }
+      // Por defecto en demo, rol superadmin para habilitar pruebas completas
+      const defaultDemoPerfil = {
+        id: currentUser.id,
+        nombre: currentUser.user_metadata?.nombre || 'Prof. Emilio Martínez',
+        email: currentUser.email || 'profesor.demo@docentepro.edu.ar',
+        rol: 'superadmin',
+        created_at: new Date().toISOString()
+      };
+      localStorage.setItem('docentepro_demo_perfil', JSON.stringify(defaultDemoPerfil));
+      setPerfil(defaultDemoPerfil);
+      return defaultDemoPerfil;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (!error && data) {
+        setPerfil(data);
+        return data;
+      } else if (error && error.code === 'PGRST116') {
+        // Registro no existe aún: crearlo con rol docente por defecto
+        const nuevoPerfil = {
+          id: currentUser.id,
+          nombre: currentUser.user_metadata?.nombre || currentUser.email?.split('@')[0] || '',
+          email: currentUser.email || '',
+          rol: currentUser.user_metadata?.rol === 'superadmin' ? 'superadmin' : 'docente'
+        };
+        const { data: created } = await supabase.from('perfiles').insert(nuevoPerfil).select().single();
+        if (created) {
+          setPerfil(created);
+          return created;
+        }
+      }
+    } catch (err) {
+      console.warn('Error al consultar perfil de usuario:', err);
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -20,6 +80,7 @@ export function AuthProvider({ children }) {
           const parsed = JSON.parse(savedDemo);
           setUser(parsed);
           setIsDemo(true);
+          fetchPerfil(parsed);
         } catch (_) {}
       }
       setLoading(false);
@@ -29,18 +90,28 @@ export function AuthProvider({ children }) {
     // Obtener sesión activa de Supabase
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser) {
+        fetchPerfil(activeUser);
+      }
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const activeUser = session?.user ?? null;
+      setUser(activeUser);
+      if (activeUser) {
+        fetchPerfil(activeUser);
+      } else {
+        setPerfil(null);
+      }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isDemo]);
 
   // Iniciar sesión con Supabase Auth
   const signIn = async (email, password) => {
@@ -72,7 +143,9 @@ export function AuthProvider({ children }) {
   const signOut = async () => {
     if (isDemo) {
       localStorage.removeItem('docentepro_demo_user');
+      localStorage.removeItem('docentepro_demo_perfil');
       setUser(null);
+      setPerfil(null);
       setIsDemo(false);
       return;
     }
@@ -81,6 +154,7 @@ export function AuthProvider({ children }) {
     }
     setUser(null);
     setSession(null);
+    setPerfil(null);
   };
 
   // Modo Demo local (para probar inmediatamente la app sin backend configurado)
@@ -93,8 +167,17 @@ export function AuthProvider({ children }) {
         nivel: nivelPreferido
       }
     };
+    const demoPerfil = {
+      id: demoUser.id,
+      nombre: 'Prof. Emilio Martínez',
+      email: demoUser.email,
+      rol: 'superadmin',
+      created_at: new Date().toISOString()
+    };
     localStorage.setItem('docentepro_demo_user', JSON.stringify(demoUser));
+    localStorage.setItem('docentepro_demo_perfil', JSON.stringify(demoPerfil));
     setUser(demoUser);
+    setPerfil(demoPerfil);
     setIsDemo(true);
   };
 
@@ -128,9 +211,25 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Función para alternar rol en Demo o forzar recarga de perfil
+  const toggleDemoRole = () => {
+    if (isDemo || !isSupabaseConfigured || !supabase) {
+      const nuevoRol = perfil?.rol === 'superadmin' ? 'docente' : 'superadmin';
+      const updated = { ...perfil, rol: nuevoRol };
+      localStorage.setItem('docentepro_demo_perfil', JSON.stringify(updated));
+      setPerfil(updated);
+      return updated;
+    }
+  };
+
+  const esSuperadmin = Boolean(perfil?.rol === 'superadmin');
+
   const value = {
     user,
     session,
+    perfil,
+    rol: perfil?.rol || 'docente',
+    esSuperadmin,
     loading,
     isDemo,
     isSupabaseConfigured,
@@ -138,7 +237,9 @@ export function AuthProvider({ children }) {
     signUp,
     signOut,
     loginDemo,
-    updateUserAvatar
+    updateUserAvatar,
+    fetchPerfil,
+    toggleDemoRole
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

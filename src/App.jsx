@@ -18,6 +18,9 @@ import InstitutionsPage from './pages/InstitutionsPage';
 import SettingsPage from './pages/SettingsPage';
 import GuidesPage from './pages/GuidesPage';
 import SupportPage from './pages/SupportPage';
+import AdminPage from './pages/AdminPage';
+import AdminRoute from './components/auth/AdminRoute';
+import GlobalNoticeBanner from './components/layout/GlobalNoticeBanner';
 import ScrollToTop from './components/common/ScrollToTop';
 import { GraduationCap } from 'lucide-react';
 
@@ -83,6 +86,9 @@ export default function App() {
         {/* Top Navbar */}
         <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
+        {/* Global Notice Banner & Maintenance Alert (Realtime Broadcast) */}
+        <GlobalNoticeBanner />
+
         {/* Main Shell */}
         <div className="flex-1 flex overflow-hidden">
           {/* Dual-Sidebar Navigation (Icon Rail 64px + Secondary Expandable Tree 224px) */}
@@ -106,6 +112,7 @@ export default function App() {
                 <Route path="/configuracion" element={<SettingsPage />} />
                 <Route path="/guias" element={<GuidesPage />} />
                 <Route path="/soporte" element={<SupportPage />} />
+                <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
 

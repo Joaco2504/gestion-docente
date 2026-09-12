@@ -20,7 +20,8 @@ import {
   X,
   User,
   Sparkles,
-  Layers
+  Layers,
+  ShieldAlert
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -33,7 +34,7 @@ import { toast } from 'sonner';
 export default function DualSidebar({ isOpen = false, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, esSuperadmin } = useAuth();
   const { 
     catedras, 
     instituciones, 
@@ -104,7 +105,8 @@ export default function DualSidebar({ isOpen = false, onClose }) {
     { to: '/instituciones', label: 'Instituciones & Ciclos', icon: Building2 },
     { to: '/configuracion', label: 'Configuración', icon: Settings },
     { to: '/guias', label: 'Guías de Usuario', icon: BookMarked },
-    { to: '/soporte', label: 'Soporte Técnico', icon: LifeBuoy }
+    { to: '/soporte', label: 'Soporte Técnico', icon: LifeBuoy },
+    ...(esSuperadmin ? [{ to: '/admin', label: 'Panel Superadmin', icon: ShieldAlert, isSpecial: true }] : [])
   ];
 
   // Crear Institución Rápida
@@ -204,8 +206,12 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                       relative group w-10 h-10 rounded-xl flex items-center justify-center
                       transition-all duration-150 touch-target-44 cursor-pointer
                       ${isActive
-                        ? 'bg-primary text-white shadow-md shadow-primary/30'
-                        : 'text-text-muted hover:text-text-primary hover:bg-surface-hover/80'
+                        ? link.isSpecial 
+                          ? 'bg-gradient-to-br from-rose-500 to-primary text-white shadow-md shadow-rose-500/30' 
+                          : 'bg-primary text-white shadow-md shadow-primary/30'
+                        : link.isSpecial
+                          ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30'
+                          : 'text-text-muted hover:text-text-primary hover:bg-surface-hover/80'
                       }
                     `}
                     title={link.label}
@@ -472,8 +478,23 @@ export default function DualSidebar({ isOpen = false, onClose }) {
             )}
           </div>
 
-          {/* Footer de Riel Secundario: Alta Rápida de Cátedra */}
-          <div className="p-2.5 border-t border-surface-border/70">
+          {/* Footer de Riel Secundario: Alta Rápida de Cátedra & Panel Superadmin */}
+          <div className="p-2.5 border-t border-surface-border/70 space-y-1.5">
+            {esSuperadmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigate('/admin');
+                  if (onClose) onClose();
+                }}
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-gradient-to-r from-rose-500/15 via-primary/10 to-primary/15 text-rose-600 dark:text-rose-300 border border-rose-500/30 hover:bg-rose-500/20 transition-all cursor-pointer"
+                title="Acceder al Panel de Superadministrador"
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
+                <span>Panel Superadmin</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {
