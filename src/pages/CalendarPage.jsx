@@ -46,7 +46,7 @@ const MONTH_NAMES = [
 
 export default function CalendarPage() {
   const { user, isDemo } = useAuth();
-  const { catedras, activeInstitucion, activeCiclo } = useApp();
+  const { catedras, activeInstitucion, activeCiclo, periodosAcademicos } = useApp();
 
   // Mode: 'dia' | 'semanal' | 'mensual' | 'anual'
   const [viewMode, setViewMode] = useState('semanal');
@@ -82,7 +82,33 @@ export default function CalendarPage() {
 
   useEffect(() => {
     fetchAllCalendarData();
-  }, [user, catedras]);
+  }, [user, catedras, activeCiclo]);
+
+  // Sincronización en tiempo real ante eventos de guardado de períodos (sin recargar página)
+  useEffect(() => {
+    const handlePeriodosUpdate = (e) => {
+      if (e.detail && Array.isArray(e.detail) && e.detail.length > 0) {
+        setPeriodos(e.detail);
+      } else {
+        fetchAllCalendarData();
+      }
+    };
+
+    window.addEventListener('periodos_academicos_updated', handlePeriodosUpdate);
+    window.addEventListener('docentepro:periodos_updated', handlePeriodosUpdate);
+
+    return () => {
+      window.removeEventListener('periodos_academicos_updated', handlePeriodosUpdate);
+      window.removeEventListener('docentepro:periodos_updated', handlePeriodosUpdate);
+    };
+  }, []);
+
+  // Sincronización directa si el contexto global actualiza periodosAcademicos
+  useEffect(() => {
+    if (periodosAcademicos && periodosAcademicos.length > 0) {
+      setPeriodos(periodosAcademicos);
+    }
+  }, [periodosAcademicos]);
 
   const fetchAllCalendarData = async () => {
     setLoading(true);
@@ -117,14 +143,17 @@ export default function CalendarPage() {
           setInasistenciasDocente([]);
         }
 
-        // 4. Períodos Académicos
-        const { data: perData } = await supabase
-          .from('periodos_academicos')
-          .select('*')
-          .order('fecha_inicio', { ascending: true });
+        // 4. Períodos Académicos del Ciclo Activo
+        let perQuery = supabase.from('periodos_academicos').select('*');
+        if (activeCiclo?.id) {
+          perQuery = perQuery.eq('ciclo_id', activeCiclo.id);
+        }
+        const { data: perData } = await perQuery.order('fecha_inicio', { ascending: true });
 
         if (perData && perData.length > 0) {
           setPeriodos(perData);
+        } else if (periodosAcademicos && periodosAcademicos.length > 0) {
+          setPeriodos(periodosAcademicos);
         } else {
           setPeriodos(getDefaultPeriods());
         }
@@ -140,9 +169,9 @@ export default function CalendarPage() {
   };
 
   const getDefaultPeriods = () => [
-    { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
-    { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
-    { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
+    { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'PRIMER_CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
+    { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO_INVERNAL', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
+    { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'SEGUNDO_CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
   ];
 
   const loadDemoCalendarData = () => {
@@ -168,7 +197,8 @@ export default function CalendarPage() {
     ];
 
     setEvents(sampleEvents);
-    setPeriodos(getDefaultPeriods());
+    const demoPeriods = (periodosAcademicos && periodosAcademicos.length > 0) ? periodosAcademicos : getDefaultPeriods();
+    setPeriodos(demoPeriods);
   };
 
   /**
@@ -196,14 +226,67 @@ export default function CalendarPage() {
   }, [catedras]);
 
   /**
+   * Generación de eventos sintéticos para límites de períodos lectivos y receso invernal
+   */
+  const periodoEvents = useMemo(() => {
+    const pEvents = [];
+    (periodos || []).forEach((p, idx) => {
+      const pNombre = p.nombre || (
+        p.tipo === 'PRIMER_CUATRIMESTRE' ? '1° Cuatrimestre' :
+        p.tipo === 'RECESO_INVERNAL' ? 'Receso Invernal' :
+        p.tipo === 'SEGUNDO_CUATRIMESTRE' ? '2° Cuatrimestre' : `Período ${idx + 1}`
+      );
+
+      const fInicio = p.fecha_inicio ? String(p.fecha_inicio).split('T')[0] : null;
+      const fFin = p.fecha_fin ? String(p.fecha_fin).split('T')[0] : null;
+
+      if (fInicio) {
+        pEvents.push({
+          id: `per-inicio-${p.id || p.tipo || idx}`,
+          titulo: `Inicio: ${pNombre}`,
+          tipo: 'PERIODO',
+          fecha_inicio: `${fInicio}T08:00:00`,
+          fecha_fin: `${fInicio}T12:00:00`,
+          fecha: fInicio,
+          notas: `Apertura del ciclo o período académico: ${pNombre}. Cronograma: ${fInicio} al ${fFin || fInicio}`,
+          isPeriodo: true,
+          editable: false
+        });
+      }
+
+      if (fFin && fFin !== fInicio) {
+        pEvents.push({
+          id: `per-fin-${p.id || p.tipo || idx}`,
+          titulo: `Cierre: ${pNombre}`,
+          tipo: 'PERIODO',
+          fecha_inicio: `${fFin}T08:00:00`,
+          fecha_fin: `${fFin}T18:00:00`,
+          fecha: fFin,
+          notas: `Cierre del período académico: ${pNombre}. Cronograma: ${fInicio || fFin} al ${fFin}`,
+          isPeriodo: true,
+          editable: false
+        });
+      }
+    });
+    return pEvents;
+  }, [periodos]);
+
+  /**
+   * Colección unificada de eventos (eventos del docente + hitos de períodos académicos)
+   */
+  const allCalendarEvents = useMemo(() => {
+    return [...events, ...periodoEvents];
+  }, [events, periodoEvents]);
+
+  /**
    * Cálculo de Próximo Evento / Clase para la Tarjeta de Cuenta Regresiva
    */
   const nextUpcomingItem = useMemo(() => {
     const now = new Date();
     const candidates = [];
 
-    // 1. Revisar eventos futuros
-    events.forEach(ev => {
+    // 1. Revisar eventos futuros (incluye cierres e hitos de períodos académicos)
+    allCalendarEvents.forEach(ev => {
       const evDate = new Date(ev.fecha_inicio || ev.fecha);
       if (evDate >= now) {
         candidates.push({
@@ -244,7 +327,7 @@ export default function CalendarPage() {
 
     candidates.sort((a, b) => a.date - b.date);
     return candidates[0] || null;
-  }, [events, regularClasses]);
+  }, [allCalendarEvents, regularClasses]);
 
   /**
    * Navegación de Fecha
@@ -355,7 +438,7 @@ export default function CalendarPage() {
    */
   const handleDownloadIcs = () => {
     try {
-      const ics = generateIcsContent(events, catedras);
+      const ics = generateIcsContent(allCalendarEvents, catedras);
       downloadIcsFile(ics, `calendario_docente_${new Date().getFullYear()}.ics`);
       toast.success('Archivo .ics descargado con éxito');
       setIsSyncModalOpen(false);
@@ -603,7 +686,7 @@ export default function CalendarPage() {
 
                   // Determinar si hay eventos o clases este día
                   const dStr = d.toISOString().split('T')[0];
-                  const hasEv = events.some(e => (e.fecha_inicio || e.fecha || '').startsWith(dStr));
+                  const hasEv = allCalendarEvents.some(e => (e.fecha_inicio || e.fecha || '').startsWith(dStr));
 
                   return (
                     <button
@@ -700,6 +783,57 @@ export default function CalendarPage() {
                       </div>
                       {isActive && <Check className="w-3.5 h-3.5 text-primary" />}
                     </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* D. RESUMEN BENTO: LÍMITES DE PERÍODOS ACADÉMICOS Y RECESO */}
+            <div className="space-y-2.5 pt-3 border-t border-slate-200/60 dark:border-white/10">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <CalendarDays className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Límites Períodos Lectivos</span>
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">
+                  {activeCiclo ? `Ciclo ${activeCiclo.anio}` : 'Vigente'}
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-xs font-medium">
+                {periodos.map((p, idx) => {
+                  const pNombre = p.nombre || (
+                    p.tipo === 'PRIMER_CUATRIMESTRE' ? '1° Cuatrimestre' :
+                    p.tipo === 'RECESO_INVERNAL' ? 'Receso Invernal' :
+                    p.tipo === 'SEGUNDO_CUATRIMESTRE' ? '2° Cuatrimestre' : `Período ${idx + 1}`
+                  );
+                  const isReceso = p.tipo === 'RECESO_INVERNAL' || p.tipo === 'RECESO';
+                  const startStr = p.fecha_inicio ? String(p.fecha_inicio).split('T')[0] : 'S/F';
+                  const endStr = p.fecha_fin ? String(p.fecha_fin).split('T')[0] : 'S/F';
+
+                  return (
+                    <div 
+                      key={p.id || idx}
+                      className={`p-2 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                        isReceso 
+                          ? 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-200/70 dark:border-amber-900/40 text-amber-900 dark:text-amber-200' 
+                          : 'bg-slate-50/70 dark:bg-white/[0.02] border-slate-200/60 dark:border-white/10 text-text-primary'
+                      }`}
+                    >
+                      <div className="truncate">
+                        <span className="text-[11px] font-bold block truncate">{pNombre}</span>
+                        <span className="text-[10px] font-mono text-text-muted">
+                          {startStr} al {endStr}
+                        </span>
+                      </div>
+                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                        isReceso 
+                          ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' 
+                          : 'bg-primary/10 text-primary'
+                      }`}>
+                        {isReceso ? 'Receso' : 'Cuatrimestre'}
+                      </span>
+                    </div>
                   );
                 })}
               </div>
@@ -819,8 +953,8 @@ export default function CalendarPage() {
                         ? regularClasses.filter(c => c.dia_semana === currDayName)
                         : [];
 
-                      // Filtrar eventos de calendario
-                      const matchingEvents = events.filter(e => {
+                      // Filtrar eventos de calendario (incluye hitos de períodos)
+                      const matchingEvents = allCalendarEvents.filter(e => {
                         if (selectedCategory !== 'TODOS' && e.tipo !== selectedCategory) return false;
                         const evIso = (e.fecha_inicio || e.fecha || '').split('T')[0];
                         return evIso === currIso;
@@ -863,7 +997,7 @@ export default function CalendarPage() {
                             );
                           })}
 
-                          {/* Eventos registrados */}
+                          {/* Eventos registrados e hitos de períodos */}
                           {matchingEvents.map(ev => {
                             const styles = getEventStyle(ev.tipo);
                             const timeBadge = ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : '08:00';
@@ -890,17 +1024,19 @@ export default function CalendarPage() {
                                   <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary">
                                     {timeBadge} hs
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteEvent(ev.id);
-                                    }}
-                                    className="p-1 text-text-muted hover:text-rose-600 rounded"
-                                    title="Eliminar evento"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  {!ev.isPeriodo && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteEvent(ev.id);
+                                      }}
+                                      className="p-1 text-text-muted hover:text-rose-600 rounded"
+                                      title="Eliminar evento"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -1010,11 +1146,18 @@ export default function CalendarPage() {
                       const isToday = d.toDateString() === new Date().toDateString();
                       const isSelected = d.toDateString() === currentDate.toDateString();
 
-                      // Eventos de este día
-                      const dayEvents = events.filter(e => {
+                      // Eventos de este día (incluye hitos de períodos académicos)
+                      const dayEvents = allCalendarEvents.filter(e => {
+                        if (selectedCategory !== 'TODOS' && e.tipo !== selectedCategory) return false;
                         const evDate = (e.fecha_inicio || e.fecha || '').split('T')[0];
                         return evDate === dStr;
                       });
+
+                      // Detección de Receso Invernal
+                      const recesoPeriodo = (periodos || []).find(p => p.tipo === 'RECESO_INVERNAL' || p.tipo === 'RECESO');
+                      const recesoInicio = recesoPeriodo?.fecha_inicio ? String(recesoPeriodo.fecha_inicio).split('T')[0] : null;
+                      const recesoFin = recesoPeriodo?.fecha_fin ? String(recesoPeriodo.fecha_fin).split('T')[0] : null;
+                      const isRecesoDay = recesoInicio && recesoFin && dStr >= recesoInicio && dStr <= recesoFin;
 
                       return (
                         <motion.div
@@ -1031,7 +1174,9 @@ export default function CalendarPage() {
                               ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 shadow-xs' 
                               : isToday 
                                 ? 'border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20' 
-                                : 'border-slate-200/70 dark:border-white/10 hover:border-indigo-400/50 hover:bg-slate-100/40 dark:hover:bg-white/[0.04]'
+                                : isRecesoDay
+                                  ? 'border-amber-300/60 dark:border-amber-700/50 bg-amber-50/40 dark:bg-amber-950/20 hover:border-amber-400'
+                                  : 'border-slate-200/70 dark:border-white/10 hover:border-indigo-400/50 hover:bg-slate-100/40 dark:hover:bg-white/[0.04]'
                             }
                           `}
                         >
@@ -1044,23 +1189,38 @@ export default function CalendarPage() {
                             />
                           )}
 
-                          <span className={`font-mono font-bold text-[11px] ${isToday ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-text-primary'}`}>
-                            {d.getDate()}
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <span className={`font-mono font-bold text-[11px] ${isToday ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-text-primary'}`}>
+                              {d.getDate()}
+                            </span>
+                            {isRecesoDay && !dayEvents.some(e => e.tipo === 'PERIODO') && (
+                              <span className="text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-tighter bg-amber-500/15 px-1 rounded">
+                                Receso
+                              </span>
+                            )}
+                          </div>
 
                           <div className="space-y-1 overflow-hidden">
-                            {dayEvents.slice(0, 2).map((ev) => (
-                              <motion.div
-                                key={ev.id}
-                                initial={{ scale: 0.85, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                                className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 truncate"
-                                title={ev.titulo}
-                              >
-                                {ev.titulo}
-                              </motion.div>
-                            ))}
+                            {dayEvents.slice(0, 2).map((ev) => {
+                              const isPeriod = ev.tipo === 'PERIODO';
+                              return (
+                                <motion.div
+                                  key={ev.id}
+                                  initial={{ scale: 0.85, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                                  className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md truncate ${
+                                    isPeriod 
+                                      ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/35 font-bold'
+                                      : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20'
+                                  }`}
+                                  title={ev.titulo}
+                                >
+                                  {isPeriod && '⚡ '}
+                                  {ev.titulo}
+                                </motion.div>
+                              );
+                            })}
                             {dayEvents.length > 2 && (
                               <span className="text-[9px] font-mono text-text-muted">
                                 +{dayEvents.length - 2} más
@@ -1254,14 +1414,20 @@ export default function CalendarPage() {
             )}
 
             <div className="flex justify-between items-center pt-3 border-t border-surface-border">
-              <button
-                type="button"
-                onClick={() => handleDeleteEvent(selectedEventForDetail.id)}
-                className="text-xs text-rose-600 hover:underline inline-flex items-center gap-1"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Eliminar del calendario</span>
-              </button>
+              {selectedEventForDetail.isPeriodo ? (
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  Hito de ciclo lectivo (gestionado en Períodos Académicos)
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteEvent(selectedEventForDetail.id)}
+                  className="text-xs text-rose-600 hover:underline inline-flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar del calendario</span>
+                </button>
+              )}
 
               <Button
                 variant="secondary"

@@ -29,7 +29,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export default function SettingsPage() {
   const { user, isDemo } = useAuth();
-  const { selectedCiclo } = useApp();
+  const { selectedCiclo, activeCiclo, periodosAcademicos, setPeriodosAcademicos } = useApp();
   const { 
     theme, 
     setTheme, 
@@ -42,26 +42,26 @@ export default function SettingsPage() {
   const [savingCriteria, setSavingCriteria] = useState(false);
   const [isPeriodsOpen, setIsPeriodsOpen] = useState(false);
 
-  // Límites de Períodos Académicos y Receso Invernal
+  // Límites de Períodos Académicos y Receso Invernal (Tipos canónicos reglamentarios)
   const [periodos, setPeriodos] = useState([
     { 
       id: 'per-1', 
       nombre: '1° Cuatrimestre', 
-      tipo: 'CUATRIMESTRE', 
+      tipo: 'PRIMER_CUATRIMESTRE', 
       fecha_inicio: '2026-03-09', 
       fecha_fin: '2026-07-10' 
     },
     { 
       id: 'per-2', 
       nombre: 'Receso Invernal', 
-      tipo: 'RECESO', 
+      tipo: 'RECESO_INVERNAL', 
       fecha_inicio: '2026-07-13', 
       fecha_fin: '2026-07-24' 
     },
     { 
       id: 'per-3', 
       nombre: '2° Cuatrimestre', 
-      tipo: 'CUATRIMESTRE', 
+      tipo: 'SEGUNDO_CUATRIMESTRE', 
       fecha_inicio: '2026-08-03', 
       fecha_fin: '2026-11-20' 
     }
@@ -76,22 +76,84 @@ export default function SettingsPage() {
     nota_min_sec: 6
   });
 
+  // Asegura formato de fecha ISO estándar (YYYY-MM-DD)
+  const formatToIsoDate = (val) => {
+    if (!val) return '';
+    const str = String(val).trim();
+    const match = str.match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) return match[0];
+    try {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    } catch (_) {}
+    return str.slice(0, 10);
+  };
+
+  // Normalización explícita de tipos de período según la directiva del sistema
+  const normalizePeriodTipo = (tipo, nombre, index) => {
+    const t = String(tipo || '').toUpperCase().trim();
+    const n = String(nombre || '').toLowerCase().trim();
+
+    if (
+      t === 'PRIMER_CUATRIMESTRE' || 
+      t === '1_CUATRIMESTRE' || 
+      n.includes('1') || 
+      n.includes('primer') || 
+      (index === 0 && (t === 'CUATRIMESTRE' || !t))
+    ) {
+      return 'PRIMER_CUATRIMESTRE';
+    }
+
+    if (
+      t === 'RECESO_INVERNAL' || 
+      t === 'RECESO' || 
+      n.includes('receso') || 
+      n.includes('invernal') || 
+      n.includes('vacaciones') || 
+      index === 1
+    ) {
+      return 'RECESO_INVERNAL';
+    }
+
+    if (
+      t === 'SEGUNDO_CUATRIMESTRE' || 
+      t === '2_CUATRIMESTRE' || 
+      n.includes('2') || 
+      n.includes('segundo') || 
+      (index === 2 && (t === 'CUATRIMESTRE' || !t))
+    ) {
+      return 'SEGUNDO_CUATRIMESTRE';
+    }
+
+    return t || (index === 0 ? 'PRIMER_CUATRIMESTRE' : index === 1 ? 'RECESO_INVERNAL' : 'SEGUNDO_CUATRIMESTRE');
+  };
+
   useEffect(() => {
     fetchAcademicSettings();
-  }, [selectedCiclo]);
+  }, [selectedCiclo, activeCiclo]);
 
   const fetchAcademicSettings = async () => {
     try {
-      // 1. Fetch periodos
-      if (isSupabaseConfigured && !isDemo && selectedCiclo?.id) {
-        const { data: pData } = await supabase
+      const cycleId = selectedCiclo?.id || activeCiclo?.id;
+
+      // 1. Fetch periodos desde Supabase
+      if (isSupabaseConfigured && !isDemo && cycleId) {
+        const { data: pData, error: pErr } = await supabase
           .from('periodos_academicos')
           .select('*')
-          .eq('ciclo_id', selectedCiclo.id)
+          .eq('ciclo_id', cycleId)
           .order('fecha_inicio', { ascending: true });
 
-        if (pData && pData.length > 0) {
-          setPeriodos(pData);
+        if (!pErr && pData && pData.length > 0) {
+          const mapped = pData.map((p, idx) => ({
+            ...p,
+            tipo: normalizePeriodTipo(p.tipo, p.nombre, idx),
+            fecha_inicio: formatToIsoDate(p.fecha_inicio),
+            fecha_fin: formatToIsoDate(p.fecha_fin)
+          }));
+          setPeriodos(mapped);
+          if (setPeriodosAcademicos) setPeriodosAcademicos(mapped);
+          localStorage.setItem('docentepro_academic_periods', JSON.stringify(mapped));
         } else {
           loadStoredPeriods();
         }
@@ -113,25 +175,49 @@ export default function SettingsPage() {
   const loadStoredPeriods = () => {
     const stored = localStorage.getItem('docentepro_academic_periods');
     if (stored) {
-      setPeriodos(JSON.parse(stored));
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const mapped = parsed.map((p, idx) => ({
+            ...p,
+            tipo: normalizePeriodTipo(p.tipo, p.nombre, idx),
+            fecha_inicio: formatToIsoDate(p.fecha_inicio),
+            fecha_fin: formatToIsoDate(p.fecha_fin)
+          }));
+          setPeriodos(mapped);
+          return;
+        }
+      } catch (_) {}
     }
+
+    const defaultPers = [
+      { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'PRIMER_CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
+      { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO_INVERNAL', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
+      { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'SEGUNDO_CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
+    ];
+    setPeriodos(defaultPers);
   };
 
   const [deletedPeriodIds, setDeletedPeriodIds] = useState([]);
 
   const handlePeriodChange = (index, field, value) => {
     const updated = [...periodos];
-    updated[index][field] = value;
+    let finalValue = value;
+    if (field === 'fecha_inicio' || field === 'fecha_fin') {
+      finalValue = formatToIsoDate(value);
+    }
+    updated[index][field] = finalValue;
     setPeriodos(updated);
   };
 
   const handleAddPeriod = () => {
+    const todayIso = new Date().toISOString().split('T')[0];
     const newPeriod = {
       id: 'per-' + Date.now(),
       nombre: 'Nuevo Período',
       tipo: 'CUATRIMESTRE',
-      fecha_inicio: new Date().toISOString().split('T')[0],
-      fecha_fin: new Date().toISOString().split('T')[0]
+      fecha_inicio: todayIso,
+      fecha_fin: todayIso
     };
     setPeriodos([...periodos, newPeriod]);
   };
@@ -149,61 +235,131 @@ export default function SettingsPage() {
   };
 
   const handleSavePeriods = async () => {
-    // Validar orden cronológico
+    // 1. Validar orden cronológico
     for (const p of periodos) {
-      if (p.fecha_inicio && p.fecha_fin && p.fecha_inicio > p.fecha_fin) {
-        toast.error(`En "${p.nombre}": La fecha de inicio no puede ser posterior a la fecha de cierre.`);
+      const ini = formatToIsoDate(p.fecha_inicio);
+      const fin = formatToIsoDate(p.fecha_fin);
+      if (ini && fin && ini > fin) {
+        toast.error(`En "${p.nombre}": La fecha de inicio (${ini}) no puede ser posterior a la fecha de cierre (${fin}).`);
         return;
       }
     }
 
+    const activeCicloId = selectedCiclo?.id || activeCiclo?.id || 'ciclo-2026';
+
+    // 2. Construir arreglo de objetos mapeando explícitamente el campo tipo:
+    //    - Primer Cuatrimestre: tipo: 'PRIMER_CUATRIMESTRE'
+    //    - Receso Invernal: tipo: 'RECESO_INVERNAL'
+    //    - Segundo Cuatrimestre: tipo: 'SEGUNDO_CUATRIMESTRE'
+    const payload = periodos.map((p, idx) => {
+      const mappedTipo = normalizePeriodTipo(p.tipo, p.nombre, idx);
+      const nombreFinal = p.nombre?.trim() || (
+        mappedTipo === 'PRIMER_CUATRIMESTRE' ? '1° Cuatrimestre' :
+        mappedTipo === 'RECESO_INVERNAL' ? 'Receso Invernal' : '2° Cuatrimestre'
+      );
+      const fechaIniIso = formatToIsoDate(p.fecha_inicio);
+      const fechaFinIso = formatToIsoDate(p.fecha_fin);
+
+      return {
+        ciclo_id: activeCicloId,
+        docente_id: user?.id,
+        nombre: nombreFinal,
+        tipo: mappedTipo,
+        fecha_inicio: fechaIniIso,
+        fecha_fin: fechaFinIso
+      };
+    });
+
     setSavingPeriods(true);
+    let savedData = null;
+
     try {
-      if (isSupabaseConfigured && !isDemo && selectedCiclo?.id && user) {
-        // 1. Eliminar períodos borrados por el usuario
+      if (isSupabaseConfigured && !isDemo && user && activeCicloId) {
+        // Eliminar períodos borrados explícitamente por el usuario
         if (deletedPeriodIds.length > 0) {
-          const { error: delErr } = await supabase
+          const validDeletes = deletedPeriodIds.filter(id => !String(id).startsWith('per-'));
+          if (validDeletes.length > 0) {
+            const { error: delErr } = await supabase
+              .from('periodos_academicos')
+              .delete()
+              .in('id', validDeletes);
+            if (delErr) console.warn('Aviso al eliminar períodos:', delErr);
+          }
+        }
+
+        // Ejecutar upsert utilizando onConflict: 'ciclo_id,tipo' con docente_id: user.id
+        try {
+          const { data, error } = await supabase
             .from('periodos_academicos')
-            .delete()
-            .in('id', deletedPeriodIds);
-          if (delErr) {
-            console.warn('Aviso al eliminar períodos:', delErr);
+            .upsert(payload, { onConflict: 'ciclo_id,tipo' })
+            .select();
+
+          if (error) throw error;
+          savedData = data;
+        } catch (upsertError) {
+          console.warn('Aviso en upsert con onConflict ciclo_id,tipo:', upsertError);
+
+          // Fallback resiliente 1: Si la columna docente_id aún no existe en Supabase
+          if (upsertError.message?.includes('docente_id') || upsertError.code === '42703') {
+            const payloadWithoutDocente = payload.map(({ docente_id, ...rest }) => rest);
+            const { data: d2, error: errWithoutDocente } = await supabase
+              .from('periodos_academicos')
+              .upsert(payloadWithoutDocente, { onConflict: 'ciclo_id,tipo' })
+              .select();
+
+            if (errWithoutDocente) throw errWithoutDocente;
+            savedData = d2;
+          } 
+          // Fallback resiliente 2: Si no existe aún la restricción UNIQUE(ciclo_id, tipo) en Postgres
+          else if (upsertError.message?.includes('ON CONFLICT') || upsertError.code === '42P10') {
+            await supabase.from('periodos_academicos').delete().eq('ciclo_id', activeCicloId);
+            const { data: d3, error: errInsert } = await supabase
+              .from('periodos_academicos')
+              .insert(payload)
+              .select();
+
+            if (errInsert) throw errInsert;
+            savedData = d3;
+          } else {
+            throw upsertError;
           }
         }
-
-        // 2. Upsert de períodos (la tabla periodos_academicos NO tiene columna docente_id)
-        const toUpsert = periodos.map(p => {
-          const item = {
-            ciclo_id: selectedCiclo.id,
-            nombre: p.nombre,
-            tipo: p.tipo,
-            fecha_inicio: p.fecha_inicio,
-            fecha_fin: p.fecha_fin
-          };
-          if (p.id && !String(p.id).startsWith('per-')) {
-            item.id = p.id;
-          }
-          return item;
-        });
-
-        const { data, error } = await supabase
-          .from('periodos_academicos')
-          .upsert(toUpsert)
-          .select();
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          setPeriodos(data);
-        }
-        setDeletedPeriodIds([]);
       }
 
-      localStorage.setItem('docentepro_academic_periods', JSON.stringify(periodos));
+      // 3. Formatear y actualizar estado local
+      const finalPeriods = (savedData && savedData.length > 0)
+        ? savedData.map((p, idx) => ({
+            ...p,
+            tipo: normalizePeriodTipo(p.tipo, p.nombre, idx),
+            fecha_inicio: formatToIsoDate(p.fecha_inicio),
+            fecha_fin: formatToIsoDate(p.fecha_fin)
+          }))
+        : payload.map((p, i) => ({
+            ...p,
+            id: p.id || `per-${Date.now()}-${i}`
+          }));
+
+      setPeriodos(finalPeriods);
+      setDeletedPeriodIds([]);
+
+      // 4. Guardar en almacenamiento local
+      localStorage.setItem('docentepro_academic_periods', JSON.stringify(finalPeriods));
+      if (activeCicloId) {
+        localStorage.setItem(`periodos_${activeCicloId}`, JSON.stringify(finalPeriods));
+      }
+
+      // 5. Actualizar estado del calendario y contexto global sin requerir recargar la página
+      if (setPeriodosAcademicos) {
+        setPeriodosAcademicos(finalPeriods);
+      }
+
+      window.dispatchEvent(new CustomEvent('periodos_academicos_updated', { detail: finalPeriods }));
+      window.dispatchEvent(new CustomEvent('docentepro:periodos_updated', { detail: finalPeriods }));
+
       toast.success('Límites de períodos académicos y receso guardados correctamente.');
     } catch (err) {
       console.error('Error saving periods:', err);
-      toast.error('Error al guardar períodos: ' + err.message);
+      toast.error('Error al guardar períodos: ' + (err.message || 'Error desconocido'));
     } finally {
       setSavingPeriods(false);
     }
@@ -440,7 +596,7 @@ export default function SettingsPage() {
                 <div 
                   key={p.id || index}
                   className={`p-4 rounded-2xl border transition-all ${
-                    p.tipo === 'RECESO'
+                    p.tipo === 'RECESO' || p.tipo === 'RECESO_INVERNAL'
                       ? 'bg-amber-500/5 border-amber-500/20'
                       : 'bg-surface border-surface-border'
                   }`}
@@ -470,9 +626,10 @@ export default function SettingsPage() {
                           value={p.tipo}
                           onChange={(val) => handlePeriodChange(index, 'tipo', typeof val === 'object' ? val.target.value : val)}
                           options={[
-                            { value: 'CUATRIMESTRE', label: 'Cuatrimestre' },
+                            { value: 'PRIMER_CUATRIMESTRE', label: '1° Cuatrimestre' },
+                            { value: 'RECESO_INVERNAL', label: 'Receso Invernal (Vacaciones)' },
+                            { value: 'SEGUNDO_CUATRIMESTRE', label: '2° Cuatrimestre' },
                             { value: 'TRIMESTRE', label: 'Trimestre' },
-                            { value: 'RECESO', label: 'Receso Invernal (Vacaciones)' },
                             { value: 'EXAMENES', label: 'Turno de Exámenes Finales' }
                           ]}
                           buttonClassName="py-2 text-xs font-semibold"
@@ -487,7 +644,7 @@ export default function SettingsPage() {
                         <input
                           type="date"
                           required
-                          value={p.fecha_inicio}
+                          value={formatToIsoDate(p.fecha_inicio)}
                           onChange={(e) => handlePeriodChange(index, 'fecha_inicio', e.target.value)}
                           className="w-full px-3 py-2 text-xs sm:text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
                         />
@@ -501,7 +658,7 @@ export default function SettingsPage() {
                         <input
                           type="date"
                           required
-                          value={p.fecha_fin}
+                          value={formatToIsoDate(p.fecha_fin)}
                           onChange={(e) => handlePeriodChange(index, 'fecha_fin', e.target.value)}
                           className="w-full px-3 py-2 text-xs sm:text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
                         />

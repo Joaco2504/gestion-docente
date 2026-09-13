@@ -14,6 +14,7 @@ export function AppProvider({ children }) {
   const [ciclosLectivos, setCiclosLectivos] = useState([]);
   const [selectedCiclo, setSelectedCiclo] = useState(null);
   const [catedras, setCatedras] = useState([]);
+  const [periodosAcademicos, setPeriodosAcademicos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Carga instituciones, ciclos lectivos y cátedras desde Supabase o Mock
@@ -105,6 +106,20 @@ export function AppProvider({ children }) {
       localStorage.setItem('docentepro_demo_instituciones', JSON.stringify(instList));
       localStorage.setItem('docentepro_demo_ciclos', JSON.stringify(ciclosList));
       localStorage.setItem('demo_catedras', JSON.stringify(catList));
+
+      const savedPeriods = localStorage.getItem('docentepro_academic_periods');
+      if (savedPeriods) {
+        setPeriodosAcademicos(JSON.parse(savedPeriods));
+      } else {
+        const defaultPers = [
+          { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'PRIMER_CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
+          { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO_INVERNAL', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
+          { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'SEGUNDO_CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
+        ];
+        setPeriodosAcademicos(defaultPers);
+        localStorage.setItem('docentepro_academic_periods', JSON.stringify(defaultPers));
+      }
+
       setLoading(false);
       return;
     }
@@ -173,6 +188,23 @@ export function AppProvider({ children }) {
       });
 
       setCatedras(cats);
+
+      // 4. Fetch Periodos Académicos
+      try {
+        const { data: perData } = await supabase
+          .from('periodos_academicos')
+          .select('*')
+          .order('fecha_inicio', { ascending: true });
+        if (perData && perData.length > 0) {
+          setPeriodosAcademicos(perData);
+          localStorage.setItem('docentepro_academic_periods', JSON.stringify(perData));
+        } else {
+          const storedPers = localStorage.getItem('docentepro_academic_periods');
+          if (storedPers) setPeriodosAcademicos(JSON.parse(storedPers));
+        }
+      } catch (perErr) {
+        console.warn('Aviso cargando periodos_academicos en AppContext:', perErr);
+      }
     } catch (error) {
       console.error('Error al cargar datos globales:', error);
     } finally {
@@ -276,6 +308,8 @@ export function AppProvider({ children }) {
     setActiveCiclo: setSelectedCiclo,
     catedras,
     setCatedras,
+    periodosAcademicos,
+    setPeriodosAcademicos,
     loading,
     loadingApp: loading,
     refreshGlobalState,

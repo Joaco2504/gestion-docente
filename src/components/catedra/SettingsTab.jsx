@@ -20,11 +20,54 @@ import CustomSelect from '../common/CustomSelect';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+const normalizePeriodTipo = (tipo, nombre = '', index = 0) => {
+  const norm = String(tipo || '').toUpperCase().trim();
+  if (norm === 'PRIMER_CUATRIMESTRE' || norm === '1_CUATRIMESTRE' || norm === '1ER_CUATRIMESTRE') {
+    return 'PRIMER_CUATRIMESTRE';
+  }
+  if (norm === 'RECESO_INVERNAL' || norm === 'RECESO' || norm === 'INVIERNO') {
+    return 'RECESO_INVERNAL';
+  }
+  if (norm === 'SEGUNDO_CUATRIMESTRE' || norm === '2_CUATRIMESTRE' || norm === '2DO_CUATRIMESTRE') {
+    return 'SEGUNDO_CUATRIMESTRE';
+  }
+  const n = String(nombre).toLowerCase();
+  if (n.includes('receso') || n.includes('invernal') || n.includes('invierno')) {
+    return 'RECESO_INVERNAL';
+  }
+  if (n.includes('1') || n.includes('primer')) {
+    return 'PRIMER_CUATRIMESTRE';
+  }
+  if (n.includes('2') || n.includes('segundo')) {
+    return 'SEGUNDO_CUATRIMESTRE';
+  }
+  if (index === 0) return 'PRIMER_CUATRIMESTRE';
+  if (index === 1) return 'RECESO_INVERNAL';
+  if (index === 2) return 'SEGUNDO_CUATRIMESTRE';
+  return norm || 'PRIMER_CUATRIMESTRE';
+};
+
+const formatToIsoDate = (dateVal) => {
+  if (!dateVal) return '';
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+    return dateVal;
+  }
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+};
+
 export default function SettingsTab({ catedra, onCatedraUpdated }) {
   const { user, isDemo } = useAuth();
+  const { setPeriodosAcademicos } = useApp();
   const [loading, setLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -48,11 +91,11 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     nota_min_sec: 6
   });
 
-  // Periodos state
+  // Periodos state con tipos canónicos
   const [periodos, setPeriodos] = useState([
-    { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
-    { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
-    { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
+    { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'PRIMER_CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
+    { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO_INVERNAL', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
+    { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'SEGUNDO_CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
   ]);
 
   // Accordion collapse states (OBLIGATORIAMENTE CERRADOS / COLAPSADOS por defecto)
@@ -85,9 +128,9 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
       nota_min_sec: 6
     };
     let loadedPers = [
-      { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
-      { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
-      { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
+      { id: 'per-1', nombre: '1° Cuatrimestre', tipo: 'PRIMER_CUATRIMESTRE', fecha_inicio: '2026-03-09', fecha_fin: '2026-07-10' },
+      { id: 'per-2', nombre: 'Receso Invernal', tipo: 'RECESO_INVERNAL', fecha_inicio: '2026-07-13', fecha_fin: '2026-07-24' },
+      { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'SEGUNDO_CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
     ];
 
     try {
@@ -116,7 +159,12 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
             .order('fecha_inicio', { ascending: true });
 
           if (perData && perData.length > 0) {
-            loadedPers = perData;
+            loadedPers = perData.map((p, idx) => ({
+              ...p,
+              tipo: normalizePeriodTipo(p.tipo, p.nombre, idx),
+              fecha_inicio: formatToIsoDate(p.fecha_inicio),
+              fecha_fin: formatToIsoDate(p.fecha_fin)
+            }));
           }
         }
       } else {
@@ -126,7 +174,19 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         }
         const storedPer = localStorage.getItem(`periodos_${catedra?.ciclo_id || catedra?.id}`);
         if (storedPer) {
-          loadedPers = JSON.parse(storedPer);
+          try {
+            const parsedPer = JSON.parse(storedPer);
+            if (Array.isArray(parsedPer) && parsedPer.length > 0) {
+              loadedPers = parsedPer.map((p, idx) => ({
+                ...p,
+                tipo: normalizePeriodTipo(p.tipo, p.nombre, idx),
+                fecha_inicio: formatToIsoDate(p.fecha_inicio),
+                fecha_fin: formatToIsoDate(p.fecha_fin)
+              }));
+            }
+          } catch (e) {
+            console.warn('Error parsing storedPer:', e);
+          }
         }
       }
     } catch (err) {
@@ -148,7 +208,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
   const handleAddPeriodo = () => {
     setPeriodos([
       ...periodos,
-      { id: 'per-' + Date.now(), nombre: 'Nuevo Período', tipo: 'CUATRIMESTRE', fecha_inicio: '', fecha_fin: '' }
+      { id: 'per-' + Date.now(), nombre: 'Nuevo Período', tipo: 'PRIMER_CUATRIMESTRE', fecha_inicio: '', fecha_fin: '' }
     ]);
   };
 
@@ -158,7 +218,8 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
 
   const handlePeriodoChange = (index, field, value) => {
     const updated = [...periodos];
-    updated[index][field] = value;
+    const val = (field === 'fecha_inicio' || field === 'fecha_fin') ? formatToIsoDate(value) : value;
+    updated[index][field] = val;
     setPeriodos(updated);
   };
 
@@ -247,20 +308,49 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         // 3. Upsert / update periodos
         if (catedra.ciclo_id) {
           const today = new Date().toISOString().split('T')[0];
-          for (const p of periodos) {
-            const pPayload = {
+          const payload = periodos.map((p, idx) => {
+            const normalizedTipo = normalizePeriodTipo(p.tipo, p.nombre, idx);
+            const isoStart = formatToIsoDate(p.fecha_inicio) || today;
+            const isoEnd = formatToIsoDate(p.fecha_fin) || isoStart;
+            return {
               ciclo_id: catedra.ciclo_id,
-              nombre: p.nombre.trim(),
-              tipo: p.tipo,
-              fecha_inicio: p.fecha_inicio || today,
-              fecha_fin: p.fecha_fin || today
+              docente_id: user?.id,
+              nombre: (p.nombre || '').trim() || (
+                normalizedTipo === 'PRIMER_CUATRIMESTRE' ? '1° Cuatrimestre' :
+                normalizedTipo === 'RECESO_INVERNAL' ? 'Receso Invernal' :
+                normalizedTipo === 'SEGUNDO_CUATRIMESTRE' ? '2° Cuatrimestre' : 'Período Académico'
+              ),
+              tipo: normalizedTipo,
+              fecha_inicio: isoStart,
+              fecha_fin: isoEnd
             };
-            if (p.id && !String(p.id).startsWith('per-')) {
-              const { error: pErr } = await supabase.from('periodos_academicos').update(pPayload).eq('id', p.id);
-              if (pErr) console.warn('Aviso actualizando período:', pErr);
-            } else {
-              const { error: pErr } = await supabase.from('periodos_academicos').insert(pPayload);
-              if (pErr) console.warn('Aviso insertando período:', pErr);
+          });
+
+          try {
+            const { data: upsertData, error: pErr } = await supabase
+              .from('periodos_academicos')
+              .upsert(payload, { onConflict: 'ciclo_id,tipo' })
+              .select();
+
+            if (pErr) throw pErr;
+            if (upsertData && upsertData.length > 0) {
+              setPeriodos(upsertData);
+              if (setPeriodosAcademicos) setPeriodosAcademicos(upsertData);
+              window.dispatchEvent(new CustomEvent('periodos_academicos_updated', { detail: upsertData }));
+              window.dispatchEvent(new CustomEvent('docentepro:periodos_updated', { detail: upsertData }));
+            }
+          } catch (pErr) {
+            console.warn('Aviso guardando períodos en SettingsTab:', pErr);
+            const payloadNoDocente = payload.map(({ docente_id, ...rest }) => rest);
+            const { data: fbData } = await supabase
+              .from('periodos_academicos')
+              .upsert(payloadNoDocente, { onConflict: 'ciclo_id,tipo' })
+              .select();
+            if (fbData && fbData.length > 0) {
+              setPeriodos(fbData);
+              if (setPeriodosAcademicos) setPeriodosAcademicos(fbData);
+              window.dispatchEvent(new CustomEvent('periodos_academicos_updated', { detail: fbData }));
+              window.dispatchEvent(new CustomEvent('docentepro:periodos_updated', { detail: fbData }));
             }
           }
         }
@@ -276,6 +366,9 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         };
         localStorage.setItem(`criterios_${catedra.id}`, JSON.stringify(criterios));
         localStorage.setItem(`periodos_${catedra?.ciclo_id || catedra?.id}`, JSON.stringify(periodos));
+        if (setPeriodosAcademicos) setPeriodosAcademicos(periodos);
+        window.dispatchEvent(new CustomEvent('periodos_academicos_updated', { detail: periodos }));
+        window.dispatchEvent(new CustomEvent('docentepro:periodos_updated', { detail: periodos }));
         if (onCatedraUpdated) onCatedraUpdated(updatedCat);
       }
 
@@ -548,9 +641,10 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                       value={p.tipo}
                       onChange={(val) => handlePeriodoChange(index, 'tipo', typeof val === 'object' ? val.target.value : val)}
                       options={[
-                        { value: 'CUATRIMESTRE', label: 'Cuatrimestre' },
-                        { value: 'TRIMESTRE', label: 'Trimestre' },
-                        { value: 'RECESO', label: 'Receso Invernal' }
+                        { value: 'PRIMER_CUATRIMESTRE', label: '1° Cuatrimestre' },
+                        { value: 'RECESO_INVERNAL', label: 'Receso Invernal' },
+                        { value: 'SEGUNDO_CUATRIMESTRE', label: '2° Cuatrimestre' },
+                        { value: 'OTRO', label: 'Otro Período' }
                       ]}
                       buttonClassName="py-1.5 px-2.5 text-xs font-medium"
                     />
@@ -563,7 +657,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                       </label>
                       <input
                         type="date"
-                        value={p.fecha_inicio || ''}
+                        value={formatToIsoDate(p.fecha_inicio)}
                         onChange={(e) => handlePeriodoChange(index, 'fecha_inicio', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
                       />
@@ -574,7 +668,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                       </label>
                       <input
                         type="date"
-                        value={p.fecha_fin || ''}
+                        value={formatToIsoDate(p.fecha_fin)}
                         onChange={(e) => handlePeriodoChange(index, 'fecha_fin', e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
                       />
