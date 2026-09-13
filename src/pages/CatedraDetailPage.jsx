@@ -14,7 +14,8 @@ import {
   BarChart3,
   BookOpen,
   Award,
-  Layers
+  Layers,
+  Globe
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
@@ -41,6 +42,7 @@ const LibroTemasTab = lazy(() => import('../components/catedra/LibroTemasTab'));
 const MesasExamenTab = lazy(() => import('../components/catedra/MesasExamenTab'));
 const UnidadesTab = lazy(() => import('../components/catedra/UnidadesTab'));
 const CatedraStatsModal = lazy(() => import('../components/catedra/CatedraStatsModal'));
+const PortalSettingsModal = lazy(() => import('../components/catedra/PortalSettingsModal'));
 
 // Configuración estática de pestañas (definida a nivel de módulo para evitar reinicializaciones)
 const TABS_CONFIG = [
@@ -62,6 +64,7 @@ export default function CatedraDetailPage() {
   const { catedras, activeCiclo } = useApp();
 
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
   const tabFromUrl = searchParams.get('tab');
   
   const [activeTab, setActiveTab] = useState(() => {
@@ -286,6 +289,25 @@ export default function CatedraDetailPage() {
                   </div>
                 </div>
 
+                {/* Botón Disparador: Portal Estudiante */}
+                <Button
+                  variant="outline"
+                  icon={Globe}
+                  onClick={() => setIsPortalModalOpen(true)}
+                  className={`text-xs sm:text-sm font-bold rounded-2xl min-h-[44px] shadow-xs px-3.5 whitespace-nowrap shrink-0 transition-all ${
+                    catedra?.portal_activo
+                      ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/25 hover:bg-emerald-500/15'
+                      : 'border-slate-300/80 dark:border-white/15 text-text-secondary hover:bg-slate-100 dark:hover:bg-white/5'
+                  }`}
+                  title="Configurar y compartir el portal público de consulta para los alumnos"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${catedra?.portal_activo ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400 dark:bg-slate-600'}`} />
+                    <span className="hidden sm:inline">Portal Estudiante</span>
+                    <span className="sm:hidden">Portal</span>
+                  </span>
+                </Button>
+
                 {/* Botón Disparador: Estadísticas de Cátedra */}
                 <Button
                   variant="outline"
@@ -409,6 +431,18 @@ export default function CatedraDetailPage() {
               catedraName={catedra?.nombre}
               academicLevel={catedra?.nivel}
               modalidad={catedra?.modalidad}
+            />
+          </Suspense>
+        )}
+
+        {/* Modal Bento: Configuración del Portal de Consulta para Alumnos */}
+        {isPortalModalOpen && (
+          <Suspense fallback={null}>
+            <PortalSettingsModal
+              isOpen={isPortalModalOpen}
+              onClose={() => setIsPortalModalOpen(false)}
+              catedra={catedra}
+              onCatedraUpdated={handleCatedraUpdated}
             />
           </Suspense>
         )}
