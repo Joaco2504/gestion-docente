@@ -21,6 +21,7 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import EarlyWarningCard from '../components/catedra/EarlyWarningCard';
 import ProgramaProgressCard from '../components/catedra/ProgramaProgressCard';
+import CatedraHeader from '../components/catedra/CatedraHeader';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import { CatedraDetailSkeleton, CatedraTabSkeleton } from '../components/common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -209,8 +210,6 @@ export default function CatedraDetailPage() {
     );
   }
 
-  const schedules = Array.isArray(catedra?.horarios_semanales) ? catedra.horarios_semanales : [];
-
   return (
     <ErrorBoundary onReset={fetchCatedraData} title="Error al visualizar la cátedra">
       <div className="space-y-6">
@@ -224,106 +223,18 @@ export default function CatedraDetailPage() {
             <span>Volver al Panel de Cátedras</span>
           </button>
 
-          {/* Bento Workspace Header Card */}
-          <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant={catedra?.nivel === 'TERCIARIO' ? 'primary' : 'warning'}>
-                    {catedra?.nivel ?? 'TERCIARIO'}
-                  </Badge>
-                  <Badge variant="default">
-                    {catedra?.modalidad ?? 'ANUAL'}
-                  </Badge>
-                  <span className="text-xs text-text-muted flex items-center gap-1 font-medium bg-slate-100/60 dark:bg-white/[0.04] px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
-                    <Building className="w-3.5 h-3.5 text-primary" />
-                    <span>{catedra?.instituciones?.nombre ?? catedra?.institucion_nombre ?? 'Sin Institución'}</span>
-                  </span>
-                  <span className="text-xs text-text-muted flex items-center gap-1 font-medium bg-slate-100/60 dark:bg-white/[0.04] px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Asist. Mín: <b>{criterios?.min_asist_reg ?? 70}%</b> Reg. / <b>{criterios?.min_asist_promo ?? 80}%</b> Promo</span>
-                  </span>
-                </div>
+          {/* Hero Bento Header unificado */}
+          <CatedraHeader
+            catedra={catedra}
+            criterios={criterios}
+            activeCiclo={activeCiclo}
+            onOpenPortal={() => setIsPortalModalOpen(true)}
+            onOpenStats={() => setIsStatsModalOpen(true)}
+          />
 
-                <h1 className="text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">
-                  {catedra?.nombre ?? 'Cátedra'}
-                </h1>
-
-                {/* Schedules display */}
-                {schedules.length > 0 && (
-                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                    <Clock className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                    <span className="text-xs text-text-muted font-medium">Horarios:</span>
-                    {schedules.map((s, idx) => (
-                      <span key={idx} className="text-xs bg-slate-100/80 dark:bg-white/[0.06] border border-slate-200/60 dark:border-white/5 px-2.5 py-0.5 rounded-lg text-text-secondary font-mono">
-                        {s.dia} {s.desde}-{s.hasta} {s.aula ? `(${s.aula})` : ''}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Action buttons and quick stats on header */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-                {/* Quick stats on header */}
-                <div className="flex items-center gap-3 sm:gap-4 bg-slate-100/60 dark:bg-white/[0.04] p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-white/5 shrink-0">
-                  <div className="text-center px-2 sm:px-3">
-                    <span className="text-[10px] uppercase font-bold text-text-muted block">Ciclo</span>
-                    <span className="text-sm sm:text-base font-mono font-bold text-text-primary">
-                      {catedra?.ciclos_lectivos?.nombre ?? catedra?.ciclos_lectivos?.anio ?? activeCiclo?.anio ?? 'Ciclo Actual'}
-                    </span>
-                  </div>
-                  <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
-                  <div className="text-center px-2 sm:px-3">
-                    <span className="text-[10px] uppercase font-bold text-text-muted block">Régimen</span>
-                    <span className="text-sm sm:text-base font-semibold text-text-primary">
-                      {catedra?.modalidad ?? 'ANUAL'}
-                    </span>
-                  </div>
-                  <div className="h-7 w-px bg-slate-200/80 dark:bg-white/10" />
-                  <div className="text-center px-2 sm:px-3">
-                    <span className="text-[10px] uppercase font-bold text-text-muted block">Aprobación</span>
-                    <span className="text-sm sm:text-base font-mono font-bold text-primary">
-                      {criterios?.nota_min_reg ?? 4}+ / 10
-                    </span>
-                  </div>
-                </div>
-
-                {/* Botón Disparador: Portal Estudiante */}
-                <Button
-                  variant="outline"
-                  icon={Globe}
-                  onClick={() => setIsPortalModalOpen(true)}
-                  className={`text-xs sm:text-sm font-bold rounded-2xl min-h-[44px] shadow-xs px-3.5 whitespace-nowrap shrink-0 transition-all ${
-                    catedra?.portal_activo
-                      ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/25 hover:bg-emerald-500/15'
-                      : 'border-slate-300/80 dark:border-white/15 text-text-secondary hover:bg-slate-100 dark:hover:bg-white/5'
-                  }`}
-                  title="Configurar y compartir el portal público de consulta para los alumnos"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${catedra?.portal_activo ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400 dark:bg-slate-600'}`} />
-                    <span className="hidden sm:inline">Portal Estudiante</span>
-                    <span className="sm:hidden">Portal</span>
-                  </span>
-                </Button>
-
-                {/* Botón Disparador: Estadísticas de Cátedra */}
-                <Button
-                  variant="outline"
-                  icon={BarChart3}
-                  onClick={() => setIsStatsModalOpen(true)}
-                  className="text-xs sm:text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-2xl min-h-[44px] shadow-xs px-3.5 whitespace-nowrap shrink-0"
-                  title="Ver gráficos estadísticos y distribución de rendimiento de los alumnos"
-                >
-                  <span className="hidden sm:inline">Estadísticas de Cátedra</span>
-                  <span className="sm:hidden">Estadísticas</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* Floating Pill Tab Navigation with 44px touch targets */}
-            <div className="flex items-center gap-1.5 overflow-x-auto border-t border-slate-200/60 dark:border-white/10 mt-6 pt-4 pb-1 scrollbar-thin scroll-smooth -mx-2 px-2">
+          {/* Floating Pill Tab Navigation Dock con touch targets mínimos de 44px */}
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 rounded-2xl p-1.5 sm:p-2 shadow-xs mb-6 overflow-x-auto scrollbar-thin scroll-smooth">
+            <div className="flex items-center gap-1.5 min-w-max">
               {TABS_CONFIG.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -331,14 +242,14 @@ export default function CatedraDetailPage() {
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] rounded-2xl text-xs font-medium whitespace-nowrap transition-all duration-200 active:scale-95 cursor-pointer ${
+                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-200 active:scale-95 cursor-pointer ${
                       isActive
-                        ? 'bg-primary text-white shadow-md shadow-primary/25 font-bold scale-[1.02]'
-                        : 'text-text-muted hover:text-text-primary hover:bg-slate-100/70 dark:hover:bg-white/[0.05]'
+                        ? 'bg-primary text-white shadow-sm shadow-primary/30 font-bold scale-[1.01]'
+                        : 'text-text-muted hover:text-text-primary hover:bg-slate-100/80 dark:hover:bg-white/[0.06]'
                     }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
-                    <span className="truncate text-xs font-medium px-2.5 py-1.5 whitespace-nowrap">{tab.label}</span>
+                    <span className="truncate">{tab.label}</span>
                   </button>
                 );
               })}
