@@ -15,6 +15,7 @@ export function AppProvider({ children }) {
   const [selectedCiclo, setSelectedCiclo] = useState(null);
   const [catedras, setCatedras] = useState([]);
   const [periodosAcademicos, setPeriodosAcademicos] = useState([]);
+  const [openNewCatedraModal, setOpenNewCatedraModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Carga instituciones, ciclos lectivos y cátedras desde Supabase o Mock
@@ -310,10 +311,13 @@ export function AppProvider({ children }) {
     setCatedras,
     periodosAcademicos,
     setPeriodosAcademicos,
+    openNewCatedraModal,
+    setOpenNewCatedraModal,
     loading,
     loadingApp: loading,
     refreshGlobalState,
     refreshData: refreshGlobalState,
+    refreshCatedras: refreshGlobalState,
     createInstitucion,
     createCicloLectivo
   };

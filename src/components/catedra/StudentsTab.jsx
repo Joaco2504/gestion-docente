@@ -393,9 +393,19 @@ export default function StudentsTab({
               estudiante_id: studentId,
               catedra_id: catedraId,
               ciclo_id: currentCicloId
-            }, { onConflict: 'estudiante_id, catedra_id', ignoreDuplicates: true });
+            }, { onConflict: 'estudiante_id,catedra_id,ciclo_id' });
 
-          if (inscErr) throw inscErr;
+          if (inscErr) {
+            console.warn('Fallback al guardar inscripción:', inscErr);
+            const { error: fallbackErr } = await supabase
+              .from('inscripciones')
+              .upsert({
+                estudiante_id: studentId,
+                catedra_id: catedraId,
+                ciclo_id: currentCicloId
+              }, { onConflict: 'estudiante_id,catedra_id' });
+            if (fallbackErr) throw fallbackErr;
+          }
         } else {
           toast.info('El alumno ya se encontraba inscripto en esta cátedra.');
         }
@@ -950,7 +960,7 @@ export default function StudentsTab({
             </div>
           </div>
 
-          <div>
+          <div className="pb-6 relative z-30">
             <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
               Condición Académica Inicial
             </label>
@@ -967,6 +977,7 @@ export default function StudentsTab({
                 { value: 'REINCORPORADO', label: 'Reincorporado', badge: 'Reinc.' },
                 { value: 'OYENTE', label: 'Oyente', badge: 'Oyente' }
               ]}
+              menuClassName="z-50 max-h-48 overflow-y-auto shadow-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl"
             />
           </div>
 
@@ -1039,7 +1050,7 @@ export default function StudentsTab({
             </div>
           </div>
 
-          <div>
+          <div className="pb-6 relative z-30">
             <label className="block text-xs font-semibold text-text-secondary uppercase mb-1.5">
               Condición Académica
             </label>
@@ -1056,6 +1067,7 @@ export default function StudentsTab({
                 { value: 'REINCORPORADO', label: 'Reincorporado', badge: 'Reinc.' },
                 { value: 'OYENTE', label: 'Oyente', badge: 'Oyente' }
               ]}
+              menuClassName="z-50 max-h-48 overflow-y-auto shadow-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl"
             />
             <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
               Selecciona "Automática" para que el sistema calcule la condición según el RAM, o elige una condición fija para el alumno.

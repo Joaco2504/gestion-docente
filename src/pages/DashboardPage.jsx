@@ -1066,13 +1066,13 @@ const normalizeSearchText = (str) => {
            ========================================================= */}
         <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 relative overflow-hidden group">
           <div>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted truncate">
-                  Métricas Rápidas
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
+                  MÉTRICAS RÁPIDAS
                 </span>
               </div>
               <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border shrink-0 ${
@@ -1084,65 +1084,58 @@ const normalizeSearchText = (str) => {
               </span>
             </div>
 
-            {/* Circular Progress Ring & Numbers - Balanced 2 columns on desktop */}
-            <div className="my-auto py-3 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-              {/* Columna Izquierda: Donut SVG proporcional centrado */}
-              <div className="relative w-28 h-28 sm:w-32 sm:h-32 mx-auto flex items-center justify-center shrink-0">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
+            {/* Layout Horizontal 2 Columnas (PC/Desktop): Col 1 Donut 100px, Col 2 Contadores */}
+            <div className="grid grid-cols-[110px_1fr] items-center gap-4 py-2">
+              {/* Columna 1: Donut Chart compacto 100px */}
+              <div className="relative w-[100px] h-[100px] mx-auto flex items-center justify-center shrink-0">
+                <svg className="w-[100px] h-[100px] transform -rotate-90" viewBox="0 0 100 100">
                   <circle
-                    cx="40"
-                    cy="40"
-                    r="32"
+                    cx="50"
+                    cy="50"
+                    r="40"
                     className="stroke-slate-200/80 dark:stroke-slate-800"
-                    strokeWidth="7"
+                    strokeWidth="10"
                     fill="transparent"
                   />
                   <circle
-                    cx="40"
-                    cy="40"
-                    r="32"
+                    cx="50"
+                    cy="50"
+                    r="40"
                     className={`transition-all duration-1000 ease-out ${
                       globalMetrics.averageAttendance >= 75
                         ? 'stroke-emerald-500 dark:stroke-emerald-400'
                         : 'stroke-amber-500 dark:stroke-amber-400'
                     }`}
-                    strokeWidth="7"
-                    strokeDasharray={201}
-                    strokeDashoffset={201 - (201 * Math.min(globalMetrics.averageAttendance, 100)) / 100}
+                    strokeWidth="10"
+                    strokeDasharray={251.3}
+                    strokeDashoffset={251.3 - (251.3 * Math.min(globalMetrics.averageAttendance, 100)) / 100}
                     strokeLinecap="round"
                     fill="transparent"
                   />
                 </svg>
-                <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-base sm:text-lg font-mono font-bold text-text-primary">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
+                  <span className="text-base font-mono font-bold text-text-primary leading-tight">
                     {globalMetrics.averageAttendance}%
                   </span>
-                  <span className="text-[9px] font-mono uppercase text-text-muted -mt-0.5">Asistencia</span>
+                  <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-text-muted mt-0.5 leading-none">
+                    ASISTENCIA
+                  </span>
                 </div>
               </div>
 
-              {/* Columna Derecha: Grilla vertical de indicadores clave */}
-              <div className="grid grid-cols-3 sm:grid-cols-1 gap-2 w-full">
+              {/* Columna 2: Grilla vertical con los 3 contadores métricos sin truncamiento */}
+              <div className="grid grid-cols-1 gap-1.5 w-full">
                 <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <span className="text-[10px] text-text-muted block truncate">Alumnos Activos</span>
-                    <span className="text-sm sm:text-base font-bold font-mono text-text-primary">{globalMetrics.totalStudents}</span>
-                  </div>
-                  <span className="hidden sm:inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="text-[11px] font-medium text-text-muted whitespace-nowrap">Alumnos Activos</span>
+                  <span className="text-sm font-bold font-mono text-text-primary ml-2">{globalMetrics.totalStudents}</span>
                 </div>
                 <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <span className="text-[10px] text-text-muted block truncate">Cátedras en Dictado</span>
-                    <span className="text-sm sm:text-base font-bold font-mono text-text-primary">{globalMetrics.activeCatedras}</span>
-                  </div>
-                  <span className="hidden sm:inline-block w-2 h-2 rounded-full bg-primary shrink-0" />
+                  <span className="text-[11px] font-medium text-text-muted whitespace-nowrap">Cátedras</span>
+                  <span className="text-sm font-bold font-mono text-text-primary ml-2">{globalMetrics.activeCatedras}</span>
                 </div>
                 <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <span className="text-[10px] text-text-muted block truncate">Clases Totales</span>
-                    <span className="text-sm sm:text-base font-bold font-mono text-text-primary">{globalMetrics.totalClasses}</span>
-                  </div>
-                  <span className="hidden sm:inline-block w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                  <span className="text-[11px] font-medium text-text-muted whitespace-nowrap">Clases Totales</span>
+                  <span className="text-sm font-bold font-mono text-text-primary ml-2">{globalMetrics.totalClasses}</span>
                 </div>
               </div>
             </div>

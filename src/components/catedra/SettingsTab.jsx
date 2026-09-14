@@ -480,7 +480,8 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
             {horarios.map((slot, index) => (
               <div
                 key={index}
-                className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-lg bg-surface-hover/40 border border-surface-border"
+                className="relative z-20 flex flex-col sm:flex-row items-center gap-3 p-3 rounded-lg bg-surface-hover/40 border border-surface-border"
+                style={{ zIndex: 40 - index }}
               >
                 <div className="w-full sm:w-36">
                   <CustomSelect
@@ -488,6 +489,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                     onChange={(val) => handleHorarioChange(index, 'dia', typeof val === 'object' ? val.target.value : val)}
                     options={DAYS_OF_WEEK.map((d) => ({ value: d, label: d }))}
                     buttonClassName="py-1.5 px-2.5 text-xs font-semibold"
+                    menuClassName="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-white/10 rounded-xl max-h-48 overflow-y-auto"
                   />
                 </div>
 
@@ -618,7 +620,8 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
               {periodos.map((p, index) => (
                 <div
                   key={p.id || index}
-                  className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+                  className="relative z-20 p-3 bg-surface-hover/30 rounded-xl border border-surface-border flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+                  style={{ zIndex: 30 - index }}
                 >
                   <div className="w-full sm:w-44">
                     <label className="block text-[10px] font-bold uppercase text-text-muted mb-1">
@@ -647,6 +650,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                         { value: 'OTRO', label: 'Otro Período' }
                       ]}
                       buttonClassName="py-1.5 px-2.5 text-xs font-medium"
+                      menuClassName="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-white/10 rounded-xl max-h-48 overflow-y-auto"
                     />
                   </div>
 

@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuth } from './context/AuthContext';
+import { useApp } from './context/AppContext';
 import { useTheme } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
 import DualSidebar from './components/layout/DualSidebar';
 import BottomNav from './components/layout/BottomNav';
 import HeaderSelector from './components/layout/HeaderSelector';
 import Footer from './components/layout/Footer';
+import CreateCatedraModal from './components/common/CreateCatedraModal';
 
 // Pages
 import AuthPage from './pages/AuthPage';
@@ -30,6 +32,7 @@ import { GraduationCap } from 'lucide-react';
  */
 function AuthenticatedDocenteShell() {
   const { user, loading } = useAuth();
+  const { openNewCatedraModal, setOpenNewCatedraModal, refreshCatedras } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (loading) {
@@ -102,6 +105,13 @@ function AuthenticatedDocenteShell() {
 
       {/* Mobile Bottom Navigation Bar (Hidden on md and up) */}
       <BottomNav />
+
+      {/* Modal Global para Crear Nueva Cátedra */}
+      <CreateCatedraModal 
+        isOpen={openNewCatedraModal} 
+        onClose={() => setOpenNewCatedraModal(false)} 
+        onCreated={refreshCatedras} 
+      />
     </div>
   );
 }

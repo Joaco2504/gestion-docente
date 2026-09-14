@@ -45,7 +45,8 @@ export default function DualSidebar({ isOpen = false, onClose }) {
     setSelectedCiclo,
     createInstitucion,
     createCicloLectivo,
-    refreshData
+    refreshData,
+    setOpenNewCatedraModal
   } = useApp();
 
   // Estado colapsado del riel secundario (persistido en localStorage)
@@ -500,7 +501,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
             <button
               type="button"
               onClick={() => {
-                navigate('/dashboard');
+                setOpenNewCatedraModal(true);
                 if (onClose) onClose();
               }}
               className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
