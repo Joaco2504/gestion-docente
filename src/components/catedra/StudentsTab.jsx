@@ -13,6 +13,7 @@ import {
   ArrowUpZA,
   ArrowUpDown,
   GraduationCap,
+  FileText,
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,6 +26,7 @@ import EmptyState from '../common/EmptyState';
 import ExpandableSearch from '../common/ExpandableSearch';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import ExcelImporter from './ExcelImporter';
+import EstudianteDetailModal from './EstudianteDetailModal';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -83,13 +85,22 @@ export default function StudentsTab({
     nota_min_sec: 6
   });
 
+  // Modal: Ficha del Estudiante e Historial de Exámenes
+  const [selectedStudentForDetail, setSelectedStudentForDetail] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  const handleOpenStudentDetail = (student) => {
+    setSelectedStudentForDetail(student);
+    setIsDetailModalOpen(true);
+  };
+
   // Modal: Carga Manual
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [dniManual, setDniManual] = useState('');
   const [apellidoManual, setApellidoManual] = useState('');
   const [nombreManual, setNombreManual] = useState('');
   const [condicionManual, setCondicionManual] = useState('AUTO');
   const [savingManual, setSavingManual] = useState(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
 
   // Modal: Editar Estudiante
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -117,6 +128,10 @@ export default function StudentsTab({
           .from('inscripciones')
           .select(`
             estudiante_id,
+            condicion,
+            estado_academico,
+            nota_final,
+            fecha_acreditacion,
             estudiantes (
               id,
               dni,
@@ -128,8 +143,14 @@ export default function StudentsTab({
 
         if (error) throw error;
 
-        const list = (data || []).map(item => item.estudiantes).filter(Boolean);
-        list.sort((a, b) => a.apellido.localeCompare(b.apellido, 'es'));
+        const list = (data || []).map(item => ({
+          ...item.estudiantes,
+          condicion_inscripcion: item.condicion,
+          estado_academico: item.estado_academico || 'CURSANDO',
+          nota_final: item.nota_final,
+          fecha_acreditacion: item.fecha_acreditacion
+        })).filter(s => s && s.id);
+        list.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
         setEstudiantes(list);
 
         // Cargar datos académicos para cálculo de condición reglamentaria
@@ -850,6 +871,7 @@ export default function StudentsTab({
                   </thead>
                   <tbody className="divide-y divide-surface-border">
                     {filteredAndSortedStudents.map((st) => {
+                      const isAcreditado = st.estado_academico === 'ACREDITADO';
                       const cond = getStudentCondition(st.id);
                       return (
                         <tr key={st.id} className="hover:bg-surface-hover/40 transition-colors group">
@@ -860,27 +882,62 @@ export default function StudentsTab({
 
                           {/* 2. Apellido */}
                           <td className="px-4 py-3.5 font-bold text-text-primary whitespace-nowrap">
-                            {st.apellido}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenStudentDetail(st)}
+                              className="text-left font-bold text-text-primary hover:text-primary transition-colors cursor-pointer"
+                              title="Ver ficha académica e historial de exámenes"
+                            >
+                              {st.apellido}
+                            </button>
                           </td>
 
                           {/* 3. Nombre */}
                           <td className="px-4 py-3.5 text-text-primary whitespace-nowrap">
-                            {st.nombre}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenStudentDetail(st)}
+                              className="text-left text-text-primary hover:text-primary transition-colors cursor-pointer"
+                              title="Ver ficha académica e historial de exámenes"
+                            >
+                              {st.nombre}
+                            </button>
                           </td>
 
                           {/* 4. Condición */}
                           <td className="px-4 py-3.5 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
-                              <Badge variant={getCondBadgeVariant(cond)}>
-                                {cond}
-                              </Badge>
-                              <RiskBadge risk={studentRiskMap.get(st.id)} compact />
+                              {isAcreditado ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenStudentDetail(st)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs"
+                                  title={`Materia Acreditada (Calificación Final: ${st.nota_final || 'Aprobado'}). Clic para ver ficha`}
+                                >
+                                  <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                  <span>ACREDITADO {st.nota_final ? `(${st.nota_final})` : ''}</span>
+                                </button>
+                              ) : (
+                                <>
+                                  <Badge variant={getCondBadgeVariant(cond)}>
+                                    {cond}
+                                  </Badge>
+                                  <RiskBadge risk={studentRiskMap.get(st.id)} compact />
+                                </>
+                              )}
                             </div>
                           </td>
 
                           {/* 5. Acciones */}
                           <td className="px-4 py-3.5 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleOpenStudentDetail(st)}
+                                className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
+                                title="Ver ficha del estudiante e historial de exámenes"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={() => handleOpenEdit(st)}
                                 className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
@@ -1130,6 +1187,15 @@ export default function StudentsTab({
           </div>
         </div>
       </Modal>
+
+      {/* Modal: Ficha del Estudiante e Historial de Exámenes */}
+      <EstudianteDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        student={selectedStudentForDetail}
+        catedraId={catedraId}
+        catedraName={catedraName}
+      />
     </div>
   );
 }

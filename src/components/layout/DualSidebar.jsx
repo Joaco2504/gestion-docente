@@ -9,6 +9,7 @@ import {
   BookMarked, 
   LifeBuoy, 
   GraduationCap, 
+  Award,
   ChevronDown, 
   ChevronRight, 
   CheckSquare, 
@@ -102,6 +103,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
   // Icon rail links
   const primaryLinks = [
     { to: '/dashboard', label: 'Dashboard & Cátedras', icon: LayoutDashboard },
+    { to: '/mesas-examen', label: 'Mesas de Examen', icon: Award },
     { to: '/calendario', label: 'Calendario & Horarios', icon: Calendar },
     { to: '/instituciones', label: 'Instituciones & Ciclos', icon: Building2 },
     { to: '/configuracion', label: 'Configuración', icon: Settings },

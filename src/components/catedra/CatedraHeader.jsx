@@ -8,7 +8,10 @@ import {
   ShieldCheck, 
   Target, 
   Globe, 
-  BarChart3 
+  BarChart3,
+  Flag,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 /**
@@ -79,7 +82,11 @@ export default function CatedraHeader({
   criterios,
   activeCiclo,
   onOpenPortal,
-  onOpenStats
+  onOpenStats,
+  cursadaFinalizada = false,
+  fechaCierreCursada = null,
+  onFinalizarCursada,
+  onReabrirCursada
 }) {
   const institucionNombre = 
     catedra?.instituciones?.nombre ?? 
@@ -105,6 +112,19 @@ export default function CatedraHeader({
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-2xl p-6 shadow-sm mb-6 transition-all">
+      {/* Banner de Cursado Cerrado si aplica */}
+      {cursadaFinalizada && (
+        <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-primary/5 to-emerald-500/10 border border-amber-500/30 flex items-center justify-between gap-3 flex-wrap animate-fadeIn">
+          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold text-xs sm:text-sm">
+            <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>🔒 Cursado Cerrado — Instancia de Examen / Acreditación</span>
+          </div>
+          <span className="text-[11px] text-text-muted font-medium">
+            Toma de asistencia y notas regulares bloqueadas. Instancia de acreditación y mesas de examen activa.
+          </span>
+        </div>
+      )}
+
       {/* 1. FILA SUPERIOR: CONTEXTO INSTITUCIONAL (Badges en una sola línea horizontal) */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {/* Institución: Badge neutro con icono */}
@@ -150,6 +170,14 @@ export default function CatedraHeader({
           <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
           <span>Ciclo Lectivo {anioCiclo}</span>
         </span>
+
+        {/* Badge Cursado Finalizado en la fila de badges */}
+        {cursadaFinalizada && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+            <Lock className="w-3.5 h-3.5" />
+            <span>Cursado Cerrado</span>
+          </span>
+        )}
       </div>
 
       {/* 2. FILA CENTRAL: TÍTULO Y ACCIONES PRINCIPALES */}
@@ -159,8 +187,31 @@ export default function CatedraHeader({
           {catedra?.nombre ?? 'Cátedra'}
         </h1>
 
-        {/* Botones de Acción (agrupados a la derecha en desktop, 2 columnas en mobile) */}
-        <div className="grid grid-cols-2 gap-2 w-full mt-2 lg:mt-0 lg:flex lg:items-center lg:gap-2.5 lg:w-auto shrink-0">
+        {/* Botones de Acción (agrupados a la derecha en desktop, 2 columnas o wrap en mobile) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full mt-2 lg:mt-0 lg:flex lg:items-center lg:gap-2.5 lg:w-auto shrink-0">
+          {/* Botón Cierre / Reapertura de Cursado */}
+          {!cursadaFinalizada ? (
+            <button
+              type="button"
+              onClick={onFinalizarCursada}
+              className="flex items-center justify-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-all duration-150 active:scale-[0.98] text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
+              title="Finalizar cursada: cierra asistencias y notas regulares y abre instancia de mesas de examen"
+            >
+              <Flag className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="truncate">Finalizar Cursado</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onReabrirCursada}
+              className="flex items-center justify-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-primary hover:border-primary/40 transition-all duration-150 active:scale-[0.98] text-xs sm:text-sm font-semibold shadow-xs cursor-pointer min-h-[42px]"
+              title="Reabrir cursado para realizar modificaciones"
+            >
+              <Unlock className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+              <span className="truncate">Reabrir Cursado</span>
+            </button>
+          )}
+
           {/* Botón 1: Portal Estudiante con switch / indicador activo */}
           <button
             type="button"

@@ -15,6 +15,7 @@ import CreateCatedraModal from './components/common/CreateCatedraModal';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import CatedraDetailPage from './pages/CatedraDetailPage';
+import MesasExamenPage from './pages/MesasExamenPage';
 import CalendarPage from './pages/CalendarPage';
 import InstitutionsPage from './pages/InstitutionsPage';
 import SettingsPage from './pages/SettingsPage';
@@ -88,6 +89,7 @@ function AuthenticatedDocenteShell() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/catedra/:id" element={<CatedraDetailPage />} />
+              <Route path="/mesas-examen" element={<MesasExamenPage />} />
               <Route path="/calendario" element={<CalendarPage />} />
               <Route path="/instituciones" element={<InstitutionsPage />} />
               <Route path="/configuracion" element={<SettingsPage />} />

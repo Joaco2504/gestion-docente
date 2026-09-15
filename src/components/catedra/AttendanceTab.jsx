@@ -18,7 +18,8 @@ import {
   ChevronDown,
   Printer,
   Pencil,
-  Layers
+  Layers,
+  Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -43,7 +44,8 @@ import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 
 export default function AttendanceTab({
   catedraId,
-  catedraName
+  catedraName,
+  cursadaFinalizada = false
 }) {
   const { user, isDemo } = useAuth();
   
@@ -428,6 +430,10 @@ export default function AttendanceTab({
 
   const handleCreateClase = async (e) => {
     e.preventDefault();
+    if (cursadaFinalizada) {
+      toast.error('El cursado está finalizado. No se pueden crear nuevas clases.');
+      return;
+    }
     if (!nuevaFecha) return;
     setSavingClase(true);
     try {
@@ -504,7 +510,7 @@ export default function AttendanceTab({
         setAsistencias(prev => [...prev, ...defaultAttendance]);
       }
 
-      toast.success(`Clase del ${fechaDmy} guardada. Todos los alumnos fueron marcados como presentes.`);
+      toast.success(`Clase del ${fechaDmy} creada con éxito.`);
       setIsModalOpen(false);
       setNuevoTema('');
       setNuevaUnidadId('');
@@ -518,6 +524,10 @@ export default function AttendanceTab({
 
   // Toggle or set state
   const handleToggle = async (estudianteId, nuevoEstado) => {
+    if (cursadaFinalizada) {
+      toast.error('El cursado está finalizado. La asistencia no puede modificarse.');
+      return;
+    }
     if (!activeClase) return;
     triggerHapticFeedback();
     setFlashingStudentId(estudianteId);
@@ -560,6 +570,10 @@ export default function AttendanceTab({
   };
 
   const handleMarcarTodosPresentes = async () => {
+    if (cursadaFinalizada) {
+      toast.error('El cursado está finalizado. La asistencia no puede modificarse.');
+      return;
+    }
     if (!activeClase || estudiantes.length === 0) return;
     triggerHapticFeedback();
     setFlashingStudentId('ALL');
@@ -846,6 +860,16 @@ export default function AttendanceTab({
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
+      {/* Banner de Cursado Cerrado */}
+      {cursadaFinalizada && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-800 dark:text-amber-200 animate-fadeIn">
+          <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div className="text-xs sm:text-sm">
+            <span className="font-bold">Cursado finalizado:</span> La toma de asistencia diaria se encuentra cerrada para esta cursada. Los registros se exhiben en modo solo lectura.
+          </div>
+        </div>
+      )}
+
       {/* Top selector & action bar (Sticky on mobile for quick access while scrolling) */}
       <div className="backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm sticky top-0 sm:static z-20 transition-all space-y-3">
         {/* Fila 1: Sesión de Clase, Selector con botón Editar Tema, y Badge de Edición Activa */}
@@ -885,6 +909,7 @@ export default function AttendanceTab({
                       size="sm"
                       icon={Pencil}
                       onClick={handleOpenEditClass}
+                      disabled={cursadaFinalizada}
                       title="Editar fecha, tema y detalles de la clase"
                       className="shrink-0 text-xs px-2.5 py-1.5 touch-target-44"
                     >
@@ -912,7 +937,7 @@ export default function AttendanceTab({
             size="sm"
             icon={CheckCheck}
             onClick={handleMarcarTodosPresentes}
-            disabled={!activeClase || estudiantes.length === 0}
+            disabled={cursadaFinalizada || !activeClase || estudiantes.length === 0}
             className="w-full text-xs font-bold shadow-xs min-h-[44px] touch-target-44"
             title="Marcar todos los alumnos como presentes en esta fecha"
           >
@@ -924,6 +949,7 @@ export default function AttendanceTab({
             size="sm"
             icon={ShieldAlert}
             type="button"
+            disabled={cursadaFinalizada}
             onClick={() => {
               setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
               if (inasistenciaActual) {
@@ -961,6 +987,7 @@ export default function AttendanceTab({
             size="sm"
             icon={Plus}
             onClick={() => setIsModalOpen(true)}
+            disabled={cursadaFinalizada}
             className="w-full text-xs min-h-[44px] touch-target-44 font-semibold whitespace-nowrap shrink-0"
             title="Crear nueva sesión de clase"
           >

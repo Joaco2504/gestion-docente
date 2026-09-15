@@ -27,7 +27,8 @@ import {
   Trash2,
   ListChecks,
   Check,
-  Printer
+  Printer,
+  Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -50,7 +51,8 @@ export default function GradesTab({
   catedraId,
   catedraName,
   academicLevel = 'TERCIARIO',
-  modalidad = 'ANUAL'
+  modalidad = 'ANUAL',
+  cursadaFinalizada = false
 }) {
   const { user, isDemo } = useAuth();
 
@@ -407,6 +409,11 @@ export default function GradesTab({
       return;
     }
 
+    if (cursadaFinalizada) {
+      toast.error('El cursado está finalizado. Las calificaciones regulares están bloqueadas.');
+      return;
+    }
+
     const valNum = Number(inputNotaValor);
     if (isNaN(valNum) || valNum < 1 || valNum > 10) {
       toast.error('La calificación debe ser un valor numérico entre 1 y 10.');
@@ -421,8 +428,9 @@ export default function GradesTab({
           .upsert({
             evaluacion_id: selectedEvalForNota.id,
             estudiante_id: selectedStudentForNota.id,
-            valor: valNum
-          }, { onConflict: 'evaluacion_id, estudiante_id' });
+            valor: valNum,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'evaluacion_id,estudiante_id' });
 
         if (error) throw error;
       }
@@ -453,6 +461,10 @@ export default function GradesTab({
 
   const handleCreateEvaluacion = async (e) => {
     e.preventDefault();
+    if (cursadaFinalizada) {
+      toast.error('El cursado está finalizado. No se pueden agregar nuevas evaluaciones.');
+      return;
+    }
     if (!evalTitulo.trim()) return;
 
     setSavingEval(true);
@@ -877,6 +889,16 @@ export default function GradesTab({
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
+      {/* Banner de Cursado Cerrado */}
+      {cursadaFinalizada && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-800 dark:text-amber-200 animate-fadeIn">
+          <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div className="text-xs sm:text-sm">
+            <span className="font-bold">Cursado finalizado:</span> La carga y modificación de evaluaciones y notas regulares se encuentra bloqueada. Los registros quedan en modo solo lectura.
+          </div>
+        </div>
+      )}
+
       {/* Top Action & View Switcher Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface p-4 rounded-2xl border border-surface-border shadow-xs">
         <div>
@@ -979,6 +1001,7 @@ export default function GradesTab({
             size="sm"
             icon={Plus}
             onClick={() => setIsNewEvalModalOpen(true)}
+            disabled={cursadaFinalizada}
             className="text-xs"
           >
             Nueva Eval.

@@ -18,7 +18,12 @@ import {
   Percent,
   Download,
   ShieldCheck,
-  X
+  X,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  CheckSquare,
+  Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -30,6 +35,7 @@ import EmptyState from '../common/EmptyState';
 import ExpandableSearch from '../common/ExpandableSearch';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
+import CargarAlumnosMesaModal from './CargarAlumnosMesaModal';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -40,10 +46,17 @@ const TURNO_OPTIONS = [
   { value: '2° LLAMADO', label: '2° Llamado (Turno Ordinario)' },
   { value: 'TURNO ESPECIAL MAYO', label: 'Turno Especial (Mayo)' },
   { value: 'TURNO ESPECIAL SEPTIEMBRE', label: 'Turno Especial (Septiembre)' },
-  { value: 'TURNO EXTRAORDINARIO', label: 'Turno Extraordinario' }
+  { value: 'TURNO EXTRAORDINARIO', label: 'Turno Extraordinario' },
+  { value: 'PROMOCIONAL DIRECTA', label: '🎖️ Promoción Directa (Cierre Cursada)' }
 ];
 
-export default function MesasExamenTab({ catedraId, catedraName, academicLevel = 'TERCIARIO', modalidad = 'ANUAL' }) {
+export default function MesasExamenTab({ 
+  catedraId, 
+  catedraName, 
+  academicLevel = 'TERCIARIO', 
+  modalidad = 'ANUAL',
+  cursadaFinalizada = false 
+}) {
   const { user, isDemo } = useAuth();
   const { activeCiclo, catedras } = useApp();
 
@@ -64,6 +77,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
   // Modal: Nueva / Editar Mesa
   const [isMesaModalOpen, setIsMesaModalOpen] = useState(false);
   const [editingMesa, setEditingMesa] = useState(null);
+  const [mesaTipo, setMesaTipo] = useState('FINAL'); // 'FINAL' | 'PROMOCIONAL'
   const [mesaFecha, setMesaFecha] = useState(getTodayYMD());
   const [mesaTurno, setMesaTurno] = useState('1° LLAMADO');
   const [mesaLibro, setMesaLibro] = useState('');
@@ -73,13 +87,19 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
   const [mesaPresidente, setMesaPresidente] = useState('');
   const [mesaVocal1, setMesaVocal1] = useState('');
   const [mesaVocal2, setMesaVocal2] = useState('');
+  const [isAccordionOpen, setIsAccordionOpen] = useState(false);
 
-  // Modal: Inscribir Alumno a la Mesa
+  // Modal: Cargar Alumnos a la Mesa (Multi-selector inteligente)
+  const [isCargarAlumnosModalOpen, setIsCargarAlumnosModalOpen] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState([]);
+  const [catedraEvaluaciones, setCatedraEvaluaciones] = useState([]);
+  const [catedraNotas, setCatedraNotas] = useState([]);
+
+  // Modal: Inscribir Alumno Individual a la Mesa
   const [isInscribirModalOpen, setIsInscribirModalOpen] = useState(false);
   const [inscribirDni, setInscribirDni] = useState('');
   const [inscribirNombre, setInscribirNombre] = useState('');
   const [inscribirCondicion, setInscribirCondicion] = useState('REGULAR');
-  const [availableStudents, setAvailableStudents] = useState([]);
 
   // Modal Impresión Reglamentaria
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -91,7 +111,27 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
   // =========================================================================
   useEffect(() => {
     fetchMesas();
+    fetchAvailableStudents();
+    fetchCatedraEvaluacionesYNotas();
   }, [catedraId]);
+
+  async function fetchCatedraEvaluacionesYNotas() {
+    try {
+      if (isSupabaseConfigured && !isDemo) {
+        const [evRes, nRes] = await Promise.all([
+          supabase.from('evaluaciones').select('*').eq('catedra_id', catedraId),
+          supabase.from('notas').select('*')
+        ]);
+        if (evRes.data) setCatedraEvaluaciones(evRes.data);
+        if (nRes.data) setCatedraNotas(nRes.data);
+      } else {
+        const storedEv = JSON.parse(localStorage.getItem(`evaluaciones_${catedraId}`) || '[]');
+        const storedN = JSON.parse(localStorage.getItem(`notas_${catedraId}`) || '[]');
+        setCatedraEvaluaciones(storedEv);
+        setCatedraNotas(storedN);
+      }
+    } catch (_) {}
+  }
 
   async function fetchMesas() {
     setLoading(true);
@@ -128,30 +168,45 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
       const stored = localStorage.getItem(`mesas_examen_${catedraId}`);
       if (stored) {
         setMesas(JSON.parse(stored));
-      } else {
-        // Datos mock iniciales representativos
-        const defaultMesas = [
-          {
-            id: 'mesa-mock-1',
-            catedra_id: catedraId,
-            fecha: getTodayYMD(),
-            turno_llamado: '1° LLAMADO',
-            libro: 'XII',
-            tomo: '1',
-            folio: '084',
-            acta_numero: '2026-042',
-            presidente: user?.user_metadata?.nombre_completo || 'Prof. Titular',
-            vocal1: 'Prof. Vocal 1',
-            vocal2: 'Prof. Vocal 2',
-            created_at: new Date().toISOString()
-          }
-        ];
-        setMesas(defaultMesas);
-        localStorage.setItem(`mesas_examen_${catedraId}`, JSON.stringify(defaultMesas));
+        return;
       }
-    } catch (_) {
-      setMesas([]);
-    }
+    } catch (_) {}
+
+    // Semilla inicial demostrativa con una mesa regular y una mesa promocional
+    const initialDemoMesas = [
+      {
+        id: 'mesa-demo-promo',
+        catedra_id: catedraId,
+        fecha: getTodayYMD(),
+        turno_llamado: 'PROMOCIONAL DIRECTA',
+        tipo_mesa: 'PROMOCIONAL',
+        libro: 'IX',
+        tomo: '1',
+        folio: '45',
+        acta_numero: '2026-P01',
+        presidente: user?.user_metadata?.nombre_completo || 'Prof. Titular',
+        vocal_1: 'Lic. García',
+        vocal_2: 'Prof. Romero',
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'mesa-demo-final',
+        catedra_id: catedraId,
+        fecha: getTodayYMD(),
+        turno_llamado: '1° LLAMADO',
+        tipo_mesa: 'FINAL',
+        libro: 'VIII',
+        tomo: '1',
+        folio: '142',
+        acta_numero: '2026-09',
+        presidente: user?.user_metadata?.nombre_completo || 'Prof. Titular',
+        vocal_1: 'Lic. García',
+        vocal_2: 'Prof. Romero',
+        created_at: new Date().toISOString()
+      }
+    ];
+    setMesas(initialDemoMesas);
+    localStorage.setItem(`mesas_examen_${catedraId}`, JSON.stringify(initialDemoMesas));
   }
 
   // =========================================================================
@@ -209,7 +264,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     }
   }
 
-  // Carga lista de alumnos regulares de la cátedra para autocompletar
+  // Carga lista de alumnos de la cátedra para autocompletar
   async function fetchAvailableStudents() {
     try {
       if (isSupabaseConfigured && !isDemo) {
@@ -217,20 +272,28 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
           .from('inscripciones')
           .select(`
             estudiante_id,
+            condicion,
+            estado_academico,
+            nota_final,
             estudiantes ( id, dni, apellido, nombre )
           `)
           .eq('catedra_id', catedraId);
 
         if (data) {
           const list = data
-            .map(i => i.estudiantes)
-            .filter(Boolean)
-            .sort((a, b) => a.apellido.localeCompare(b.apellido));
+            .map(i => ({
+              ...i.estudiantes,
+              condicion: i.condicion || 'REGULAR',
+              estado_academico: i.estado_academico || 'CURSANDO',
+              nota_final: i.nota_final
+            }))
+            .filter(s => s && s.id)
+            .sort((a, b) => (a.apellido || '').localeCompare(b.apellido || ''));
           setAvailableStudents(list);
           return;
         }
       }
-      // Fallback
+      // Fallback local
       const stored = localStorage.getItem(`estudiantes_${catedraId}`);
       if (stored) {
         setAvailableStudents(JSON.parse(stored));
@@ -243,17 +306,20 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
   // =========================================================================
   // ACCIONES DE MESA (CREAR / EDITAR / ELIMINAR)
   // =========================================================================
-  const handleOpenNewMesaModal = () => {
+  const handleOpenNewMesaModal = (tipo = 'FINAL') => {
     setEditingMesa(null);
     setMesaFecha(getTodayYMD());
-    setMesaTurno('1° LLAMADO');
+    setMesaTurno(tipo === 'PROMOCIONAL' ? 'PROMOCIONAL DIRECTA' : '1° LLAMADO');
+    setMesaTipo(tipo);
     setMesaLibro('');
     setMesaTomo('');
     setMesaFolio('');
     setMesaActaNumero('');
-    setMesaPresidente(user?.user_metadata?.nombre_completo || 'Prof. Titular');
+    const teacherName = user?.user_metadata?.nombre_completo || user?.user_metadata?.full_name || user?.email || 'Prof. Titular';
+    setMesaPresidente(teacherName);
     setMesaVocal1('');
     setMesaVocal2('');
+    setIsAccordionOpen(false);
     setIsMesaModalOpen(true);
   };
 
@@ -262,6 +328,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     setEditingMesa(mesa);
     setMesaFecha(mesa.fecha);
     setMesaTurno(mesa.turno_llamado || '1° LLAMADO');
+    setMesaTipo(mesa.tipo_mesa || 'FINAL');
     setMesaLibro(mesa.libro || '');
     setMesaTomo(mesa.tomo || '');
     setMesaFolio(mesa.folio || '');
@@ -269,6 +336,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     setMesaPresidente(mesa.presidente || '');
     setMesaVocal1(mesa.vocal1 || mesa.vocal_1 || '');
     setMesaVocal2(mesa.vocal2 || mesa.vocal_2 || '');
+    setIsAccordionOpen(Boolean(mesa.libro || mesa.tomo || mesa.folio || mesa.acta_numero || mesa.vocal1 || mesa.vocal_1 || mesa.vocal2 || mesa.vocal_2));
     setIsMesaModalOpen(true);
   };
 
@@ -284,6 +352,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
       docente_id: user?.id,
       fecha: mesaFecha,
       turno_llamado: mesaTurno,
+      tipo_mesa: mesaTipo || 'FINAL',
       libro: (mesaLibro || '').trim(),
       tomo: (mesaTomo || '').trim(),
       folio: (mesaFolio || '').trim(),
@@ -301,8 +370,8 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
             .update(mesaPayload)
             .eq('id', editingMesa.id);
 
-          // Si la base de datos utiliza vocal1 en lugar de vocal_1
-          if (error && (error.message?.includes('vocal_1') || error.code === '42703')) {
+          // Si la base de datos utiliza vocal1 o no tiene tipo_mesa
+          if (error && (error.message?.includes('vocal_1') || error.message?.includes('tipo_mesa') || error.code === '42703')) {
             const fallbackPayload = {
               ...mesaPayload,
               vocal1: mesaPayload.vocal_1,
@@ -310,6 +379,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
             };
             delete fallbackPayload.vocal_1;
             delete fallbackPayload.vocal_2;
+            if (error.message?.includes('tipo_mesa')) delete fallbackPayload.tipo_mesa;
 
             const resFallback = await supabase
               .from('mesas_examen')
@@ -325,8 +395,8 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
             .from('mesas_examen')
             .insert([mesaPayload]);
 
-          // Si la base de datos utiliza vocal1 en lugar de vocal_1
-          if (error && (error.message?.includes('vocal_1') || error.code === '42703')) {
+          // Si la base de datos utiliza vocal1 o no tiene tipo_mesa
+          if (error && (error.message?.includes('vocal_1') || error.message?.includes('tipo_mesa') || error.code === '42703')) {
             const fallbackPayload = {
               ...mesaPayload,
               vocal1: mesaPayload.vocal_1,
@@ -334,6 +404,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
             };
             delete fallbackPayload.vocal_1;
             delete fallbackPayload.vocal_2;
+            if (error.message?.includes('tipo_mesa')) delete fallbackPayload.tipo_mesa;
 
             const resFallback = await supabase
               .from('mesas_examen')
@@ -463,83 +534,148 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     setActasAlumnos(updated);
   };
 
-  const handleSaveActaCalificaciones = async () => {
-    if (!selectedMesa) return;
-    setSavingActa(true);
-
-    try {
-      if (isSupabaseConfigured && !isDemo) {
-        // Upsert de alumnos del acta
-        const rows = actasAlumnos.map(a => ({
-          id: a.id.startsWith('temp-') ? undefined : a.id,
-          mesa_id: selectedMesa.id,
-          estudiante_id: a.estudiante_id || null,
-          alumno_nombre_completo: a.alumno_nombre_completo,
-          alumno_dni: a.alumno_dni,
-          condicion_previa: a.condicion_previa,
-          nota_escrito: a.nota_escrito !== null && a.nota_escrito !== '' ? Number(a.nota_escrito) : null,
-          nota_oral: a.nota_oral !== null && a.nota_oral !== '' ? Number(a.nota_oral) : null,
-          nota_definitiva: a.nota_definitiva !== null && a.nota_definitiva !== '' ? Number(a.nota_definitiva) : null,
-          dictamen: a.dictamen || 'AUSENTE',
-          observaciones: a.observaciones || ''
-        }));
-
-        const { error } = await supabase
-          .from('actas_examen_alumnos')
-          .upsert(rows, { onConflict: 'id' });
-
-        if (error) throw error;
-      }
-
-      // Persistencia local
-      localStorage.setItem(`actas_examen_${selectedMesa.id}`, JSON.stringify(actasAlumnos));
-      toast.success('Calificaciones y dictámenes guardados correctamente.');
-      fetchActaAlumnos(selectedMesa.id);
-    } catch (err) {
-      console.error('Error saving acta:', err);
-      // Fallback local garantizado
-      localStorage.setItem(`actas_examen_${selectedMesa.id}`, JSON.stringify(actasAlumnos));
-      toast.success('Guardado en almacenamiento local seguro.');
-    } finally {
-      setSavingActa(false);
-    }
-  };
-
-  // Carga automática de los estudiantes regulares de la cátedra
-  const handleCargarAlumnosRegulares = () => {
-    if (availableStudents.length === 0) {
-      toast.error('No se encontraron alumnos inscriptos en esta cátedra.');
-      return;
-    }
-
-    const existingDnis = new Set(actasAlumnos.map(a => a.alumno_dni));
-    const toAdd = availableStudents.filter(s => !existingDnis.has(s.dni));
+  const handleAlumnosSelectedFromModal = (selectedStudents, isPromo, averageMap) => {
+    const existingDnis = new Set(actasAlumnos.map(a => String(a.alumno_dni || '').trim()));
+    const toAdd = selectedStudents.filter(s => !existingDnis.has(String(s.dni || '').trim()));
 
     if (toAdd.length === 0) {
-      toast.info('Todos los alumnos de la cátedra ya están incluidos en el acta.');
+      toast.info('Los alumnos seleccionados ya se encuentran en el acta.');
       return;
     }
 
-    const newRows = toAdd.map(s => ({
-      id: `temp-${Date.now()}-${s.id || s.dni}`,
-      mesa_id: selectedMesa.id,
-      estudiante_id: s.id,
-      alumno_nombre_completo: `${s.apellido}, ${s.nombre}`,
-      alumno_dni: s.dni || '',
-      condicion_previa: 'REGULAR',
-      nota_escrito: null,
-      nota_oral: null,
-      nota_definitiva: null,
-      dictamen: 'AUSENTE',
-      observaciones: ''
-    }));
+    const newRows = toAdd.map(s => {
+      const isStudentPromo = isPromo && (s.condicion === 'PROMOCIONAL');
+      const cursadaAvg = isStudentPromo ? (averageMap?.get(s.id) || 7) : null;
+
+      return {
+        id: `temp-${Date.now()}-${s.id || s.dni}`,
+        mesa_id: selectedMesa.id,
+        estudiante_id: s.id,
+        alumno_nombre_completo: `${s.apellido}, ${s.nombre}`,
+        alumno_dni: s.dni || '',
+        condicion_previa: s.condicion || (isPromo ? 'PROMOCIONAL' : 'REGULAR'),
+        nota_escrito: null,
+        nota_oral: null,
+        nota_definitiva: isStudentPromo ? cursadaAvg : null,
+        dictamen: isStudentPromo ? 'ACREDITADO' : 'AUSENTE',
+        observaciones: isStudentPromo ? 'Acreditación por Promoción Directa' : ''
+      };
+    });
 
     const merged = [...actasAlumnos, ...newRows].sort((a, b) => 
       a.alumno_nombre_completo.localeCompare(b.alumno_nombre_completo)
     );
 
     setActasAlumnos(merged);
-    toast.success(`Se agregaron ${toAdd.length} alumnos regulares al acta volante.`);
+    toast.success(`Se agregaron ${toAdd.length} alumnos a la mesa de examen.`);
+  };
+
+  const handleSaveActaCalificaciones = async () => {
+    if (!selectedMesa) return;
+    setSavingActa(true);
+
+    try {
+      if (isSupabaseConfigured && !isDemo) {
+        let rpcSuccessful = false;
+
+        // 1. Intentar registrar mediante RPC atómica
+        try {
+          for (const a of actasAlumnos) {
+            const rpcPayload = {
+              p_acta_alumno_id: String(a.id).startsWith('temp-') ? null : a.id,
+              p_mesa_id: selectedMesa.id,
+              p_estudiante_id: a.estudiante_id || null,
+              p_alumno_nombre_completo: a.alumno_nombre_completo,
+              p_alumno_dni: a.alumno_dni || '',
+              p_condicion_previa: a.condicion_previa || 'REGULAR',
+              p_nota_escrito: a.nota_escrito !== null && a.nota_escrito !== '' ? Number(a.nota_escrito) : null,
+              p_nota_oral: a.nota_oral !== null && a.nota_oral !== '' ? Number(a.nota_oral) : null,
+              p_nota_definitiva: a.nota_definitiva !== null && a.nota_definitiva !== '' ? Number(a.nota_definitiva) : null,
+              p_dictamen: a.dictamen || 'AUSENTE',
+              p_observaciones: a.observaciones || ''
+            };
+            const { error: rpcError } = await supabase.rpc('registrar_resultado_examen', rpcPayload);
+            if (rpcError) throw rpcError;
+          }
+          rpcSuccessful = true;
+        } catch (rpcErr) {
+          console.warn('Fallback por ausencia o error en RPC registrar_resultado_examen:', rpcErr);
+        }
+
+        // 2. Fallback de guardado directo si la RPC no existe aún
+        if (!rpcSuccessful) {
+          const rows = actasAlumnos.map(a => ({
+            id: String(a.id).startsWith('temp-') ? undefined : a.id,
+            mesa_id: selectedMesa.id,
+            estudiante_id: a.estudiante_id || null,
+            alumno_nombre_completo: a.alumno_nombre_completo,
+            alumno_dni: a.alumno_dni,
+            condicion_previa: a.condicion_previa,
+            nota_escrito: a.nota_escrito !== null && a.nota_escrito !== '' ? Number(a.nota_escrito) : null,
+            nota_oral: a.nota_oral !== null && a.nota_oral !== '' ? Number(a.nota_oral) : null,
+            nota_definitiva: a.nota_definitiva !== null && a.nota_definitiva !== '' ? Number(a.nota_definitiva) : null,
+            dictamen: a.dictamen || 'AUSENTE',
+            observaciones: a.observaciones || ''
+          }));
+
+          const { error: upsertErr } = await supabase
+            .from('actas_examen_alumnos')
+            .upsert(rows, { onConflict: 'id' });
+          if (upsertErr) throw upsertErr;
+
+          // Actualizar acreditación en inscripciones para los aprobados / acreditados
+          const fechaAcreditacion = selectedMesa.fecha ? new Date(selectedMesa.fecha).toISOString() : new Date().toISOString();
+          for (const a of actasAlumnos) {
+            if (a.estudiante_id && (a.dictamen === 'ACREDITADO' || a.dictamen === 'APROBADO')) {
+              try {
+                await supabase
+                  .from('inscripciones')
+                  .update({
+                    estado_academico: 'ACREDITADO',
+                    nota_final: a.nota_definitiva,
+                    fecha_acreditacion: fechaAcreditacion
+                  })
+                  .eq('catedra_id', catedraId)
+                  .eq('estudiante_id', a.estudiante_id);
+              } catch (_) {}
+            }
+          }
+        }
+      }
+
+      // 3. Persistencia local garantizada
+      localStorage.setItem(`actas_examen_${selectedMesa.id}`, JSON.stringify(actasAlumnos));
+
+      // Actualizar estudiantes locales acreditados
+      try {
+        const storedEst = JSON.parse(localStorage.getItem(`estudiantes_${catedraId}`) || '[]');
+        const updatedEst = storedEst.map(s => {
+          const matchingActa = actasAlumnos.find(a => 
+            a.estudiante_id === s.id || (a.alumno_dni && s.dni && String(a.alumno_dni) === String(s.dni))
+          );
+          if (matchingActa && (matchingActa.dictamen === 'ACREDITADO' || matchingActa.dictamen === 'APROBADO')) {
+            return {
+              ...s,
+              estado_academico: 'ACREDITADO',
+              nota_final: matchingActa.nota_definitiva,
+              fecha_acreditacion: selectedMesa.fecha || new Date().toISOString()
+            };
+          }
+          return s;
+        });
+        localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updatedEst));
+      } catch (_) {}
+
+      toast.success('Calificaciones y acreditaciones guardadas con éxito.');
+      fetchActaAlumnos(selectedMesa.id);
+      fetchAvailableStudents();
+    } catch (err) {
+      console.error('Error saving acta:', err);
+      localStorage.setItem(`actas_examen_${selectedMesa.id}`, JSON.stringify(actasAlumnos));
+      toast.success('Guardado en almacenamiento local seguro.');
+    } finally {
+      setSavingActa(false);
+    }
   };
 
   const handleInscribirIndividual = (e) => {
@@ -617,7 +753,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
     const total = actasAlumnos.length;
     const ausentes = actasAlumnos.filter(a => a.dictamen === 'AUSENTE').length;
     const presentes = total - ausentes;
-    const aprobados = actasAlumnos.filter(a => a.dictamen === 'APROBADO').length;
+    const aprobados = actasAlumnos.filter(a => a.dictamen === 'APROBADO' || a.dictamen === 'ACREDITADO').length;
     const desaprobados = actasAlumnos.filter(a => a.dictamen === 'DESAPROBADO').length;
     const pctAprobacion = presentes > 0 ? Math.round((aprobados / presentes) * 100) : 0;
     return { total, ausentes, presentes, aprobados, desaprobados, pctAprobacion };
@@ -643,8 +779,11 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
               </button>
               
               <div className="flex items-center gap-2.5 flex-wrap">
-                <Badge variant="primary" className="font-bold text-xs uppercase">
-                  {selectedMesa.turno_llamado}
+                <Badge 
+                  variant={selectedMesa.tipo_mesa === 'PROMOCIONAL' ? 'success' : 'primary'} 
+                  className="font-bold text-xs uppercase"
+                >
+                  {selectedMesa.tipo_mesa === 'PROMOCIONAL' ? '🎖️ PROMOCIONAL' : selectedMesa.turno_llamado}
                 </Badge>
                 <span className="text-xs font-mono font-bold text-text-secondary">
                   {formatFechaDMY(selectedMesa.fecha)}
@@ -658,7 +797,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                 Planilla de Calificaciones del Acta Volante
               </h2>
               <p className="text-xs text-text-muted">
-                Tribunal: <b>{selectedMesa.presidente || 'Presidente'}</b> (Pres.), <b>{selectedMesa.vocal1 || 'Vocal 1'}</b> (V1), <b>{selectedMesa.vocal2 || 'Vocal 2'}</b> (V2)
+                Tribunal: <b>{selectedMesa.presidente || 'Presidente'}</b> (Pres.), <b>{selectedMesa.vocal1 || selectedMesa.vocal_1 || 'Vocal 1'}</b> (V1), <b>{selectedMesa.vocal2 || selectedMesa.vocal_2 || 'Vocal 2'}</b> (V2)
               </p>
             </div>
 
@@ -677,12 +816,12 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
               <Button
                 variant="outline"
                 icon={UserCheck}
-                onClick={handleCargarAlumnosRegulares}
-                className="text-xs font-bold rounded-2xl min-h-[44px] whitespace-nowrap shrink-0"
-                title="Cargar alumnos inscriptos regulares de la cátedra que aún no figuren en la mesa"
+                onClick={() => setIsCargarAlumnosModalOpen(true)}
+                className="text-xs font-bold rounded-2xl min-h-[44px] whitespace-nowrap shrink-0 border-primary/30 text-primary hover:bg-primary/5"
+                title="Cargar alumnos elegibles para esta mesa de examen"
               >
-                <span className="hidden sm:inline">Cargar Regulares</span>
-                <span className="sm:hidden">Regulares</span>
+                <span className="hidden sm:inline">+ Cargar Alumnos a la Mesa</span>
+                <span className="sm:hidden">+ Alumnos</span>
               </Button>
 
               <Button
@@ -691,8 +830,8 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                 onClick={() => setIsInscribirModalOpen(true)}
                 className="text-xs font-bold rounded-2xl min-h-[44px] whitespace-nowrap shrink-0"
               >
-                <span className="hidden sm:inline">Inscribir Alumno</span>
-                <span className="sm:hidden">+ Alumno</span>
+                <span className="hidden sm:inline">Inscribir Manual</span>
+                <span className="sm:hidden">+ Manual</span>
               </Button>
 
               <Button
@@ -765,25 +904,27 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                           <Users className="w-10 h-10 mx-auto text-text-muted/50" />
                           <p className="font-semibold text-sm">No hay alumnos inscriptos en esta mesa todavía.</p>
                           <p className="text-xs">
-                            Puedes presionar "<b>Cargar Regulares</b>" para sincronizar la nómina de la cátedra con un solo clic o inscribir alumnos manualmente.
+                            Puedes presionar "<b>+ Cargar Alumnos a la Mesa</b>" para seleccionar alumnos promocionales, regulares o libres de la nómina, o inscribir alumnos manualmente.
                           </p>
                           <Button
                             variant="primary"
                             icon={UserCheck}
                             size="sm"
-                            onClick={handleCargarAlumnosRegulares}
+                            onClick={() => setIsCargarAlumnosModalOpen(true)}
                             className="mt-2"
                           >
-                            Cargar Alumnos Regulares Ahora
+                            + Cargar Alumnos a la Mesa
                           </Button>
                         </div>
                       </td>
                     </tr>
                   ) : (
                     actasAlumnos.map((alumno, idx) => {
-                      const isAprobado = alumno.dictamen === 'APROBADO';
+                      const isAcreditado = alumno.dictamen === 'ACREDITADO';
+                      const isAprobado = alumno.dictamen === 'APROBADO' || isAcreditado;
                       const isDesaprobado = alumno.dictamen === 'DESAPROBADO';
                       const isAusente = alumno.dictamen === 'AUSENTE';
+                      const isPromocional = alumno.condicion_previa === 'PROMOCIONAL';
 
                       return (
                         <tr key={alumno.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
@@ -792,8 +933,13 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                           </td>
 
                           <td className="py-2.5 px-3">
-                            <div className="font-bold text-text-primary text-xs">
-                              {alumno.alumno_nombre_completo}
+                            <div className="font-bold text-text-primary text-xs flex items-center gap-1.5">
+                              <span>{alumno.alumno_nombre_completo}</span>
+                              {isPromocional && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">
+                                  Promoción
+                                </span>
+                              )}
                             </div>
                             <div className="font-mono text-[11px] text-text-muted">
                               DNI: {alumno.alumno_dni || 'S/D'}
@@ -802,41 +948,50 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
 
                           <td className="py-2.5 px-3 text-center">
                             <select
-                              value={alumno.condicion_previa}
+                              value={alumno.condicion_previa || 'REGULAR'}
                               onChange={(e) => handleGradeChange(idx, 'condicion_previa', e.target.value)}
                               className="text-[11px] font-bold py-1 px-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
                             >
                               <option value="REGULAR">REGULAR</option>
+                              <option value="PROMOCIONAL">PROMOCIONAL</option>
                               <option value="LIBRE">LIBRE</option>
                             </select>
                           </td>
 
                           {/* Escrito Input */}
                           <td className="py-2.5 px-3 text-center">
-                            <input
-                              type="number"
-                              min="1"
-                              max="10"
-                              step="1"
-                              value={alumno.nota_escrito ?? ''}
-                              placeholder="—"
-                              onChange={(e) => handleGradeChange(idx, 'nota_escrito', e.target.value)}
-                              className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-                            />
+                            {isPromocional ? (
+                              <span className="text-text-muted font-mono text-xs" title="Exento de examen escrito por promoción directa">—</span>
+                            ) : (
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                step="1"
+                                value={alumno.nota_escrito ?? ''}
+                                placeholder="—"
+                                onChange={(e) => handleGradeChange(idx, 'nota_escrito', e.target.value)}
+                                className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                              />
+                            )}
                           </td>
 
                           {/* Oral Input */}
                           <td className="py-2.5 px-3 text-center">
-                            <input
-                              type="number"
-                              min="1"
-                              max="10"
-                              step="1"
-                              value={alumno.nota_oral ?? ''}
-                              placeholder="—"
-                              onChange={(e) => handleGradeChange(idx, 'nota_oral', e.target.value)}
-                              className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-                            />
+                            {isPromocional ? (
+                              <span className="text-text-muted font-mono text-xs" title="Exento de examen oral por promoción directa">—</span>
+                            ) : (
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                step="1"
+                                value={alumno.nota_oral ?? ''}
+                                placeholder="—"
+                                onChange={(e) => handleGradeChange(idx, 'nota_oral', e.target.value)}
+                                className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                              />
+                            )}
                           </td>
 
                           {/* Definitiva */}
@@ -848,7 +1003,11 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                               value={alumno.nota_definitiva ?? ''}
                               placeholder="—"
                               onChange={(e) => handleGradeChange(idx, 'nota_definitiva', e.target.value)}
-                              className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900 font-mono font-black text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                              className={`w-16 text-center py-1.5 px-2 rounded-xl border font-mono font-black text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                                isPromocional 
+                                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400' 
+                                  : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-text-primary'
+                              }`}
                             />
                           </td>
 
@@ -858,7 +1017,9 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                               value={alumno.dictamen || 'AUSENTE'}
                               onChange={(e) => handleDictamenOverride(idx, e.target.value)}
                               className={`text-[11px] font-black py-1.5 px-2.5 rounded-xl border transition-colors cursor-pointer focus:outline-none focus:ring-1 ${
-                                isAprobado
+                                isAcreditado
+                                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                                  : isAprobado
                                   ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
                                   : isDesaprobado
                                   ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30'
@@ -867,6 +1028,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                             >
                               <option value="AUSENTE">AUSENTE</option>
                               <option value="APROBADO">APROBADO</option>
+                              <option value="ACREDITADO">ACREDITADO</option>
                               <option value="DESAPROBADO">DESAPROBADO</option>
                             </select>
                           </td>
@@ -910,19 +1072,29 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap">
               <ExpandableSearch
                 value={searchQuery}
                 onChange={setSearchQuery}
                 placeholder="Buscar mesa por llamado, acta, docente..."
               />
               <Button
+                variant="outline"
+                icon={Sparkles}
+                onClick={() => handleOpenNewMesaModal('PROMOCIONAL')}
+                className="text-xs font-bold rounded-2xl min-h-[44px] border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 whitespace-nowrap"
+              >
+                <span className="hidden sm:inline">🎖️ Mesa Promocional</span>
+                <span className="sm:hidden">🎖️ Promocional</span>
+              </Button>
+              <Button
                 variant="primary"
                 icon={Plus}
-                onClick={handleOpenNewMesaModal}
+                onClick={() => handleOpenNewMesaModal('FINAL')}
                 className="text-xs font-bold rounded-2xl min-h-[44px] shadow-sm whitespace-nowrap"
               >
-                Nueva Mesa
+                <span className="hidden sm:inline">+ Nueva Mesa Final</span>
+                <span className="sm:hidden">+ Mesa</span>
               </Button>
             </div>
           </div>
@@ -941,7 +1113,7 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                   : 'Registra los turnos de examen final, ordinarios o especiales, para confeccionar las actas volantes.'
               }
               actionLabel="Constituir Mesa de Examen"
-              onAction={handleOpenNewMesaModal}
+              onAction={() => handleOpenNewMesaModal('FINAL')}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -953,8 +1125,11 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <Badge variant="primary" className="text-[11px] font-bold uppercase">
-                        {mesa.turno_llamado}
+                      <Badge 
+                        variant={mesa.tipo_mesa === 'PROMOCIONAL' ? 'success' : 'primary'} 
+                        className="text-[11px] font-bold uppercase"
+                      >
+                        {mesa.tipo_mesa === 'PROMOCIONAL' ? '🎖️ PROMOCIONAL' : mesa.turno_llamado}
                       </Badge>
                       <span className="text-xs font-mono font-bold text-text-muted flex items-center gap-1">
                         <CalendarIcon className="w-3.5 h-3.5 text-primary" />
@@ -1046,6 +1221,49 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
         maxWidth="max-w-xl"
       >
         <form onSubmit={handleSaveMesa} className="space-y-4 text-xs">
+          {/* Selector de Tipo de Mesa: Final vs Promocional */}
+          <div>
+            <label className="block font-bold text-text-secondary mb-1.5">
+              Tipo de Mesa Examinadora *
+            </label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMesaTipo('FINAL');
+                  if (mesaTurno === 'PROMOCIONAL DIRECTA') setMesaTurno('1° LLAMADO');
+                }}
+                className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  mesaTipo === 'FINAL'
+                    ? 'bg-white dark:bg-slate-800 text-primary shadow-xs'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <span>📋 Examen Final / Ordinaria</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMesaTipo('PROMOCIONAL');
+                  setMesaTurno('PROMOCIONAL DIRECTA');
+                }}
+                className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  mesaTipo === 'PROMOCIONAL'
+                    ? 'bg-emerald-500 text-white shadow-xs'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <span>🎖️ Mesa Promocional</span>
+              </button>
+            </div>
+            {mesaTipo === 'PROMOCIONAL' && (
+              <p className="mt-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                Permite asentar la acreditación por promoción directa en libro matriz con acta reglamentaria.
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-text-secondary mb-1">Fecha de la Mesa *</label>
@@ -1068,98 +1286,130 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
             </div>
           </div>
 
-          {/* Registro Matriz */}
-          <div className="p-3.5 bg-slate-50 dark:bg-white/[0.02] rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
-              Registro Matriz Institucional
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div>
-                <label className="text-[10px] text-text-muted block">Libro N°</label>
-                <input
-                  type="text"
-                  placeholder="Ej. VIII"
-                  value={mesaLibro}
-                  onChange={(e) => setMesaLibro(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-text-muted block">Tomo N°</label>
-                <input
-                  type="text"
-                  placeholder="Ej. 1"
-                  value={mesaTomo}
-                  onChange={(e) => setMesaTomo(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-text-muted block">Folio N°</label>
-                <input
-                  type="text"
-                  placeholder="Ej. 142"
-                  value={mesaFolio}
-                  onChange={(e) => setMesaFolio(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-text-muted block">Acta N°</label>
-                <input
-                  type="text"
-                  placeholder="Ej. 2026-09"
-                  value={mesaActaNumero}
-                  onChange={(e) => setMesaActaNumero(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono text-xs"
-                />
-              </div>
+          {/* Tribunal: Presidente de Mesa (Precompletado con docente titular) */}
+          <div className="p-3.5 bg-slate-50 dark:bg-white/[0.02] rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold text-text-secondary block">
+                Presidente de Mesa (Docente Titular) *
+              </label>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                ✓ Docente a cargo
+              </span>
             </div>
+            <input
+              type="text"
+              placeholder="Nombre del Presidente de mesa..."
+              value={mesaPresidente}
+              onChange={(e) => setMesaPresidente(e.target.value)}
+              required
+              className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-xs text-text-primary"
+            />
           </div>
 
-          {/* Tribunal Evaluador */}
-          <div className="p-3.5 bg-slate-50 dark:bg-white/[0.02] rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
-              Tribunal Evaluador Reglamentario
-            </span>
-
-            <div>
-              <label className="text-[10px] text-text-muted block font-semibold">Presidente de Mesa *</label>
-              <input
-                type="text"
-                placeholder="Nombre del Presidente de mesa..."
-                value={mesaPresidente}
-                onChange={(e) => setMesaPresidente(e.target.value)}
-                className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-xs text-text-primary"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] text-text-muted block">Primer Vocal (Vocal 1)</label>
-                <input
-                  type="text"
-                  placeholder="Nombre de Vocal 1..."
-                  value={mesaVocal1}
-                  onChange={(e) => setMesaVocal1(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-xs text-text-primary"
-                />
+          {/* Acordeón Opcional: Matriz y Vocales */}
+          <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsAccordionOpen(!isAccordionOpen)}
+              className="w-full py-2.5 px-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.02] dark:hover:bg-white/[0.05] transition-colors flex items-center justify-between text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-primary" />
+                <span className="text-xs font-bold text-text-primary">
+                  Libro Matriz y Vocales Acompañantes
+                </span>
+                <span className="text-[10px] text-text-muted bg-slate-200/60 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
+                  Opcional
+                </span>
               </div>
+              {isAccordionOpen ? (
+                <ChevronUp className="w-4 h-4 text-text-muted" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-text-muted" />
+              )}
+            </button>
 
-              <div>
-                <label className="text-[10px] text-text-muted block">Segundo Vocal (Vocal 2)</label>
-                <input
-                  type="text"
-                  placeholder="Nombre de Vocal 2..."
-                  value={mesaVocal2}
-                  onChange={(e) => setMesaVocal2(e.target.value)}
-                  className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-xs text-text-primary"
-                />
+            {isAccordionOpen && (
+              <div className="p-3.5 space-y-3 bg-white dark:bg-slate-900/40 border-t border-slate-200/80 dark:border-white/10 animate-fadeIn">
+                {/* Registro Matriz */}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1.5">
+                    Registro Matriz Institucional
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div>
+                      <label className="text-[10px] text-text-muted block">Libro N°</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. VIII"
+                        value={mesaLibro}
+                        onChange={(e) => setMesaLibro(e.target.value)}
+                        className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-muted block">Tomo N°</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. 1"
+                        value={mesaTomo}
+                        onChange={(e) => setMesaTomo(e.target.value)}
+                        className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-muted block">Folio N°</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. 142"
+                        value={mesaFolio}
+                        onChange={(e) => setMesaFolio(e.target.value)}
+                        className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-muted block">Acta N°</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. 2026-09"
+                        value={mesaActaNumero}
+                        onChange={(e) => setMesaActaNumero(e.target.value)}
+                        className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vocales */}
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1.5">
+                    Vocales Examinadores (Rúbricas del Tribunal)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-text-muted block">Primer Vocal (Vocal 1)</label>
+                      <input
+                        type="text"
+                        placeholder="Nombre de Vocal 1..."
+                        value={mesaVocal1}
+                        onChange={(e) => setMesaVocal1(e.target.value)}
+                        className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-xs text-text-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-muted block">Segundo Vocal (Vocal 2)</label>
+                      <input
+                        type="text"
+                        placeholder="Nombre de Vocal 2..."
+                        value={mesaVocal2}
+                        onChange={(e) => setMesaVocal2(e.target.value)}
+                        className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-xs text-text-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-white/10">
@@ -1267,6 +1517,20 @@ export default function MesasExamenTab({ catedraId, catedraName, academicLevel =
           </div>
         </form>
       </Modal>
+
+      {/* =========================================================================
+          MODAL: CARGAR ALUMNOS A LA MESA (MULTI-SELECTOR INTELIGENTE)
+      ========================================================================= */}
+      <CargarAlumnosMesaModal
+        isOpen={isCargarAlumnosModalOpen}
+        onClose={() => setIsCargarAlumnosModalOpen(false)}
+        mesa={selectedMesa}
+        students={availableStudents}
+        currentActas={actasAlumnos}
+        evaluaciones={catedraEvaluaciones}
+        notas={catedraNotas}
+        onConfirmSelection={handleAlumnosSelectedFromModal}
+      />
 
       {/* =========================================================================
           VISOR UNIFICADO: IMPRESIÓN REGLAMENTARIA DEL ACTA VOLANTE

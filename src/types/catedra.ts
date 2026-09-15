@@ -15,7 +15,6 @@ export type CatedraTabId =
   | 'calificaciones' 
   | 'unidades' 
   | 'libro-temas' 
-  | 'mesas-examen' 
   | 'recursos' 
   | 'configuracion';
 
@@ -160,7 +159,6 @@ export const VALID_CATEDRA_TABS: CatedraTabId[] = [
   'calificaciones',
   'unidades',
   'libro-temas',
-  'mesas-examen',
   'recursos',
   'configuracion'
 ];
