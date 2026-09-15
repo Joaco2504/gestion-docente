@@ -32,7 +32,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import RiskBadge from '../common/RiskBadge';
+import ErrorBoundary from '../common/ErrorBoundary';
 import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
+import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
 
 /**
  * Normalización de texto reactiva:
@@ -123,37 +125,12 @@ export default function StudentsTab({
   async function fetchStudents() {
     setLoading(true);
     try {
+      // 1. Obtención de estudiantes mediante servicio limpio y resiliente
+      const list = await getEstudiantesCatedra(catedraId, { supabase, isDemo });
+      setEstudiantes(list);
+
+      // 2. Cargar datos académicos para cálculo de condición reglamentaria (no bloqueante)
       if (isSupabaseConfigured && !isDemo) {
-        const { data, error } = await supabase
-          .from('inscripciones')
-          .select(`
-            estudiante_id,
-            condicion,
-            estado_academico,
-            nota_final,
-            fecha_acreditacion,
-            estudiantes (
-              id,
-              dni,
-              apellido,
-              nombre
-            )
-          `)
-          .eq('catedra_id', catedraId);
-
-        if (error) throw error;
-
-        const list = (data || []).map(item => ({
-          ...item.estudiantes,
-          condicion_inscripcion: item.condicion,
-          estado_academico: item.estado_academico || 'CURSANDO',
-          nota_final: item.nota_final,
-          fecha_acreditacion: item.fecha_acreditacion
-        })).filter(s => s && s.id);
-        list.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
-        setEstudiantes(list);
-
-        // Cargar datos académicos para cálculo de condición reglamentaria
         try {
           const [evalRes, clsRes, inasistRes, critRes] = await Promise.all([
             supabase.from('evaluaciones').select('*').eq('catedra_id', catedraId),
@@ -196,21 +173,6 @@ export default function StudentsTab({
           console.warn('Aviso cargando datos complementarios de condición:', acadErr);
         }
       } else {
-        const stored = localStorage.getItem(`estudiantes_${catedraId}`);
-        if (stored) {
-          setEstudiantes(JSON.parse(stored));
-        } else {
-          const sample = [
-            { id: 'est-1', dni: '40111222', apellido: 'Álvarez', nombre: 'Martín' },
-            { id: 'est-2', dni: '39444555', apellido: 'Benítez', nombre: 'Lucía' },
-            { id: 'est-3', dni: '41888999', apellido: 'Castillo', nombre: 'Ignacio' },
-            { id: 'est-4', dni: '38222333', apellido: 'Domínguez', nombre: 'Valentina' },
-            { id: 'est-5', dni: '42333444', apellido: 'Fernández', nombre: 'Santiago' }
-          ];
-          setEstudiantes(sample);
-          localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(sample));
-        }
-
         const storedEval = localStorage.getItem(`evaluaciones_${catedraId}`);
         const storedNotas = localStorage.getItem(`notas_${catedraId}`);
         const storedClases = localStorage.getItem(`clases_${catedraId}`);
@@ -233,12 +195,19 @@ export default function StudentsTab({
 
   // Obtener condición académica (cálculo automático o ajuste manual del docente)
   const getStudentCondition = (studentId) => {
+    if (!studentId) return 'REGULAR';
+
+    const st = (estudiantes || []).find(e => e.id === studentId);
+    if (st?.estado_academico === 'ACREDITADO') {
+      return 'ACREDITADO';
+    }
+
     // 1. Verificar si el docente fijó una condición manual
     const override = localStorage.getItem(`condicion_override_${catedraId}_${studentId}`);
     if (override && override !== 'AUTO') return override;
 
     // 2. Cálculo dinámico reglamentario
-    const studentAsistencias = asistencias.filter(a => a.estudiante_id === studentId);
+    const studentAsistencias = (asistencias || []).filter(a => a.estudiante_id === studentId);
     const asistPct = calcularPorcentajeAsistencia(
       studentAsistencias, 
       clases.length, 
@@ -246,8 +215,8 @@ export default function StudentsTab({
     );
 
     const studentNotas = [];
-    evaluaciones.forEach(ev => {
-      const record = notas.find(n => n.estudiante_id === studentId && n.evaluacion_id === ev.id);
+    (evaluaciones || []).forEach(ev => {
+      const record = (notas || []).find(n => n.estudiante_id === studentId && n.evaluacion_id === ev.id);
       if (record?.valor !== undefined && record?.valor !== null) {
         studentNotas.push({
           evaluacion_id: ev.id,
@@ -273,18 +242,38 @@ export default function StudentsTab({
   // Mapa reactivo del Semáforo de Riesgo por estudiante
   const studentRiskMap = useMemo(() => {
     const map = new Map();
-    estudiantes.forEach(st => {
-      const risk = calculateStudentRisk(st.id, {
-        asistencias,
-        clases,
-        inasistenciasDocente,
-        evaluaciones,
-        notas,
-        criterios,
-        academicLevel,
-        modalidad
-      });
-      map.set(st.id, risk);
+    (estudiantes || []).forEach(st => {
+      if (!st || !st.id) return;
+      if (st.estado_academico === 'ACREDITADO') {
+        map.set(st.id, { 
+          level: 'OPTIMAL', 
+          reasons: ['Materia Acreditada'], 
+          badgeLabel: 'Acreditado', 
+          colorClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' 
+        });
+        return;
+      }
+      try {
+        const risk = calculateStudentRisk(st.id, {
+          asistencias,
+          clases,
+          inasistenciasDocente,
+          evaluaciones,
+          notas,
+          criterios,
+          academicLevel,
+          modalidad
+        });
+        map.set(st.id, risk);
+      } catch (e) {
+        console.warn(`Aviso calculando semáforo para estudiante ${st.id}:`, e);
+        map.set(st.id, { 
+          level: 'OPTIMAL', 
+          reasons: [], 
+          badgeLabel: 'Regular', 
+          colorClass: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' 
+        });
+      }
     });
     return map;
   }, [estudiantes, asistencias, clases, inasistenciasDocente, evaluaciones, notas, criterios, academicLevel, modalidad]);
@@ -810,157 +799,174 @@ export default function StudentsTab({
               onAction={() => setSearchQuery('')}
             />
           ) : (
-            <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs sm:text-sm border-collapse">
-                  <thead className="bg-surface-hover/80 text-text-secondary font-semibold border-b border-surface-border select-none">
-                    <tr>
-                      {/* 1. DNI */}
-                      <th 
-                        onClick={() => handleSort('dni')}
-                        className="px-4 py-3 font-mono cursor-pointer hover:text-text-primary transition-colors w-32 sm:w-36"
-                        title="Ordenar por DNI"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>DNI</span>
-                          {renderSortIcon('dni')}
-                        </div>
-                      </th>
+            <ErrorBoundary
+              title="Aviso en la nómina de alumnos"
+              fallback={({ error, retry }) => (
+                <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-center space-y-3">
+                  <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400 mx-auto" />
+                  <h4 className="font-bold text-text-primary text-sm">Aviso en la visualización de alumnos</h4>
+                  <p className="text-xs text-text-muted max-w-md mx-auto">
+                    Se detectó una discrepancia de formato en algún registro de la nómina. La información permanece intacta y protegida.
+                  </p>
+                  <Button variant="primary" size="sm" onClick={retry}>Reintentar Visualización</Button>
+                </div>
+              )}
+            >
+              <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                    <thead className="bg-surface-hover/80 text-text-secondary font-semibold border-b border-surface-border select-none">
+                      <tr>
+                        {/* 1. DNI */}
+                        <th 
+                          onClick={() => handleSort('dni')}
+                          className="px-4 py-3 font-mono cursor-pointer hover:text-text-primary transition-colors w-32 sm:w-36"
+                          title="Ordenar por DNI"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span>DNI</span>
+                            {renderSortIcon('dni')}
+                          </div>
+                        </th>
 
-                      {/* 2. Apellido */}
-                      <th 
-                        onClick={() => handleSort('apellido')}
-                        className="px-4 py-3 cursor-pointer hover:text-text-primary transition-colors"
-                        title="Ordenar por Apellido (A-Z / Z-A)"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Apellido</span>
-                          {renderSortIcon('apellido')}
-                        </div>
-                      </th>
+                        {/* 2. Apellido */}
+                        <th 
+                          onClick={() => handleSort('apellido')}
+                          className="px-4 py-3 cursor-pointer hover:text-text-primary transition-colors"
+                          title="Ordenar por Apellido (A-Z / Z-A)"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span>Apellido</span>
+                            {renderSortIcon('apellido')}
+                          </div>
+                        </th>
 
-                      {/* 3. Nombre */}
-                      <th 
-                        onClick={() => handleSort('nombre')}
-                        className="px-4 py-3 cursor-pointer hover:text-text-primary transition-colors"
-                        title="Ordenar por Nombre (A-Z / Z-A)"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Nombre</span>
-                          {renderSortIcon('nombre')}
-                        </div>
-                      </th>
+                        {/* 3. Nombre */}
+                        <th 
+                          onClick={() => handleSort('nombre')}
+                          className="px-4 py-3 cursor-pointer hover:text-text-primary transition-colors"
+                          title="Ordenar por Nombre (A-Z / Z-A)"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span>Nombre</span>
+                            {renderSortIcon('nombre')}
+                          </div>
+                        </th>
 
-                      {/* 4. Condición */}
-                      <th 
-                        onClick={() => handleSort('condicion')}
-                        className="px-4 py-3 text-center cursor-pointer hover:text-text-primary transition-colors w-36 sm:w-44"
-                        title="Ordenar por Condición Académica"
-                      >
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span>Condición</span>
-                          {renderSortIcon('condicion')}
-                        </div>
-                      </th>
+                        {/* 4. Condición */}
+                        <th 
+                          onClick={() => handleSort('condicion')}
+                          className="px-4 py-3 text-center cursor-pointer hover:text-text-primary transition-colors w-36 sm:w-44"
+                          title="Ordenar por Condición Académica"
+                        >
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span>Condición</span>
+                            {renderSortIcon('condicion')}
+                          </div>
+                        </th>
 
-                      {/* 5. Acciones */}
-                      <th className="px-4 py-3 text-right w-28 sm:w-32">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-border">
-                    {filteredAndSortedStudents.map((st) => {
-                      const isAcreditado = st.estado_academico === 'ACREDITADO';
-                      const cond = getStudentCondition(st.id);
-                      return (
-                        <tr key={st.id} className="hover:bg-surface-hover/40 transition-colors group">
-                          {/* 1. DNI */}
-                          <td className="px-4 py-3.5 font-mono font-medium text-text-secondary whitespace-nowrap">
-                            {st.dni}
-                          </td>
+                        {/* 5. Acciones */}
+                        <th className="px-4 py-3 text-right w-28 sm:w-32">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-border">
+                      {filteredAndSortedStudents.map((st) => {
+                        if (!st || !st.id) return null;
+                        const isAcreditado = st.estado_academico === 'ACREDITADO';
+                        const cond = getStudentCondition(st.id);
+                        const notaFinal = st.nota_final_acreditacion ?? st.nota_final;
 
-                          {/* 2. Apellido */}
-                          <td className="px-4 py-3.5 font-bold text-text-primary whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenStudentDetail(st)}
-                              className="text-left font-bold text-text-primary hover:text-primary transition-colors cursor-pointer"
-                              title="Ver ficha académica e historial de exámenes"
-                            >
-                              {st.apellido}
-                            </button>
-                          </td>
+                        return (
+                          <tr key={st.id} className="hover:bg-surface-hover/40 transition-colors group">
+                            {/* 1. DNI */}
+                            <td className="px-4 py-3.5 font-mono font-medium text-text-secondary whitespace-nowrap">
+                              {st.dni || '-'}
+                            </td>
 
-                          {/* 3. Nombre */}
-                          <td className="px-4 py-3.5 text-text-primary whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenStudentDetail(st)}
-                              className="text-left text-text-primary hover:text-primary transition-colors cursor-pointer"
-                              title="Ver ficha académica e historial de exámenes"
-                            >
-                              {st.nombre}
-                            </button>
-                          </td>
-
-                          {/* 4. Condición */}
-                          <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {isAcreditado ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenStudentDetail(st)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs"
-                                  title={`Materia Acreditada (Calificación Final: ${st.nota_final || 'Aprobado'}). Clic para ver ficha`}
-                                >
-                                  <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                  <span>ACREDITADO {st.nota_final ? `(${st.nota_final})` : ''}</span>
-                                </button>
-                              ) : (
-                                <>
-                                  <Badge variant={getCondBadgeVariant(cond)}>
-                                    {cond}
-                                  </Badge>
-                                  <RiskBadge risk={studentRiskMap.get(st.id)} compact />
-                                </>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* 5. Acciones */}
-                          <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1">
+                            {/* 2. Apellido */}
+                            <td className="px-4 py-3.5 font-bold text-text-primary whitespace-nowrap">
                               <button
+                                type="button"
                                 onClick={() => handleOpenStudentDetail(st)}
-                                className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
-                                title="Ver ficha del estudiante e historial de exámenes"
+                                className="text-left font-bold text-text-primary hover:text-primary transition-colors cursor-pointer"
+                                title="Ver ficha académica e historial de exámenes"
                               >
-                                <FileText className="w-4 h-4" />
+                                {st.apellido || '-'}
                               </button>
+                            </td>
+
+                            {/* 3. Nombre */}
+                            <td className="px-4 py-3.5 text-text-primary whitespace-nowrap">
                               <button
-                                onClick={() => handleOpenEdit(st)}
-                                className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
-                                title="Editar datos y condición del alumno"
+                                type="button"
+                                onClick={() => handleOpenStudentDetail(st)}
+                                className="text-left text-text-primary hover:text-primary transition-colors cursor-pointer"
+                                title="Ver ficha académica e historial de exámenes"
                               >
-                                <Edit3 className="w-4 h-4" />
+                                {st.nombre || '-'}
                               </button>
-                              <button
-                                onClick={() => handleOpenDelete(st)}
-                                className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors touch-target-44"
-                                title="Dar de baja de la cátedra"
-                              >
-                                <UserMinus className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+
+                            {/* 4. Condición */}
+                            <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5">
+                                {isAcreditado ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenStudentDetail(st)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs"
+                                    title={`Materia Acreditada (Calificación Final: ${notaFinal ?? 'Aprobado'}). Clic para ver ficha`}
+                                  >
+                                    <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                    <span>🎓 Acreditado (Nota: {notaFinal ?? 'Aprobado'})</span>
+                                  </button>
+                                ) : (
+                                  <>
+                                    <Badge variant={getCondBadgeVariant(cond)}>
+                                      {cond}
+                                    </Badge>
+                                    <RiskBadge risk={studentRiskMap.get(st.id)} compact />
+                                  </>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* 5. Acciones */}
+                            <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => handleOpenStudentDetail(st)}
+                                  className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
+                                  title="Ver ficha del estudiante e historial de exámenes"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEdit(st)}
+                                  className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
+                                  title="Editar datos y condición del alumno"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenDelete(st)}
+                                  className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors touch-target-44"
+                                  title="Dar de baja de la cátedra"
+                                >
+                                  <UserMinus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            </ErrorBoundary>
           )}
         </>
       )}

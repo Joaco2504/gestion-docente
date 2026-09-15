@@ -21,12 +21,13 @@ import {
 import Badge from '../common/Badge';
 import Button from '../common/Button';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { calcularPorcentajeAsistencia, calcularCondicionFinal } from '../../lib/academicLogic';
+import { runQASuite } from '../../utils/qaRunner';
 import { toast } from 'sonner';
 
 /**
  * QADiagnosticModal - Suite de Autodiagnóstico y Test Integral para Superadministrador.
- * Ejecuta pruebas de integridad de base de datos, upsert de DNI, motor RAM, semáforo y cascadas.
+ * Ejecuta pruebas de las 5 operaciones troncales: Cátedras/Ciclos, Alumnos/Upsert,
+ * Asistencias, Calificaciones y Mesas/Actas/Elegibles con diagnóstico PostgREST.
  */
 export default function QADiagnosticModal({
   isOpen,
@@ -37,7 +38,7 @@ export default function QADiagnosticModal({
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [executionSource, setExecutionSource] = useState('rpc'); // 'rpc' | 'local'
+  const [executionSource, setExecutionSource] = useState('supabase'); // 'supabase' | 'demo'
 
   // Notificar al componente padre cuando el diagnóstico está en ejecución
   const updateRunningState = useCallback((isRunning) => {
@@ -47,169 +48,12 @@ export default function QADiagnosticModal({
     }
   }, [onRunningStateChange]);
 
-  // Ejecución del Test Suite
+  // Ejecución del Test Suite centralizado
   const runDiagnosticSuite = useCallback(async () => {
     updateRunningState(true);
-    const startTime = performance.now();
-
     try {
-      let suiteData = null;
-      let usedRpc = false;
-
-      // 1. Intento de ejecución mediante función RPC de Supabase
-      if (!isDemo && isSupabaseConfigured && supabase) {
-        try {
-          const { data, error } = await supabase.rpc('ejecutar_qa_docente_suite');
-          if (!error && data) {
-            suiteData = typeof data === 'string' ? JSON.parse(data) : data;
-            usedRpc = true;
-          } else if (error) {
-            console.warn('RPC ejecutar_qa_docente_suite no disponible en base remota:', error.message);
-          }
-        } catch (rpcErr) {
-          console.warn('Excepción al invocar ejecutar_qa_docente_suite:', rpcErr);
-        }
-      }
-
-      // 2. Si no hay datos de RPC (modo demo, offline o migración pendiente),
-      // ejecutamos el motor de testing local del cliente con las funciones reales de la app
-      if (!suiteData) {
-        // Pausa simulada breve para feedback visual de progreso
-        await new Promise(r => setTimeout(r, 450));
-
-        // Test 1: Integridad de Base de Datos
-        let t1Pass = true;
-        let t1Detail = 'Cátedras, Ciclos Lectivos e Instituciones validadas con esquemas relacionales activos.';
-
-        // Test 2: Matrícula y Upsert
-        let t2Pass = true;
-        let t2Detail = 'Restricción de unicidad (docente_id, dni) verificada. Prevención de colisiones por upsert activa.';
-
-        // Test 3: Motor de Cálculo RAM (Prueba aritmética de las funciones reales de academicLogic.js)
-        const ram3de3 = calcularPorcentajeAsistencia([
-          { estado: 'PRESENTE' },
-          { estado: 'PRESENTE' },
-          { estado: 'PRESENTE' }
-        ], 3); // 100.0%
-
-        const ram2de3 = calcularPorcentajeAsistencia([
-          { estado: 'PRESENTE' },
-          { estado: 'PRESENTE' },
-          { estado: 'AUSENTE' }
-        ], 3); // 66.7%
-
-        const ram1de3 = calcularPorcentajeAsistencia([
-          { estado: 'PRESENTE' },
-          { estado: 'AUSENTE' },
-          { estado: 'AUSENTE' }
-        ], 3); // 33.3%
-
-        const t3Pass = (ram3de3 === 100 || ram3de3 === 100.0) && 
-                       (ram2de3 >= 66.6 && ram2de3 <= 66.7) && 
-                       (ram1de3 >= 33.3 && ram1de3 <= 33.4);
-
-        const t3Detail = `Asistencias calculadas con exactitud: 3/3 = ${ram3de3}%, 2/3 = ${ram2de3}% (66.6% base), 1/3 = ${ram1de3}%. Tolerancia conforme a normativa.`;
-
-        // Test 4: Semáforo de Alerta (Prueba real de calcularCondicionFinal)
-        const mockEvals = [
-          { id: 'ev-1', tipo: 'PARCIAL', titulo: 'Parcial 1' },
-          { id: 'ev-2', tipo: 'PARCIAL', titulo: 'Parcial 2' }
-        ];
-
-        // Caso Promocional: Asist >= 80%, Notas >= 7
-        const resPromo = calcularCondicionFinal('TERCIARIO', 'ANUAL', 85, mockEvals, [
-          { evaluacion_id: 'ev-1', valor: 8 },
-          { evaluacion_id: 'ev-2', valor: 9 }
-        ]);
-
-        // Caso Regular: Asist >= 70%, Notas >= 4
-        const resReg = calcularCondicionFinal('TERCIARIO', 'ANUAL', 75, mockEvals, [
-          { evaluacion_id: 'ev-1', valor: 6 },
-          { evaluacion_id: 'ev-2', valor: 5 }
-        ]);
-
-        // Caso Libre: Asist < 70% o Notas < 4
-        const resLibre = calcularCondicionFinal('TERCIARIO', 'ANUAL', 55, mockEvals, [
-          { evaluacion_id: 'ev-1', valor: 3 },
-          { evaluacion_id: 'ev-2', valor: 4 }
-        ]);
-
-        const t4Pass = resPromo.condicion === 'PROMOCIONAL' && 
-                       resReg.condicion === 'REGULAR' && 
-                       resLibre.condicion === 'LIBRE';
-
-        const t4Detail = 'Detección correcta de estados: Promocional (>=80% asist, >=7 nota), Regular (>=70% asist, >=4 nota) y Libre.';
-
-        // Test 5: Eliminación y Cascada
-        let t5Pass = true;
-        let t5Detail = 'Verificación de integridad referencial: 0 registros huérfanos detectados en cascada tras borrados.';
-
-        const allPassed = t1Pass && t2Pass && t3Pass && t4Pass && t5Pass;
-        const duration = Math.round(performance.now() - startTime);
-
-        suiteData = {
-          exitoso: allPassed,
-          estado_sistema: allPassed ? 'Estado del Sistema: 100% Operativo' : 'Estado del Sistema: Requiere Atención',
-          porcentaje_operativo: allPassed ? 100 : 80,
-          total_pruebas: 5,
-          pruebas_aprobadas: allPassed ? 5 : 4,
-          duracion_ms: Math.max(duration, 38),
-          timestamp: new Date().toISOString(),
-          pruebas: [
-            {
-              id: 'db_integrity',
-              categoria: 'Integridad de Base de Datos',
-              titulo: 'Cátedras, Ciclos e Instituciones validadas',
-              estado: t1Pass ? 'PASS' : 'FAIL',
-              aprobado: t1Pass,
-              detalles: t1Detail,
-              metricas: { tablas_verificadas: 9, total_esperado: 9 }
-            },
-            {
-              id: 'upsert_matricula',
-              categoria: 'Matrícula y Upsert',
-              titulo: 'Altas manuales y prevención de duplicados DNI',
-              estado: t2Pass ? 'PASS' : 'FAIL',
-              aprobado: t2Pass,
-              detalles: t2Detail,
-              metricas: { restriccion_unica: true, conflicto_on_upsert: 'docente_id,dni' }
-            },
-            {
-              id: 'motor_ram',
-              categoria: 'Motor de Cálculo RAM',
-              titulo: 'Asistencias (100% / 66.6% / 33.3%) y Promedios calculados correctamente',
-              estado: t3Pass ? 'PASS' : 'FAIL',
-              aprobado: t3Pass,
-              detalles: t3Detail,
-              metricas: { asist_3_de_3: ram3de3, asist_2_de_3: ram2de3, asist_1_de_3: ram1de3 }
-            },
-            {
-              id: 'semaforo_alerta',
-              categoria: 'Semáforo de Alerta',
-              titulo: 'Detección de estados (Promocional, Regular, Libre)',
-              estado: t4Pass ? 'PASS' : 'FAIL',
-              aprobado: t4Pass,
-              detalles: t4Detail,
-              metricas: { 
-                promocional: resPromo.condicion, 
-                regular: resReg.condicion, 
-                libre: resLibre.condicion 
-              }
-            },
-            {
-              id: 'cascada_eliminacion',
-              categoria: 'Eliminación y Cascada',
-              titulo: 'Verificación de 0 registros huérfanos tras borrados',
-              estado: t5Pass ? 'PASS' : 'FAIL',
-              aprobado: t5Pass,
-              detalles: t5Detail,
-              metricas: { total_huerfanos: 0, catedras_huerfanas: 0, clases_huerfanas: 0 }
-            }
-          ]
-        };
-      }
-
-      setExecutionSource(usedRpc ? 'rpc' : 'local');
+      const suiteData = await runQASuite({ isDemo });
+      setExecutionSource(isDemo ? 'demo' : 'supabase');
       setResults(suiteData);
     } catch (err) {
       console.error('Error al ejecutar suite de diagnóstico:', err);
@@ -226,7 +70,7 @@ export default function QADiagnosticModal({
     }
   }, [isOpen, results, running, runDiagnosticSuite]);
 
-  // Copiar informe QA al portapapeles
+  // Copiar informe QA al portapapeles con detalle técnico y sugerencias de remediación
   const handleCopyReport = () => {
     if (!results) return;
     try {
@@ -236,18 +80,26 @@ export default function QADiagnosticModal({
         '====================================================',
         `Fecha: ${new Date(results.timestamp).toLocaleString('es-AR')}`,
         `Estado: ${results.estado_sistema}`,
-        `Pruebas Aprobadas: ${results.pruebas_aprobadas} / ${results.total_pruebas}`,
+        `Pruebas Aprobadas: ${results.pruebas_aprobadas} / ${results.total_pruebas} (${results.porcentaje_operativo}%)`,
         `Tiempo de Respuesta: ${results.duracion_ms} ms`,
-        `Motor: ${executionSource === 'rpc' ? 'Supabase RPC (PostgreSQL)' : 'Test Runner Integrado (Frontend)'}`,
+        `Entorno: ${executionSource === 'supabase' ? 'Supabase Database (PostgreSQL / PostgREST)' : 'Modo Demostración / Local'}`,
         '----------------------------------------------------',
-        ...results.pruebas.map((p, idx) => 
-          `[${p.estado}] ${idx + 1}. ${p.categoria}: ${p.titulo}\n  Detalle: ${p.detalles}`
-        ),
+        ...results.pruebas.map((p, idx) => {
+          let str = `[${p.estado}] ${idx + 1}. ${p.categoria}: ${p.titulo}\n  Detalle: ${p.detalles}`;
+          if (p.error) {
+            str += `\n  Código PostgREST: ${p.error.code}`;
+            str += `\n  Mensaje Error: ${p.error.message}`;
+            if (p.error.sugerencia) {
+              str += `\n  💡 Sugerencia de Corrección: ${p.error.sugerencia}`;
+            }
+          }
+          return str;
+        }),
         '===================================================='
       ];
-      navigator.clipboard.writeText(lineas.join('\n'));
+      navigator.clipboard.writeText(lineas.join('\n\n'));
       setCopied(true);
-      toast.success('Informe de QA copiado al portapapeles.');
+      toast.success('Informe técnico de QA copiado al portapapeles.');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       toast.error('No se pudo copiar el informe: ' + err.message);
@@ -416,7 +268,7 @@ export default function QADiagnosticModal({
 
                         {/* Badges de Evidencia Específica */}
                         <div className="flex items-center gap-2 pt-1 flex-wrap text-[11px] font-mono">
-                          {test.id === 'db_integrity' && (
+                          {test.id === 'op1_catedras_ciclos' && (
                             <>
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                                 ✓ Cátedras
@@ -424,13 +276,13 @@ export default function QADiagnosticModal({
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                                 ✓ Ciclos Lectivos
                               </span>
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                ✓ Instituciones
+                              <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                                ✓ Relaciones y RLS
                               </span>
                             </>
                           )}
 
-                          {test.id === 'upsert_matricula' && (
+                          {test.id === 'op2_matriculacion_upsert' && (
                             <>
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                                 Clave: onConflict(docente_id, dni)
@@ -438,54 +290,82 @@ export default function QADiagnosticModal({
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                                 ✓ Cero duplicados DNI
                               </span>
+                              <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                                ✓ Vínculo Inscripciones
+                              </span>
                             </>
                           )}
 
-                          {test.id === 'motor_ram' && (
+                          {test.id === 'op3_asistencias_historicas' && (
                             <>
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                3/3 = 100%
+                                ✓ Clases y Asistencias
                               </span>
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                2/3 = 66.7%
+                                2/2 = 100%
                               </span>
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                1/3 = 33.3%
+                                1/2 = 50.0%
                               </span>
                               <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
-                                ✓ Promedios OK
+                                ✓ Motor RAM Exacto
                               </span>
                             </>
                           )}
 
-                          {test.id === 'semaforo_alerta' && (
+                          {test.id === 'op4_evaluaciones_calificaciones' && (
                             <>
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                ✓ Promocional (&ge;80% / &ge;7)
+                                ✓ Parciales / TP / Notas
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                                ✓ Promocional (&ge;7 / &ge;80%)
                               </span>
                               <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-                                ✓ Regular (&ge;70% / &ge;4)
+                                ✓ Regular (&ge;4 / &ge;70%)
                               </span>
                               <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
-                                ✓ Libre (&lt;70%)
+                                ✓ Libre (&lt;4)
                               </span>
                             </>
                           )}
 
-                          {test.id === 'cascada_eliminacion' && (
+                          {test.id === 'op5_mesas_actas_elegibles' && (
                             <>
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                0 Cátedras huérfanas
+                                ✓ Mesas y Actas
                               </span>
                               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                0 Clases huérfanas
+                                ✓ get_alumnos_elegibles_mesa
                               </span>
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                                ✓ ON DELETE CASCADE activo
+                              <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                                ✓ Acreditación Definitiva
                               </span>
                             </>
                           )}
                         </div>
+
+                        {/* Bloque de Detalle Técnico PostgREST y Sugerencia de Corrección si falló */}
+                        {test.error && (
+                          <div className="mt-3.5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 space-y-2 text-xs">
+                            <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-mono font-bold">
+                              <AlertTriangle className="w-4 h-4 shrink-0" />
+                              <span>Código PostgREST: {test.error.code}</span>
+                            </div>
+                            <p className="text-rose-800 dark:text-rose-300 font-mono text-[11px] leading-relaxed break-all">
+                              {test.error.message}
+                            </p>
+                            {test.error.details && (
+                              <p className="text-rose-700/80 dark:text-rose-400/80 text-[11px] font-mono">
+                                {test.error.details}
+                              </p>
+                            )}
+                            <div className="pt-2 border-t border-rose-500/20 flex items-start gap-2 text-amber-900 dark:text-amber-200 bg-amber-500/10 p-2.5 rounded-lg">
+                              <span className="font-bold text-amber-600 dark:text-amber-400 shrink-0">💡 Sugerencia de corrección:</span>
+                              <span className="leading-relaxed">{test.error.sugerencia}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
