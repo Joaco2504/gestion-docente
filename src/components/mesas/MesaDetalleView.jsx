@@ -27,7 +27,10 @@ import SeleccionarAlumnosMesaModal from './SeleccionarAlumnosMesaModal';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { formatFechaDMY } from '../../lib/dateUtils';
+import { notificarErrorDiscord } from '../../services/discordLogger';
+import { procesarErrorDocente } from '../../utils/errorCodes';
 
 export default function MesaDetalleView({
   mesa,
@@ -36,6 +39,7 @@ export default function MesaDetalleView({
   onMesaDeleted
 }) {
   const { user, isDemo } = useAuth();
+  const { agregarNotificacion } = useNotifications();
 
   const [actasAlumnos, setActasAlumnos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,11 +71,6 @@ export default function MesaDetalleView({
         ]);
         if (evRes.data) setEvaluaciones(evRes.data);
         if (nRes.data) setNotas(nRes.data);
-      } else if (mesa?.catedra_id) {
-        const storedEv = JSON.parse(localStorage.getItem(`evaluaciones_${mesa.catedra_id}`) || '[]');
-        const storedN = JSON.parse(localStorage.getItem(`notas_${mesa.catedra_id}`) || '[]');
-        setEvaluaciones(storedEv);
-        setNotas(storedN);
       }
     } catch (_) {}
   }
@@ -79,30 +78,75 @@ export default function MesaDetalleView({
   async function fetchActas() {
     setLoading(true);
     try {
-      if (isSupabaseConfigured && !isDemo) {
+      if (isSupabaseConfigured && !isDemo && mesa?.id) {
+        // Consultar directamente actas_examen_alumnos con join opcional a estudiantes
         const { data, error } = await supabase
           .from('actas_examen_alumnos')
-          .select('*')
+          .select(`
+            id,
+            mesa_id,
+            estudiante_id,
+            alumno_nombre_completo,
+            alumno_dni,
+            condicion_previa,
+            nota_escrito,
+            nota_oral,
+            nota_definitiva,
+            dictamen,
+            observaciones,
+            estudiantes ( id, dni, apellido, nombre )
+          `)
           .eq('mesa_id', mesa.id)
           .order('alumno_nombre_completo', { ascending: true });
 
-        if (!error && data) {
-          setActasAlumnos(data);
-          try {
-            localStorage.setItem(`actas_examen_${mesa.id}`, JSON.stringify(data));
-          } catch (_) {}
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          const normalized = data.map(row => {
+            const student = row.estudiantes;
+            let nombreCompleto = row.alumno_nombre_completo;
+            if ((!nombreCompleto || nombreCompleto.trim() === '') && student) {
+              nombreCompleto = `${student.apellido || ''}, ${student.nombre || ''}`.trim().toUpperCase();
+            }
+            let dni = row.alumno_dni;
+            if ((!dni || dni.trim() === '') && student?.dni) {
+              dni = student.dni;
+            }
+
+            return {
+              ...row,
+              alumno_nombre_completo: nombreCompleto || 'ALUMNO REGISTRADO',
+              alumno_dni: dni || ''
+            };
+          });
+
+          setActasAlumnos(normalized);
           setLoading(false);
           return;
         }
       }
 
-      // Fallback local
-      const stored = localStorage.getItem(`actas_examen_${mesa.id}`);
-      setActasAlumnos(stored ? JSON.parse(stored) : []);
+      setActasAlumnos([]);
     } catch (err) {
-      console.error('Error fetching actas:', err);
-      const stored = localStorage.getItem(`actas_examen_${mesa.id}`);
-      setActasAlumnos(stored ? JSON.parse(stored) : []);
+      console.error('Error fetching actas from Supabase:', err);
+      const infoError = procesarErrorDocente(err);
+      toast.error(`${infoError.mensaje} (Código: ${infoError.codigo})`);
+      agregarNotificacion({
+        tipo: 'error',
+        titulo: 'Error al recuperar planilla de calificaciones',
+        mensaje: `${infoError.mensaje} (Código: ${infoError.codigo})`,
+        codigo: infoError.codigo
+      });
+      notificarErrorDiscord({
+        codigoError: infoError.codigo,
+        mensajeUsuario: infoError.mensaje,
+        errorTecnico: err,
+        contexto: `MesaDetalleView / fetchActas (Mesa: ${mesa?.id})`,
+        usuario: { email: user?.email, id: user?.id }
+      });
+      setActasAlumnos([]);
     } finally {
       setLoading(false);
     }
@@ -217,7 +261,7 @@ export default function MesaDetalleView({
   const handleRemoveAlumno = (index) => {
     const updated = actasAlumnos.filter((_, i) => i !== index);
     setActasAlumnos(updated);
-    toast.info('Alumno removido del acta.');
+    toast.info('Alumno removido del acta (presiona Guardar Notas para asentar cambios).');
   };
 
   // Acción rápida para promocionales: Acreditar a todos los alumnos con calificación
@@ -247,37 +291,42 @@ export default function MesaDetalleView({
 
     try {
       if (isSupabaseConfigured && !isDemo) {
+        // Formatear filas para RPC guardar_acta_examen_lote
+        const p_filas = actasAlumnos.map(a => ({
+          id: String(a.id || '').startsWith('temp-') ? null : a.id,
+          estudiante_id: a.estudiante_id || null,
+          alumno_nombre_completo: a.alumno_nombre_completo || '',
+          alumno_dni: a.alumno_dni || '',
+          condicion_previa: a.condicion_previa || mesa.condicion_acta || 'REGULAR',
+          nota_escrito: a.nota_escrito !== null && a.nota_escrito !== '' ? Number(a.nota_escrito) : null,
+          nota_oral: a.nota_oral !== null && a.nota_oral !== '' ? Number(a.nota_oral) : null,
+          nota_definitiva: a.nota_definitiva !== null && a.nota_definitiva !== '' ? Number(a.nota_definitiva) : null,
+          dictamen: a.dictamen || 'AUSENTE',
+          observaciones: a.observaciones || ''
+        }));
+
         let rpcSuccess = false;
 
-        // 1. Invocación atómica por cada fila mediante RPC registrar_resultado_examen
+        // 1. Invocar RPC guardar_acta_examen_lote
         try {
-          for (const a of actasAlumnos) {
-            const rpcPayload = {
-              p_acta_alumno_id: String(a.id).startsWith('temp-') ? null : a.id,
-              p_mesa_id: mesa.id,
-              p_estudiante_id: a.estudiante_id || null,
-              p_alumno_nombre_completo: a.alumno_nombre_completo,
-              p_alumno_dni: a.alumno_dni || '',
-              p_condicion_previa: a.condicion_previa || mesa.condicion_acta || 'REGULAR',
-              p_nota_escrito: a.nota_escrito !== null && a.nota_escrito !== '' ? Number(a.nota_escrito) : null,
-              p_nota_oral: a.nota_oral !== null && a.nota_oral !== '' ? Number(a.nota_oral) : null,
-              p_nota_definitiva: a.nota_definitiva !== null && a.nota_definitiva !== '' ? Number(a.nota_definitiva) : null,
-              p_dictamen: a.dictamen || 'AUSENTE',
-              p_observaciones: a.observaciones || ''
-            };
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc('guardar_acta_examen_lote', {
+            p_mesa_id: mesa.id,
+            p_catedra_id: mesa.catedra_id,
+            p_filas
+          });
 
-            const { error: rpcErr } = await supabase.rpc('registrar_resultado_examen', rpcPayload);
-            if (rpcErr) throw rpcErr;
+          if (rpcErr) {
+            throw rpcErr;
           }
           rpcSuccess = true;
         } catch (rpcError) {
-          console.warn('Fallback por ausencia o error en RPC registrar_resultado_examen:', rpcError);
+          console.warn('[MesaDetalleView] Fallback de guardado por fallo en RPC guardar_acta_examen_lote:', rpcError);
         }
 
-        // 2. Fallback de guardado directo si la RPC no existe aún
+        // 2. Fallback de guardado directo si la RPC falló o no está cargada en Supabase
         if (!rpcSuccess) {
-          const rows = actasAlumnos.map(a => ({
-            id: String(a.id).startsWith('temp-') ? undefined : a.id,
+          const rowsToUpsert = actasAlumnos.map(a => ({
+            id: String(a.id || '').startsWith('temp-') ? undefined : a.id,
             mesa_id: mesa.id,
             estudiante_id: a.estudiante_id || null,
             alumno_nombre_completo: a.alumno_nombre_completo,
@@ -292,10 +341,11 @@ export default function MesaDetalleView({
 
           const { error: upsertErr } = await supabase
             .from('actas_examen_alumnos')
-            .upsert(rows, { onConflict: 'id' });
+            .upsert(rowsToUpsert, { onConflict: 'id' });
+
           if (upsertErr) throw upsertErr;
 
-          // Actualizar acreditación en inscripciones
+          // Actualizar acreditación en inscripciones para aprobados
           const fechaAcred = mesa.fecha ? new Date(mesa.fecha).toISOString() : new Date().toISOString();
           for (const a of actasAlumnos) {
             if (a.estudiante_id && (a.dictamen === 'ACREDITADO' || a.dictamen === 'APROBADO')) {
@@ -305,6 +355,7 @@ export default function MesaDetalleView({
                   .update({
                     estado_academico: 'ACREDITADO',
                     nota_final: a.nota_definitiva,
+                    nota_final_acreditacion: a.nota_definitiva,
                     fecha_acreditacion: fechaAcred
                   })
                   .eq('catedra_id', mesa.catedra_id)
@@ -315,35 +366,37 @@ export default function MesaDetalleView({
         }
       }
 
-      // 3. Persistencia local garantizada
-      localStorage.setItem(`actas_examen_${mesa.id}`, JSON.stringify(actasAlumnos));
+      toast.success('Acta de examen asentada exitosamente.');
+      agregarNotificacion({
+        tipo: 'success',
+        titulo: 'Acta de examen guardada',
+        mensaje: `Se asentaron ${actasAlumnos.length} calificaciones y se actualizaron las acreditaciones.`
+      });
 
-      // Actualizar estudiantes acreditados en storage de cátedra
-      try {
-        const storedEst = JSON.parse(localStorage.getItem(`estudiantes_${mesa.catedra_id}`) || '[]');
-        const updatedEst = storedEst.map(st => {
-          const match = actasAlumnos.find(a => 
-            a.estudiante_id === st.id || (a.alumno_dni && st.dni && String(a.alumno_dni) === String(st.dni))
-          );
-          if (match && (match.dictamen === 'ACREDITADO' || match.dictamen === 'APROBADO')) {
-            return {
-              ...st,
-              estado_academico: 'ACREDITADO',
-              nota_final: match.nota_definitiva,
-              fecha_acreditacion: mesa.fecha || new Date().toISOString()
-            };
-          }
-          return st;
-        });
-        localStorage.setItem(`estudiantes_${mesa.catedra_id}`, JSON.stringify(updatedEst));
-      } catch (_) {}
+      if (onMesaUpdated) {
+        onMesaUpdated(mesa);
+      }
 
-      toast.success('Calificaciones y acreditaciones guardadas con éxito.');
-      fetchActas();
+      await fetchActas();
     } catch (err) {
-      console.error('Error saving acta:', err);
-      localStorage.setItem(`actas_examen_${mesa.id}`, JSON.stringify(actasAlumnos));
-      toast.success('Guardado en almacenamiento local seguro.');
+      console.error('Error al guardar acta de examen:', err);
+      const infoError = procesarErrorDocente(err);
+      toast.error(`${infoError.mensaje} (Código: ${infoError.codigo})`);
+      
+      agregarNotificacion({
+        tipo: 'error',
+        titulo: 'Fallo al asentar acta de examen',
+        mensaje: `${infoError.mensaje} (Código: ${infoError.codigo})`,
+        codigo: infoError.codigo
+      });
+
+      await notificarErrorDiscord({
+        codigoError: infoError.codigo,
+        mensajeUsuario: infoError.mensaje,
+        errorTecnico: err,
+        contexto: `MesaDetalleView / handleSaveActa (Mesa: ${mesa.id}, Cátedra: ${mesa.catedra_id})`,
+        usuario: { email: user?.email, id: user?.id }
+      });
     } finally {
       setSaving(false);
     }
@@ -536,7 +589,7 @@ export default function MesaDetalleView({
                 <tr>
                   <td colSpan={isPromocional ? 7 : 9} className="py-12 text-center text-text-muted">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
-                    <span>Cargando planilla de calificaciones...</span>
+                    <span>Cargando planilla de calificaciones desde Supabase...</span>
                   </td>
                 </tr>
               ) : actasAlumnos.length === 0 ? (
@@ -682,7 +735,7 @@ export default function MesaDetalleView({
                         <button
                           type="button"
                           onClick={() => handleRemoveAlumno(idx)}
-                          className="p-1.5 text-text-muted hover:text-danger rounded-lg hover:bg-danger/10 transition-colors"
+                          className="p-1.5 text-text-muted hover:text-danger rounded-lg hover:bg-danger/10 transition-colors cursor-pointer"
                           title="Remover alumno del acta"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

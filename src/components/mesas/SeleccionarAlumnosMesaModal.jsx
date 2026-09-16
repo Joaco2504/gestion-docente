@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Users, 
   Search, 
@@ -37,6 +37,7 @@ export default function SeleccionarAlumnosMesaModal({
   onConfirmSelection
 }) {
   const { isDemo } = useAuth();
+  const searchInputRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [eligibleStudents, setEligibleStudents] = useState([]);
@@ -46,7 +47,7 @@ export default function SeleccionarAlumnosMesaModal({
 
   const isMesaPromocional = (mesa?.condicion_acta || mesa?.tipo_mesa || '').toUpperCase() === 'PROMOCIONAL';
   const isMesaLibre = (mesa?.condicion_acta || '').toUpperCase() === 'LIBRE';
-  const isMesaRegular = (mesa?.condicion_acta || '').toUpperCase() === 'REGULAR';
+  const isMesaRegular = !isMesaPromocional && !isMesaLibre;
 
   // Conjunto de DNIs y IDs de estudiantes ya incorporados en el acta de esta mesa
   const alreadyInActaSet = useMemo(() => {
@@ -58,13 +59,20 @@ export default function SeleccionarAlumnosMesaModal({
     return set;
   }, [currentActas]);
 
-  // Cargar estudiantes elegibles al abrir modal
+  // Cargar estudiantes elegibles al abrir modal y hacer autoenfoque
   useEffect(() => {
     if (isOpen && mesa?.catedra_id) {
       setSelectedStudentIds(new Set());
       setSearchQuery('');
       setFilterTab('SUGERIDOS');
       fetchEligibleStudents();
+
+      // Enfocar buscador al abrir
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }, 100);
     }
   }, [isOpen, mesa?.id, mesa?.catedra_id]);
 
@@ -85,7 +93,7 @@ export default function SeleccionarAlumnosMesaModal({
             return;
           }
         } catch (rpcErr) {
-          console.warn('Fallback por ausencia de RPC get_alumnos_elegibles_mesa:', rpcErr);
+          console.warn('[SeleccionarAlumnos] Fallback por ausencia de RPC get_alumnos_elegibles_mesa:', rpcErr);
         }
 
         // 2. Fallback de consulta directa si la RPC no existe aún
@@ -135,36 +143,7 @@ export default function SeleccionarAlumnosMesaModal({
         }
       }
 
-      // 3. Fallback Local / Modo Demo
-      const storedEst = JSON.parse(localStorage.getItem(`estudiantes_${mesa.catedra_id}`) || '[]');
-      const storedAllMesas = JSON.parse(localStorage.getItem(`mesas_examen_${mesa.catedra_id}`) || '[]');
-      
-      const failedMapLocal = new Map();
-      storedAllMesas.forEach(m => {
-        const actas = JSON.parse(localStorage.getItem(`actas_examen_${m.id}`) || '[]');
-        actas.forEach(a => {
-          if (a.dictamen === 'DESAPROBADO') {
-            const key = a.estudiante_id || a.alumno_dni;
-            failedMapLocal.set(key, (failedMapLocal.get(key) || 0) + 1);
-          }
-        });
-      });
-
-      const fallbackMapped = storedEst
-        .filter(s => s.estado_academico !== 'ACREDITADO')
-        .map(s => ({
-          estudiante_id: s.id,
-          dni: s.dni,
-          apellido: s.apellido,
-          nombre: s.nombre,
-          condicion: s.condicion || 'REGULAR',
-          estado_academico: s.estado_academico || 'CURSANDO',
-          ciclo_anio: 2026,
-          intentos_desaprobados: failedMapLocal.get(s.id) || failedMapLocal.get(s.dni) || 0
-        }))
-        .sort((a, b) => (a.apellido || '').localeCompare(b.apellido || ''));
-
-      setEligibleStudents(fallbackMapped);
+      setEligibleStudents([]);
     } catch (err) {
       console.error('Error fetching eligible students for mesa:', err);
       setEligibleStudents([]);
@@ -214,7 +193,6 @@ export default function SeleccionarAlumnosMesaModal({
       if (filterTab === 'SUGERIDOS') {
         if (isMesaPromocional && cond !== 'PROMOCIONAL') return false;
         if (isMesaRegular && cond !== 'REGULAR') return false;
-        // Si es Libre en sugeridos mostramos Libres
         if (isMesaLibre && cond !== 'LIBRE') return false;
       } else if (filterTab !== 'TODOS' && cond !== filterTab) {
         return false;
@@ -272,14 +250,14 @@ export default function SeleccionarAlumnosMesaModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Seleccionar Alumnos a Evaluar"
+      title="Seleccionar Alumnos para el Acta"
       subtitle={`Nómina de alumnos no acreditados elegibles para ${mesa?.condicion_acta || mesa?.turno_llamado || 'esta mesa'}`}
       maxWidth="max-w-2xl"
     >
-      <div className="space-y-4 text-xs">
+      <div className="flex flex-col text-xs -mb-5 sm:-mb-6">
         
         {/* Banner de Contexto de la Mesa */}
-        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/5 flex items-center justify-between gap-3 flex-wrap">
+        <div className="mb-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/5 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-900 dark:text-white">Condición del Acta:</span>
             <Badge 
@@ -294,12 +272,36 @@ export default function SeleccionarAlumnosMesaModal({
           </div>
 
           <span className="text-text-muted text-[11px] font-mono">
-            Disponibles para incorporar: <b>{unassignedStudents.length}</b>
+            Elegibles para incorporar: <b>{unassignedStudents.length}</b>
           </span>
         </div>
 
+        {/* Buscador Interactivo con AutoFocus y Limpieza Rápida */}
+        <div className="relative mb-3">
+          <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            autoFocus
+            placeholder="Buscar por apellido, nombre o DNI (autoenfoque activo)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-10 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary rounded-lg transition-colors cursor-pointer"
+              title="Borrar texto de búsqueda"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {/* Pestañas de Filtrado */}
-        <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-white/10 pb-2 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1.5 pb-2 mb-2 border-b border-slate-100 dark:border-white/5 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setFilterTab('SUGERIDOS')}
@@ -362,62 +364,46 @@ export default function SeleccionarAlumnosMesaModal({
           </button>
         </div>
 
-        {/* Buscador & Selección Rápida */}
-        <div className="flex items-center justify-between gap-2.5">
-          <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Buscar por apellido, nombre o DNI..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
+        {/* Checkbox Maestro de Cabecera: Seleccionar Todos */}
+        <div className="flex items-center justify-between py-2 px-1 mb-1">
           <button
             type="button"
             onClick={handleSelectAllVisible}
-            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-white/5 font-semibold text-xs text-text-secondary flex items-center gap-1.5 shrink-0 cursor-pointer"
+            disabled={filteredStudents.length === 0}
+            className="flex items-center gap-2 text-xs font-bold text-text-primary hover:text-primary transition-colors cursor-pointer disabled:opacity-50"
           >
             {allVisibleSelected ? (
-              <>
-                <CheckSquare className="w-3.5 h-3.5 text-primary" />
-                <span>Deseleccionar ({filteredStudents.length})</span>
-              </>
+              <CheckSquare className="w-4 h-4 text-primary shrink-0" />
             ) : (
-              <>
-                <Square className="w-3.5 h-3.5 text-text-muted" />
-                <span>Seleccionar Todos ({filteredStudents.length})</span>
-              </>
+              <Square className="w-4 h-4 text-slate-300 dark:text-slate-600 shrink-0" />
             )}
+            <span>
+              {allVisibleSelected
+                ? `Deseleccionar todos (${filteredStudents.length} alumnos)`
+                : `Seleccionar Todos (${filteredStudents.length} alumnos)`}
+            </span>
           </button>
+
+          <span className="text-[11px] text-text-muted font-mono">
+            {selectedStudentIds.size} de {filteredStudents.length} seleccionados
+          </span>
         </div>
 
-        {/* Lista de Alumnos Elegibles */}
-        <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-white/10 divide-y divide-slate-100 dark:divide-white/5 bg-white dark:bg-slate-900/50">
+        {/* Contenedor de Scroll Táctil Suave (max-h-[60vh] overflow-y-auto) */}
+        <div className="max-h-[60vh] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 dark:border-white/10 divide-y divide-slate-100 dark:divide-white/5 bg-white dark:bg-slate-900/50 shadow-inner mb-4">
           {loading ? (
-            <div className="p-8 text-center text-text-muted">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
-              <span>Consultando nómina de alumnos elegibles...</span>
+            <div className="p-10 text-center text-text-muted">
+              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-primary mx-auto mb-2" />
+              <span>Consultando nómina de alumnos elegibles en Supabase...</span>
             </div>
           ) : filteredStudents.length === 0 ? (
-            <div className="p-8 text-center text-text-muted space-y-1">
-              <Users className="w-7 h-7 mx-auto opacity-40 mb-1" />
-              <p className="font-semibold text-text-primary">No se encontraron alumnos para este criterio.</p>
-              <p className="text-[11px]">
+            <div className="p-10 text-center text-text-muted space-y-2">
+              <Users className="w-8 h-8 mx-auto opacity-30 text-text-muted mb-1" />
+              <p className="font-bold text-text-primary text-xs">No se encontraron alumnos para este criterio</p>
+              <p className="text-[11px] max-w-sm mx-auto">
                 {unassignedStudents.length === 0 
-                  ? 'Todos los estudiantes de la cátedra ya han sido incorporados en esta mesa o ya están acreditados.'
-                  : 'Prueba cambiando de pestaña o limpiando el texto de búsqueda.'}
+                  ? 'Todos los estudiantes de la cátedra ya han sido incorporados en esta mesa o ya se encuentran acreditados.'
+                  : 'Prueba cambiando de pestaña de condición o borrando el texto de búsqueda.'}
               </p>
             </div>
           ) : (
@@ -430,56 +416,59 @@ export default function SeleccionarAlumnosMesaModal({
                 <div
                   key={st.estudiante_id}
                   onClick={() => toggleSelectStudent(st.estudiante_id)}
-                  className={`p-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                  className={`p-3 sm:p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors active:bg-primary/10 ${
                     isSelected
-                      ? 'bg-primary/5 dark:bg-primary/10'
+                      ? 'bg-primary/[0.07] dark:bg-primary/[0.14]'
                       : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="text-primary shrink-0">
+                    {/* Checkbox Amplio Táctil */}
+                    <div className="w-6 h-6 flex items-center justify-center shrink-0">
                       {isSelected ? (
-                        <CheckSquare className="w-4 h-4 text-primary" />
+                        <CheckSquare className="w-5 h-5 text-primary" />
                       ) : (
-                        <Square className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                        <Square className="w-5 h-5 text-slate-300 dark:text-slate-600" />
                       )}
                     </div>
 
                     <div className="min-w-0">
-                      <div className="font-bold text-text-primary truncate flex items-center gap-2">
+                      {/* Apellido y Nombre en Negrita */}
+                      <div className="font-bold text-sm text-text-primary truncate flex items-center gap-2">
                         <span>{st.apellido}, {st.nombre}</span>
                         {hasFailedAttempts && (
                           <span 
-                            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/20"
-                            title={`El estudiante cuenta con ${st.intentos_desaprobados} examen/es previo/s desaprobado/s en esta materia`}
+                            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/20 shrink-0"
+                            title={`El estudiante cuenta con ${st.intentos_desaprobados} examen/es previo/s desaprobado/s en esta cátedra`}
                           >
                             <AlertTriangle className="w-3 h-3 text-amber-500" />
-                            <span>{st.intentos_desaprobados} {st.intentos_desaprobados === 1 ? 'intento previo' : 'intentos previos'}</span>
+                            <span>{st.intentos_desaprobados} {st.intentos_desaprobados === 1 ? 'desaprobado previo' : 'desaprobados previos'}</span>
                           </span>
                         )}
                       </div>
 
-                      <div className="text-[11px] text-text-muted flex items-center gap-2 flex-wrap">
-                        <span className="font-mono">DNI: {st.dni || 'S/D'}</span>
+                      {/* DNI y Cohorte en Gris Secundario */}
+                      <div className="text-[11px] text-text-muted flex items-center gap-2 flex-wrap mt-0.5">
+                        <span className="font-mono font-medium">DNI: {st.dni || 'S/D'}</span>
                         <span>•</span>
                         <span className="font-mono text-slate-500">Cohorte: {st.ciclo_anio || 'Actual'}</span>
                         <span>•</span>
-                        <span className="font-medium text-text-secondary">Condición: {st.condicion || 'REGULAR'}</span>
+                        <span className="text-text-secondary font-medium">Condición: {st.condicion || 'REGULAR'}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Detalle Derecho: Calificación sugerida para promocionales o Badge */}
+                  {/* Badge con promedio de cursada y condición sugerida */}
                   <div className="text-right shrink-0">
                     {isMesaPromocional ? (
-                      <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded-lg border border-emerald-500/20 font-mono text-[11px]">
-                        <span className="text-[9px] uppercase block font-bold">Promedio cursada</span>
+                      <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-xl border border-emerald-500/20 font-mono text-xs">
+                        <span className="text-[9px] uppercase block font-bold">Promedio</span>
                         <strong>Nota: {avg ?? 7}</strong>
                       </div>
                     ) : (
                       <Badge 
-                        variant={st.condicion === 'LIBRE' ? 'libre' : 'regular'}
-                        className="text-[10px] uppercase font-bold"
+                        variant={st.condicion === 'LIBRE' ? 'libre' : st.condicion === 'PROMOCIONAL' ? 'promo' : 'regular'}
+                        className="text-[10px] uppercase font-bold px-2 py-0.5"
                       >
                         {st.condicion || 'REGULAR'}
                       </Badge>
@@ -491,10 +480,10 @@ export default function SeleccionarAlumnosMesaModal({
           )}
         </div>
 
-        {/* Footer con Contador y Confirmación */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
-          <span className="text-text-muted text-xs">
-            Seleccionados: <strong className="text-primary font-mono text-sm">{selectedStudentIds.size}</strong> alumnos
+        {/* Barra Inferior Fija (Sticky Bottom Bar) */}
+        <div className="sticky -bottom-5 sm:-bottom-6 -mx-5 sm:-mx-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200/80 dark:border-white/10 p-3.5 sm:px-6 flex items-center justify-between gap-3 z-20 shadow-lg">
+          <span className="text-text-secondary text-xs">
+            <strong className="text-primary font-mono text-sm font-black">{selectedStudentIds.size}</strong> alumnos seleccionados
           </span>
 
           <div className="flex items-center gap-2">
@@ -503,6 +492,7 @@ export default function SeleccionarAlumnosMesaModal({
               variant="outline"
               size="sm"
               onClick={onClose}
+              className="rounded-xl min-h-[40px]"
             >
               Cancelar
             </Button>
@@ -513,8 +503,9 @@ export default function SeleccionarAlumnosMesaModal({
               icon={CheckCircle2}
               onClick={handleConfirm}
               disabled={selectedStudentIds.size === 0}
+              className="rounded-xl min-h-[40px] font-bold px-4 shadow-sm"
             >
-              Inscribir {selectedStudentIds.size > 0 ? `(${selectedStudentIds.size})` : ''} al Acta
+              Inscribir al Acta {selectedStudentIds.size > 0 ? `(${selectedStudentIds.size})` : ''}
             </Button>
           </div>
         </div>

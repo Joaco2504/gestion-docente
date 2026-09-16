@@ -24,7 +24,9 @@ import {
   Eraser,
   Search,
   Building,
-  ArrowRight
+  ArrowRight,
+  Pencil,
+  BookMarked
 } from 'lucide-react';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
@@ -41,16 +43,31 @@ export default function SupportHubModal({
   isDemo = false,
   onTeacherUpdated
 }) {
-  const [activeTab, setActiveTab] = useState('catedras'); // 'catedras' | 'alumnos' | 'clases'
+  const [activeTab, setActiveTab] = useState('catedras'); // 'catedras' | 'alumnos' | 'clases' | 'mesas'
   const [catedras, setCatedras] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
   const [clases, setClases] = useState([]);
   const [evaluaciones, setEvaluaciones] = useState([]);
+  const [mesas, setMesas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [changingRole, setChangingRole] = useState(false);
   const [purging, setPurging] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
+
+  // Edición de Mesa en Panel de Soporte
+  const [editingMesa, setEditingMesa] = useState(null);
+  const [editForm, setEditForm] = useState({
+    fecha: '',
+    turno_llamado: '',
+    condicion_acta: 'REGULAR',
+    presidente: '',
+    vocal1: '',
+    vocal2: '',
+    libro: '',
+    folio: ''
+  });
+  const [savingEditMesa, setSavingEditMesa] = useState(false);
 
   // Estado para Diálogo de Confirmación
   const [confirmModal, setConfirmModal] = useState({
@@ -112,6 +129,22 @@ export default function SupportHubModal({
           { id: 'eva-2', titulo: 'Primer Parcial Teórico-Práctico', tipo: 'PARCIAL', catedra_nombre: 'Introducción a la Algoritmia' }
         ]);
 
+        setMesas([
+          {
+            id: 'mesa-demo-1',
+            fecha: '2026-07-15',
+            turno_llamado: '1° LLAMADO JULIO',
+            condicion_acta: 'REGULAR',
+            presidente: teacher?.nombre || 'Docente Titular',
+            vocal1: 'Prof. García',
+            vocal2: 'Prof. López',
+            inscriptos_count: 5,
+            libro: 'L-12',
+            folio: '45',
+            catedras: { nombre: 'Introducción a la Algoritmia' }
+          }
+        ]);
+
         setLoading(false);
         return;
       }
@@ -163,6 +196,30 @@ export default function SupportHubModal({
         loadedEvas = evData || [];
       }
 
+      // 4. Mesas de Examen creadas por el docente con actas
+      const { data: mData, error: mErr } = await supabase
+        .from('mesas_examen')
+        .select(`
+          id, catedra_id, docente_id, fecha, turno_llamado, tipo_mesa, condicion_acta,
+          libro, tomo, folio, acta_numero, presidente, vocal1, vocal_1, vocal2, vocal_2,
+          catedras ( id, nombre ),
+          actas_examen_alumnos ( id )
+        `)
+        .eq('docente_id', teacherId)
+        .order('fecha', { ascending: false });
+
+      if (mErr) {
+        console.warn('Error al cargar mesas_examen en SupportHub:', mErr);
+      }
+
+      const loadedMesas = (mData || []).map(m => ({
+        ...m,
+        vocal1: m.vocal1 || m.vocal_1 || '',
+        vocal2: m.vocal2 || m.vocal_2 || '',
+        condicion_acta: m.condicion_acta || (m.tipo_mesa === 'PROMOCIONAL' ? 'PROMOCIONAL' : 'REGULAR'),
+        inscriptos_count: (m.actas_examen_alumnos || []).length
+      }));
+
       // Detectar cátedras huérfanas
       const mappedCats = (cats || []).map(cat => {
         const count = (studs || []).filter(s => 
@@ -181,6 +238,7 @@ export default function SupportHubModal({
       setAlumnos(studs || []);
       setClases(loadedClases);
       setEvaluaciones(loadedEvas);
+      setMesas(loadedMesas);
     } catch (err) {
       console.error('Error al cargar datos del docente:', err);
       toast.error('Error al cargar datos: ' + err.message);
@@ -204,14 +262,12 @@ export default function SupportHubModal({
     setChangingRole(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
-        // Intentar RPC admin_cambiar_rol
         const { error: rpcErr } = await supabase.rpc('admin_cambiar_rol', {
           p_user_id: teacher.id,
           p_nuevo_rol: newRole
         });
 
         if (rpcErr) {
-          // Fallback a update directo en perfiles
           const { error: updErr } = await supabase
             .from('perfiles')
             .update({ rol: newRole })
@@ -245,7 +301,6 @@ export default function SupportHubModal({
         if (!rpcErr && rpcRes !== undefined) {
           purgedCount = typeof rpcRes === 'number' ? rpcRes : (rpcRes?.purgados || 0);
         } else {
-          // Fallback manual: eliminar cátedras sin alumnos o instituciones
           const orphanIds = catedras.filter(c => c.isOrphan).map(c => c.id);
           if (orphanIds.length > 0) {
             const { error: delErr } = await supabase
@@ -257,7 +312,6 @@ export default function SupportHubModal({
           }
         }
       } else {
-        // Demo fallback
         const orphanIds = catedras.filter(c => c.isOrphan).map(c => c.id);
         setCatedras(prev => prev.filter(c => !c.isOrphan));
         purgedCount = orphanIds.length;
@@ -289,6 +343,7 @@ export default function SupportHubModal({
         alumnos,
         clases,
         evaluaciones,
+        mesas,
         exported_at: new Date().toISOString(),
         exported_by: 'Superadmin Support Hub'
       };
@@ -426,6 +481,94 @@ export default function SupportHubModal({
           setConfirmModal({ isOpen: false });
         } catch (err) {
           toast.error('Error al eliminar evaluación: ' + err.message);
+          setConfirmModal(prev => ({ ...prev, loading: false }));
+        }
+      }
+    });
+  };
+
+  // ==========================================
+  // GESTIÓN DE MESAS DE EXAMEN (SUPERADMIN)
+  // ==========================================
+  const handleStartEditMesa = (mesa) => {
+    setEditingMesa(mesa);
+    setEditForm({
+      fecha: mesa.fecha || '',
+      turno_llamado: mesa.turno_llamado || '',
+      condicion_acta: mesa.condicion_acta || 'REGULAR',
+      presidente: mesa.presidente || '',
+      vocal1: mesa.vocal1 || '',
+      vocal2: mesa.vocal2 || '',
+      libro: mesa.libro || '',
+      folio: mesa.folio || ''
+    });
+  };
+
+  const handleSaveEditMesa = async () => {
+    if (!editingMesa?.id) return;
+    setSavingEditMesa(true);
+    try {
+      if (isSupabaseConfigured && !isDemo && supabase) {
+        const { error } = await supabase
+          .from('mesas_examen')
+          .update({
+            fecha: editForm.fecha,
+            turno_llamado: editForm.turno_llamado,
+            condicion_acta: editForm.condicion_acta,
+            tipo_mesa: editForm.condicion_acta === 'PROMOCIONAL' ? 'PROMOCIONAL' : 'FINAL',
+            presidente: editForm.presidente,
+            vocal1: editForm.vocal1,
+            vocal_1: editForm.vocal1,
+            vocal2: editForm.vocal2,
+            vocal_2: editForm.vocal2,
+            libro: editForm.libro,
+            folio: editForm.folio
+          })
+          .eq('id', editingMesa.id);
+
+        if (error) throw error;
+      }
+
+      setMesas(prev => prev.map(m => m.id === editingMesa.id ? { ...m, ...editForm } : m));
+      toast.success('Mesa de examen actualizada correctamente.');
+      setEditingMesa(null);
+    } catch (err) {
+      console.error('Error al actualizar mesa:', err);
+      toast.error('Error al actualizar mesa: ' + err.message);
+    } finally {
+      setSavingEditMesa(false);
+    }
+  };
+
+  const handleDeleteMesa = (m) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `¿Eliminar mesa de examen "${m.turno_llamado || 'Examen'}"?`,
+      description: `Esta acción eliminará de forma irreversible la mesa de examen y todas sus actas de calificaciones asociadas (${m.inscriptos_count} alumnos inscriptos) en cascada sin dejar registros huérfanos.`,
+      loading: false,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, loading: true }));
+        try {
+          if (isDemo || !isSupabaseConfigured || !supabase) {
+            setMesas(prev => prev.filter(x => x.id !== m.id));
+            toast.success('Mesa de examen y actas eliminadas.');
+            setConfirmModal({ isOpen: false });
+            return;
+          }
+
+          // 1. Borrar primero las actas asociadas para garantizar cascada
+          await supabase.from('actas_examen_alumnos').delete().eq('mesa_id', m.id);
+          
+          // 2. Borrar la mesa
+          const { error } = await supabase.from('mesas_examen').delete().eq('id', m.id);
+          if (error) throw error;
+
+          toast.success('Mesa de examen y actas eliminadas en cascada.');
+          setMesas(prev => prev.filter(x => x.id !== m.id));
+          setConfirmModal({ isOpen: false });
+        } catch (err) {
+          console.error('Error al eliminar mesa:', err);
+          toast.error('Error al eliminar mesa: ' + err.message);
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }
@@ -629,6 +772,20 @@ export default function SupportHubModal({
           >
             <GraduationCap className="w-4 h-4 shrink-0" />
             <span>Clases ({clases.length + evaluaciones.length})</span>
+          </button>
+
+          {/* Pestaña: Mesas de Examen */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('mesas')}
+            className={`whitespace-nowrap px-3 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'mesas'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-bold'
+                : 'border-transparent text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <BookMarked className="w-4 h-4 shrink-0" />
+            <span>🎓 Mesas de Examen ({mesas.length})</span>
           </button>
         </div>
 
@@ -864,9 +1021,226 @@ export default function SupportHubModal({
                   </div>
                 </div>
               )}
+
+              {/* ========================================================
+                  PESTAÑA MESAS DE EXAMEN (SUPERADMIN CONTROL)
+                 ======================================================== */}
+              {activeTab === 'mesas' && (
+                <div className="space-y-3">
+                  {mesas.length === 0 ? (
+                    <EmptyState
+                      icon={BookMarked}
+                      title="Sin mesas de examen registradas"
+                      description="El docente no ha creado actas ni mesas de examen todavía."
+                    />
+                  ) : (
+                    <div className="space-y-2.5">
+                      {mesas.map((m) => {
+                        const isPromo = m.condicion_acta === 'PROMOCIONAL';
+                        const isLib = m.condicion_acta === 'LIBRE';
+
+                        return (
+                          <div
+                            key={m.id}
+                            className="p-3.5 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-200/80 dark:border-white/5 space-y-2 hover:border-indigo-500/30 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge 
+                                    variant={isPromo ? 'promo' : isLib ? 'libre' : 'regular'}
+                                    className="text-[10px] font-bold uppercase font-mono"
+                                  >
+                                    {isPromo ? '🎖️ PROMOCIONAL' : isLib ? '🔓 LIBRE' : '📋 REGULAR'}
+                                  </Badge>
+
+                                  <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    {formatFechaDMY(m.fecha)} • {m.turno_llamado}
+                                  </span>
+
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-white/10 text-text-muted">
+                                    {m.inscriptos_count} alumnos inscriptos
+                                  </span>
+                                </div>
+
+                                <h4 className="text-xs sm:text-sm font-bold text-text-primary mt-1 truncate">
+                                  Cátedra: {m.catedras?.nombre || 'Cátedra'}
+                                </h4>
+
+                                <div className="text-[11px] text-text-muted flex items-center gap-2 flex-wrap mt-0.5">
+                                  <span>Tribunal: <b>{m.presidente || 'Docente Titular'}</b> (Pres.)</span>
+                                  <span>•</span>
+                                  <span>V1: <b>{m.vocal1 || '—'}</b></span>
+                                  <span>•</span>
+                                  <span>V2: <b>{m.vocal2 || '—'}</b></span>
+                                  <span>•</span>
+                                  <span>Libro: <b>{m.libro || '—'}</b> / Folio: <b>{m.folio || '—'}</b></span>
+                                </div>
+                              </div>
+
+                              {/* Acciones Superadmin: Editar y Eliminar */}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditMesa(m)}
+                                  className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors cursor-pointer"
+                                  title="Editar parámetros de la mesa de examen"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteMesa(m)}
+                                  className="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                                  title="Eliminar mesa y actas asociadas en cascada"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
+
+        {/* Modal / Formulario de Edición de Mesa (Superadmin) */}
+        {editingMesa && (
+          <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-30 p-5 flex flex-col justify-between overflow-y-auto animate-fadeIn">
+            <div className="space-y-4 max-w-lg mx-auto w-full">
+              <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <Pencil className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="font-bold text-sm text-text-primary">Editar Mesa de Examen</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingMesa(null)}
+                  className="p-1 rounded-lg text-text-muted hover:text-text-primary"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="font-bold text-text-secondary block mb-1">Fecha de Examen</label>
+                  <input
+                    type="date"
+                    value={editForm.fecha}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, fecha: e.target.value }))}
+                    className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-text-secondary block mb-1">Turno / Llamado</label>
+                  <input
+                    type="text"
+                    value={editForm.turno_llamado}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, turno_llamado: e.target.value }))}
+                    placeholder="Ej: 1° LLAMADO JULIO"
+                    className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-text-secondary block mb-1">Condición del Acta</label>
+                  <select
+                    value={editForm.condicion_acta}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, condicion_acta: e.target.value }))}
+                    className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    <option value="REGULAR">REGULAR</option>
+                    <option value="PROMOCIONAL">PROMOCIONAL</option>
+                    <option value="LIBRE">LIBRE</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-text-secondary block mb-1">Presidente de Mesa</label>
+                  <input
+                    type="text"
+                    value={editForm.presidente}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, presidente: e.target.value }))}
+                    placeholder="Nombre del docente titular"
+                    className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-text-secondary block mb-1">Vocal 1</label>
+                  <input
+                    type="text"
+                    value={editForm.vocal1}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, vocal1: e.target.value }))}
+                    placeholder="Docente Vocal 1"
+                    className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-text-secondary block mb-1">Vocal 2</label>
+                  <input
+                    type="text"
+                    value={editForm.vocal2}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, vocal2: e.target.value }))}
+                    placeholder="Docente Vocal 2"
+                    className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-text-secondary block mb-1">Libro Matriz</label>
+                  <input
+                    type="text"
+                    value={editForm.libro}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, libro: e.target.value }))}
+                    placeholder="Ej: L-14"
+                    className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-text-secondary block mb-1">Folio</label>
+                  <input
+                    type="text"
+                    value={editForm.folio}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, folio: e.target.value }))}
+                    placeholder="Ej: 82"
+                    className="w-full py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/80 dark:border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingMesa(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  loading={savingEditMesa}
+                  onClick={handleSaveEditMesa}
+                >
+                  Guardar Cambios
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal de Confirmación Destructiva */}
         <ConfirmDialog

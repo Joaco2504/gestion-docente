@@ -27,6 +27,7 @@ import AdminRoute from './components/auth/AdminRoute';
 import GlobalNoticeBanner from './components/layout/GlobalNoticeBanner';
 import ScrollToTop from './components/common/ScrollToTop';
 import { GraduationCap } from 'lucide-react';
+import { NotificationProvider } from './context/NotificationContext';
 
 /**
  * Shell autenticado para el panel docente
@@ -122,25 +123,27 @@ export default function App() {
   const { theme } = useTheme();
 
   return (
-    <BrowserRouter>
-      {/* Scroll restoration helper: resets scroll to top on every navigation */}
-      <ScrollToTop />
+    <NotificationProvider>
+      <BrowserRouter>
+        {/* Scroll restoration helper: resets scroll to top on every navigation */}
+        <ScrollToTop />
 
-      {/* Sonner Floating Notifications */}
-      <Toaster 
-        richColors 
-        closeButton 
-        position="top-right" 
-        theme={theme === 'system' ? undefined : theme} 
-      />
+        {/* Sonner Floating Notifications */}
+        <Toaster 
+          richColors 
+          closeButton 
+          position="top-right" 
+          theme={theme === 'system' ? undefined : theme} 
+        />
 
-      <Routes>
-        {/* Ruta Pública del Estudiante: Accesible sin autenticación */}
-        <Route path="/consulta/:catedraId" element={<StudentPortalPage />} />
+        <Routes>
+          {/* Ruta Pública del Estudiante: Accesible sin autenticación */}
+          <Route path="/consulta/:catedraId" element={<StudentPortalPage />} />
 
-        {/* Rutas del Sistema Docente */}
-        <Route path="/*" element={<AuthenticatedDocenteShell />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Rutas del Sistema Docente */}
+          <Route path="/*" element={<AuthenticatedDocenteShell />} />
+        </Routes>
+      </BrowserRouter>
+    </NotificationProvider>
   );
 }
