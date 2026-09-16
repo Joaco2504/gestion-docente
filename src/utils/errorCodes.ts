@@ -29,6 +29,10 @@ export const DICCIONARIO_ERRORES: Record<string, ErrorDocenteInfo> = {
     codigo: "ERR-760",
     mensaje: "No se pudo actualizar la información del estudiante."
   },
+  "inscripciones": {
+    codigo: "ERR-765",
+    mensaje: "No se pudo sincronizar la inscripción o condición final del estudiante."
+  },
   // Asistencias y Clases
   "asistencias": {
     codigo: "ERR-310",
@@ -227,7 +231,21 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     };
   }
 
-  // 10. Estudiantes / Nómina
+  // 10. Inscripciones y Estado Académico
+  if (
+    lowerText.includes('inscripciones') ||
+    lowerText.includes('inscripcion') ||
+    lowerText.includes('estado_academico') ||
+    lowerText.includes('nota_final_acreditacion')
+  ) {
+    return {
+      codigo: DICCIONARIO_ERRORES["inscripciones"].codigo,
+      mensaje: DICCIONARIO_ERRORES["inscripciones"].mensaje,
+      originalError: error
+    };
+  }
+
+  // 11. Estudiantes / Nómina
   if (
     lowerText.includes('estudiantes') ||
     lowerText.includes('estudiante') ||
