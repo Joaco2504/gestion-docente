@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { toast } from 'sonner';
+import { handleAppError } from '../utils/handleAppError';
 
 const SystemConfigContext = createContext({});
 
@@ -179,7 +180,7 @@ export function SystemConfigProvider({ children }) {
         }
         return { data, error: null };
       } catch (err) {
-        console.error('Error al actualizar configuración en Supabase:', err);
+        handleAppError(err, 'SystemConfigContext / updateConfig');
         return { data: null, error: err };
       }
     }

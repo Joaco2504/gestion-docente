@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { getTodayYMD } from '../../lib/dateUtils';
+import { handleAppError } from '../../utils/handleAppError';
 
 const TURNO_OPTIONS_REGULARES = [
   { value: '1° LLAMADO', label: '1° Llamado (Turno Ordinario)' },
@@ -221,8 +222,7 @@ export default function ConstituirMesaModal({
       }
       onClose();
     } catch (err) {
-      console.error('Error constituyendo mesa:', err);
-      toast.error('No se pudo constituir la mesa: ' + (err.message || 'Error de conexión'));
+      handleAppError(err, 'ConstituirMesaModal / Constituir Mesa', user);
     } finally {
       setSubmitting(false);
     }

@@ -16,6 +16,7 @@ import Button from '../common/Button';
 import Badge from '../common/Badge';
 import { useSystemConfig } from '../../context/SystemConfigContext';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function RealtimeSwitchboard() {
   const { 
@@ -55,7 +56,7 @@ export default function RealtimeSwitchboard() {
         description: 'Los cambios fueron transmitidos a todos los docentes conectados.'
       });
     } catch (err) {
-      toast.error('Error al guardar configuración: ' + (err.message || 'Error desconocido'));
+      handleAppError(err, 'RealtimeSwitchboard / Guardar configuración');
     } finally {
       setSaving(false);
     }

@@ -29,6 +29,7 @@ import AvatarPopover, { PRESET_AVATARS } from './AvatarPopover';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function DualSidebar({ isOpen = false, onClose }) {
   const location = useLocation();
@@ -198,7 +199,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       setIsInstModalOpen(false);
       toast.success('Institución registrada correctamente');
     } catch (err) {
-      toast.error('Error al registrar institución: ' + err.message);
+      handleAppError(err, 'DualSidebar / Registrar Institución', user);
     } finally {
       setCreating(false);
     }
@@ -214,7 +215,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       setIsCicloModalOpen(false);
       toast.success(`Ciclo ${cicloAnio} activado`);
     } catch (err) {
-      toast.error('Error al crear ciclo: ' + err.message);
+      handleAppError(err, 'DualSidebar / Crear Ciclo', user);
     } finally {
       setCreating(false);
     }

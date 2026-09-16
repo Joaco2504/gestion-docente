@@ -21,6 +21,7 @@ import {
   Unlock
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { handleAppError } from '../utils/handleAppError';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
@@ -132,8 +133,7 @@ export default function CatedraDetailPage() {
       setIsCierreModalOpen(false);
       navigate(`/mesas-examen?catedraId=${id}`);
     } catch (err) {
-      console.error('Error al finalizar cursado:', err);
-      toast.error('No se pudo finalizar el cursado.');
+      handleAppError(err, 'CatedraDetailPage / Finalizar cursado');
     } finally {
       setIsCierreActionLoading(false);
     }
@@ -173,8 +173,7 @@ export default function CatedraDetailPage() {
       toast.success('Cursado reabierto. Asistencias y calificaciones habilitadas.');
       setIsReabrirModalOpen(false);
     } catch (err) {
-      console.error('Error al reabrir cursado:', err);
-      toast.error('No se pudo reabrir el cursado.');
+      handleAppError(err, 'CatedraDetailPage / Reabrir cursado');
     } finally {
       setIsCierreActionLoading(false);
     }
@@ -186,24 +185,32 @@ export default function CatedraDetailPage() {
     setErrorMsg('');
     try {
       if (isSupabaseConfigured && !isDemo) {
-        const { data, error } = await supabase
-          .from('catedras')
-          .select(`
-            *,
-            instituciones (
-              nombre,
-              nivel
-            ),
-            ciclos_lectivos (
-              id,
-              nombre,
-              anio
-            )
-          `)
-          .eq('id', id)
-          .single();
+        const [catedraRes, critRes] = await Promise.all([
+          supabase
+            .from('catedras')
+            .select(`
+              *,
+              instituciones (
+                nombre,
+                nivel
+              ),
+              ciclos_lectivos (
+                id,
+                nombre,
+                anio
+              )
+            `)
+            .eq('id', id)
+            .single(),
+          supabase
+            .from('criterios_evaluacion')
+            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg, nota_min_sec')
+            .eq('catedra_id', id)
+            .maybeSingle()
+        ]);
 
-        if (error) throw error;
+        if (catedraRes.error) throw catedraRes.error;
+        const data = catedraRes.data;
         
         // Cargar estado de cierre de cursada (con fallback local)
         let cursadaFin = data.cursada_finalizada;
@@ -224,22 +231,15 @@ export default function CatedraDetailPage() {
           fecha_cierre_cursada: fechaCierre || null
         });
 
-        try {
-          const { data: critData } = await supabase
-            .from('criterios_evaluacion')
-            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg, nota_min_sec')
-            .eq('catedra_id', id)
-            .maybeSingle();
-          if (critData) {
-            setCriterios({
-              min_asist_promo: Number(critData.min_asist_promo) || 80,
-              min_asist_reg: Number(critData.min_asist_reg) || 70,
-              nota_min_promo: Number(critData.nota_min_promo) || 7,
-              nota_min_reg: Number(critData.nota_min_reg) || 4,
-              nota_min_sec: Number(critData.nota_min_sec) || 6
-            });
-          }
-        } catch (_) {}
+        if (critRes.data) {
+          setCriterios({
+            min_asist_promo: Number(critRes.data.min_asist_promo) || 80,
+            min_asist_reg: Number(critRes.data.min_asist_reg) || 70,
+            nota_min_promo: Number(critRes.data.nota_min_promo) || 7,
+            nota_min_reg: Number(critRes.data.nota_min_reg) || 4,
+            nota_min_sec: Number(critRes.data.nota_min_sec) || 6
+          });
+        }
       } else {
         // Modo demo / LocalStorage
         let found = (catedras ?? []).find((c) => c.id === id);
@@ -284,7 +284,7 @@ export default function CatedraDetailPage() {
         }
       }
     } catch (err) {
-      console.error('Error fetching cátedra:', err);
+      handleAppError(err, 'CatedraDetailPage / fetchCatedraData', user);
       setErrorMsg('No se pudo cargar la cátedra solicitada.');
     } finally {
       setLoading(false);

@@ -35,6 +35,7 @@ import RiskBadge from '../common/RiskBadge';
 import ErrorBoundary from '../common/ErrorBoundary';
 import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
+import { handleAppError } from '../../utils/handleAppError';
 
 /**
  * Normalización de texto reactiva:
@@ -186,8 +187,7 @@ export default function StudentsTab({
         if (storedInasist) setInasistenciasDocente(JSON.parse(storedInasist));
       }
     } catch (err) {
-      console.error('Error fetching students:', err);
-      toast.error('No se pudo cargar la lista de alumnos.');
+      handleAppError(err, 'StudentsTab / Cargar Estudiantes', user);
     } finally {
       setLoading(false);
     }
@@ -447,8 +447,7 @@ export default function StudentsTab({
       setNombreManual('');
       setCondicionManual('AUTO');
     } catch (err) {
-      console.error('Error registering student:', err);
-      toast.error('Error al guardar el alumno: ' + err.message);
+      handleAppError(err, 'StudentsTab / Matricular Estudiante', user);
     } finally {
       setSavingManual(false);
     }
@@ -516,8 +515,7 @@ export default function StudentsTab({
       setIsEditModalOpen(false);
       setEditingStudent(null);
     } catch (err) {
-      console.error('Error updating student:', err);
-      toast.error('Error al actualizar datos: ' + err.message);
+      handleAppError(err, 'StudentsTab / Actualizar Estudiante', user);
     } finally {
       setSavingEdit(false);
     }
@@ -557,8 +555,7 @@ export default function StudentsTab({
       setIsDeleteModalOpen(false);
       setStudentToDelete(null);
     } catch (err) {
-      console.error('Error unenrolling student:', err);
-      toast.error('Error al desvincular estudiante: ' + err.message);
+      handleAppError(err, 'StudentsTab / Desvincular Estudiante', user);
     } finally {
       setDeletingStudent(false);
     }

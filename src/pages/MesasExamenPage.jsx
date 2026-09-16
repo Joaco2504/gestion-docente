@@ -29,6 +29,7 @@ import ConstituirMesaModal from '../components/mesas/ConstituirMesaModal';
 import MesaDetalleView from '../components/mesas/MesaDetalleView';
 import PrintPreviewModal from '../components/common/PrintPreviewModal';
 import { toast } from 'sonner';
+import { handleAppError } from '../utils/handleAppError';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -151,7 +152,7 @@ export default function MesasExamenPage() {
       // Fallback local y modo demo
       loadFallbackMesas();
     } catch (err) {
-      console.error('Error fetching mesas:', err);
+      handleAppError(err, 'MesasExamenPage / fetchMesas', user);
       loadFallbackMesas();
     } finally {
       setLoading(false);
@@ -256,8 +257,7 @@ export default function MesasExamenPage() {
       }
       toast.success('Mesa de examen eliminada.');
     } catch (err) {
-      console.error('Error deleting mesa:', err);
-      toast.error('No se pudo eliminar la mesa de examen.');
+      handleAppError(err, 'MesasExamenPage / Eliminar mesa');
     }
   };
 

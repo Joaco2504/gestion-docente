@@ -18,6 +18,7 @@ import Button from '../common/Button';
 import Badge from '../common/Badge';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { handleAppError } from '../../utils/handleAppError';
 
 const normalizeText = (str) => {
   return String(str || '')
@@ -68,11 +69,12 @@ export default function SeleccionarAlumnosMesaModal({
       fetchEligibleStudents();
 
       // Enfocar buscador al abrir
-      setTimeout(() => {
+      const focusTimer = setTimeout(() => {
         if (searchInputRef.current) {
           searchInputRef.current.focus();
         }
       }, 100);
+      return () => clearTimeout(focusTimer);
     }
   }, [isOpen, mesa?.id, mesa?.catedra_id]);
 
@@ -145,7 +147,7 @@ export default function SeleccionarAlumnosMesaModal({
 
       setEligibleStudents([]);
     } catch (err) {
-      console.error('Error fetching eligible students for mesa:', err);
+      handleAppError(err, 'SeleccionarAlumnosMesaModal / fetchEligibleStudents', user);
       setEligibleStudents([]);
     } finally {
       setLoading(false);

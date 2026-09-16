@@ -23,6 +23,7 @@ import SupportHubModal from './SupportHubModal';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { formatFechaDMY } from '../../lib/dateUtils';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 
 const DEMO_TEACHERS = [
   {
@@ -92,8 +93,7 @@ export default function TeachersDirectory({ isDemo = false }) {
       if (error) throw error;
       setTeachers(data || []);
     } catch (err) {
-      console.warn('Error al cargar directorio de docentes:', err);
-      toast.error('No se pudo cargar la nómina de docentes: ' + err.message);
+      handleAppError(err, 'TeachersDirectory / Cargar nómina docentes');
     } finally {
       setLoading(false);
     }
@@ -124,7 +124,7 @@ export default function TeachersDirectory({ isDemo = false }) {
       if (error) throw error;
       toast.success(`Rol de ${teacher.nombre || teacher.email} actualizado a "${newRole}".`);
     } catch (err) {
-      toast.error('Error al actualizar rol: ' + err.message);
+      handleAppError(err, 'TeachersDirectory / Actualizar rol');
       // Revertir
       fetchTeachers();
     }

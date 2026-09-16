@@ -35,6 +35,7 @@ import EmptyState from '../common/EmptyState';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { formatFechaDMY } from '../../lib/dateUtils';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function SupportHubModal({
   isOpen,
@@ -240,8 +241,7 @@ export default function SupportHubModal({
       setEvaluaciones(loadedEvas);
       setMesas(loadedMesas);
     } catch (err) {
-      console.error('Error al cargar datos del docente:', err);
-      toast.error('Error al cargar datos: ' + err.message);
+      handleAppError(err, 'SupportHubModal / Cargar datos docente');
     } finally {
       setLoading(false);
     }
@@ -281,7 +281,7 @@ export default function SupportHubModal({
       }
       toast.success(`Rol actualizado a "${newRole === 'superadmin' ? 'Superadmin' : 'Docente'}".`);
     } catch (err) {
-      toast.error('Error al cambiar rol: ' + err.message);
+      handleAppError(err, 'SupportHubModal / Cambiar rol');
     } finally {
       setChangingRole(false);
     }
@@ -320,7 +320,7 @@ export default function SupportHubModal({
       await loadTeacherData(teacher.id);
       toast.success(`Depuración completada: ${purgedCount} registros huérfanos eliminados.`);
     } catch (err) {
-      toast.error('Error al purgar huérfanos: ' + err.message);
+      handleAppError(err, 'SupportHubModal / Purgar huérfanos');
     } finally {
       setPurging(false);
     }
@@ -359,7 +359,7 @@ export default function SupportHubModal({
 
       toast.success('Volcado de datos JSON exportado correctamente.');
     } catch (err) {
-      toast.error('Error al generar volcado JSON: ' + err.message);
+      handleAppError(err, 'SupportHubModal / Exportar JSON');
     }
   };
 
@@ -387,7 +387,7 @@ export default function SupportHubModal({
           setCatedras(prev => prev.filter(c => c.id !== cat.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          toast.error('Error al eliminar cátedra: ' + err.message);
+          handleAppError(err, 'SupportHubModal / Eliminar cátedra');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }
@@ -418,7 +418,7 @@ export default function SupportHubModal({
           setAlumnos(prev => prev.filter(a => a.id !== alu.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          toast.error('Error al eliminar estudiante: ' + err.message);
+          handleAppError(err, 'SupportHubModal / Eliminar estudiante');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }
@@ -449,7 +449,7 @@ export default function SupportHubModal({
           setClases(prev => prev.filter(c => c.id !== cla.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          toast.error('Error al eliminar clase: ' + err.message);
+          handleAppError(err, 'SupportHubModal / Eliminar clase');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }
@@ -480,7 +480,7 @@ export default function SupportHubModal({
           setEvaluaciones(prev => prev.filter(e => e.id !== ev.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          toast.error('Error al eliminar evaluación: ' + err.message);
+          handleAppError(err, 'SupportHubModal / Eliminar evaluación');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }
@@ -533,8 +533,7 @@ export default function SupportHubModal({
       toast.success('Mesa de examen actualizada correctamente.');
       setEditingMesa(null);
     } catch (err) {
-      console.error('Error al actualizar mesa:', err);
-      toast.error('Error al actualizar mesa: ' + err.message);
+      handleAppError(err, 'SupportHubModal / Actualizar mesa');
     } finally {
       setSavingEditMesa(false);
     }
@@ -567,8 +566,7 @@ export default function SupportHubModal({
           setMesas(prev => prev.filter(x => x.id !== m.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          console.error('Error al eliminar mesa:', err);
-          toast.error('Error al eliminar mesa: ' + err.message);
+          handleAppError(err, 'SupportHubModal / Eliminar mesa');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }

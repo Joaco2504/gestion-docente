@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { handleAppError } from '../utils/handleAppError';
 
 const AppContext = createContext({});
 
@@ -207,7 +208,7 @@ export function AppProvider({ children }) {
         console.warn('Aviso cargando periodos_academicos en AppContext:', perErr);
       }
     } catch (error) {
-      console.error('Error al cargar datos globales:', error);
+      handleAppError(error, 'AppContext / refreshGlobalState', user);
     } finally {
       setLoading(false);
     }

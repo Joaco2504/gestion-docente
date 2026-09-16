@@ -20,6 +20,7 @@ import RiskBadge from '../common/RiskBadge';
 import { calculateCatedraRiskSummary } from '../../lib/earlyWarningLogic';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function EarlyWarningCard({
   catedraId,
@@ -118,7 +119,7 @@ export default function EarlyWarningCard({
         setNotas(storedNotas);
       }
     } catch (err) {
-      console.error('Error loading EarlyWarningCard data:', err);
+      handleAppError(err, 'EarlyWarningCard / fetchData', user);
     } finally {
       setLoading(false);
     }

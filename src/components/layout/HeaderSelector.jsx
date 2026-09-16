@@ -5,8 +5,11 @@ import { Building2, Calendar, ChevronDown, Plus } from 'lucide-react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CustomSelect from '../common/CustomSelect';
+import { useAuth } from '../../context/AuthContext';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function HeaderSelector() {
+  const { user } = useAuth();
   const {
     instituciones,
     selectedInstitucion,
@@ -37,7 +40,7 @@ export default function HeaderSelector() {
       setIsInstModalOpen(false);
       toast.success('Institución creada con éxito');
     } catch (err) {
-      toast.error('Error al crear institución: ' + err.message);
+      handleAppError(err, 'HeaderSelector / Crear Institución', user);
     } finally {
       setLoading(false);
     }
@@ -52,7 +55,7 @@ export default function HeaderSelector() {
       setIsCicloModalOpen(false);
       toast.success(`Ciclo Lectivo ${cicloAnio} activado`);
     } catch (err) {
-      toast.error('Error al crear ciclo: ' + err.message);
+      handleAppError(err, 'HeaderSelector / Crear Ciclo Lectivo', user);
     } finally {
       setLoading(false);
     }

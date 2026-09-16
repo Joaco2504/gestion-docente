@@ -18,6 +18,7 @@ import InteractiveBarChart from '../charts/InteractiveBarChart';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function CatedraStatsModal({
   isOpen,
@@ -150,7 +151,7 @@ export default function CatedraStatsModal({
         setInasistenciasDocente(storedInasist);
       }
     } catch (err) {
-      console.error('Error loading stats data:', err);
+      handleAppError(err, 'CatedraStatsModal / fetchData', user);
     } finally {
       setLoading(false);
     }

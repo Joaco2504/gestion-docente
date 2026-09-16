@@ -29,8 +29,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { formatFechaDMY } from '../../lib/dateUtils';
-import { notificarErrorDiscord } from '../../services/discordLogger';
-import { procesarErrorDocente } from '../../utils/errorCodes';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function MesaDetalleView({
   mesa,
@@ -65,14 +64,24 @@ export default function MesaDetalleView({
   async function fetchCursadaData() {
     try {
       if (isSupabaseConfigured && !isDemo && mesa?.catedra_id) {
-        const [evRes, nRes] = await Promise.all([
-          supabase.from('evaluaciones').select('*').eq('catedra_id', mesa.catedra_id),
-          supabase.from('notas').select('*')
-        ]);
-        if (evRes.data) setEvaluaciones(evRes.data);
-        if (nRes.data) setNotas(nRes.data);
+        const evRes = await supabase.from('evaluaciones').select('*').eq('catedra_id', mesa.catedra_id);
+        const evList = evRes.data || [];
+        setEvaluaciones(evList);
+
+        if (evList.length > 0) {
+          const evIds = evList.map(e => e.id).filter(id => !String(id).startsWith('eval-'));
+          if (evIds.length > 0) {
+            const { data: nData } = await supabase
+              .from('notas')
+              .select('*')
+              .in('evaluacion_id', evIds);
+            if (nData) setNotas(nData);
+          }
+        }
       }
-    } catch (_) {}
+    } catch (err) {
+      console.warn('Aviso al consultar notas de cursada en MesaDetalleView:', err);
+    }
   }
 
   async function fetchActas() {
@@ -130,21 +139,12 @@ export default function MesaDetalleView({
 
       setActasAlumnos([]);
     } catch (err) {
-      console.error('Error fetching actas from Supabase:', err);
-      const infoError = procesarErrorDocente(err);
-      toast.error(`${infoError.mensaje} (Código: ${infoError.codigo})`);
+      const infoError = handleAppError(err, `MesaDetalleView / fetchActas (Mesa: ${mesa?.id})`, user);
       agregarNotificacion({
         tipo: 'error',
         titulo: 'Error al recuperar planilla de calificaciones',
         mensaje: `${infoError.mensaje} (Código: ${infoError.codigo})`,
         codigo: infoError.codigo
-      });
-      notificarErrorDiscord({
-        codigoError: infoError.codigo,
-        mensajeUsuario: infoError.mensaje,
-        errorTecnico: err,
-        contexto: `MesaDetalleView / fetchActas (Mesa: ${mesa?.id})`,
-        usuario: { email: user?.email, id: user?.id }
       });
       setActasAlumnos([]);
     } finally {
@@ -345,12 +345,15 @@ export default function MesaDetalleView({
 
           if (upsertErr) throw upsertErr;
 
-          // Actualizar acreditación en inscripciones para aprobados
+          // Actualizar acreditación en inscripciones para aprobados concurrentemente
           const fechaAcred = mesa.fecha ? new Date(mesa.fecha).toISOString() : new Date().toISOString();
-          for (const a of actasAlumnos) {
-            if (a.estudiante_id && (a.dictamen === 'ACREDITADO' || a.dictamen === 'APROBADO')) {
-              try {
-                await supabase
+          const aprobados = actasAlumnos.filter(
+            a => a.estudiante_id && (a.dictamen === 'ACREDITADO' || a.dictamen === 'APROBADO')
+          );
+          if (aprobados.length > 0) {
+            await Promise.allSettled(
+              aprobados.map(a =>
+                supabase
                   .from('inscripciones')
                   .update({
                     estado_academico: 'ACREDITADO',
@@ -359,9 +362,9 @@ export default function MesaDetalleView({
                     fecha_acreditacion: fechaAcred
                   })
                   .eq('catedra_id', mesa.catedra_id)
-                  .eq('estudiante_id', a.estudiante_id);
-              } catch (_) {}
-            }
+                  .eq('estudiante_id', a.estudiante_id)
+              )
+            );
           }
         }
       }
@@ -379,23 +382,13 @@ export default function MesaDetalleView({
 
       await fetchActas();
     } catch (err) {
-      console.error('Error al guardar acta de examen:', err);
-      const infoError = procesarErrorDocente(err);
-      toast.error(`${infoError.mensaje} (Código: ${infoError.codigo})`);
+      const infoError = handleAppError(err, `MesaDetalleView / handleSaveActa (Mesa: ${mesa.id}, Cátedra: ${mesa.catedra_id})`, user);
       
       agregarNotificacion({
         tipo: 'error',
         titulo: 'Fallo al asentar acta de examen',
         mensaje: `${infoError.mensaje} (Código: ${infoError.codigo})`,
         codigo: infoError.codigo
-      });
-
-      await notificarErrorDiscord({
-        codigoError: infoError.codigo,
-        mensajeUsuario: infoError.mensaje,
-        errorTecnico: err,
-        contexto: `MesaDetalleView / handleSaveActa (Mesa: ${mesa.id}, Cátedra: ${mesa.catedra_id})`,
-        usuario: { email: user?.email, id: user?.id }
       });
     } finally {
       setSaving(false);
@@ -565,12 +558,12 @@ export default function MesaDetalleView({
           PLANILLA DE CALIFICACIONES INTERACTIVA
       ========================================================================= */}
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50/75 dark:bg-white/[0.02] text-text-muted font-bold text-[11px] uppercase tracking-wider">
                 <th className="py-3 px-3 w-10 text-center">N°</th>
-                <th className="py-3 px-3">Estudiante (Nombre y DNI)</th>
+                <th className="py-3 px-3 sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Estudiante (Nombre y DNI)</th>
                 <th className="py-3 px-3 text-center w-28">Condición</th>
                 {!isPromocional && (
                   <>
@@ -628,7 +621,7 @@ export default function MesaDetalleView({
                       </td>
 
                       {/* Estudiante */}
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                         <div className="font-bold text-text-primary text-xs">
                           {alumno.alumno_nombre_completo}
                         </div>

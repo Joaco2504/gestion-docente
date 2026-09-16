@@ -18,8 +18,9 @@ function getDiscordWebhookUrl(): string {
 const DISCORD_WEBHOOK_URL = getDiscordWebhookUrl();
 
 export interface NotificarErrorDiscordParams {
-  codigoError: string;
-  mensajeUsuario: string;
+  codigoError?: string;
+  mensajeUsuario?: string;
+  mensajeAmigable?: string;
   errorTecnico: any;
   contexto: string;
   usuario?: {
@@ -34,10 +35,13 @@ export interface NotificarErrorDiscordParams {
 export async function notificarErrorDiscord({
   codigoError,
   mensajeUsuario,
+  mensajeAmigable,
   errorTecnico,
   contexto,
   usuario
 }: NotificarErrorDiscordParams): Promise<boolean> {
+  const codigoFinal = codigoError || 'ERR-SYS';
+  const mensajeFinal = mensajeUsuario || mensajeAmigable || 'Sin mensaje especificado';
   try {
     const webhookUrl = DISCORD_WEBHOOK_URL || getDiscordWebhookUrl();
     if (!webhookUrl) {
@@ -80,7 +84,7 @@ export async function notificarErrorDiscord({
       avatar_url: 'https://cdn-icons-png.flaticon.com/512/3135/3135755.png',
       embeds: [
         {
-          title: `🚨 Error en PlanillaDocente [${codigoError}]`,
+          title: `🚨 Error en PlanillaDocente [${codigoFinal}]`,
           color: 0xe11d48, // Carmesí / Rose-600
           description: `Se ha registrado una incidencia no recuperable durante la interacción del docente.`,
           fields: [
@@ -98,7 +102,7 @@ export async function notificarErrorDiscord({
             },
             {
               name: '💬 Mensaje Mostrado al Docente',
-              value: mensajeUsuario || 'Sin mensaje especificado',
+              value: mensajeFinal,
               inline: false
             },
             {

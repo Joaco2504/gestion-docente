@@ -20,6 +20,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
@@ -63,7 +64,7 @@ export default function PortalSettingsModal({
           setMostrarCondicion(config.portal_mostrar_condicion !== false);
         }
       } catch (err) {
-        console.error('Error loading portal config:', err);
+        handleAppError(err, 'PortalSettingsModal / loadConfig', user);
       } finally {
         setLoading(false);
       }
@@ -124,8 +125,7 @@ export default function PortalSettingsModal({
       );
       onClose();
     } catch (err) {
-      console.error('Error saving portal config:', err);
-      toast.error('Ocurrió un error al guardar la configuración del portal.');
+      handleAppError(err, 'PortalSettingsModal / Guardar configuración');
     } finally {
       setSaving(false);
     }

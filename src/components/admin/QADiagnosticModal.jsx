@@ -23,6 +23,7 @@ import Button from '../common/Button';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { runQASuite } from '../../utils/qaRunner';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 
 /**
  * QADiagnosticModal - Suite de Autodiagnóstico y Test Integral para Superadministrador.
@@ -56,8 +57,7 @@ export default function QADiagnosticModal({
       setExecutionSource(isDemo ? 'demo' : 'supabase');
       setResults(suiteData);
     } catch (err) {
-      console.error('Error al ejecutar suite de diagnóstico:', err);
-      toast.error('Ocurrió un problema durante el diagnóstico: ' + (err.message || 'Error'));
+      handleAppError(err, 'QADiagnosticModal / Suite de diagnóstico');
     } finally {
       updateRunningState(false);
     }
@@ -102,7 +102,7 @@ export default function QADiagnosticModal({
       toast.success('Informe técnico de QA copiado al portapapeles.');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      toast.error('No se pudo copiar el informe: ' + err.message);
+      handleAppError(err, 'QADiagnosticModal / Copiar informe');
     }
   };
 

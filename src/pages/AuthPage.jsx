@@ -16,6 +16,31 @@ import Card from '../components/common/Card';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { handleAppError } from '../utils/handleAppError';
+
+const getFriendlyAuthError = (err) => {
+  const msg = (err?.message || '').toLowerCase();
+  if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+    return 'Correo o contraseña incorrectos.';
+  }
+  if (msg.includes('user already registered') || msg.includes('already exists')) {
+    return 'Este correo electrónico ya se encuentra registrado.';
+  }
+  if (msg.includes('password should be at least')) {
+    return 'La contraseña debe tener al menos 6 caracteres.';
+  }
+  if (msg.includes('email not confirmed')) {
+    return 'Por favor confirma tu dirección de correo electrónico.';
+  }
+  if (msg.includes('rate limit') || msg.includes('too many requests')) {
+    return 'Demasiados intentos. Por favor espera unos minutos antes de reintentar.';
+  }
+  if (err?.message && !err.message.includes('relation') && !err.message.includes('column') && !err.message.includes('select') && !err.message.includes('insert') && !err.message.includes('sql') && !err.message.includes('postgres') && !err.message.includes('schema')) {
+    return err.message;
+  }
+  const info = procesarErrorDocente(err);
+  return `${info.mensaje} (${info.codigo})`;
+};
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -53,8 +78,9 @@ export default function AuthPage() {
       });
       if (error) throw error;
     } catch (err) {
-      console.error('Google Auth error:', err);
-      setErrorMsg(err.message || 'Error al conectar con Google.');
+      const info = handleAppError(err, 'AuthPage / Google Auth', null, { mostrarToast: false });
+      const friendly = getFriendlyAuthError(err) || info.mensaje;
+      setErrorMsg(friendly);
     }
   };
 
@@ -77,8 +103,9 @@ export default function AuthPage() {
         setSuccessMsg('¡Cuenta creada! Revisa tu correo si tienes confirmación activada o inicia sesión.');
       }
     } catch (err) {
-      console.error('Auth error:', err);
-      setErrorMsg(err.message || 'Ocurrió un error con la autenticación.');
+      const info = handleAppError(err, 'AuthPage / Form Submit', null, { mostrarToast: false });
+      const friendly = getFriendlyAuthError(err) || info.mensaje;
+      setErrorMsg(friendly);
     } finally {
       setLoading(false);
     }

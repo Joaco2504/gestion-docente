@@ -26,6 +26,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { handleAppError } from '../utils/handleAppError';
 
 export default function SettingsPage() {
   const { user, isDemo } = useAuth();
@@ -358,8 +359,7 @@ export default function SettingsPage() {
 
       toast.success('Límites de períodos académicos y receso guardados correctamente.');
     } catch (err) {
-      console.error('Error saving periods:', err);
-      toast.error('Error al guardar períodos: ' + (err.message || 'Error desconocido'));
+      handleAppError(err, 'SettingsPage / Guardar Períodos Académicos', user);
     } finally {
       setSavingPeriods(false);
     }
@@ -371,7 +371,7 @@ export default function SettingsPage() {
       localStorage.setItem('docentepro_default_criteria', JSON.stringify(criterios));
       toast.success('Criterios de evaluación predeterminados guardados.');
     } catch (err) {
-      toast.error('Error al guardar criterios.');
+      handleAppError(err, 'SettingsPage / Guardar criterios', user);
     } finally {
       setSavingCriteria(false);
     }

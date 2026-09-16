@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { handleAppError } from '../../utils/handleAppError';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -385,9 +386,8 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
       toast.success('Configuración, criterios y períodos guardados exitosamente.');
       setTimeout(() => setSaveSuccess(false), 3500);
     } catch (err) {
-      console.error('Error saving catedra settings:', err);
-      toast.error('Error al guardar configuración: ' + (err.message || 'Error desconocido'));
-      setErrorMessage('Error al guardar configuración: ' + (err.message || 'Error desconocido'));
+      const info = handleAppError(err, 'SettingsTab / Guardar Configuración Cátedra', user);
+      setErrorMessage(`${info.mensaje} (Código: ${info.codigo})`);
     } finally {
       setLoading(false);
     }

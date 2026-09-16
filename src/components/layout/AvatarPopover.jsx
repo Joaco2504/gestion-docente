@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { uploadCatedraFile } from '../../lib/supabase';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
+import { handleAppError } from '../../utils/handleAppError';
 
 // 6 Avatares ilustrados estilizados con diferentes paletas y temáticas docentes
 export const PRESET_AVATARS = [
@@ -173,7 +174,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
       setIsAvatarModalOpen(false);
       onClose();
     } catch (err) {
-      toast.error('Error al actualizar avatar: ' + (err.message || err));
+      handleAppError(err, 'AvatarPopover / Actualizar Avatar', user);
     }
   };
 
@@ -218,8 +219,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
       setIsAvatarModalOpen(false);
       onClose();
     } catch (err) {
-      console.error('Error uploading avatar:', err);
-      toast.error('Error al subir imagen: ' + (err.message || 'Verifica las políticas de Storage'));
+      handleAppError(err, 'AvatarPopover / Subir Foto de Perfil', user);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

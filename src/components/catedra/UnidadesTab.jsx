@@ -23,6 +23,7 @@ import EmptyState from '../common/EmptyState';
 import { SkeletonCard } from '../common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function UnidadesTab({ catedraId, catedraName, onNavigateToLibroTemas }) {
   const { user, isDemo } = useAuth();
@@ -118,8 +119,7 @@ export default function UnidadesTab({ catedraId, catedraName, onNavigateToLibroT
 
       setUnidades(loadedUnidades);
     } catch (err) {
-      console.error('Error general cargando unidades temáticas:', err);
-      toast.error('No se pudieron cargar las unidades del programa.');
+      handleAppError(err, 'UnidadesTab / Cargar unidades');
     } finally {
       setLoading(false);
     }
@@ -231,7 +231,7 @@ export default function UnidadesTab({ catedraId, catedraName, onNavigateToLibroT
       localStorage.setItem(`unidades_tematicas_${catedraId}`, JSON.stringify(updatedList));
       setIsModalOpen(false);
     } catch (err) {
-      console.error('Error guardando unidad temática:', err);
+      handleAppError(err, 'UnidadesTab / guardarUnidad', user, { mostrarToast: false });
       // Fallback si la tabla Supabase aún no fue migrada
       if (err.message?.includes('relation') || err.code === '42P01') {
         const localItem = editingUnidad 
@@ -248,7 +248,7 @@ export default function UnidadesTab({ catedraId, catedraName, onNavigateToLibroT
         toast.info('Guardado en caché local (ejecuta la migración SQL en Supabase para sincronizar).');
         setIsModalOpen(false);
       } else {
-        toast.error('Error al guardar la unidad: ' + err.message);
+        handleAppError(err, 'UnidadesTab / Guardar Unidad Temática', user);
       }
     } finally {
       setSaving(false);
@@ -298,8 +298,7 @@ export default function UnidadesTab({ catedraId, catedraName, onNavigateToLibroT
       setIsDeleteModalOpen(false);
       setUnidadToDelete(null);
     } catch (err) {
-      console.error('Error eliminando unidad:', err);
-      toast.error('Error al eliminar unidad: ' + err.message);
+      handleAppError(err, 'UnidadesTab / Eliminar Unidad Temática', user);
     } finally {
       setDeleting(false);
     }

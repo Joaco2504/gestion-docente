@@ -23,6 +23,7 @@ import EmptyState from '../common/EmptyState';
 import MinimalSpinner from '../common/MinimalSpinner';
 import CloudUploadIllustration from '../illustrations/CloudUploadIllustration';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -107,7 +108,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
         }
       }
     } catch (err) {
-      console.error('Error fetching resources:', err);
+      handleAppError(err, 'ResourcesTab / fetchResources', user);
     } finally {
       setLoading(false);
     }
@@ -186,10 +187,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       setSelectedFile(null);
       setIsModalOpen(false);
     } catch (err) {
-      console.error('Error saving resource:', err);
-      const friendlyMsg = err.message || 'Intente nuevamente';
-      toast.error(friendlyMsg);
-      setErrorMsg(friendlyMsg);
+      handleAppError(err, 'ResourcesTab / Guardar recurso');
     } finally {
       setSaving(false);
     }
@@ -210,8 +208,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       }
       toast.success('Recurso eliminado.');
     } catch (err) {
-      console.error('Error deleting resource:', err);
-      toast.error('No se pudo eliminar el recurso.');
+      handleAppError(err, 'ResourcesTab / Eliminar recurso');
     }
   };
 

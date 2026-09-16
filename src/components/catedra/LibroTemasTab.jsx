@@ -33,6 +33,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { formatFechaDMY, getTodayYMD } from '../../lib/dateUtils';
+import { handleAppError } from '../../utils/handleAppError';
 
 const CARACTER_OPTIONS = [
   { value: 'TEORICA', label: 'Teórica' },
@@ -148,36 +149,36 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
   async function fetchClases() {
     setLoading(true);
     try {
-      // 1. Cargar unidades
       let loadedU = [];
       if (isSupabaseConfigured && !isDemo) {
-        const { data: uData, error: uErr } = await supabase
-          .from('unidades_tematicas')
-          .select('*')
-          .eq('catedra_id', catedraId)
-          .order('numero', { ascending: true });
-        if (!uErr && uData) loadedU = uData;
-        else {
+        // Cargar unidades y clases en paralelo para eliminar cascada N+1 de red
+        const [uRes, cRes] = await Promise.all([
+          supabase
+            .from('unidades_tematicas')
+            .select('*')
+            .eq('catedra_id', catedraId)
+            .order('numero', { ascending: true }),
+          supabase
+            .from('clases')
+            .select('*')
+            .eq('catedra_id', catedraId)
+            .order('fecha', { ascending: true })
+        ]);
+
+        if (!uRes.error && uRes.data) {
+          loadedU = uRes.data;
+        } else {
           const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
           if (storedU) try { loadedU = JSON.parse(storedU); } catch (e) {}
         }
+        setUnidades(loadedU);
+
+        if (cRes.error) throw cRes.error;
+        setClases(cRes.data || []);
       } else {
         const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
         if (storedU) try { loadedU = JSON.parse(storedU); } catch (e) {}
-      }
-      setUnidades(loadedU);
-
-      // 2. Cargar clases
-      if (isSupabaseConfigured && !isDemo) {
-        const { data, error } = await supabase
-          .from('clases')
-          .select('*')
-          .eq('catedra_id', catedraId)
-          .order('fecha', { ascending: true });
-
-        if (error) throw error;
-        setClases(data || []);
-      } else {
+        setUnidades(loadedU);
         const stored = localStorage.getItem(`clases_${catedraId}`);
         if (stored) {
           setClases(JSON.parse(stored));
@@ -210,8 +211,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
         }
       }
     } catch (err) {
-      console.error('Error fetching clases for libro de temas:', err);
-      toast.error('No se pudieron cargar las clases del Libro de Temas.');
+      handleAppError(err, 'LibroTemasTab / Cargar Clases', user);
     } finally {
       setLoading(false);
     }
@@ -323,8 +323,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
 
       setIsClassModalOpen(false);
     } catch (err) {
-      console.error('Error saving class:', err);
-      toast.error('Error al guardar la clase: ' + err.message);
+      handleAppError(err, 'LibroTemasTab / Guardar Clase', user);
     } finally {
       setSavingClass(false);
     }
@@ -354,7 +353,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
       toast.success('Material de estudio adjuntado a la clase.');
       setIsAttachModalOpen(false);
     } catch (err) {
-      toast.error('Error al adjuntar material: ' + err.message);
+      handleAppError(err, 'LibroTemasTab / Adjuntar Material', user);
     } finally {
       setSavingAttach(false);
     }
@@ -382,7 +381,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
       setIsDeleteModalOpen(false);
       setClassToDelete(null);
     } catch (err) {
-      toast.error('Error al eliminar clase: ' + err.message);
+      handleAppError(err, 'LibroTemasTab / Eliminar Clase', user);
     } finally {
       setDeletingClass(false);
     }

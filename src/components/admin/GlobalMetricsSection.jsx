@@ -23,6 +23,7 @@ import InteractiveBarChart from '../charts/InteractiveBarChart';
 import InteractiveDonutChart from '../charts/InteractiveDonutChart';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function GlobalMetricsSection({ isDemo = false, onRunDiagnostic }) {
   const [loading, setLoading] = useState(true);
@@ -149,8 +150,7 @@ export default function GlobalMetricsSection({ isDemo = false, onRunDiagnostic }
       });
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Error al cargar métricas globales:', err);
-      toast.error('No se pudieron consultar las métricas del sistema: ' + (err.message || 'Error'));
+      handleAppError(err, 'GlobalMetricsSection / Cargar métricas globales');
     } finally {
       setLoading(false);
     }

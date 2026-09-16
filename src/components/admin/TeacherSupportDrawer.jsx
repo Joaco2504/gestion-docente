@@ -25,6 +25,7 @@ import EmptyState from '../common/EmptyState';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { formatFechaDMY } from '../../lib/dateUtils';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function TeacherSupportDrawer({
   isOpen,
@@ -168,8 +169,7 @@ export default function TeacherSupportDrawer({
       setClases(loadedClases);
       setEvaluaciones(loadedEvas);
     } catch (err) {
-      console.error('Error al cargar datos del docente:', err);
-      toast.error('Error al cargar datos: ' + err.message);
+      handleAppError(err, 'TeacherSupportDrawer / Cargar Datos');
     } finally {
       setLoading(false);
     }
@@ -199,7 +199,7 @@ export default function TeacherSupportDrawer({
           setCatedras(prev => prev.filter(c => c.id !== cat.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          toast.error('Error al eliminar cátedra: ' + err.message);
+          handleAppError(err, 'TeacherSupportDrawer / Eliminar Cátedra');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }
@@ -230,7 +230,7 @@ export default function TeacherSupportDrawer({
           setAlumnos(prev => prev.filter(a => a.id !== alu.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          toast.error('Error al eliminar estudiante: ' + err.message);
+          handleAppError(err, 'TeacherSupportDrawer / Eliminar Estudiante');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }
@@ -261,7 +261,7 @@ export default function TeacherSupportDrawer({
           setClases(prev => prev.filter(c => c.id !== cla.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          toast.error('Error al eliminar clase: ' + err.message);
+          handleAppError(err, 'TeacherSupportDrawer / Eliminar Clase');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }
@@ -292,7 +292,7 @@ export default function TeacherSupportDrawer({
           setEvaluaciones(prev => prev.filter(e => e.id !== ev.id));
           setConfirmModal({ isOpen: false });
         } catch (err) {
-          toast.error('Error al eliminar evaluación: ' + err.message);
+          handleAppError(err, 'TeacherSupportDrawer / Eliminar Evaluación');
           setConfirmModal(prev => ({ ...prev, loading: false }));
         }
       }

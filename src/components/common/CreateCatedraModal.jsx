@@ -7,6 +7,7 @@ import Button from './Button';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
   const navigate = useNavigate();
@@ -165,9 +166,8 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
         navigate(`/catedra/${createdCatedra.id}`);
       }
     } catch (err) {
-      console.error('Error al crear cátedra:', err);
-      setErrorMsg(err.message || 'Error al crear la cátedra. Inténtalo nuevamente.');
-      toast.error('Error al crear la cátedra: ' + (err.message || ''));
+      const info = handleAppError(err, 'CreateCatedraModal / Crear Cátedra', user);
+      setErrorMsg(`${info.mensaje} (Código: ${info.codigo})`);
     } finally {
       setSaving(false);
     }

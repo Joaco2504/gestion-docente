@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import { handleAppError } from '../../utils/handleAppError';
 
 export default function ExcelImporter({ onImportSuccess, onStudentsImported, catedraId, cicloId }) {
   const { user, isDemo } = useAuth();
@@ -53,7 +54,7 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
       setErrors(sanitizeErrors);
       setStep(2);
     } catch (err) {
-      toast.error('Error al leer el archivo: ' + err.message);
+      handleAppError(err, 'ExcelImporter / Procesar archivo');
     } finally {
       setIsProcessing(false);
     }
@@ -102,6 +103,8 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
           if (existingMap.has(s.dni)) {
             toUpdate.push({
               id: existingMap.get(s.dni),
+              docente_id: user.id,
+              dni: s.dni,
               apellido: s.apellido,
               nombre: s.nombre
             });
@@ -127,16 +130,23 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
           newlyInserted = inserted || [];
         }
 
-        // 4. Actualizar nombres/apellidos si correspondiese
+        // 4. Actualizar nombres/apellidos si correspondiese en un único lote
         if (toUpdate.length > 0) {
-          await Promise.all(
-            toUpdate.map(u =>
-              supabase
-                .from('estudiantes')
-                .update({ apellido: u.apellido, nombre: u.nombre })
-                .eq('id', u.id)
-            )
-          );
+          const { error: updateErr } = await supabase
+            .from('estudiantes')
+            .upsert(toUpdate, { onConflict: 'id' });
+
+          if (updateErr) {
+            // Fallback resiliente si onConflict en id tuviese restricciones de RLS
+            await Promise.allSettled(
+              toUpdate.map(u =>
+                supabase
+                  .from('estudiantes')
+                  .update({ apellido: u.apellido, nombre: u.nombre })
+                  .eq('id', u.id)
+              )
+            );
+          }
         }
 
         // 5. Consolidar IDs de todos los estudiantes (nuevos + existentes)
@@ -228,8 +238,7 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
       setSanitizedData([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
-      console.error('Error al importar:', err);
-      toast.error('Error al importar alumnos: ' + err.message);
+      handleAppError(err, 'ExcelImporter / Importar Alumnos', user);
     } finally {
       setIsProcessing(false);
     }

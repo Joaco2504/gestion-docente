@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuth } from './context/AuthContext';
@@ -10,19 +10,22 @@ import BottomNav from './components/layout/BottomNav';
 import HeaderSelector from './components/layout/HeaderSelector';
 import Footer from './components/layout/Footer';
 import CreateCatedraModal from './components/common/CreateCatedraModal';
+import RouteLoadingSpinner from './components/common/RouteLoadingSpinner';
 
-// Pages
+// Pages críticas de inicio (carga síncrona)
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import CatedraDetailPage from './pages/CatedraDetailPage';
-import MesasExamenPage from './pages/MesasExamenPage';
-import CalendarPage from './pages/CalendarPage';
-import InstitutionsPage from './pages/InstitutionsPage';
-import SettingsPage from './pages/SettingsPage';
-import GuidesPage from './pages/GuidesPage';
-import SupportPage from './pages/SupportPage';
-import AdminPage from './pages/AdminPage';
-import StudentPortalPage from './pages/StudentPortalPage';
+
+// Pages secundarias (Code-Splitting con React.lazy)
+const MesasExamenPage = lazy(() => import('./pages/MesasExamenPage'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const InstitutionsPage = lazy(() => import('./pages/InstitutionsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const GuidesPage = lazy(() => import('./pages/GuidesPage'));
+const SupportPage = lazy(() => import('./pages/SupportPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const StudentPortalPage = lazy(() => import('./pages/StudentPortalPage'));
 import AdminRoute from './components/auth/AdminRoute';
 import GlobalNoticeBanner from './components/layout/GlobalNoticeBanner';
 import ScrollToTop from './components/common/ScrollToTop';
@@ -86,19 +89,21 @@ function AuthenticatedDocenteShell() {
             {/* Global Context Bar: Institución y Ciclo Activo */}
             <HeaderSelector />
 
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/catedra/:id" element={<CatedraDetailPage />} />
-              <Route path="/mesas-examen" element={<MesasExamenPage />} />
-              <Route path="/calendario" element={<CalendarPage />} />
-              <Route path="/instituciones" element={<InstitutionsPage />} />
-              <Route path="/configuracion" element={<SettingsPage />} />
-              <Route path="/guias" element={<GuidesPage />} />
-              <Route path="/soporte" element={<SupportPage />} />
-              <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
+            <Suspense fallback={<RouteLoadingSpinner mensaje="Cargando módulo académico..." />}>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/catedra/:id" element={<CatedraDetailPage />} />
+                <Route path="/mesas-examen" element={<MesasExamenPage />} />
+                <Route path="/calendario" element={<CalendarPage />} />
+                <Route path="/instituciones" element={<InstitutionsPage />} />
+                <Route path="/configuracion" element={<SettingsPage />} />
+                <Route path="/guias" element={<GuidesPage />} />
+                <Route path="/soporte" element={<SupportPage />} />
+                <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Suspense>
 
             {/* Institutional Footer & Dark Enterprise CTA Banner */}
             <Footer />
@@ -136,13 +141,15 @@ export default function App() {
           theme={theme === 'system' ? undefined : theme} 
         />
 
-        <Routes>
-          {/* Ruta Pública del Estudiante: Accesible sin autenticación */}
-          <Route path="/consulta/:catedraId" element={<StudentPortalPage />} />
+        <Suspense fallback={<RouteLoadingSpinner mensaje="Iniciando portal..." />}>
+          <Routes>
+            {/* Ruta Pública del Estudiante: Accesible sin autenticación */}
+            <Route path="/consulta/:catedraId" element={<StudentPortalPage />} />
 
-          {/* Rutas del Sistema Docente */}
-          <Route path="/*" element={<AuthenticatedDocenteShell />} />
-        </Routes>
+            {/* Rutas del Sistema Docente */}
+            <Route path="/*" element={<AuthenticatedDocenteShell />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </NotificationProvider>
   );

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { handleAppError } from '../utils/handleAppError';
 
 const AuthContext = createContext({});
 
@@ -206,7 +207,7 @@ export function AuthProvider({ children }) {
       }
       return { data, error: null };
     } catch (err) {
-      console.error('Error updating user avatar:', err);
+      handleAppError(err, 'AuthContext / updateUserAvatar', user);
       return { error: err };
     }
   };

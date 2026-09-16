@@ -46,6 +46,217 @@ import { formatFechaDMY, parseDMYtoYMD } from '../../lib/dateUtils';
 import { useAuth } from '../../context/AuthContext';
 import RiskBadge from '../common/RiskBadge';
 import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
+import { handleAppError } from '../../utils/handleAppError';
+
+/**
+ * DebouncedGradeInput - Input de nota con debounce configurable (default 300ms)
+ * Previene ráfagas de escrituras concurrentes hacia Supabase mientras el docente tipea.
+ */
+function DebouncedGradeInput({ value, onChange, onDebouncedChange, delay = 300, className = '', ...props }) {
+  const [localVal, setLocalVal] = useState(value ?? '');
+  const timerRef = React.useRef(null);
+
+  useEffect(() => {
+    setLocalVal(value ?? '');
+  }, [value]);
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setLocalVal(val);
+    if (onChange) onChange(val);
+
+    if (onDebouncedChange) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        onDebouncedChange(val);
+      }, delay);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return (
+    <input
+      type="number"
+      step="0.5"
+      min="1"
+      max="10"
+      value={localVal}
+      onChange={handleInputChange}
+      className={className}
+      {...props}
+    />
+  );
+}
+
+/**
+ * GradeCell - Celda individual de nota de examen memoizada
+ * Evita el re-renderizado masivo de la grilla (90+ filas x 30+ columnas)
+ */
+const GradeCell = React.memo(function GradeCell({
+  est,
+  ev,
+  recup,
+  notaOriginal,
+  notaRecup,
+  isFlashingOriginal,
+  isFlashingRecup,
+  onOpenEditNota
+}) {
+  return (
+    <td className="px-3 sm:px-4 py-3 text-center border-l border-surface-border">
+      <div className="flex items-center justify-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onOpenEditNota(est, ev)}
+          title={`Editar nota de ${ev.titulo}`}
+          className={`min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center active:scale-95 duration-100 ${
+            isFlashingOriginal ? 'animate-flash-success' : ''
+          } ${
+            notaOriginal !== null
+              ? notaOriginal >= 7
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100'
+                : notaOriginal >= 4
+                ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100'
+                : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100'
+              : 'bg-surface hover:bg-surface-hover text-text-muted border-dashed border-surface-border'
+          }`}
+        >
+          {notaOriginal !== null ? notaOriginal : '—'}
+        </button>
+
+        {recup && (
+          <button
+            type="button"
+            onClick={() => onOpenEditNota(est, recup)}
+            title={`Editar ${recup.titulo}`}
+            className={`min-h-[44px] min-w-[44px] px-2 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center active:scale-95 duration-100 ${
+              isFlashingRecup ? 'animate-flash-success' : ''
+            } ${
+              notaRecup !== null
+                ? notaRecup >= 4
+                  ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-100'
+                  : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100'
+                : 'bg-purple-50/50 hover:bg-purple-100 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
+            }`}
+          >
+            {notaRecup !== null ? `R:${notaRecup}` : 'R:—'}
+          </button>
+        )}
+      </div>
+    </td>
+  );
+}, (prev, next) => {
+  return (
+    prev.notaOriginal === next.notaOriginal &&
+    prev.notaRecup === next.notaRecup &&
+    prev.isFlashingOriginal === next.isFlashingOriginal &&
+    prev.isFlashingRecup === next.isFlashingRecup &&
+    prev.ev.id === next.ev.id &&
+    prev.recup?.id === next.recup?.id
+  );
+});
+
+/**
+ * GradeRow - Fila de estudiante memoizada para la matriz de calificaciones
+ */
+const GradeRow = React.memo(function GradeRow({
+  item,
+  idx,
+  mainEvaluations,
+  evaluaciones,
+  flashingGradeKey,
+  studentRisk,
+  getNotaValue,
+  getCondBadgeVariant,
+  onOpenEditNota
+}) {
+  const est = item.estudiante;
+
+  return (
+    <tr className="hover:bg-surface-hover/40 transition-colors">
+      <td className="hidden md:table-cell px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{idx + 1}</td>
+      <td className="hidden md:table-cell px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
+      <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-3 sm:px-4 py-3 font-semibold text-text-primary whitespace-nowrap border-r border-surface-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-text-primary">
+            {est.apellido}, {est.nombre}
+          </span>
+          <RiskBadge risk={studentRisk} compact />
+        </div>
+        <div className="text-[10px] font-mono text-text-muted md:hidden">
+          DNI: {est.dni}
+        </div>
+      </td>
+
+      {/* Attendance % */}
+      <td className="px-3 py-3 text-center font-mono">
+        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+          item.asistenciaPct < 70 
+            ? 'bg-red-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300' 
+            : 'bg-green-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+        }`}>
+          {item.asistenciaPct}%
+        </span>
+      </td>
+
+      {/* Main evaluations and linked recuperatorios */}
+      {mainEvaluations.map(ev => {
+        const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
+        const notaOriginal = getNotaValue(est.id, ev.id);
+        const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
+        const isFlashingOriginal = flashingGradeKey === `${est.id}_${ev.id}`;
+        const isFlashingRecup = recup ? flashingGradeKey === `${est.id}_${recup.id}` : false;
+
+        return (
+          <GradeCell
+            key={ev.id}
+            est={est}
+            ev={ev}
+            recup={recup}
+            notaOriginal={notaOriginal}
+            notaRecup={notaRecup}
+            isFlashingOriginal={isFlashingOriginal}
+            isFlashingRecup={isFlashingRecup}
+            onOpenEditNota={onOpenEditNota}
+          />
+        );
+      })}
+
+      {/* Final Condition Badge */}
+      <td className="px-4 py-3 text-center border-l border-surface-border bg-surface-hover/20">
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            <Badge variant={getCondBadgeVariant(item.condicion?.condicion)}>
+              {item.condicion?.condicion}
+            </Badge>
+            <RiskBadge risk={studentRisk} compact />
+          </div>
+          {item.condicion?.motivo && (
+            <span className="text-[10px] text-text-muted truncate max-w-[130px]" title={item.condicion.motivo}>
+              {item.condicion.motivo}
+            </span>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}, (prev, next) => {
+  return (
+    prev.item.estudiante.id === next.item.estudiante.id &&
+    prev.item.asistenciaPct === next.item.asistenciaPct &&
+    prev.item.condicion?.condicion === next.item.condicion?.condicion &&
+    prev.item.condicion?.motivo === next.item.condicion?.motivo &&
+    prev.studentRisk === next.studentRisk &&
+    prev.mainEvaluations === next.mainEvaluations &&
+    prev.evaluaciones === next.evaluaciones &&
+    prev.flashingGradeKey === next.flashingGradeKey
+  );
+});
 
 export default function GradesTab({
   catedraId,
@@ -345,8 +556,7 @@ export default function GradesTab({
         localStorage.setItem(`notas_${catedraId}`, JSON.stringify(notasList));
       }
     } catch (err) {
-      console.error('Error fetching grades data:', err);
-      toast.error('No se pudieron cargar las calificaciones.');
+      handleAppError(err, 'GradesTab / Cargar calificaciones');
     } finally {
       setLoading(false);
     }
@@ -392,8 +602,7 @@ export default function GradesTab({
       toast.success(`Calificación eliminada para ${selectedStudentForNota.apellido}.`);
       setIsEditNotaModalOpen(false);
     } catch (err) {
-      console.error('Error al eliminar nota:', err);
-      toast.error('Error al eliminar la calificación: ' + err.message);
+      handleAppError(err, 'GradesTab / Eliminar Calificación', user);
     } finally {
       setSavingNota(false);
     }
@@ -452,8 +661,7 @@ export default function GradesTab({
       setTimeout(() => setFlashingGradeKey(null), 1200);
       setIsEditNotaModalOpen(false);
     } catch (err) {
-      console.error('Error al guardar nota:', err);
-      toast.error('Error al guardar la calificación: ' + err.message);
+      handleAppError(err, 'GradesTab / Guardar Calificación', user);
     } finally {
       setSavingNota(false);
     }
@@ -584,7 +792,7 @@ export default function GradesTab({
       setEvalFechaEntrega('');
       setEvalDriveUrl('');
     } catch (err) {
-      toast.error('Error al crear evaluación: ' + err.message);
+      handleAppError(err, 'GradesTab / Crear Evaluación', user);
     } finally {
       setSavingEval(false);
     }
@@ -623,8 +831,7 @@ export default function GradesTab({
 
       toast.success(`Evaluación "${evalTitulo}" eliminada correctamente.`);
     } catch (err) {
-      console.error('Error al eliminar evaluación:', err);
-      toast.error('Error al eliminar la evaluación: ' + err.message);
+      handleAppError(err, 'GradesTab / Eliminar Evaluación', user);
     }
   };
 
@@ -695,7 +902,7 @@ export default function GradesTab({
       setIsEditEvalModalOpen(false);
       setEditingEval(null);
     } catch (err) {
-      toast.error('Error al actualizar evaluación: ' + err.message);
+      handleAppError(err, 'GradesTab / Actualizar Evaluación', user);
     } finally {
       setSavingEditEval(false);
     }
@@ -743,7 +950,8 @@ export default function GradesTab({
           upsertsSupabase.push({
             evaluacion_id: evalId,
             estudiante_id: est.id,
-            valor: num
+            valor: num,
+            updated_at: new Date().toISOString()
           });
         }
       }
@@ -772,8 +980,7 @@ export default function GradesTab({
       setIsBatchGradeModalOpen(false);
       setTargetEvalForBatch(null);
     } catch (err) {
-      console.error('Error guardando calificaciones masivas:', err);
-      toast.error('Error al guardar calificaciones: ' + err.message);
+      handleAppError(err, 'GradesTab / Guardar Calificaciones Masivas', user);
     } finally {
       setSavingBatchGrades(false);
     }
@@ -849,7 +1056,7 @@ export default function GradesTab({
       );
       toast.success('Archivo Excel (.xlsx) generado correctamente.');
     } catch (err) {
-      toast.error('Error al exportar Excel: ' + err.message);
+      handleAppError(err, 'GradesTab / Exportar Excel', user);
     }
   };
 
@@ -864,7 +1071,7 @@ export default function GradesTab({
       );
       toast.success('Archivo CSV (.csv) generado correctamente.');
     } catch (err) {
-      toast.error('Error al exportar CSV: ' + err.message);
+      handleAppError(err, 'GradesTab / Exportar CSV', user);
     }
   };
 
@@ -1441,13 +1648,13 @@ export default function GradesTab({
       ) : (
         /* High-Density Panoramic Table View with sticky student column */
         <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-          <div className="overflow-x-auto scrollbar-thin">
+          <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin">
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead className="bg-surface-hover/80 text-text-secondary border-b border-surface-border">
                 <tr>
                   <th className="hidden md:table-cell px-3 sm:px-4 py-3 text-center w-12 font-mono">#</th>
                   <th className="hidden md:table-cell px-3 sm:px-4 py-3 font-mono">DNI</th>
-                  <th className="sticky left-0 z-20 bg-surface dark:bg-slate-900 px-3 sm:px-4 py-3 min-w-[160px] sm:min-w-[210px] border-r border-surface-border shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)] font-bold text-text-primary">
+                  <th className="sticky left-0 z-20 bg-white dark:bg-slate-900 px-3 sm:px-4 py-3 min-w-[160px] sm:min-w-[210px] border-r border-surface-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] font-bold text-text-primary">
                     Estudiante
                   </th>
                   <th className="px-3 py-3 text-center w-24 font-mono">% Asist.</th>
@@ -1533,107 +1740,20 @@ export default function GradesTab({
               </thead>
 
               <tbody className="divide-y divide-surface-border">
-                {matrixData.map((item, idx) => {
-                  const est = item.estudiante;
-                  return (
-                    <tr key={est.id} className="hover:bg-surface-hover/40 transition-colors">
-                      <td className="hidden md:table-cell px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{idx + 1}</td>
-                      <td className="hidden md:table-cell px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
-                      <td className="sticky left-0 z-10 bg-surface dark:bg-slate-900 px-3 sm:px-4 py-3 font-semibold text-text-primary whitespace-nowrap border-r border-surface-border shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)]">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-text-primary">
-                            {est.apellido}, {est.nombre}
-                          </span>
-                          <RiskBadge risk={studentRiskMap.get(est.id)} compact />
-                        </div>
-                        <div className="text-[10px] font-mono text-text-muted md:hidden">
-                          DNI: {est.dni}
-                        </div>
-                      </td>
-
-                      {/* Attendance % */}
-                      <td className="px-3 py-3 text-center font-mono">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                          item.asistenciaPct < 70 
-                            ? 'bg-red-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300' 
-                            : 'bg-green-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                        }`}>
-                          {item.asistenciaPct}%
-                        </span>
-                      </td>
-
-                      {/* Main evaluations and linked recuperatorios */}
-                      {mainEvaluations.map(ev => {
-                        const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
-                        const notaOriginal = getNotaValue(est.id, ev.id);
-                        const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
-
-                        return (
-                          <td key={ev.id} className="px-3 sm:px-4 py-3 text-center border-l border-surface-border">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {/* Original note button */}
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditNota(est, ev)}
-                                title={`Editar nota de ${ev.titulo}`}
-                                className={`min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center active:scale-95 duration-100 ${
-                                  flashingGradeKey === `${est.id}_${ev.id}` ? 'animate-flash-success' : ''
-                                } ${
-                                  notaOriginal !== null
-                                    ? notaOriginal >= 7
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100'
-                                      : notaOriginal >= 4
-                                      ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100'
-                                      : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100'
-                                    : 'bg-surface hover:bg-surface-hover text-text-muted border-dashed border-surface-border'
-                                }`}
-                              >
-                                {notaOriginal !== null ? notaOriginal : '—'}
-                              </button>
-
-                              {/* Recuperatorio side-by-side if exists */}
-                              {recup && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditNota(est, recup)}
-                                  title={`Editar ${recup.titulo}`}
-                                  className={`min-h-[44px] min-w-[44px] px-2 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center active:scale-95 duration-100 ${
-                                    flashingGradeKey === `${est.id}_${recup.id}` ? 'animate-flash-success' : ''
-                                  } ${
-                                    notaRecup !== null
-                                      ? notaRecup >= 4
-                                        ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-100'
-                                        : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100'
-                                      : 'bg-purple-50/50 hover:bg-purple-100 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
-                                  }`}
-                                >
-                                  {notaRecup !== null ? `R:${notaRecup}` : 'R:—'}
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-
-                      {/* Final Condition Badge */}
-                      <td className="px-4 py-3 text-center border-l border-surface-border bg-surface-hover/20">
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="flex items-center gap-1.5">
-                            <Badge variant={getCondBadgeVariant(item.condicion.condicion)}>
-                              {item.condicion.condicion}
-                            </Badge>
-                            <RiskBadge risk={studentRiskMap.get(est.id)} compact />
-                          </div>
-                          {item.condicion.motivo && (
-                            <span className="text-[10px] text-text-muted truncate max-w-[130px]" title={item.condicion.motivo}>
-                              {item.condicion.motivo}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {matrixData.map((item, idx) => (
+                  <GradeRow
+                    key={item.estudiante.id}
+                    item={item}
+                    idx={idx}
+                    mainEvaluations={mainEvaluations}
+                    evaluaciones={evaluaciones}
+                    flashingGradeKey={flashingGradeKey}
+                    studentRisk={studentRiskMap.get(item.estudiante.id)}
+                    getNotaValue={getNotaValue}
+                    getCondBadgeVariant={getCondBadgeVariant}
+                    onOpenEditNota={handleOpenEditNota}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
@@ -1652,15 +1772,12 @@ export default function GradesTab({
             <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
               Calificación Numérica (1 a 10)
             </label>
-            <input
-              type="number"
-              step="0.5"
-              min="1"
-              max="10"
+            <DebouncedGradeInput
               autoFocus
               placeholder="Ej: 7.5 (dejar vacío para borrar nota)"
               value={inputNotaValor}
-              onChange={(e) => setInputNotaValor(e.target.value)}
+              delay={300}
+              onDebouncedChange={(val) => setInputNotaValor(val)}
               className="w-full px-3.5 py-3 text-lg font-mono font-bold border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
             <p className="text-[11px] text-text-muted mt-1.5">
@@ -1995,15 +2112,11 @@ export default function GradesTab({
                   </div>
 
                   <div className="w-24 shrink-0">
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="1"
-                      max="10"
+                    <DebouncedGradeInput
                       placeholder="—"
                       value={currentVal}
-                      onChange={(e) => {
-                        const val = e.target.value;
+                      delay={300}
+                      onDebouncedChange={(val) => {
                         setBatchGradesMap(prev => ({ ...prev, [est.id]: val }));
                       }}
                       className="w-full px-2.5 py-1.5 text-sm font-mono font-bold text-center border border-surface-border rounded-lg bg-surface text-text-primary focus:ring-2 focus:ring-primary/20 outline-none"

@@ -26,6 +26,7 @@ import {
   Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { handleAppError } from '../../utils/handleAppError';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 import Card from '../common/Card';
@@ -156,7 +157,7 @@ export default function MesasExamenTab({
         loadFallbackMesas();
       }
     } catch (err) {
-      console.error('Error in fetchMesas:', err);
+      handleAppError(err, 'MesasExamenTab / fetchMesas');
       loadFallbackMesas();
     } finally {
       setLoading(false);
@@ -244,7 +245,7 @@ export default function MesasExamenTab({
         loadFallbackActas(mesaId);
       }
     } catch (err) {
-      console.error('Error in fetchActaAlumnos:', err);
+      handleAppError(err, 'MesasExamenTab / fetchActaAlumnos');
       loadFallbackActas(mesaId);
     } finally {
       setLoadingActa(false);
@@ -299,7 +300,7 @@ export default function MesasExamenTab({
         setAvailableStudents(JSON.parse(stored));
       }
     } catch (err) {
-      console.error('Error fetching available students:', err);
+      handleAppError(err, 'MesasExamenTab / fetchAvailableStudents');
     }
   };
 
@@ -438,8 +439,7 @@ export default function MesasExamenTab({
       setIsMesaModalOpen(false);
       fetchMesas();
     } catch (err) {
-      console.error('Error saving mesa:', err);
-      toast.error('No se pudo guardar la mesa de examen.');
+      handleAppError(err, 'MesasExamenTab / Guardar mesa');
     }
   };
 
@@ -465,8 +465,7 @@ export default function MesasExamenTab({
       }
       toast.success('Mesa de examen eliminada.');
     } catch (err) {
-      console.error('Error deleting mesa:', err);
-      toast.error('Error al eliminar la mesa de examen.');
+      handleAppError(err, 'MesasExamenTab / Eliminar mesa');
     }
   };
 
@@ -578,28 +577,30 @@ export default function MesasExamenTab({
       if (isSupabaseConfigured && !isDemo) {
         let rpcSuccessful = false;
 
-        // 1. Intentar registrar mediante RPC atómica
+        // 1. Intentar registrar mediante RPC atómica por lote
         try {
-          for (const a of actasAlumnos) {
-            const rpcPayload = {
-              p_acta_alumno_id: String(a.id).startsWith('temp-') ? null : a.id,
-              p_mesa_id: selectedMesa.id,
-              p_estudiante_id: a.estudiante_id || null,
-              p_alumno_nombre_completo: a.alumno_nombre_completo,
-              p_alumno_dni: a.alumno_dni || '',
-              p_condicion_previa: a.condicion_previa || 'REGULAR',
-              p_nota_escrito: a.nota_escrito !== null && a.nota_escrito !== '' ? Number(a.nota_escrito) : null,
-              p_nota_oral: a.nota_oral !== null && a.nota_oral !== '' ? Number(a.nota_oral) : null,
-              p_nota_definitiva: a.nota_definitiva !== null && a.nota_definitiva !== '' ? Number(a.nota_definitiva) : null,
-              p_dictamen: a.dictamen || 'AUSENTE',
-              p_observaciones: a.observaciones || ''
-            };
-            const { error: rpcError } = await supabase.rpc('registrar_resultado_examen', rpcPayload);
-            if (rpcError) throw rpcError;
-          }
+          const p_filas = actasAlumnos.map(a => ({
+            id: String(a.id || '').startsWith('temp-') ? null : a.id,
+            estudiante_id: a.estudiante_id || null,
+            alumno_nombre_completo: a.alumno_nombre_completo,
+            alumno_dni: a.alumno_dni || '',
+            condicion_previa: a.condicion_previa || 'REGULAR',
+            nota_escrito: a.nota_escrito !== null && a.nota_escrito !== '' ? Number(a.nota_escrito) : null,
+            nota_oral: a.nota_oral !== null && a.nota_oral !== '' ? Number(a.nota_oral) : null,
+            nota_definitiva: a.nota_definitiva !== null && a.nota_definitiva !== '' ? Number(a.nota_definitiva) : null,
+            dictamen: a.dictamen || 'AUSENTE',
+            observaciones: a.observaciones || ''
+          }));
+
+          const { error: rpcError } = await supabase.rpc('guardar_acta_examen_lote', {
+            p_mesa_id: selectedMesa.id,
+            p_catedra_id: catedraId,
+            p_filas
+          });
+          if (rpcError) throw rpcError;
           rpcSuccessful = true;
         } catch (rpcErr) {
-          console.warn('Fallback por ausencia o error en RPC registrar_resultado_examen:', rpcErr);
+          console.warn('Fallback por ausencia o error en RPC guardar_acta_examen_lote:', rpcErr);
         }
 
         // 2. Fallback de guardado directo si la RPC no existe aún
@@ -623,12 +624,15 @@ export default function MesasExamenTab({
             .upsert(rows, { onConflict: 'id' });
           if (upsertErr) throw upsertErr;
 
-          // Actualizar acreditación en inscripciones para los aprobados / acreditados
+          // Actualizar acreditación en inscripciones para los aprobados / acreditados concurrentemente
           const fechaAcreditacion = selectedMesa.fecha ? new Date(selectedMesa.fecha).toISOString() : new Date().toISOString();
-          for (const a of actasAlumnos) {
-            if (a.estudiante_id && (a.dictamen === 'ACREDITADO' || a.dictamen === 'APROBADO')) {
-              try {
-                await supabase
+          const aprobados = actasAlumnos.filter(
+            a => a.estudiante_id && (a.dictamen === 'ACREDITADO' || a.dictamen === 'APROBADO')
+          );
+          if (aprobados.length > 0) {
+            await Promise.allSettled(
+              aprobados.map(a =>
+                supabase
                   .from('inscripciones')
                   .update({
                     estado_academico: 'ACREDITADO',
@@ -636,9 +640,9 @@ export default function MesasExamenTab({
                     fecha_acreditacion: fechaAcreditacion
                   })
                   .eq('catedra_id', catedraId)
-                  .eq('estudiante_id', a.estudiante_id);
-              } catch (_) {}
-            }
+                  .eq('estudiante_id', a.estudiante_id)
+              )
+            );
           }
         }
       }
@@ -670,9 +674,9 @@ export default function MesasExamenTab({
       fetchActaAlumnos(selectedMesa.id);
       fetchAvailableStudents();
     } catch (err) {
-      console.error('Error saving acta:', err);
+      handleAppError(err, 'MesasExamenTab / Guardar acta calificaciones');
       localStorage.setItem(`actas_examen_${selectedMesa.id}`, JSON.stringify(actasAlumnos));
-      toast.success('Guardado en almacenamiento local seguro.');
+      toast.info('Guardado en almacenamiento local de contingencia.');
     } finally {
       setSavingActa(false);
     }
@@ -882,12 +886,12 @@ export default function MesasExamenTab({
 
           {/* Tabla Interactiva de Calificaciones */}
           <Card className="overflow-hidden p-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50/75 dark:bg-white/[0.02] text-text-muted font-bold text-[11px] uppercase tracking-wider">
                     <th className="py-3 px-3 w-10 text-center">N°</th>
-                    <th className="py-3 px-3">Estudiante (Nombre y DNI)</th>
+                    <th className="py-3 px-3 sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Estudiante (Nombre y DNI)</th>
                     <th className="py-3 px-3 text-center w-28">Condición</th>
                     <th className="py-3 px-3 text-center w-24">Escrito (1-10)</th>
                     <th className="py-3 px-3 text-center w-24">Oral (1-10)</th>
@@ -932,7 +936,7 @@ export default function MesasExamenTab({
                             {idx + 1}
                           </td>
 
-                          <td className="py-2.5 px-3">
+                          <td className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                             <div className="font-bold text-text-primary text-xs flex items-center gap-1.5">
                               <span>{alumno.alumno_nombre_completo}</span>
                               {isPromocional && (

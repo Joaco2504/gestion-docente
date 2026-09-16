@@ -40,6 +40,7 @@ import { SkeletonCatedraCard, SkeletonBentoGrid } from '../components/common/Ske
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { handleAppError } from '../utils/handleAppError';
 import { 
   formatFechaDMY, 
   formatFechaLegible, 
@@ -269,8 +270,7 @@ export default function DashboardPage() {
         loadDemoData();
       }
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      toast.error('Error al cargar datos del panel: ' + err.message);
+      handleAppError(err, 'DashboardPage / Cargar Datos', user);
     } finally {
       setLoading(false);
     }
@@ -720,8 +720,8 @@ const normalizeSearchText = (str) => {
         toast.success(`Cátedra "${newCat.nombre}" creada`);
       }
     } catch (err) {
-      console.error('Error creating cátedra:', err);
-      setErrorMsg(err.message || 'Error al crear la cátedra');
+      const info = handleAppError(err, 'DashboardPage / Crear Cátedra', user);
+      setErrorMsg(`${info.mensaje} (Código: ${info.codigo})`);
     } finally {
       setSavingCatedra(false);
     }
@@ -799,7 +799,7 @@ const normalizeSearchText = (str) => {
         setQuickTema('');
       }
     } catch (err) {
-      toast.error('Error al registrar clase: ' + err.message);
+      handleAppError(err, 'DashboardPage / Registrar Clase Rápida', user);
     } finally {
       setSavingQuickClass(false);
     }
@@ -856,7 +856,7 @@ const normalizeSearchText = (str) => {
         toast.success('Evento agregado a la agenda.');
       }
     } catch (err) {
-      toast.error('Error al agendar evento: ' + err.message);
+      handleAppError(err, 'DashboardPage / Agendar Evento Rápido', user);
     } finally {
       setSavingEvent(false);
     }

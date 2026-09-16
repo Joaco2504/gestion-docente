@@ -32,6 +32,7 @@ import {
   normalizeDni 
 } from '../services/studentPortalService';
 import { useTheme } from '../context/ThemeContext';
+import { handleAppError } from '../utils/handleAppError';
 
 export default function StudentPortalPage() {
   const { catedraId } = useParams();
@@ -55,7 +56,7 @@ export default function StudentPortalPage() {
         const config = await getCatedraPortalConfig(catedraId);
         setPortalConfig(config);
       } catch (err) {
-        console.error('Error al cargar cátedra:', err);
+        handleAppError(err, 'StudentPortalPage / loadInitial');
       } finally {
         setInitLoading(false);
       }
@@ -84,7 +85,7 @@ export default function StudentPortalPage() {
         setResultado(res);
       }
     } catch (err) {
-      console.error('Error al consultar estado:', err);
+      handleAppError(err, 'StudentPortalPage / handleSearch');
       setSearchError('Ocurrió un error inesperado al consultar los datos. Por favor reintenta en unos instantes.');
     } finally {
       setSearching(false);

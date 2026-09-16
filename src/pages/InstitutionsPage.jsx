@@ -20,6 +20,7 @@ import CustomSelect from '../components/common/CustomSelect';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { handleAppError } from '../utils/handleAppError';
 
 export default function InstitutionsPage() {
   const { user, isDemo } = useAuth();
@@ -104,9 +105,8 @@ export default function InstitutionsPage() {
         toast.success(`Institución "${newInst.nombre}" creada (Modo Demo)`);
       }
     } catch (err) {
-      console.error('Error creating institution:', err);
-      setErrorMsg(err.message || 'Error al guardar la institución');
-      toast.error('Error al guardar la institución: ' + err.message);
+      const info = handleAppError(err, 'InstitutionsPage / Crear Institución', user);
+      setErrorMsg(`${info.mensaje} (Código: ${info.codigo})`);
     } finally {
       setSavingInst(false);
     }
@@ -171,9 +171,8 @@ export default function InstitutionsPage() {
         toast.success(`Ciclo Lectivo ${cicloAnio} creado (Modo Demo)`);
       }
     } catch (err) {
-      console.error('Error creating ciclo:', err);
-      setErrorMsg(err.message || 'Error al crear el ciclo lectivo');
-      toast.error('Error al crear ciclo: ' + err.message);
+      const info = handleAppError(err, 'InstitutionsPage / Crear Ciclo Lectivo', user);
+      setErrorMsg(`${info.mensaje} (Código: ${info.codigo})`);
     } finally {
       setSavingCiclo(false);
     }
@@ -217,8 +216,7 @@ export default function InstitutionsPage() {
       setEditingInst(null);
       await refreshData();
     } catch (err) {
-      console.error('Error al editar institución:', err);
-      toast.error('Error al actualizar institución: ' + err.message);
+      handleAppError(err, 'InstitutionsPage / Actualizar Institución', user);
     } finally {
       setSavingEditInst(false);
     }
@@ -277,8 +275,7 @@ export default function InstitutionsPage() {
       setInstToDelete(null);
       await refreshData();
     } catch (err) {
-      console.error('Error eliminando institución:', err);
-      toast.error('Error al eliminar institución: ' + err.message);
+      handleAppError(err, 'InstitutionsPage / Eliminar Institución', user);
     } finally {
       setDeletingInst(false);
     }

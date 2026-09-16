@@ -3,6 +3,7 @@ import { BookOpen, Calendar, Clock, Layers, FileText, Trash2 } from 'lucide-reac
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CustomSelect from '../common/CustomSelect';
+import { handleAppError } from '../../utils/handleAppError';
 
 const CARACTER_OPTIONS = [
   { value: 'Teórico', label: 'Teórico' },
@@ -71,7 +72,7 @@ export default function EditClassModal({
         setIsQuickCreating(false);
         setQuickTitulo('');
       } catch (err) {
-        console.error('Error creating quick unit:', err);
+        handleAppError(err, 'EditClassModal / handleQuickCreateUnidad');
       } finally {
         setSavingQuickUnit(false);
       }

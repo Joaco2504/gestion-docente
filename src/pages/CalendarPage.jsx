@@ -34,6 +34,7 @@ import CustomSelect from '../components/common/CustomSelect';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { handleAppError } from '../utils/handleAppError';
 import { generateIcsContent, downloadIcsFile, getGoogleCalendarUrl } from '../lib/calendarSync';
 import { formatFechaLegible, getRelativeDateLabel, getTodayYMD } from '../lib/dateUtils';
 
@@ -161,8 +162,7 @@ export default function CalendarPage() {
         loadDemoCalendarData();
       }
     } catch (err) {
-      console.error('Error fetching calendar data:', err);
-      toast.error('Error al cargar datos del calendario.');
+      handleAppError(err, 'CalendarPage / Cargar datos calendario');
     } finally {
       setLoading(false);
     }
@@ -405,8 +405,8 @@ export default function CalendarPage() {
       setTitulo('');
       setNotas('');
     } catch (err) {
-      console.error('Error creating event:', err);
-      setErrorMsg(err.message || 'Error al guardar el evento');
+      const info = handleAppError(err, 'CalendarPage / Crear Evento', user);
+      setErrorMsg(`${info.mensaje} (Código: ${info.codigo})`);
     } finally {
       setSaving(false);
     }
@@ -429,7 +429,7 @@ export default function CalendarPage() {
       setSelectedEventForDetail(null);
       toast.success('Evento eliminado del calendario');
     } catch (err) {
-      toast.error('Error al eliminar evento: ' + err.message);
+      handleAppError(err, 'CalendarPage / Eliminar Evento', user);
     }
   };
 
@@ -443,7 +443,7 @@ export default function CalendarPage() {
       toast.success('Archivo .ics descargado con éxito');
       setIsSyncModalOpen(false);
     } catch (err) {
-      toast.error('Error al generar archivo .ics: ' + err.message);
+      handleAppError(err, 'CalendarPage / Generar Archivo ICS', user);
     }
   };
 

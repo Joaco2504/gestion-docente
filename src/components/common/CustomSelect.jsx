@@ -309,7 +309,7 @@ export default function CustomSelect({
         <div
           role="listbox"
           className={`
-            absolute z-50 mt-1.5 w-full min-w-[200px] max-w-sm
+            absolute z-[90] mt-1.5 w-full min-w-[200px] max-w-sm
             bg-surface border border-surface-border rounded-2xl shadow-elevated
             py-1.5 overflow-hidden animate-fadeIn backdrop-blur-md
             ${align === 'right' ? 'right-0' : 'left-0'}
