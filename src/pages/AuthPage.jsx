@@ -17,6 +17,8 @@ import ThemeToggle from '../components/common/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { handleAppError } from '../utils/handleAppError';
+import { procesarErrorDocente } from '../utils/errorCodes';
+import { toast } from 'sonner';
 
 const getFriendlyAuthError = (err) => {
   const msg = (err?.message || '').toLowerCase();
@@ -52,6 +54,17 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Notificar al usuario si la sesión anterior caducó por seguridad (ERR-101 / PGRST303)
+  useEffect(() => {
+    try {
+      const expiredNotice = sessionStorage.getItem('auth_expired_notice');
+      if (expiredNotice) {
+        sessionStorage.removeItem('auth_expired_notice');
+        toast.info('Tu sesión ha caducado por seguridad. Por favor, ingresa nuevamente.');
+      }
+    } catch (_) {}
+  }, []);
 
   // Asegurar que tras la validación de la sesión no quede colgado en pantallas de login intermedias
   useEffect(() => {

@@ -14,7 +14,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { uploadCatedraFile } from '../../lib/supabase';
+import { uploadCatedraFile, supabase } from '../../lib/supabase';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { handleAppError } from '../../utils/handleAppError';
@@ -129,7 +129,7 @@ export const PRESET_AVATARS = [
 
 export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
   const navigate = useNavigate();
-  const { user, isDemo, signOut, updateUserAvatar } = useAuth();
+  const { user, isDemo, signOut, updateUserAvatar, esSuperadmin } = useAuth();
   const popoverRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -226,6 +226,21 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
     }
   };
 
+  // Cierre de sesión definitivo y seguro
+  const handleSignOut = async () => {
+    onClose();
+    try {
+      if (supabase) {
+        await supabase.auth.signOut().catch(() => {});
+      }
+    } catch (_) {}
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) {}
+    window.location.href = '/login';
+  };
+
   if (!isOpen) return null;
 
   const teacherName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente';
@@ -235,12 +250,12 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
     <>
       <div
         ref={popoverRef}
-        className="fixed left-4 right-4 sm:left-20 sm:right-auto bottom-20 md:bottom-4 z-[9999] w-auto sm:w-80 bg-white dark:bg-[#0c1222] border-2 border-primary/40 dark:border-primary/50 rounded-2xl shadow-2xl shadow-black/25 dark:shadow-black/70 ring-1 ring-black/10 dark:ring-white/10 p-3 animate-fadeIn text-text-primary origin-bottom-left"
+        className="fixed left-4 right-4 sm:left-20 sm:right-auto bottom-20 md:bottom-4 z-50 w-auto sm:w-80 bg-white dark:bg-[#0c1222] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl shadow-black/25 dark:shadow-black/70 ring-1 ring-black/5 dark:ring-white/10 p-3 animate-fadeIn text-text-primary origin-bottom-left"
       >
-        {/* Cabecera del usuario con alto contraste */}
-        <div className="p-3 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 flex items-center gap-3 mb-2">
+        {/* Cabecera del usuario: Avatar, Nombre, Email y Rol Badge */}
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 flex items-center gap-3 mb-2">
           <div className="relative shrink-0">
-            <div className="w-11 h-11 rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-primary/30 flex items-center justify-center shadow-xs">
+            <div className="w-11 h-11 rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/50 flex items-center justify-center shadow-xs">
               {currentAvatar?.startsWith('preset:') ? (
                 PRESET_AVATARS.find(a => `preset:${a.id}` === currentAvatar)?.svg || (
                   <User className="w-6 h-6 text-primary" />
@@ -251,28 +266,33 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
                 <User className="w-6 h-6 text-primary" />
               )}
             </div>
-            {/* Halo activo online */}
+            {/* Indicador activo online */}
             <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-800" />
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between gap-1.5 mb-0.5">
               <span className="text-xs font-bold text-text-primary truncate block">
                 {teacherName}
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 shrink-0">
+                {esSuperadmin ? 'Superadmin' : 'Docente'}
+              </span>
             </div>
             <p className="text-[11px] text-text-muted truncate font-mono">
               {teacherEmail}
             </p>
-            <div className="flex items-center gap-1 text-[10px] text-primary font-semibold mt-0.5">
+            <div className="flex items-center gap-1 text-[10px] text-primary font-semibold mt-1">
               <ShieldCheck className="w-3 h-3" />
               <span>{isDemo ? 'Sesión Demo Activa' : 'Cuenta Verificada'}</span>
             </div>
           </div>
         </div>
 
-        {/* Acciones principales */}
+        {/* Separador horizontal fino */}
+        <div className="border-t border-slate-200/80 dark:border-white/10 my-1" />
+
+        {/* Acciones principales: Mi Perfil / Configuración / Personalizar Avatar */}
         <div className="p-1 space-y-1">
           <button
             type="button"
@@ -282,8 +302,8 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer"
           >
-            <User className="w-4 h-4 text-text-muted" />
-            <span>Ver Perfil & Períodos</span>
+            <User className="w-4 h-4 text-text-muted shrink-0" />
+            <span>Mi Perfil & Períodos</span>
           </button>
 
           <button
@@ -294,8 +314,8 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer"
           >
-            <Settings className="w-4 h-4 text-text-muted" />
-            <span>Ajustes de Cuenta & Temas</span>
+            <Settings className="w-4 h-4 text-text-muted shrink-0" />
+            <span>Configuración & Temas</span>
           </button>
 
           <button
@@ -304,26 +324,23 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
             className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-primary hover:bg-primary/5 transition-colors text-left cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
-              <Camera className="w-4 h-4 text-primary" />
-              <span className="font-semibold text-primary">Seleccionar Avatar</span>
+              <Camera className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-semibold text-primary">Personalizar Avatar</span>
             </div>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
-              Personalizar
+              Foto
             </span>
           </button>
         </div>
 
-        {/* Separador y Salida */}
-        <div className="p-1 border-t border-slate-200 dark:border-slate-800 mt-1">
+        {/* Separador y Salida Destructiva */}
+        <div className="p-1 border-t border-slate-200/80 dark:border-white/10 mt-1">
           <button
             type="button"
-            onClick={() => {
-              onClose();
-              signOut();
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-left cursor-pointer"
+            onClick={handleSignOut}
+            className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2 p-2 rounded-lg cursor-pointer w-full text-left font-medium text-sm transition-colors group"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5" />
             <span>Cerrar Sesión</span>
           </button>
         </div>

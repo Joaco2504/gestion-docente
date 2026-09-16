@@ -107,6 +107,8 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     lowerText.includes('token') ||
     lowerText.includes('unauthorized') ||
     lowerText.includes('pgrst301') ||
+    lowerText.includes('pgrst303') ||
+    lowerText.includes('jwt expired') ||
     lowerText.includes('sesión') ||
     lowerText.includes('sesion') ||
     lowerText.includes('permission denied') ||

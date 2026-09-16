@@ -146,6 +146,9 @@ export default function App() {
             {/* Ruta Pública del Estudiante: Accesible sin autenticación */}
             <Route path="/consulta/:catedraId" element={<StudentPortalPage />} />
 
+            {/* Ruta Explícita de Autenticación / Login */}
+            <Route path="/login" element={<AuthPage />} />
+
             {/* Rutas del Sistema Docente */}
             <Route path="/*" element={<AuthenticatedDocenteShell />} />
           </Routes>
