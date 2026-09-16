@@ -132,12 +132,12 @@ export default function SeleccionarAlumnosMesaModal({
               dni: i.estudiantes.dni,
               apellido: i.estudiantes.apellido,
               nombre: i.estudiantes.nombre,
-              condicion: i.condicion || 'REGULAR',
-              estado_academico: i.estado_academico || 'CURSANDO',
+              condicion: i.condicion || i.estado_academico || 'REGULAR',
+              estado_academico: i.estado_academico || i.condicion || 'CURSANDO',
               ciclo_anio: i.ciclos_lectivos?.anio || new Date().getFullYear(),
               intentos_desaprobados: failedMap.get(i.estudiantes.id) || 0
             }))
-            .sort((a, b) => (a.apellido || '').localeCompare(b.apellido || ''));
+            .sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
 
           setEligibleStudents(mapped);
           setLoading(false);

@@ -126,8 +126,20 @@ export default function StudentsTab({
   async function fetchStudents() {
     setLoading(true);
     try {
-      // 1. Obtención de estudiantes mediante servicio limpio y resiliente
-      const list = await getEstudiantesCatedra(catedraId, { supabase, isDemo });
+      // 1. Obtención de estudiantes mediante servicio limpio y resiliente con mapeo defensivo
+      const rawList = await getEstudiantesCatedra(catedraId, { supabase, isDemo });
+      const list = (rawList || []).map(ins => {
+        const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
+        const notaFinal = ins.nota_final ?? ins.nota_final_acreditacion ?? null;
+        const estado = ins.estado_academico ?? ins.condicion ?? 'CURSANDO';
+        return {
+          ...ins,
+          condicion,
+          nota_final: notaFinal,
+          nota_final_acreditacion: notaFinal,
+          estado_academico: estado
+        };
+      });
       setEstudiantes(list);
 
       // 2. Cargar datos académicos para cálculo de condición reglamentaria (no bloqueante)

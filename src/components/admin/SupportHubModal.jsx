@@ -202,7 +202,7 @@ export default function SupportHubModal({
         .from('mesas_examen')
         .select(`
           id, catedra_id, docente_id, fecha, turno_llamado, tipo_mesa, condicion_acta,
-          libro, tomo, folio, acta_numero, presidente, vocal1, vocal_1, vocal2, vocal_2,
+          libro, tomo, folio, acta_numero, presidente, vocal_1, vocal_2,
           catedras ( id, nombre ),
           actas_examen_alumnos ( id )
         `)
@@ -215,8 +215,8 @@ export default function SupportHubModal({
 
       const loadedMesas = (mData || []).map(m => ({
         ...m,
-        vocal1: m.vocal1 || m.vocal_1 || '',
-        vocal2: m.vocal2 || m.vocal_2 || '',
+        vocal1: m.vocal_1 || '',
+        vocal2: m.vocal_2 || '',
         condicion_acta: m.condicion_acta || (m.tipo_mesa === 'PROMOCIONAL' ? 'PROMOCIONAL' : 'REGULAR'),
         inscriptos_count: (m.actas_examen_alumnos || []).length
       }));
@@ -517,10 +517,8 @@ export default function SupportHubModal({
             condicion_acta: editForm.condicion_acta,
             tipo_mesa: editForm.condicion_acta === 'PROMOCIONAL' ? 'PROMOCIONAL' : 'FINAL',
             presidente: editForm.presidente,
-            vocal1: editForm.vocal1,
-            vocal_1: editForm.vocal1,
-            vocal2: editForm.vocal2,
-            vocal_2: editForm.vocal2,
+            vocal_1: editForm.vocal1 || editForm.vocal_1 || '',
+            vocal_2: editForm.vocal2 || editForm.vocal_2 || '',
             libro: editForm.libro,
             folio: editForm.folio
           })

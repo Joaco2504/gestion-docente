@@ -361,11 +361,18 @@ export default function GradesTab({
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
-        // 1. Estudiantes
+        // 1. Estudiantes (consulta normalizada y defensiva)
         const { data: inscData } = await supabase
           .from('inscripciones')
           .select(`
+            id,
             estudiante_id,
+            catedra_id,
+            ciclo_id,
+            estado_academico,
+            condicion,
+            nota_final,
+            nota_final_acreditacion,
             estudiantes (
               id,
               dni,
@@ -375,8 +382,24 @@ export default function GradesTab({
           `)
           .eq('catedra_id', catedraId);
 
-        const estList = (inscData || []).map(i => i.estudiantes).filter(Boolean);
-        estList.sort((a, b) => a.apellido.localeCompare(b.apellido));
+        const estList = (inscData || [])
+          .map(ins => {
+            const est = ins.estudiantes || {};
+            const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
+            const notaFinal = ins.nota_final ?? ins.nota_final_acreditacion ?? null;
+            const estado = ins.estado_academico ?? ins.condicion ?? 'CURSANDO';
+            return {
+              ...est,
+              inscripcion_id: ins.id,
+              condicion,
+              estado_academico: estado,
+              nota_final: notaFinal,
+              nota_final_acreditacion: notaFinal
+            };
+          })
+          .filter(Boolean)
+          .filter(s => s && s.id);
+        estList.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
 
         // 2. Evaluaciones (con fusión resiliente de almacenamiento local)
         const { data: evalData } = await supabase

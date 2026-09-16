@@ -101,7 +101,7 @@ export default function MesaDetalleView({
               estudiantes ( id, dni, apellido, nombre )
             `)
             .eq('mesa_id', mesa.id)
-            .order('alumno_nombre_completo', { ascending: true });
+            .order('created_at', { ascending: true });
 
           if (!viewError && viewData && viewData.length > 0) {
             data = viewData;
@@ -149,13 +149,24 @@ export default function MesaDetalleView({
               dni = student.dni;
             }
 
+            const dictamen = row.dictamen ?? row.resultado ?? 'AUSENTE';
+            const notaDef = row.nota_definitiva !== null && row.nota_definitiva !== undefined && row.nota_definitiva !== '' 
+              ? Number(row.nota_definitiva) 
+              : null;
+            const condicionPrevia = row.condicion_previa ?? row.condicion ?? mesa?.condicion_acta ?? 'REGULAR';
+
             return {
               ...row,
               alumno_nombre_completo: nombreCompleto || 'ALUMNO REGISTRADO',
               alumno_dni: dni || '',
-              dictamen: row.dictamen || row.resultado || 'AUSENTE'
+              dictamen,
+              nota_definitiva: notaDef,
+              condicion_previa: condicionPrevia
             };
           });
+
+          // Ordenamiento seguro en memoria
+          normalized.sort((a, b) => (a.alumno_nombre_completo || '').localeCompare(b.alumno_nombre_completo || '', 'es'));
 
           setActasAlumnos(normalized);
           setLoading(false);
@@ -383,8 +394,8 @@ export default function MesaDetalleView({
                   .from('inscripciones')
                   .update({
                     estado_academico: 'ACREDITADO',
-                    nota_final: a.nota_definitiva,
-                    nota_final_acreditacion: a.nota_definitiva,
+                    nota_final: a.nota_definitiva ?? null,
+                    nota_final_acreditacion: a.nota_definitiva ?? null,
                     fecha_acreditacion: fechaAcred
                   })
                   .eq('catedra_id', mesa.catedra_id)

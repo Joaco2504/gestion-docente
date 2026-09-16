@@ -20,22 +20,23 @@ export async function getEstudiantesCatedra(catedraId, options = {}) {
   const isDemo = Boolean(options.isDemo);
 
   if (isSupabaseConfigured && !isDemo && client) {
-    // 1. Obtener inscripciones con datos del estudiante
+    // 1. Obtener inscripciones con datos del estudiante (consulta unificada y normalizada)
     let inscripcionesData = null;
-    let errInscripciones = null;
 
-    // Primer intento con la columna recomendada `nota_final_acreditacion`
     const { data: resData, error: resErr } = await client
       .from('inscripciones')
       .select(`
         id,
+        estudiante_id,
+        catedra_id,
+        ciclo_id,
         estado_academico,
+        condicion,
+        nota_final,
         nota_final_acreditacion,
         fecha_acreditacion,
-        ciclo_id,
-        condicion,
         ciclos_lectivos ( id, nombre, anio ),
-        estudiantes!inner (
+        estudiantes (
           id,
           nombre,
           apellido,
@@ -45,36 +46,29 @@ export async function getEstudiantesCatedra(catedraId, options = {}) {
       .eq('catedra_id', catedraId);
 
     if (resErr) {
-      // Si la columna `nota_final_acreditacion` no existe en la base (ej. código 42703),
-      // reintentamos automáticamente con `nota_final` para compatibilidad transparente
-      const isColumnMissing = resErr.code === '42703' || 
-        (resErr.message && (resErr.message.includes('nota_final_acreditacion') || resErr.message.includes('column')));
-
-      if (isColumnMissing) {
-        const { data: fallbackData, error: fallbackErr } = await client
-          .from('inscripciones')
-          .select(`
+      // Fallback de contingencia si PostgREST rechaza alguna columna opcional
+      console.warn('[catedraEstudiantesService] Reintentando con consulta base de inscripciones:', resErr);
+      const { data: fallbackData, error: fallbackErr } = await client
+        .from('inscripciones')
+        .select(`
+          id,
+          estudiante_id,
+          catedra_id,
+          ciclo_id,
+          estado_academico,
+          nota_final_acreditacion,
+          fecha_acreditacion,
+          estudiantes (
             id,
-            estado_academico,
-            nota_final,
-            fecha_acreditacion,
-            ciclo_id,
-            condicion,
-            ciclos_lectivos ( id, nombre, anio ),
-            estudiantes!inner (
-              id,
-              nombre,
-              apellido,
-              dni
-            )
-          `)
-          .eq('catedra_id', catedraId);
+            nombre,
+            apellido,
+            dni
+          )
+        `)
+        .eq('catedra_id', catedraId);
 
-        if (fallbackErr) throw fallbackErr;
-        inscripcionesData = fallbackData || [];
-      } else {
-        throw resErr;
-      }
+      if (fallbackErr) throw fallbackErr;
+      inscripcionesData = fallbackData || [];
     } else {
       inscripcionesData = resData || [];
     }
@@ -123,8 +117,9 @@ export async function getEstudiantesCatedra(catedraId, options = {}) {
     const list = (inscripcionesData || [])
       .map(ins => {
         const est = ins.estudiantes || {};
-        const estado = ins.estado_academico ?? 'CURSANDO';
-        const notaAcred = ins.nota_final_acreditacion ?? ins.nota_final ?? null;
+        const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
+        const estado = ins.estado_academico ?? ins.condicion ?? 'CURSANDO';
+        const notaFinal = ins.nota_final ?? ins.nota_final_acreditacion ?? null;
 
         // Búsqueda del acta más reciente en memoria
         const actaMatch = (actasData || []).find(a => 
@@ -138,10 +133,11 @@ export async function getEstudiantesCatedra(catedraId, options = {}) {
           apellido: est.apellido || '',
           dni: est.dni || '',
           inscripcion_id: ins.id,
-          condicion_inscripcion: ins.condicion,
+          condicion_inscripcion: condicion,
+          condicion,
           estado_academico: estado,
-          nota_final_acreditacion: notaAcred,
-          nota_final: notaAcred,
+          nota_final_acreditacion: notaFinal,
+          nota_final: notaFinal,
           fecha_acreditacion: ins.fecha_acreditacion || null,
           ciclo_id: ins.ciclo_id || null,
           ciclo_lectivo: ins.ciclos_lectivos || null,
