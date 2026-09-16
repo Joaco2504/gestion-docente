@@ -3,7 +3,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { 
   GraduationCap, 
-  LogOut, 
   Menu, 
   Bell, 
   Trash2, 
@@ -27,7 +26,7 @@ function formatTimestamp(date) {
 }
 
 export default function Navbar({ onToggleSidebar }) {
-  const { user, isDemo, signOut } = useAuth();
+  const { user } = useAuth();
   const { notificaciones, unreadCount, marcarTodasLeidas, limpiarNotificaciones } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef(null);
@@ -62,19 +61,19 @@ export default function Navbar({ onToggleSidebar }) {
     'Docente';
 
   return (
-    <header className="sticky top-0 z-30 bg-white dark:bg-[#0c1222] border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs">
+    <header className="sticky top-0 z-30 bg-white dark:bg-[#0c1222] border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs md:pl-16">
       {/* Animated top shimmer beam */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-80 animate-pulseGlow" />
       {/* Ambient soft glow */}
       <div className="absolute -top-10 left-1/4 w-96 h-20 bg-primary/10 blur-3xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
-        {/* Brand & Mobile Hamburger */}
-        <div className="flex items-center gap-2 sm:gap-3">
+      <div className="w-full px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
+        {/* Brand & Mobile Hamburger (solo visible en pantallas móviles) */}
+        <div className="flex items-center gap-2 sm:gap-3 md:hidden">
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="p-2 -ml-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover md:hidden touch-target-44 flex items-center justify-center cursor-pointer"
+            className="p-2 -ml-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover touch-target-44 flex items-center justify-center cursor-pointer"
             title="Abrir menú de navegación"
             aria-label="Abrir menú"
           >
@@ -90,19 +89,24 @@ export default function Navbar({ onToggleSidebar }) {
               <span className="font-bold text-base sm:text-lg tracking-tight text-text-primary">
                 Planilla<span className="text-primary">Docente</span>
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono hidden xs:inline">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono">
                 v1.2
               </span>
             </div>
-            <p className="text-[11px] text-text-muted -mt-0.5 font-medium hidden sm:block">
+            <p className="text-[11px] text-text-muted -mt-0.5 font-medium">
               Gestión Administrativa Docente
             </p>
           </div>
         </div>
 
-        {/* Right Actions: Theme Switcher, Notifications, User Info & Logout */}
-        <div className="flex items-center gap-1.5 sm:gap-3">
-          {/* Theme Switcher */}
+        {/* Right Actions: Únicamente Nombre del Docente, Botón de Tema (Claro/Oscuro) e Ícono de Campana (Bell) */}
+        <div className="flex items-center gap-3 sm:gap-4 ml-auto">
+          {/* Nombre del docente */}
+          <span className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[160px] sm:max-w-[220px] select-none">
+            {teacherName}
+          </span>
+
+          {/* Botón de Tema (Claro / Oscuro) */}
           <ThemeToggle />
 
           {/* Centro de Notificaciones con Campana */}
@@ -213,29 +217,6 @@ export default function Navbar({ onToggleSidebar }) {
               </div>
             )}
           </div>
-
-          {/* User badge: únicamente nombre del docente y estado limpio (sin menciones de BD) */}
-          <div className="hidden sm:flex flex-col text-right">
-            <span className="text-xs font-bold text-text-primary truncate max-w-[160px]">
-              {teacherName}
-            </span>
-            <span className="text-[10px] text-text-muted font-mono">
-              {isDemo ? 'Modo Demostración' : (user?.email || 'Docente')}
-            </span>
-          </div>
-
-          {/* Botón de Logout Animado (Hover Expandable Circular a Cápsula) */}
-          <button
-            onClick={signOut}
-            title="Cerrar sesión"
-            aria-label="Cerrar sesión"
-            className="group relative h-11 w-11 hover:w-36 focus:w-36 rounded-full flex items-center justify-start overflow-hidden px-3 transition-all duration-300 ease-in-out cursor-pointer shadow-sm bg-white border border-slate-200 text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 dark:bg-slate-800/80 dark:border-white/10 dark:text-slate-300 dark:hover:bg-rose-600 dark:hover:text-white dark:hover:border-rose-600 active:scale-95 touch-target-44"
-          >
-            <LogOut className="w-5 h-5 shrink-0 transition-transform duration-300 group-hover:scale-105" />
-            <span className="text-xs font-bold whitespace-nowrap overflow-hidden transition-all duration-300 opacity-0 max-w-0 group-hover:opacity-100 group-hover:max-w-[85px] group-hover:ml-2 group-focus:opacity-100 group-focus:max-w-[85px] group-focus:ml-2">
-              Cerrar Sesión
-            </span>
-          </button>
         </div>
       </div>
     </header>

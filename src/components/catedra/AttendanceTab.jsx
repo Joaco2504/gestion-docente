@@ -19,7 +19,8 @@ import {
   Printer,
   Pencil,
   Layers,
-  Lock
+  Lock,
+  FileSpreadsheet
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -42,6 +43,7 @@ import LicenciasDecreto1092Table from './LicenciasDecreto1092Table';
 import RiskBadge from '../common/RiskBadge';
 import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 import { handleAppError } from '../../utils/handleAppError';
+import { exportAttendanceToExcel } from '../../lib/excel';
 
 // Comparador memoizado para tarjeta táctil mobile
 function areAttendanceCardPropsEqual(prev, next) {
@@ -181,12 +183,20 @@ const AttendanceRow = React.memo(function AttendanceRow({
         isFlashing ? 'animate-flash-success' : ''
       }`}
     >
-      <td className="px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{index + 1}</td>
-      <td className="px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
-      <td className="sticky left-0 bg-white dark:bg-slate-900 z-10 px-3 sm:px-4 py-3 font-semibold text-text-primary border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-        <div className="flex items-center gap-2">
-          <span>{est.apellido}, {est.nombre}</span>
+      <td className="sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-slate-200/80 dark:border-white/10 min-w-[200px] sm:min-w-[240px]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] font-mono text-text-muted select-none w-5 shrink-0 text-right">
+              {index + 1}.
+            </span>
+            <span className="font-semibold text-text-primary truncate">
+              {est.apellido}, {est.nombre}
+            </span>
+          </div>
           <RiskBadge risk={risk} compact />
+        </div>
+        <div className="text-[11px] font-mono text-text-muted pl-7">
+          DNI: {est.dni || 'S/D'}
         </div>
       </td>
       <td className="px-3 sm:px-4 py-3">
@@ -1039,6 +1049,26 @@ export default function AttendanceTab({
     ? ((presentesCount / estudiantes.length) * 100).toFixed(1) 
     : 0;
 
+  const handleExportExcel = () => {
+    try {
+      if (estudiantes.length === 0) {
+        toast.info('No hay estudiantes registrados en esta cátedra para exportar.');
+        return;
+      }
+      exportAttendanceToExcel(
+        { nombre: catedraName },
+        estudiantes,
+        clases,
+        asistencias,
+        inasistenciasDocente,
+        studentStatsMap
+      );
+      toast.success('Planilla de asistencias exportada a Excel (.xlsx) correctamente.');
+    } catch (err) {
+      handleAppError(err, 'AttendanceTab / Exportar Excel', user);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-6 space-y-4">
@@ -1120,7 +1150,7 @@ export default function AttendanceTab({
         </div>
 
         {/* Fila 2: Grilla Flexible de Botones de Asistencia (Captura 1) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full mt-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full mt-3">
           <Button
             variant="primary"
             size="sm"
@@ -1157,6 +1187,18 @@ export default function AttendanceTab({
             title="Registrar o editar inasistencia / licencia del docente"
           >
             {inasistenciaActual ? 'Licencia' : '+ Falta'}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            icon={FileSpreadsheet}
+            onClick={handleExportExcel}
+            disabled={estudiantes.length === 0}
+            className="w-full text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
+            title="Exportar sábana completa de asistencias a Excel (.xlsx)"
+          >
+            📥 Excel
           </Button>
 
           <Button
@@ -1423,14 +1465,12 @@ export default function AttendanceTab({
                   VISTA DESKTOP / TABLET (>= 768px): TABLA TRADICIONAL
                  ======================================================== */}
               <div className="hidden md:block backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 overflow-hidden shadow-xs">
-                <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin">
+                <div className="overflow-x-auto touch-pan-x select-none scrollbar-thin max-h-[75vh]">
                   <table className="w-full text-left text-xs sm:text-sm">
-                    <thead className="bg-slate-100/80 dark:bg-white/[0.04] text-text-secondary font-semibold border-b border-slate-200/80 dark:border-white/10">
+                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary font-semibold border-b border-slate-200/80 dark:border-white/10">
                       <tr>
-                        <th className="px-3 sm:px-4 py-3 w-12 text-center">#</th>
-                        <th className="px-3 sm:px-4 py-3 font-mono">DNI</th>
-                        <th className="sticky left-0 bg-white dark:bg-slate-900 z-20 px-3 sm:px-4 py-3 border-r border-slate-200/80 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                          Estudiante
+                        <th className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-slate-200/80 dark:border-white/10 min-w-[200px] sm:min-w-[240px]">
+                          Estudiante / DNI
                         </th>
                         <th className="px-3 sm:px-4 py-3 text-center min-w-[240px]">Estado de Asistencia</th>
                       </tr>

@@ -810,9 +810,9 @@ export default function StudentsTab({
               )}
             >
               <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto touch-pan-x select-none">
                   <table className="w-full text-left text-xs sm:text-sm border-collapse">
-                    <thead className="bg-surface-hover/80 text-text-secondary font-semibold border-b border-surface-border select-none">
+                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary font-semibold border-b border-surface-border select-none">
                       <tr>
                         {/* 1. DNI */}
                         <th 

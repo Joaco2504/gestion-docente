@@ -367,18 +367,20 @@ export default function SeleccionarAlumnosMesaModal({
         </div>
 
         {/* Checkbox Maestro de Cabecera: Seleccionar Todos */}
-        <div className="flex items-center justify-between py-2 px-1 mb-1">
+        <div className="flex items-center justify-between py-1 px-1 mb-1">
           <button
             type="button"
             onClick={handleSelectAllVisible}
             disabled={filteredStudents.length === 0}
-            className="flex items-center gap-2 text-xs font-bold text-text-primary hover:text-primary transition-colors cursor-pointer disabled:opacity-50"
+            className="min-h-[44px] flex items-center gap-2 text-xs font-bold text-text-primary hover:text-primary transition-colors cursor-pointer disabled:opacity-50 px-2 py-1 rounded-xl"
           >
-            {allVisibleSelected ? (
-              <CheckSquare className="w-4 h-4 text-primary shrink-0" />
-            ) : (
-              <Square className="w-4 h-4 text-slate-300 dark:text-slate-600 shrink-0" />
-            )}
+            <div className="w-7 h-7 flex items-center justify-center shrink-0">
+              {allVisibleSelected ? (
+                <CheckSquare className="w-5 h-5 text-primary" />
+              ) : (
+                <Square className="w-5 h-5 text-slate-300 dark:text-slate-600" />
+              )}
+            </div>
             <span>
               {allVisibleSelected
                 ? `Deseleccionar todos (${filteredStudents.length} alumnos)`
@@ -386,7 +388,7 @@ export default function SeleccionarAlumnosMesaModal({
             </span>
           </button>
 
-          <span className="text-[11px] text-text-muted font-mono">
+          <span className="text-[11px] text-text-muted font-mono pr-1">
             {selectedStudentIds.size} de {filteredStudents.length} seleccionados
           </span>
         </div>
@@ -418,15 +420,15 @@ export default function SeleccionarAlumnosMesaModal({
                 <div
                   key={st.estudiante_id}
                   onClick={() => toggleSelectStudent(st.estudiante_id)}
-                  className={`p-3 sm:p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors active:bg-primary/10 ${
+                  className={`min-h-[48px] p-3 sm:p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors active:bg-primary/10 ${
                     isSelected
                       ? 'bg-primary/[0.07] dark:bg-primary/[0.14]'
                       : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {/* Checkbox Amplio Táctil */}
-                    <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                    {/* Checkbox Amplio Táctil de 44x44px */}
+                    <div className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 -ml-1">
                       {isSelected ? (
                         <CheckSquare className="w-5 h-5 text-primary" />
                       ) : (
@@ -483,7 +485,7 @@ export default function SeleccionarAlumnosMesaModal({
         </div>
 
         {/* Barra Inferior Fija (Sticky Bottom Bar) */}
-        <div className="sticky -bottom-5 sm:-bottom-6 -mx-5 sm:-mx-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200/80 dark:border-white/10 p-3.5 sm:px-6 flex items-center justify-between gap-3 z-20 shadow-lg">
+        <div className="sticky bottom-0 -mx-5 sm:-mx-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200/80 dark:border-white/10 p-3.5 sm:px-6 flex items-center justify-between gap-3 z-20 shadow-lg">
           <span className="text-text-secondary text-xs">
             <strong className="text-primary font-mono text-sm font-black">{selectedStudentIds.size}</strong> alumnos seleccionados
           </span>
@@ -494,7 +496,7 @@ export default function SeleccionarAlumnosMesaModal({
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="rounded-xl min-h-[40px]"
+              className="rounded-xl min-h-[44px] px-4 cursor-pointer"
             >
               Cancelar
             </Button>
@@ -505,7 +507,7 @@ export default function SeleccionarAlumnosMesaModal({
               icon={CheckCircle2}
               onClick={handleConfirm}
               disabled={selectedStudentIds.size === 0}
-              className="rounded-xl min-h-[40px] font-bold px-4 shadow-sm"
+              className="rounded-xl min-h-[44px] font-bold px-4 shadow-sm cursor-pointer"
             >
               Inscribir al Acta {selectedStudentIds.size > 0 ? `(${selectedStudentIds.size})` : ''}
             </Button>

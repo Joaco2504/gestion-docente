@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { formatFechaDMY } from './dateUtils';
 
 /**
  * Procesa un archivo Excel (.xlsx, .xls) o CSV en el navegador usando SheetJS.
@@ -220,4 +221,162 @@ export function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4, arg5
     const fileName = `Calificaciones_${cleanCatedraName}_${dateStr}.xlsx`;
     XLSX.writeFile(workbook, fileName, { bookType: 'xlsx' });
   }
+}
+
+/**
+ * Exporta el acta de una mesa de examen completa a un archivo Excel (.xlsx).
+ * @param {Object} mesa - Metadatos de la mesa examinadora
+ * @param {Array} actasAlumnos - Lista de alumnos inscriptos con sus notas y dictámenes
+ * @param {string} catedraNombre - Nombre de la cátedra
+ */
+export function exportMesaExamenToExcel(mesa = {}, actasAlumnos = [], catedraNombre = '') {
+  const cleanCatedra = (catedraNombre || mesa.catedras?.nombre || 'Catedra').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeTurno = (mesa.turno_llamado || 'Examen').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const dateStr = mesa.fecha ? formatFechaDMY(mesa.fecha) : new Date().toISOString().split('T')[0];
+
+  const rows = (actasAlumnos || []).map((acta, idx) => {
+    const est = acta.estudiantes || {};
+    const dni = acta.dni || est.dni || '-';
+    const apellido = acta.apellido || est.apellido || '-';
+    const nombre = acta.nombre || est.nombre || '-';
+    const escrito = acta.nota_escrito !== undefined && acta.nota_escrito !== null ? acta.nota_escrito : '-';
+    const oral = acta.nota_oral !== undefined && acta.nota_oral !== null ? acta.nota_oral : '-';
+    const definitiva = acta.nota_definitiva !== undefined && acta.nota_definitiva !== null ? acta.nota_definitiva : '-';
+    const letras = acta.calificacion_letras || acta.nota_letras || '-';
+    const dictamen = acta.dictamen || acta.resultado || '-';
+
+    return {
+      'N°': idx + 1,
+      'DNI': dni,
+      'Apellido': apellido,
+      'Nombre': nombre,
+      'Nota Escrito': escrito,
+      'Nota Oral': oral,
+      'Nota Definitiva': definitiva,
+      'Calificación en Letras': letras,
+      'Dictamen': dictamen,
+      'Folio': acta.folio_fisico || mesa.folio || '-'
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+
+  const wscols = [
+    { wch: 6 },   // N°
+    { wch: 14 },  // DNI
+    { wch: 22 },  // Apellido
+    { wch: 22 },  // Nombre
+    { wch: 14 },  // Nota Escrito
+    { wch: 14 },  // Nota Oral
+    { wch: 16 },  // Nota Definitiva
+    { wch: 24 },  // Letras
+    { wch: 18 },  // Dictamen
+    { wch: 10 },  // Folio
+  ];
+  worksheet['!cols'] = wscols;
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Acta de Examen");
+
+  const fileName = `Acta_Examen_${cleanCatedra}_${safeTurno}_${dateStr}.xlsx`;
+  XLSX.writeFile(workbook, fileName, { bookType: 'xlsx' });
+}
+
+/**
+ * Exporta la sábana cronológica completa de asistencias de una cátedra a un archivo Excel (.xlsx).
+ * @param {Object} catedraInfo - Datos de la cátedra (nombre, nivel, etc.)
+ * @param {Array} estudiantes - Lista de alumnos
+ * @param {Array} clases - Sesiones de clase registradas
+ * @param {Array} asistencias - Registros de asistencia individuales
+ * @param {Array} inasistenciasDocente - Licencias / ausencias del docente
+ * @param {Map} studentStatsMap - Mapa id -> porcentaje acumulado
+ */
+export function exportAttendanceToExcel(
+  catedraInfo = {},
+  estudiantes = [],
+  clases = [],
+  asistencias = [],
+  inasistenciasDocente = [],
+  studentStatsMap = new Map()
+) {
+  const cleanCatedra = (catedraInfo.nombre || 'Catedra').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const dateStr = new Date().toISOString().split('T')[0];
+
+  // Ordenar clases cronológicamente
+  const sortedClases = [...(clases || [])].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+  // Mapa rápido de asistencias: `${estudianteId}_${claseId}` -> estado
+  const asistenciasMap = new Map();
+  (asistencias || []).forEach(a => {
+    if (a.estudiante_id && a.clase_id) {
+      asistenciasMap.set(`${a.estudiante_id}_${a.clase_id}`, a.estado);
+    }
+  });
+
+  const rows = (estudiantes || []).map((est, idx) => {
+    let presentes = 0;
+    let ausentes = 0;
+    let justificadas = 0;
+
+    const row = {
+      'N°': idx + 1,
+      'DNI': est.dni || '-',
+      'Apellido': est.apellido || '-',
+      'Nombre': est.nombre || '-'
+    };
+
+    sortedClases.forEach(c => {
+      const fechaCol = formatFechaDMY(c.fecha);
+      const estado = asistenciasMap.get(`${est.id}_${c.id}`);
+      if (estado === 'PRESENTE') {
+        presentes++;
+        row[fechaCol] = 'P';
+      } else if (estado === 'AUSENTE') {
+        ausentes++;
+        row[fechaCol] = 'A';
+      } else if (estado === 'JUSTIFICADA') {
+        justificadas++;
+        row[fechaCol] = 'J';
+      } else {
+        row[fechaCol] = '-';
+      }
+    });
+
+    const pct = studentStatsMap?.get(est.id) ?? (
+      sortedClases.length > 0 ? Math.round((presentes / sortedClases.length) * 100) : 100
+    );
+
+    row['Total Clases'] = sortedClases.length;
+    row['Presentes'] = presentes;
+    row['Ausentes'] = ausentes;
+    row['Justificadas'] = justificadas;
+    row['% Asistencia'] = `${pct}%`;
+
+    return row;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+
+  const wscols = [
+    { wch: 6 },   // N°
+    { wch: 14 },  // DNI
+    { wch: 22 },  // Apellido
+    { wch: 22 },  // Nombre
+  ];
+  sortedClases.forEach(() => {
+    wscols.push({ wch: 12 });
+  });
+  wscols.push({ wch: 14 }); // Total Clases
+  wscols.push({ wch: 12 }); // Presentes
+  wscols.push({ wch: 12 }); // Ausentes
+  wscols.push({ wch: 12 }); // Justificadas
+  wscols.push({ wch: 14 }); // % Asistencia
+
+  worksheet['!cols'] = wscols;
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Asistencias");
+
+  const fileName = `Asistencias_${cleanCatedra}_${dateStr}.xlsx`;
+  XLSX.writeFile(workbook, fileName, { bookType: 'xlsx' });
 }

@@ -128,7 +128,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       icon: LayoutGrid,
       buttonHoverClass: 'group hover:bg-indigo-50 dark:hover:bg-indigo-950/40 p-2.5 rounded-xl transition-colors',
       iconClass: 'transition-transform duration-200 ease-out group-hover:scale-110 group-hover:rotate-6 group-hover:text-indigo-600',
-      activeButtonClass: 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25',
+      activeButtonClass: 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 rounded-xl',
       activeIconClass: 'text-white'
     },
     {
@@ -137,7 +137,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       icon: Award,
       buttonHoverClass: 'group hover:bg-amber-50 dark:hover:bg-amber-950/40 p-2.5 rounded-xl transition-colors',
       iconClass: 'transition-transform duration-250 ease-out group-hover:-translate-y-1.5 group-hover:-rotate-6 group-hover:text-amber-500',
-      activeButtonClass: 'bg-amber-500 text-white shadow-md shadow-amber-500/25',
+      activeButtonClass: 'bg-amber-500 text-white shadow-md shadow-amber-500/25 rounded-xl',
       activeIconClass: 'text-white'
     },
     {
@@ -146,7 +146,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       icon: Calendar,
       buttonHoverClass: 'group hover:bg-blue-50 dark:hover:bg-blue-950/40 p-2.5 rounded-xl transition-colors',
       iconClass: 'transition-transform duration-200 ease-in-out group-hover:rotate-12 group-hover:scale-105 group-hover:text-blue-500',
-      activeButtonClass: 'bg-blue-600 text-white shadow-md shadow-blue-500/25',
+      activeButtonClass: 'bg-blue-600 text-white shadow-md shadow-blue-500/25 rounded-xl',
       activeIconClass: 'text-white'
     },
     {
@@ -155,7 +155,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       icon: Building2,
       buttonHoverClass: 'group hover:bg-emerald-50 dark:hover:bg-emerald-950/40 p-2.5 rounded-xl transition-colors',
       iconClass: 'transition-transform duration-200 ease-out group-hover:-translate-y-1 group-hover:scale-105 group-hover:text-emerald-500',
-      activeButtonClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25',
+      activeButtonClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25 rounded-xl',
       activeIconClass: 'text-white'
     },
     {
@@ -164,7 +164,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       icon: Settings,
       buttonHoverClass: 'group hover:bg-slate-100 dark:hover:bg-slate-800/60 p-2.5 rounded-xl transition-colors',
       iconClass: 'transition-transform duration-500 ease-in-out group-hover:rotate-90 group-hover:text-slate-900 dark:group-hover:text-white',
-      activeButtonClass: 'bg-slate-800 dark:bg-slate-700 text-white shadow-md',
+      activeButtonClass: 'bg-slate-800 dark:bg-slate-700 text-white shadow-md rounded-xl',
       activeIconClass: 'text-white'
     },
     {
@@ -173,7 +173,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       icon: BookOpen,
       buttonHoverClass: 'group hover:bg-violet-50 dark:hover:bg-violet-950/40 p-2.5 rounded-xl transition-colors',
       iconClass: 'transition-transform duration-200 ease-out group-hover:skew-x-3 group-hover:scale-110 group-hover:text-violet-500',
-      activeButtonClass: 'bg-violet-600 text-white shadow-md shadow-violet-500/25',
+      activeButtonClass: 'bg-violet-600 text-white shadow-md shadow-violet-500/25 rounded-xl',
       activeIconClass: 'text-white'
     },
     ...(esSuperadmin ? [{
@@ -182,7 +182,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       icon: ShieldAlert,
       buttonHoverClass: 'group hover:bg-rose-50 dark:hover:bg-rose-950/40 p-2.5 rounded-xl transition-colors',
       iconClass: 'transition-transform duration-200 ease-out group-hover:scale-110 group-hover:text-rose-500',
-      activeButtonClass: 'bg-gradient-to-br from-rose-500 to-indigo-600 text-white shadow-md shadow-rose-500/25',
+      activeButtonClass: 'bg-gradient-to-br from-rose-500 to-indigo-600 text-white shadow-md shadow-rose-500/25 rounded-xl',
       activeIconClass: 'text-white',
       isSpecial: true
     }] : [])
@@ -254,10 +254,13 @@ export default function DualSidebar({ isOpen = false, onClose }) {
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
+        {/* Espaciador de riel fijo de 64px para desktop */}
+        <div className="w-16 min-w-[4rem] shrink-0 hidden md:block pointer-events-none" aria-hidden="true" />
+
         {/* ========================================================
             1. RIEL PRINCIPAL DE ÍCONOS (SIN SCROLLBAR VERTICAL)
            ======================================================== */}
-        <div className="h-full max-h-screen md:max-h-[calc(100vh-4rem)] w-16 min-w-[4rem] bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-white/10 flex flex-col justify-between py-3 items-center select-none z-40 overflow-hidden shadow-xs dark:shadow-none">
+        <div className={`w-16 min-w-[4rem] h-screen max-h-screen fixed left-0 top-0 bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-white/10 flex flex-col justify-between py-3 items-center z-40 select-none overflow-hidden ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} transition-transform duration-300 ease-in-out`}>
           
           {/* --- GRUPO SUPERIOR --- */}
           <div className="flex flex-col items-center w-full">
@@ -403,7 +406,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
         <div
           className={`
             bg-white dark:bg-[#0c1222] border-r border-slate-200/80 dark:border-slate-800 flex flex-col justify-between
-            transition-all duration-300 ease-in-out z-10
+            transition-all duration-300 ease-in-out z-10 shrink-0 h-full
             ${isSecondaryNavOpen 
               ? 'w-72 opacity-100 translate-x-0' 
               : 'w-0 opacity-0 -translate-x-full overflow-hidden pointer-events-none md:border-r-0'

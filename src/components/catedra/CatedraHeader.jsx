@@ -112,33 +112,22 @@ export default function CatedraHeader({
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-2xl p-6 shadow-sm mb-6 transition-all">
-      {/* Banner de Cursado Cerrado si aplica */}
-      {cursadaFinalizada && (
-        <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-primary/5 to-emerald-500/10 border border-amber-500/30 flex items-center justify-between gap-3 flex-wrap animate-fadeIn">
-          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold text-xs sm:text-sm">
-            <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <span>🔒 Cursado Cerrado — Instancia de Examen / Acreditación</span>
-          </div>
-          <span className="text-[11px] text-text-muted font-medium">
-            Toma de asistencia y notas regulares bloqueadas. Instancia de acreditación y mesas de examen activa.
-          </span>
-        </div>
-      )}
-
-      {/* 1. FILA SUPERIOR: CONTEXTO INSTITUCIONAL (Badges en una sola línea horizontal) */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        {/* Institución: Badge neutro con icono */}
+      {/* 1. FILA SUPERIOR: BADGES INSTITUCIONALES EN UNA SOLA LÍNEA HORIZONTAL */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 mb-4 text-xs font-semibold">
+        {/* Institución */}
         <span 
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10"
           title={`Institución: ${institucionNombre}`}
         >
           <Building2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
           <span>{institucionNombre}</span>
         </span>
 
-        {/* Nivel: Píldora violeta/azul suave */}
+        <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
+
+        {/* Nivel */}
         <span 
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${
             isTerciario
               ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20'
               : 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20'
@@ -149,9 +138,11 @@ export default function CatedraHeader({
           <span>{nivelLabel}</span>
         </span>
 
-        {/* Régimen / Modalidad: Píldora ámbar/esmeralda */}
+        <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
+
+        {/* Modalidad / Régimen */}
         <span 
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${
             isCuatrimestral
               ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
               : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
@@ -162,57 +153,38 @@ export default function CatedraHeader({
           <span>{modalidadLabel}</span>
         </span>
 
-        {/* Ciclo Lectivo */}
+        <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
+
+        {/* Ciclo */}
         <span 
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/10"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/10"
           title={`Ciclo Lectivo ${anioCiclo}`}
         >
           <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
-          <span>Ciclo Lectivo {anioCiclo}</span>
+          <span>Ciclo {anioCiclo}</span>
         </span>
 
-        {/* Badge Cursado Finalizado en la fila de badges */}
         {cursadaFinalizada && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-            <Lock className="w-3.5 h-3.5" />
-            <span>Cursado Cerrado</span>
-          </span>
+          <>
+            <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-800 dark:text-amber-200 border border-amber-500/30">
+              <Lock className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>Cursado Cerrado</span>
+            </span>
+          </>
         )}
       </div>
 
-      {/* 2. FILA CENTRAL: TÍTULO Y ACCIONES PRINCIPALES */}
+      {/* 2. FILA CENTRAL: TÍTULO FLUIDO Y BOTONES DE ACCIÓN */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-1 border-b border-slate-100 dark:border-white/5 pb-5">
-        {/* Título de Cátedra sin quiebres forzados */}
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 dark:text-white leading-snug max-w-3xl">
+        {/* Título de cátedra fluido sin quiebres de palabra forzados */}
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white max-w-4xl break-normal leading-tight">
           {catedra?.nombre ?? 'Cátedra'}
         </h1>
 
-        {/* Botones de Acción (agrupados a la derecha en desktop, 2 columnas o wrap en mobile) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full mt-2 lg:mt-0 lg:flex lg:items-center lg:gap-2.5 lg:w-auto shrink-0">
-          {/* Botón Cierre / Reapertura de Cursado */}
-          {!cursadaFinalizada ? (
-            <button
-              type="button"
-              onClick={onFinalizarCursada}
-              className="flex items-center justify-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-all duration-150 active:scale-[0.98] text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
-              title="Finalizar cursada: cierra asistencias y notas regulares y abre instancia de mesas de examen"
-            >
-              <Flag className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span className="truncate">Finalizar Cursado</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onReabrirCursada}
-              className="flex items-center justify-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-primary hover:border-primary/40 transition-all duration-150 active:scale-[0.98] text-xs sm:text-sm font-semibold shadow-xs cursor-pointer min-h-[42px]"
-              title="Reabrir cursado para realizar modificaciones"
-            >
-              <Unlock className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
-              <span className="truncate">Reabrir Cursado</span>
-            </button>
-          )}
-
-          {/* Botón 1: Portal Estudiante con switch / indicador activo */}
+        {/* Botones de Acción */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto shrink-0">
+          {/* Botón 1: Portal Estudiante */}
           <button
             type="button"
             onClick={onOpenPortal}
@@ -240,47 +212,74 @@ export default function CatedraHeader({
             type="button"
             onClick={onOpenStats}
             className="flex items-center justify-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 hover:text-primary hover:border-primary/40 hover:bg-primary/5 dark:hover:bg-primary/10 transition-all duration-150 active:scale-[0.98] text-xs sm:text-sm font-semibold shadow-xs cursor-pointer min-h-[42px]"
-            title="Ver gráficos estadísticos y distribución de rendimiento de los alumnos"
+            title="Ver gráficos estadísticos y métricas analíticas"
           >
             <BarChart3 className="w-4 h-4 text-primary shrink-0" />
             <span className="truncate">Estadísticas</span>
           </button>
+
+          {/* Botón 3: Estado de Cursado */}
+          {!cursadaFinalizada ? (
+            <button
+              type="button"
+              onClick={onFinalizarCursada}
+              className="flex items-center justify-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-all duration-150 active:scale-[0.98] text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
+              title="Finalizar cursado"
+            >
+              <Flag className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="truncate">Finalizar Cursado</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onReabrirCursada}
+              className="group flex items-center justify-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-200 hover:bg-amber-500/25 transition-all duration-150 active:scale-[0.98] text-xs sm:text-sm font-bold shadow-xs cursor-pointer min-h-[42px]"
+              title="Cursado cerrado. Clic para reabrir cursado"
+            >
+              <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 group-hover:hidden" />
+              <Unlock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 hidden group-hover:inline-block" />
+              <span className="truncate">Cursado Cerrado</span>
+              <span className="text-[10px] font-normal text-amber-700 dark:text-amber-300 underline decoration-dotted ml-0.5">
+                (Reabrir)
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 3. FILA INFERIOR: CÁPSULAS DE REGLAS ACADÉMICAS Y HORARIOS (Metadatos rápidos) */}
-      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-4 text-xs">
-        {/* Horarios semanales */}
+      {/* 3. FILA INFERIOR: CHIPS DE DATOS RÁPIDOS */}
+      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-4 text-xs font-medium">
+        {/* Horarios */}
         {schedulesList.length > 0 ? (
           schedulesList.map((slotText, idx) => (
             <div 
               key={idx} 
-              className="bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 shadow-2xs"
+              className="bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-slate-300 flex items-center gap-2 shadow-2xs"
             >
               <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
               <span>{slotText}</span>
             </div>
           ))
         ) : (
-          <div className="bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2 shadow-2xs">
+          <div className="bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-500 dark:text-slate-400 flex items-center gap-2 shadow-2xs">
             <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span>Sin horarios configurados</span>
           </div>
         )}
 
         {/* Criterio RAM */}
-        <div className="bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 shadow-2xs">
+        <div className="bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-slate-300 flex items-center gap-2 shadow-2xs">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
           <span>
-            Asist: Mín <b>{criterios?.min_asist_reg ?? 70}%</b> Reg. / <b>{criterios?.min_asist_promo ?? 80}%</b> Promo
+            Mín. <b>{criterios?.min_asist_reg ?? 70}%</b> Reg. / <b>{criterios?.min_asist_promo ?? 80}%</b> Promo
           </span>
         </div>
 
         {/* Nota de Aprobación */}
-        <div className="bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 shadow-2xs">
+        <div className="bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-slate-300 flex items-center gap-2 shadow-2xs">
           <Target className="w-3.5 h-3.5 text-amber-500 shrink-0" />
           <span>
-            Aprobación: Nota <b>{criterios?.nota_min_reg ?? 4}+</b> / 10
+            Aprobación: <b>{criterios?.nota_min_reg ?? 4}+</b> / 10
           </span>
         </div>
       </div>

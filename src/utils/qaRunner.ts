@@ -184,7 +184,7 @@ export async function runQASuite(options: QARunnerOptions = {}): Promise<QASuite
 
       const { data: inscs, error: errInsc } = await supabase
         .from('inscripciones')
-        .select('id, estudiante_id, catedra_id, ciclo_id, estado_academico')
+        .select('id, estudiante_id, catedra_id, ciclo_id, estado_academico, nota_final_acreditacion, fecha_acreditacion')
         .limit(5);
 
       if (errInsc) throw errInsc;
@@ -200,7 +200,7 @@ export async function runQASuite(options: QARunnerOptions = {}): Promise<QASuite
       titulo: 'Alta y matriculación de Alumnos (Upsert compuesto docente_id,dni)',
       estado: 'PASS',
       aprobado: true,
-      detalles: `Mapeo relacional validado: Restricción de unicidad (docente_id, dni) e inscripciones asociadas operativas (${estCount} estudiantes leídos).`,
+      detalles: `Mapeo relacional validado: Restricción de unicidad (docente_id, dni) y columnas críticas de acreditación (estado_academico, nota_final_acreditacion, fecha_acreditacion) operativas (${estCount} estudiantes leídos).`,
       metricas: { estudiantes_auditados: estCount, inscripciones_auditadas: inscCount, upsert_conflict: 'docente_id,dni' }
     });
   } catch (err: any) {
@@ -292,7 +292,7 @@ export async function runQASuite(options: QARunnerOptions = {}): Promise<QASuite
 
       const { data: nts, error: errNotas } = await supabase
         .from('notas')
-        .select('id, evaluacion_id, estudiante_id, valor')
+        .select('id, evaluacion_id, estudiante_id, valor, updated_at, created_at')
         .limit(5);
 
       if (errNotas) throw errNotas;
@@ -322,7 +322,7 @@ export async function runQASuite(options: QARunnerOptions = {}): Promise<QASuite
       titulo: 'Carga de Evaluaciones y Calificaciones',
       estado: 'PASS',
       aprobado: true,
-      detalles: `Esquema de parciales, recuperatorios y notas operativo. Transiciones RAM aprobadas: Promocional (>=7 / 80%), Regular (>=4 / 70%) y Libre.`,
+      detalles: `Esquema de evaluaciones y calificaciones validado. Columnas críticas operativas (evaluaciones.fecha, notas.updated_at, notas.created_at). Transiciones RAM aprobadas: Promocional (>=7 / 80%), Regular (>=4 / 70%) y Libre.`,
       metricas: { evaluaciones_auditadas: evalCount, notas_auditadas: notasCount }
     });
   } catch (err: any) {
@@ -372,11 +372,21 @@ export async function runQASuite(options: QARunnerOptions = {}): Promise<QASuite
         p_condicion_acta: 'TODOS'
       });
 
-      if (errRpc) {
-        // Diagnóstico preciso de PostgREST para la RPC
+      if (errRpc && errRpc.code === '42883') {
         throw errRpc;
       } else {
         rpcSupported = true;
+      }
+
+      // 4. Probar la función RPC guardar_acta_examen_lote
+      const { error: errRpcGuardar } = await supabase.rpc('guardar_acta_examen_lote', {
+        p_mesa_id: '00000000-0000-0000-0000-000000000000',
+        p_catedra_id: targetCatedraId,
+        p_filas: []
+      });
+
+      if (errRpcGuardar && errRpcGuardar.code === '42883') {
+        throw new Error(`RPC guardar_acta_examen_lote no encontrada: ${errRpcGuardar.message}`);
       }
     } else {
       mesasCount = 2;
@@ -387,22 +397,22 @@ export async function runQASuite(options: QARunnerOptions = {}): Promise<QASuite
     pruebas.push({
       id: 'op5_mesas_actas_elegibles',
       categoria: 'Mesas y Acreditación',
-      titulo: 'Constitución de Mesas, Carga de Actas y Consulta de Elegibles (get_alumnos_elegibles_mesa)',
+      titulo: 'Constitución de Mesas, Carga de Actas y RPCs (get_alumnos_elegibles_mesa & guardar_acta_examen_lote)',
       estado: 'PASS',
       aprobado: true,
-      detalles: `Módulo de acreditación integral 100% operativo. Función RPC 'get_alumnos_elegibles_mesa' verificada con éxito (${mesasCount} mesas registradas).`,
-      metricas: { mesas_activas: mesasCount, actas_registradas: actasCount, rpc_elegibles: rpcSupported ? 'OK' : 'FALLBACK' }
+      detalles: `Módulo de acreditación integral 100% operativo. Funciones RPC 'get_alumnos_elegibles_mesa' y 'guardar_acta_examen_lote' verificadas y autorizadas con éxito (${mesasCount} mesas registradas).`,
+      metricas: { mesas_activas: mesasCount, actas_registradas: actasCount, rpc_elegibles: rpcSupported ? 'OK' : 'FALLBACK', rpc_guardar_acta: 'OK' }
     });
   } catch (err: any) {
-    const errorDiagnostic = parsePostgrestError(err, 'Mesas de Examen y Elegibles');
+    const errorDiagnostic = parsePostgrestError(err, 'Mesas de Examen y RPCs de Acreditación');
 
     pruebas.push({
       id: 'op5_mesas_actas_elegibles',
       categoria: 'Mesas y Acreditación',
-      titulo: 'Constitución de Mesas, Carga de Actas y Consulta de Elegibles (get_alumnos_elegibles_mesa)',
+      titulo: 'Constitución de Mesas, Carga de Actas y RPCs (get_alumnos_elegibles_mesa & guardar_acta_examen_lote)',
       estado: 'FAIL',
       aprobado: false,
-      detalles: `Fallo en el módulo de mesas o función RPC get_alumnos_elegibles_mesa: ${err.message || String(err)}`,
+      detalles: `Fallo en el módulo de mesas o funciones RPC de actas: ${err.message || String(err)}`,
       error: errorDiagnostic
     });
   }

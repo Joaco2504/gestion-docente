@@ -68,7 +68,9 @@ export default function ConstituirMesaModal({
       setFecha(getTodayYMD());
       setTurnoLlamado(initialCondicionActa === 'PROMOCIONAL' ? 'PROMOCIONAL DIRECTA' : '1° LLAMADO');
       
-      const teacherName = user?.user_metadata?.nombre_completo || 
+      const teacherName = user?.perfil?.nombre_docente ||
+                          user?.perfil?.nombre ||
+                          user?.user_metadata?.nombre_completo || 
                           user?.user_metadata?.full_name || 
                           user?.user_metadata?.nombre || 
                           user?.email?.split('@')[0] || 

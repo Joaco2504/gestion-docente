@@ -94,10 +94,45 @@ export default function CustomSelect({
     );
   });
 
-  // Cerrar al hacer clic fuera
+  const menuRef = useRef(null);
+  const [menuCoords, setMenuCoords] = useState({ top: 0, left: 0, width: 0, placement: 'bottom' });
+
+  // Calcular posición para el portal de escritorio
+  useEffect(() => {
+    if (isOpen && !isMobile && containerRef.current) {
+      const updatePosition = () => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const placeAbove = spaceBelow < 260 && rect.top > 260;
+        const minW = Math.max(rect.width, 220);
+        let leftPos = align === 'right' ? rect.right - minW : rect.left;
+        leftPos = Math.max(10, Math.min(leftPos, window.innerWidth - minW - 10));
+
+        setMenuCoords({
+          top: placeAbove ? rect.top - 6 : rect.bottom + 6,
+          left: leftPos,
+          width: minW,
+          placement: placeAbove ? 'top' : 'bottom'
+        });
+      };
+
+      updatePosition();
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen, isMobile, align]);
+
+  // Cerrar al hacer clic fuera (soporta clicks tanto en el trigger como dentro del menú portaleado)
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      const isInsideContainer = containerRef.current && containerRef.current.contains(e.target);
+      const isInsideMenu = menuRef.current && menuRef.current.contains(e.target);
+      if (!isInsideContainer && !isInsideMenu) {
         setIsOpen(false);
         setSearch('');
       }
@@ -304,18 +339,24 @@ export default function CustomSelect({
         document.body
       )}
 
-      {/* Menú Desplegable Flotante para Pantallas Grandes (Desktop) */}
-      {isOpen && !isMobile && (
+      {/* Menú Desplegable Flotante para Pantallas Grandes (Desktop) via Portal */}
+      {isOpen && !isMobile && typeof document !== 'undefined' && createPortal(
         <div
+          ref={menuRef}
           role="listbox"
+          style={{
+            position: 'fixed',
+            top: menuCoords.placement === 'top' ? 'auto' : `${menuCoords.top}px`,
+            bottom: menuCoords.placement === 'top' ? `${window.innerHeight - menuCoords.top}px` : 'auto',
+            left: `${menuCoords.left}px`,
+            width: `${menuCoords.width}px`,
+            zIndex: 9999
+          }}
           className={`
-            absolute z-[90] mt-1.5 w-full min-w-[200px] max-w-sm
-            bg-surface border border-surface-border rounded-2xl shadow-elevated
-            py-1.5 overflow-hidden animate-fadeIn backdrop-blur-md
-            ${align === 'right' ? 'right-0' : 'left-0'}
+            bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10
+            rounded-2xl shadow-2xl z-50 py-1.5 overflow-hidden animate-fadeIn backdrop-blur-md
             ${menuClassName}
           `}
-          style={{ transformOrigin: 'top' }}
         >
           {/* Campo de Búsqueda si hay muchas opciones */}
           {isSearchEnabled && (
@@ -398,7 +439,8 @@ export default function CustomSelect({
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

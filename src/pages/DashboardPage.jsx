@@ -1066,27 +1066,27 @@ const normalizeSearchText = (str) => {
            ========================================================= */}
         <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 relative overflow-hidden group">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2 min-w-0">
                 <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
-                  MÉTRICAS RÁPIDAS
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                  Métricas Rápidas
                 </span>
               </div>
-              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
                 globalMetrics.averageAttendance >= 75
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
               }`}>
-                {globalMetrics.averageAttendance >= 75 ? 'Óptimo' : 'Seguimiento'}
+                {globalMetrics.averageAttendance >= 75 ? 'Asistencia Óptima' : 'En Seguimiento'}
               </span>
             </div>
 
             {/* Layout Horizontal 2 Columnas (PC/Desktop): Col 1 Donut 100px, Col 2 Contadores */}
-            <div className="grid grid-cols-[110px_1fr] items-center gap-4 py-2">
-              {/* Columna 1: Donut Chart compacto 100px */}
+            <div className="grid grid-cols-1 sm:grid-cols-[100px_1fr] items-center gap-4 py-2">
+              {/* Columna 1: Donut Chart de 100px con porcentaje de asistencia centrado */}
               <div className="relative w-[100px] h-[100px] mx-auto flex items-center justify-center shrink-0">
                 <svg className="w-[100px] h-[100px] transform -rotate-90" viewBox="0 0 100 100">
                   <circle
@@ -1114,28 +1114,43 @@ const normalizeSearchText = (str) => {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
-                  <span className="text-base font-mono font-bold text-text-primary leading-tight">
+                  <span className="text-base font-mono font-bold text-slate-900 dark:text-white leading-tight">
                     {globalMetrics.averageAttendance}%
                   </span>
-                  <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-text-muted mt-0.5 leading-none">
+                  <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5 leading-none">
                     ASISTENCIA
                   </span>
                 </div>
               </div>
 
-              {/* Columna 2: Grilla vertical con los 3 contadores métricos sin truncamiento */}
-              <div className="grid grid-cols-1 gap-1.5 w-full">
-                <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-text-muted whitespace-nowrap">Alumnos Activos</span>
-                  <span className="text-sm font-bold font-mono text-text-primary ml-2">{globalMetrics.totalStudents}</span>
+              {/* Columna 2: 3 contadores con texto completo sin truncado */}
+              <div className="grid grid-cols-1 gap-2 w-full">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-normal">
+                    <span className="text-sm">👥</span>
+                    <span>Alumnos Activos:</span>
+                  </span>
+                  <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
+                    {globalMetrics.totalStudents}
+                  </span>
                 </div>
-                <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-text-muted whitespace-nowrap">Cátedras</span>
-                  <span className="text-sm font-bold font-mono text-text-primary ml-2">{globalMetrics.activeCatedras}</span>
+                <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-normal">
+                    <span className="text-sm">📖</span>
+                    <span>Cátedras:</span>
+                  </span>
+                  <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
+                    {globalMetrics.activeCatedras}
+                  </span>
                 </div>
-                <div className="p-2 sm:p-2.5 rounded-xl bg-surface-hover/50 border border-surface-border/40 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-text-muted whitespace-nowrap">Clases Totales</span>
-                  <span className="text-sm font-bold font-mono text-text-primary ml-2">{globalMetrics.totalClasses}</span>
+                <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-normal">
+                    <span className="text-sm">⏱️</span>
+                    <span>Clases Totales:</span>
+                  </span>
+                  <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
+                    {globalMetrics.totalClasses}
+                  </span>
                 </div>
               </div>
             </div>

@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   Award,
   AlertTriangle,
-  Info
+  Info,
+  FileSpreadsheet
 } from 'lucide-react';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
@@ -30,6 +31,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { formatFechaDMY } from '../../lib/dateUtils';
 import { handleAppError } from '../../utils/handleAppError';
+import { exportMesaExamenToExcel } from '../../lib/excel';
 
 export default function MesaDetalleView({
   mesa,
@@ -88,28 +90,51 @@ export default function MesaDetalleView({
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo && mesa?.id) {
-        // Consultar directamente actas_examen_alumnos con join opcional a estudiantes
-        const { data, error } = await supabase
-          .from('actas_examen_alumnos')
-          .select(`
-            id,
-            mesa_id,
-            estudiante_id,
-            alumno_nombre_completo,
-            alumno_dni,
-            condicion_previa,
-            nota_escrito,
-            nota_oral,
-            nota_definitiva,
-            dictamen,
-            observaciones,
-            estudiantes ( id, dni, apellido, nombre )
-          `)
-          .eq('mesa_id', mesa.id)
-          .order('alumno_nombre_completo', { ascending: true });
+        let data = null;
 
-        if (error) {
-          throw error;
+        // 1. Consultar vista actas_examen_detalle con join a estudiantes
+        try {
+          const { data: viewData, error: viewError } = await supabase
+            .from('actas_examen_detalle')
+            .select(`
+              *,
+              estudiantes ( id, dni, apellido, nombre )
+            `)
+            .eq('mesa_id', mesa.id)
+            .order('alumno_nombre_completo', { ascending: true });
+
+          if (!viewError && viewData && viewData.length > 0) {
+            data = viewData;
+          }
+        } catch (viewCatchErr) {
+          console.warn('[MesaDetalleView] Aviso consultando vista actas_examen_detalle:', viewCatchErr);
+        }
+
+        // 2. Fallback a actas_examen_alumnos si la vista está vacía o sin FK directa en postgREST
+        if (!data) {
+          const { data: directData, error: directError } = await supabase
+            .from('actas_examen_alumnos')
+            .select(`
+              id,
+              mesa_id,
+              estudiante_id,
+              alumno_nombre_completo,
+              alumno_dni,
+              condicion_previa,
+              nota_escrito,
+              nota_oral,
+              nota_definitiva,
+              dictamen,
+              observaciones,
+              estudiantes ( id, dni, apellido, nombre )
+            `)
+            .eq('mesa_id', mesa.id)
+            .order('alumno_nombre_completo', { ascending: true });
+
+          if (directError && !data) {
+            throw directError;
+          }
+          data = directData || [];
         }
 
         if (data) {
@@ -127,7 +152,8 @@ export default function MesaDetalleView({
             return {
               ...row,
               alumno_nombre_completo: nombreCompleto || 'ALUMNO REGISTRADO',
-              alumno_dni: dni || ''
+              alumno_dni: dni || '',
+              dictamen: row.dictamen || row.resultado || 'AUSENTE'
             };
           });
 
@@ -409,6 +435,19 @@ export default function MesaDetalleView({
   const catedraNombre = mesa?.catedras?.nombre || 'Cátedra';
   const institucionNombre = mesa?.catedras?.instituciones?.nombre || 'Institución de Educación Superior';
 
+  const handleExportExcel = () => {
+    try {
+      if (actasAlumnos.length === 0) {
+        toast.info('No hay alumnos inscriptos en el acta para exportar.');
+        return;
+      }
+      exportMesaExamenToExcel(mesa, actasAlumnos, catedraNombre);
+      toast.success('Acta de examen exportada a Excel (.xlsx) correctamente.');
+    } catch (err) {
+      handleAppError(err, 'MesaDetalleView / Exportar Excel', user);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       
@@ -474,6 +513,17 @@ export default function MesaDetalleView({
             <BookMarked className="w-4 h-4 text-primary" />
             <span className="hidden sm:inline">Guía de Uso</span>
           </Link>
+
+          <Button
+            variant="outline"
+            icon={FileSpreadsheet}
+            onClick={handleExportExcel}
+            className="text-xs font-bold rounded-2xl min-h-[44px] border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+            title="Exportar acta volante completa a Excel (.xlsx)"
+          >
+            <span className="hidden sm:inline">Exportar Excel</span>
+            <span className="sm:hidden">Excel</span>
+          </Button>
 
           <Button
             variant="outline"
@@ -558,12 +608,13 @@ export default function MesaDetalleView({
           PLANILLA DE CALIFICACIONES INTERACTIVA
       ========================================================================= */}
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin">
+        <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin max-h-[75vh]">
           <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50/75 dark:bg-white/[0.02] text-text-muted font-bold text-[11px] uppercase tracking-wider">
-                <th className="py-3 px-3 w-10 text-center">N°</th>
-                <th className="py-3 px-3 sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Estudiante (Nombre y DNI)</th>
+            <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20">
+              <tr className="border-b border-slate-200 dark:border-white/10 text-text-muted font-bold text-[11px] uppercase tracking-wider">
+                <th className="py-3 px-3 sticky left-0 top-0 z-30 bg-slate-50 dark:bg-slate-800/90 backdrop-blur border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] min-w-[200px] sm:min-w-[240px]">
+                  Estudiante (Nombre y DNI)
+                </th>
                 <th className="py-3 px-3 text-center w-28">Condición</th>
                 {!isPromocional && (
                   <>
@@ -580,14 +631,14 @@ export default function MesaDetalleView({
             <tbody className="divide-y divide-slate-200/70 dark:divide-white/5">
               {loading ? (
                 <tr>
-                  <td colSpan={isPromocional ? 7 : 9} className="py-12 text-center text-text-muted">
+                  <td colSpan={isPromocional ? 6 : 8} className="py-12 text-center text-text-muted">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
                     <span>Cargando planilla de calificaciones desde Supabase...</span>
                   </td>
                 </tr>
               ) : actasAlumnos.length === 0 ? (
                 <tr>
-                  <td colSpan={isPromocional ? 7 : 9} className="py-12 text-center text-text-muted">
+                  <td colSpan={isPromocional ? 6 : 8} className="py-12 text-center text-text-muted">
                     <div className="max-w-md mx-auto space-y-3">
                       <Users className="w-10 h-10 mx-auto text-text-muted/40" />
                       <p className="font-semibold text-sm text-text-primary">
@@ -615,17 +666,17 @@ export default function MesaDetalleView({
 
                   return (
                     <tr key={alumno.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
-                      {/* N° Orden */}
-                      <td className="py-2.5 px-3 text-center font-mono font-bold text-text-muted">
-                        {idx + 1}
-                      </td>
-
-                      {/* Estudiante */}
-                      <td className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                        <div className="font-bold text-text-primary text-xs">
-                          {alumno.alumno_nombre_completo}
+                      {/* Estudiante (Nombre y DNI) Congelado */}
+                      <td className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] min-w-[200px] sm:min-w-[240px]">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[11px] text-text-muted select-none w-5 shrink-0 text-right">
+                            {idx + 1}.
+                          </span>
+                          <span className="font-bold text-text-primary text-xs truncate">
+                            {alumno.alumno_nombre_completo}
+                          </span>
                         </div>
-                        <div className="font-mono text-[11px] text-text-muted">
+                        <div className="font-mono text-[11px] text-text-muted pl-7">
                           DNI: {alumno.alumno_dni || 'S/D'}
                         </div>
                       </td>

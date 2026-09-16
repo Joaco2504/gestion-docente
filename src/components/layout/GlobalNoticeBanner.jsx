@@ -20,7 +20,7 @@ export default function GlobalNoticeBanner() {
   }
 
   return (
-    <div className="w-full z-40 flex flex-col gap-1 print:hidden select-none animate-fadeIn">
+    <div className="w-full z-40 flex flex-col gap-1 print:hidden select-none animate-fadeIn md:pl-16">
       {/* 1. MODO MANTENIMIENTO (Alerta Crítica) */}
       {modoMantenimiento && (
         <div className="w-full bg-amber-500/15 dark:bg-amber-500/20 border-b border-amber-500/30 backdrop-blur-md px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-amber-950 dark:text-amber-200">

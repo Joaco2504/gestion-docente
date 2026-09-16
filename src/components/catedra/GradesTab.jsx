@@ -179,17 +179,20 @@ const GradeRow = React.memo(function GradeRow({
 
   return (
     <tr className="hover:bg-surface-hover/40 transition-colors">
-      <td className="hidden md:table-cell px-3 sm:px-4 py-3 text-center text-text-muted font-mono">{idx + 1}</td>
-      <td className="hidden md:table-cell px-3 sm:px-4 py-3 font-mono text-text-secondary">{est.dni}</td>
-      <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-3 sm:px-4 py-3 font-semibold text-text-primary whitespace-nowrap border-r border-surface-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-text-primary">
-            {est.apellido}, {est.nombre}
-          </span>
+      <td className="sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-surface-border min-w-[200px] sm:min-w-[240px]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] font-mono text-text-muted select-none w-5 shrink-0 text-right">
+              {idx + 1}.
+            </span>
+            <span className="font-semibold text-text-primary truncate">
+              {est.apellido}, {est.nombre}
+            </span>
+          </div>
           <RiskBadge risk={studentRisk} compact />
         </div>
-        <div className="text-[10px] font-mono text-text-muted md:hidden">
-          DNI: {est.dni}
+        <div className="text-[11px] font-mono text-text-muted pl-7">
+          DNI: {est.dni || 'S/D'}
         </div>
       </td>
 
@@ -1648,14 +1651,12 @@ export default function GradesTab({
       ) : (
         /* High-Density Panoramic Table View with sticky student column */
         <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-          <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin">
+          <div className="overflow-x-auto touch-pan-x select-none scrollbar-thin max-h-[75vh]">
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
-              <thead className="bg-surface-hover/80 text-text-secondary border-b border-surface-border">
+              <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary border-b border-surface-border">
                 <tr>
-                  <th className="hidden md:table-cell px-3 sm:px-4 py-3 text-center w-12 font-mono">#</th>
-                  <th className="hidden md:table-cell px-3 sm:px-4 py-3 font-mono">DNI</th>
-                  <th className="sticky left-0 z-20 bg-white dark:bg-slate-900 px-3 sm:px-4 py-3 min-w-[160px] sm:min-w-[210px] border-r border-surface-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] font-bold text-text-primary">
-                    Estudiante
+                  <th className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 min-w-[200px] sm:min-w-[240px] border-r border-surface-border font-bold text-text-primary">
+                    Estudiante / DNI
                   </th>
                   <th className="px-3 py-3 text-center w-24 font-mono">% Asist.</th>
 
