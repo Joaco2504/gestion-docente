@@ -885,7 +885,8 @@ export default function StudentsTab({
                         if (!st || !st.id) return null;
                         const isAcreditado = st.estado_academico === 'ACREDITADO';
                         const cond = getStudentCondition(st.id);
-                        const notaFinalDefinitiva = inscripcion.nota_final ?? inscripcion.nota_final_acreditacion ?? null;
+                        const notaFinal = st.nota_final ?? st.nota_final_acreditacion ?? null;
+                        const notaFinalDefinitiva = notaFinal;
 
                         return (
                           <tr key={st.id} className="hover:bg-surface-hover/40 transition-colors group">
