@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { 
@@ -26,7 +26,9 @@ import {
   CheckSquare,
   TrendingUp,
   Zap,
-  ShieldAlert
+  ShieldAlert,
+  Pencil,
+  MoreVertical
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
@@ -37,6 +39,7 @@ import EmptyState from '../components/common/EmptyState';
 import ExpandableSearch from '../components/common/ExpandableSearch';
 import { EmptyStateIllustration } from '../components/illustrations';
 import { SkeletonCatedraCard, SkeletonBentoGrid } from '../components/common/SkeletonLoader';
+const EditarCatedraModal = lazy(() => import('../components/catedra/EditarCatedraModal'));
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -73,6 +76,10 @@ export default function DashboardPage() {
   const [newModalidad, setNewModalidad] = useState('ANUAL');
   const [savingCatedra, setSavingCatedra] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Modal Modificar / Editar Cátedra
+  const [editingCatedra, setEditingCatedra] = useState(null);
+  const [activeMenuCatedraId, setActiveMenuCatedraId] = useState(null);
 
   // Modal Registrar Primera Clase Rápida
   const [isQuickClassModalOpen, setIsQuickClassModalOpen] = useState(false);
@@ -1454,14 +1461,111 @@ const normalizeSearchText = (str) => {
                         </Badge>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/catedra/${cat.id}`)}
-                        className="p-1.5 rounded-xl text-text-muted group-hover:text-primary group-hover:bg-primary/10 transition-all cursor-pointer"
-                        title="Ver detalle de la cátedra"
-                      >
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                      </button>
+                      <div className="flex items-center gap-1 relative">
+                        {/* Botón Acción Rápida: Editar Cátedra */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingCatedra(cat);
+                          }}
+                          className="p-1.5 rounded-xl text-text-muted hover:text-primary hover:bg-primary/10 transition-all cursor-pointer"
+                          title="Modificar o editar cátedra"
+                          aria-label="Modificar o editar cátedra"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+
+                        {/* Menú Contextual (...) */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuCatedraId(prev => prev === cat.id ? null : cat.id);
+                            }}
+                            className="p-1.5 rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                            title="Más opciones de cátedra"
+                            aria-label="Más opciones de cátedra"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          {activeMenuCatedraId === cat.id && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-30" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuCatedraId(null);
+                                }} 
+                              />
+                              <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl p-1.5 z-40 animate-fadeIn space-y-0.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuCatedraId(null);
+                                    setEditingCatedra(cat);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:text-primary hover:bg-primary/10 rounded-xl transition-colors cursor-pointer text-left"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  <span>Editar Configuración</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuCatedraId(null);
+                                    navigate(`/catedra/${cat.id}?tab=asistencias`);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer text-left"
+                                >
+                                  <CheckSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                  <span>Asistencias</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuCatedraId(null);
+                                    navigate(`/catedra/${cat.id}?tab=calificaciones`);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer text-left"
+                                >
+                                  <GraduationCap className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                  <span>Calificaciones</span>
+                                </button>
+                                <div className="border-t border-slate-100 dark:border-white/10 my-1" />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuCatedraId(null);
+                                    navigate(`/catedra/${cat.id}`);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer text-left"
+                                >
+                                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <span>Ir a la Cátedra</span>
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Botón Ir a la Cátedra */}
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/catedra/${cat.id}`)}
+                          className="p-1.5 rounded-xl text-text-muted group-hover:text-primary group-hover:bg-primary/10 transition-all cursor-pointer"
+                          title="Ver detalle de la cátedra"
+                          aria-label="Ver detalle de la cátedra"
+                        >
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Título de la Asignatura */}
@@ -1966,6 +2070,22 @@ const normalizeSearchText = (str) => {
           </div>
         </form>
       </Modal>
+
+      {/* MODAL 4: MODIFICAR / EDITAR CÁTEDRA */}
+      {editingCatedra && (
+        <Suspense fallback={null}>
+          <EditarCatedraModal
+            isOpen={Boolean(editingCatedra)}
+            onClose={() => setEditingCatedra(null)}
+            catedra={editingCatedra}
+            onCatedraUpdated={(updated) => {
+              setCatedrasList(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+              setEditingCatedra(null);
+              if (refreshData) refreshData();
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

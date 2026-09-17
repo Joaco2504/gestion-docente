@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS public.catedras (
     nivel TEXT NOT NULL CHECK (nivel IN ('SECUNDARIO', 'TERCIARIO')),
     modalidad TEXT NOT NULL CHECK (modalidad IN ('ANUAL', 'CUATRIMESTRAL')),
     horarios_semanales JSONB NOT NULL DEFAULT '[]'::jsonb,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ------------------------------------------------------------------------------

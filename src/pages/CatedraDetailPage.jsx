@@ -49,6 +49,7 @@ const LibroTemasTab = lazy(() => import('../components/catedra/LibroTemasTab'));
 const UnidadesTab = lazy(() => import('../components/catedra/UnidadesTab'));
 const CatedraStatsModal = lazy(() => import('../components/catedra/CatedraStatsModal'));
 const PortalSettingsModal = lazy(() => import('../components/catedra/PortalSettingsModal'));
+const EditarCatedraModal = lazy(() => import('../components/catedra/EditarCatedraModal'));
 
 // Configuración estática de pestañas (definida a nivel de módulo para evitar reinicializaciones)
 const TABS_CONFIG = [
@@ -66,10 +67,11 @@ export default function CatedraDetailPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isDemo } = useAuth();
-  const { catedras, activeCiclo } = useApp();
+  const { catedras, setCatedras, activeCiclo, refreshData } = useApp();
 
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
+  const [isEditCatedraModalOpen, setIsEditCatedraModalOpen] = useState(false);
   const [isCierreModalOpen, setIsCierreModalOpen] = useState(false);
   const [isReabrirModalOpen, setIsReabrirModalOpen] = useState(false);
   const [isCierreActionLoading, setIsCierreActionLoading] = useState(false);
@@ -94,7 +96,19 @@ export default function CatedraDetailPage() {
   }
 
   function handleCatedraUpdated(updated) {
-    setCatedra(updated);
+    if (!updated) return;
+    // 1. Actualizar estado local de la cátedra activa (currentCatedra) de inmediato
+    setCatedra(prev => (prev ? { ...prev, ...updated } : updated));
+
+    // 2. Sincronizar en memoria en AppContext para reflejo instantáneo en Navbar, Sidebar y Mesas
+    if (setCatedras && updated.id) {
+      setCatedras(prev => (prev || []).map(c => c.id === updated.id ? { ...c, ...updated } : c));
+    }
+
+    // 3. Refrescar estado global en segundo plano
+    if (refreshData) {
+      refreshData().catch(err => console.warn('Aviso refrescando estado global:', err));
+    }
   }
 
   async function handleFinalizarCursadaConfirm() {
@@ -358,6 +372,7 @@ export default function CatedraDetailPage() {
             activeCiclo={activeCiclo}
             onOpenPortal={() => setIsPortalModalOpen(true)}
             onOpenStats={() => setIsStatsModalOpen(true)}
+            onEditCatedra={() => setIsEditCatedraModalOpen(true)}
             cursadaFinalizada={Boolean(catedra?.cursada_finalizada)}
             fechaCierreCursada={catedra?.fecha_cierre_cursada}
             onFinalizarCursada={() => setIsCierreModalOpen(true)}
@@ -509,6 +524,18 @@ export default function CatedraDetailPage() {
             <PortalSettingsModal
               isOpen={isPortalModalOpen}
               onClose={() => setIsPortalModalOpen(false)}
+              catedra={catedra}
+              onCatedraUpdated={handleCatedraUpdated}
+            />
+          </Suspense>
+        )}
+
+        {/* Modal Bento: Modificar / Editar Cátedra */}
+        {isEditCatedraModalOpen && (
+          <Suspense fallback={null}>
+            <EditarCatedraModal
+              isOpen={isEditCatedraModalOpen}
+              onClose={() => setIsEditCatedraModalOpen(false)}
               catedra={catedra}
               onCatedraUpdated={handleCatedraUpdated}
             />

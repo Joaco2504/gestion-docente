@@ -11,7 +11,8 @@ import {
   BarChart3,
   Flag,
   Lock,
-  Unlock
+  Unlock,
+  Pencil
 } from 'lucide-react';
 
 /**
@@ -83,6 +84,7 @@ export default function CatedraHeader({
   activeCiclo,
   onOpenPortal,
   onOpenStats,
+  onEditCatedra,
   cursadaFinalizada = false,
   fechaCierreCursada = null,
   onFinalizarCursada,
@@ -218,7 +220,20 @@ export default function CatedraHeader({
             <span className="truncate">Estadísticas</span>
           </button>
 
-          {/* Botón 3: Estado de Cursado */}
+          {/* Botón 3: Editar Cátedra */}
+          {onEditCatedra && (
+            <button
+              type="button"
+              onClick={onEditCatedra}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-300 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all duration-200 shadow-sm cursor-pointer min-h-[42px]"
+              title="Modificar institución, ciclo lectivo, nombre, modalidad o horarios"
+            >
+              <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600 dark:text-slate-300 shrink-0" />
+              <span className="truncate">Editar Cátedra</span>
+            </button>
+          )}
+
+          {/* Botón 4: Estado de Cursado */}
           {!cursadaFinalizada ? (
             <button
               type="button"
