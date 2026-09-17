@@ -28,7 +28,8 @@ import Card from '../common/Card';
 import QRCodeDisplay from '../common/QRCodeDisplay';
 import { 
   getCatedraPortalConfig, 
-  saveCatedraPortalConfig 
+  saveCatedraPortalConfig,
+  slugifyCatedra 
 } from '../../services/studentPortalService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -38,10 +39,10 @@ export default function PortalSettingsModal({
   catedra,
   onCatedraUpdated
 }) {
-  const { isDemo } = useAuth();
+  const { user, isDemo } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedType, setCopiedType] = useState(''); // 'link' | 'alias' | ''
   const [showQR, setShowQR] = useState(false);
 
   // Configuración del portal
@@ -49,6 +50,7 @@ export default function PortalSettingsModal({
   const [mostrarAsistencia, setMostrarAsistencia] = useState(true);
   const [mostrarNotas, setMostrarNotas] = useState(true);
   const [mostrarCondicion, setMostrarCondicion] = useState(true);
+  const [alias, setAlias] = useState('');
 
   // Cargar configuración inicial
   useEffect(() => {
@@ -62,6 +64,9 @@ export default function PortalSettingsModal({
           setMostrarAsistencia(config.portal_mostrar_asistencia !== false);
           setMostrarNotas(config.portal_mostrar_notas !== false);
           setMostrarCondicion(config.portal_mostrar_condicion !== false);
+          setAlias(config.alias || catedra?.alias || slugifyCatedra(catedra?.nombre || ''));
+        } else {
+          setAlias(catedra?.alias || slugifyCatedra(catedra?.nombre || ''));
         }
       } catch (err) {
         handleAppError(err, 'PortalSettingsModal / loadConfig', user);
@@ -73,23 +78,37 @@ export default function PortalSettingsModal({
     if (isOpen) {
       loadConfig();
     }
-  }, [isOpen, catedra?.id, isDemo]);
+  }, [isOpen, catedra?.id, catedra?.nombre, catedra?.alias, isDemo, user]);
 
-  // URL del portal público
-  const portalUrl = typeof window !== 'undefined' && catedra?.id
-    ? `${window.location.origin}/consulta/${catedra.id}`
-    : `https://app.planilladocente.com/consulta/${catedra?.id || ''}`;
+  // Slug amigable y URL limpia del portal público
+  const activeSlug = alias.trim() || catedra?.alias || slugifyCatedra(catedra?.nombre || 'catedra');
+  const portalUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/consulta/${activeSlug}`
+    : `https://app.planilladocente.com/consulta/${activeSlug}`;
 
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(portalUrl);
-      setCopied(true);
-      toast.success('¡Enlace del portal copiado al portapapeles!', {
-        description: 'Compártelo con tus alumnos para que consulten su estado.'
+      setCopiedType('link');
+      toast.success('¡Enlace limpio copiado al portapapeles!', {
+        description: 'Compártelo con tus alumnos para que consulten su estado directamente.'
       });
-      setTimeout(() => setCopied(false), 2500);
+      setTimeout(() => setCopiedType(''), 2500);
     } catch (err) {
       toast.error('No se pudo copiar el enlace al portapapeles.');
+    }
+  };
+
+  const handleCopyAlias = async () => {
+    try {
+      await navigator.clipboard.writeText(activeSlug);
+      setCopiedType('alias');
+      toast.success('¡Alias de cátedra copiado al portapapeles!', {
+        description: `Código slug: ${activeSlug}`
+      });
+      setTimeout(() => setCopiedType(''), 2500);
+    } catch (err) {
+      toast.error('No se pudo copiar el alias al portapapeles.');
     }
   };
 
@@ -106,7 +125,8 @@ export default function PortalSettingsModal({
         portal_activo: portalActivo,
         portal_mostrar_asistencia: mostrarAsistencia,
         portal_mostrar_notas: mostrarNotas,
-        portal_mostrar_condicion: mostrarCondicion
+        portal_mostrar_condicion: mostrarCondicion,
+        alias: activeSlug
       };
 
       await saveCatedraPortalConfig(catedra.id, newConfig, isDemo);
@@ -141,41 +161,42 @@ export default function PortalSettingsModal({
         subtitle={`Control granular de visibilidad y acceso para ${catedra?.nombre || 'la cátedra'}`}
       >
         <div className="space-y-6 p-4 sm:p-6 overflow-y-auto max-h-[75vh] scrollbar-thin">
-          {/* Switch Maestro */}
-          <div className={`p-4 sm:p-5 rounded-3xl border transition-all duration-300 ${
-            portalActivo 
-              ? 'bg-emerald-500/10 dark:bg-emerald-950/30 border-emerald-500/40 shadow-sm' 
-              : 'bg-slate-100/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/10'
-          }`}>
-            <div className="flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
-              <div className="flex items-start gap-3.5">
-                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
-                  portalActivo 
-                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' 
-                    : 'bg-slate-200 dark:bg-slate-800 text-text-muted'
-                }`}>
-                  <Globe className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm sm:text-base font-bold text-text-primary">
-                      Habilitar Portal de Consulta Pública
-                    </h4>
-                    <Badge variant={portalActivo ? 'success' : 'default'} size="sm">
-                      {portalActivo ? 'Activo' : 'Pausado'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-text-muted mt-1 leading-relaxed">
-                    Permite a los alumnos matriculados consultar su situación académica ingresando su número de DNI, sin necesidad de registro previo.
-                  </p>
-                </div>
+          {/* Switch Maestro - Layout simétrico con margen de seguridad */}
+          <div className="flex items-center justify-between p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/60 shadow-sm w-full gap-4 transition-all duration-300">
+            {/* Lado izquierdo: Ícono centrado, título con badge ACTIVO/INACTIVO y texto explicativo */}
+            <div className="flex items-start gap-4 min-w-0 flex-1">
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                portalActivo 
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-sm' 
+                  : 'bg-slate-100 dark:bg-slate-800 text-text-muted border border-slate-200 dark:border-slate-700'
+              }`}>
+                <Globe className="w-5 h-5" />
               </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h4 className="text-sm sm:text-base font-bold text-text-primary">
+                    Habilitar Portal de Consulta Pública
+                  </h4>
+                  <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full uppercase tracking-wider border shrink-0 ${
+                    portalActivo
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                  }`}>
+                    {portalActivo ? 'ACTIVO' : 'INACTIVO'}
+                  </span>
+                </div>
+                <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                  Permite a los alumnos matriculados consultar su situación académica ingresando su número de DNI, sin necesidad de registro previo.
+                </p>
+              </div>
+            </div>
 
-              {/* Botón Switch Maestro */}
+            {/* Lado derecho: Componente Switch estilizado con margen de seguridad */}
+            <div className="shrink-0 mr-1 flex items-center">
               <button
                 type="button"
                 onClick={() => setPortalActivo(!portalActivo)}
-                className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
                   portalActivo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                 }`}
                 role="switch"
@@ -183,8 +204,8 @@ export default function PortalSettingsModal({
               >
                 <span
                   aria-hidden="true"
-                  className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                    portalActivo ? 'translate-x-6' : 'translate-x-0'
+                  className={`pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
+                    portalActivo ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>
@@ -288,7 +309,7 @@ export default function PortalSettingsModal({
               </div>
 
               {/* Caja de Difusión para Alumnos */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/10 space-y-3.5">
+              <div className="p-4 sm:p-5 rounded-3xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/10 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Share2 className="w-4 h-4 text-primary" />
@@ -296,30 +317,74 @@ export default function PortalSettingsModal({
                       Caja de Difusión con Alumnos
                     </span>
                   </div>
-                  <span className="text-[11px] text-text-muted">Acceso directo</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    Slug amigable activo
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2 p-1.5 pl-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10">
-                  <span className="text-xs font-mono text-text-secondary truncate select-all flex-1">
-                    {portalUrl}
-                  </span>
+                {/* Enlace Limpio Principal */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-text-muted">
+                    <span>Enlace amigable para estudiantes:</span>
+                    <button
+                      type="button"
+                      onClick={() => setAlias(slugifyCatedra(catedra?.nombre || ''))}
+                      className="text-primary hover:underline cursor-pointer text-[10px]"
+                      title="Regenerar slug a partir del nombre de la cátedra"
+                    >
+                      Autogenerar slug
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 p-1.5 pl-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 shadow-2xs">
+                    <span className="text-xs font-mono text-text-secondary truncate select-all flex-1" title={portalUrl}>
+                      {portalUrl}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant={copiedType === 'link' ? 'secondary' : 'primary'}
+                      icon={copiedType === 'link' ? Check : Copy}
+                      onClick={handleCopyLink}
+                      className="text-xs font-semibold rounded-xl px-3 shrink-0 cursor-pointer"
+                    >
+                      {copiedType === 'link' ? 'Copiado' : 'Copiar Enlace'}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Fila del Alias de Cátedra */}
+                <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-slate-100/70 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0">
+                      Alias:
+                    </span>
+                    <input
+                      type="text"
+                      value={alias}
+                      onChange={(e) => setAlias(slugifyCatedra(e.target.value))}
+                      placeholder={slugifyCatedra(catedra?.nombre || 'alias-catedra')}
+                      className="text-xs font-mono font-medium text-text-primary bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 focus:border-primary focus:outline-none px-1 py-0.5 max-w-[200px] truncate"
+                      title="Haz clic para personalizar el alias"
+                    />
+                  </div>
                   <Button
                     size="sm"
-                    variant={copied ? 'secondary' : 'primary'}
-                    icon={copied ? Check : Copy}
-                    onClick={handleCopyLink}
-                    className="text-xs font-semibold rounded-xl px-3 shrink-0"
+                    variant="outline"
+                    icon={copiedType === 'alias' ? Check : Copy}
+                    onClick={handleCopyAlias}
+                    className="text-[11px] font-medium py-1 px-2.5 rounded-xl shrink-0 cursor-pointer text-text-secondary hover:text-primary border-slate-200 dark:border-white/10"
                   >
-                    {copied ? 'Copiado' : 'Copiar'}
+                    {copiedType === 'alias' ? 'Alias Copiado' : 'Copiar Alias'}
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                {/* Botones de Difusión WhatsApp y QR */}
+                <div className="grid grid-cols-2 gap-2.5 pt-0.5">
                   <Button
                     variant="outline"
                     icon={Smartphone}
                     onClick={handleWhatsAppShare}
-                    className="text-xs font-semibold rounded-2xl py-2 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                    className="text-xs font-semibold rounded-2xl py-2 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
                   >
                     Compartir en WhatsApp
                   </Button>
@@ -328,7 +393,7 @@ export default function PortalSettingsModal({
                     variant="outline"
                     icon={QrCode}
                     onClick={() => setShowQR(true)}
-                    className="text-xs font-semibold rounded-2xl py-2 border-primary/30 text-primary hover:bg-primary/10"
+                    className="text-xs font-semibold rounded-2xl py-2 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
                   >
                     Ver Código QR
                   </Button>

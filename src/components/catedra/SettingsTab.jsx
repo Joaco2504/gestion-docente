@@ -17,6 +17,7 @@ import Button from '../common/Button';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
 import CustomSelect from '../common/CustomSelect';
+import QuickSaveFAB from '../common/QuickSaveFAB';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -854,41 +855,13 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         </Button>
       </div>
 
-      {/* Botón Circular Flotante (FAB) renderizado directamente en document.body mediante Portal */}
-      {isDirty && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-20 md:bottom-8 right-6 md:right-8 z-[9999] flex items-center gap-3 animate-fadeIn pointer-events-auto">
-          {/* Badge informativo lateral */}
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/95 dark:bg-[#0c1322]/95 backdrop-blur-md border border-primary/40 shadow-xl text-xs font-bold text-text-primary">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
-            <span>Cambios sin guardar</span>
-          </div>
-
-          {/* Botón circular con icono de guardar */}
-          <button
-            type="button"
-            onClick={handleSaveAll}
-            disabled={loading}
-            title="Guardar cambios pendientes (detectados automáticamente)"
-            aria-label="Guardar cambios de configuración"
-            className="relative group w-14 h-14 rounded-full bg-gradient-to-r from-primary to-primary-hover hover:brightness-110 active:scale-95 text-white shadow-2xl shadow-primary/50 flex items-center justify-center transition-all duration-200 border-2 border-white/30 focus:outline-hidden cursor-pointer"
-          >
-            {/* Distintivo animado en la esquina */}
-            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border border-white text-[9px] font-black text-white items-center justify-center">
-                !
-              </span>
-            </span>
-
-            {loading ? (
-              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Save className="w-6 h-6 drop-shadow-md group-hover:scale-110 transition-transform" />
-            )}
-          </button>
-        </div>,
-        document.body
-      )}
+      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) con Ctrl + S */}
+      <QuickSaveFAB
+        onSave={handleSaveAll}
+        loading={loading}
+        hasChanges={isDirty}
+        tooltipText="Guardado rápido (Ctrl + S)"
+      />
     </form>
   );
 }

@@ -327,19 +327,61 @@ FOR ALL TO authenticated
 USING (clase_id IN (SELECT cl.id FROM public.clases cl JOIN public.catedras ca ON cl.catedra_id = ca.id WHERE ca.docente_id = auth.uid()))
 WITH CHECK (clase_id IN (SELECT cl.id FROM public.clases cl JOIN public.catedras ca ON cl.catedra_id = ca.id WHERE ca.docente_id = auth.uid()));
 
+-- Función auxiliar para validación de rol superadmin en RLS
+CREATE OR REPLACE FUNCTION public.es_superadmin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.perfiles p
+        WHERE p.id = auth.uid() AND p.rol = 'superadmin'
+    );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.es_superadmin() TO authenticated, anon;
+
 -- 11. Evaluaciones
 DROP POLICY IF EXISTS "evaluaciones_manage_own" ON public.evaluaciones;
-CREATE POLICY "evaluaciones_manage_own" ON public.evaluaciones
+DROP POLICY IF EXISTS "evaluaciones_allow_all" ON public.evaluaciones;
+DROP POLICY IF EXISTS "evaluaciones_superadmin_docente_policy" ON public.evaluaciones;
+CREATE POLICY "evaluaciones_superadmin_docente_policy" ON public.evaluaciones
 FOR ALL TO authenticated
-USING (catedra_id IN (SELECT id FROM public.catedras WHERE docente_id = auth.uid()))
-WITH CHECK (catedra_id IN (SELECT id FROM public.catedras WHERE docente_id = auth.uid()));
+USING (
+    public.es_superadmin() OR EXISTS (
+        SELECT 1 FROM public.catedras c
+        WHERE c.id = catedra_id AND c.docente_id = auth.uid()
+    )
+)
+WITH CHECK (
+    public.es_superadmin() OR EXISTS (
+        SELECT 1 FROM public.catedras c
+        WHERE c.id = catedra_id AND c.docente_id = auth.uid()
+    )
+);
 
 -- 12. Notas
 DROP POLICY IF EXISTS "notas_manage_own" ON public.notas;
-CREATE POLICY "notas_manage_own" ON public.notas
+DROP POLICY IF EXISTS "notas_allow_all" ON public.notas;
+DROP POLICY IF EXISTS "notas_superadmin_docente_policy" ON public.notas;
+CREATE POLICY "notas_superadmin_docente_policy" ON public.notas
 FOR ALL TO authenticated
-USING (evaluacion_id IN (SELECT ev.id FROM public.evaluaciones ev JOIN public.catedras ca ON ev.catedra_id = ca.id WHERE ca.docente_id = auth.uid()))
-WITH CHECK (evaluacion_id IN (SELECT ev.id FROM public.evaluaciones ev JOIN public.catedras ca ON ev.catedra_id = ca.id WHERE ca.docente_id = auth.uid()));
+USING (
+    public.es_superadmin() OR EXISTS (
+        SELECT 1 FROM public.evaluaciones ev
+        JOIN public.catedras c ON c.id = ev.catedra_id
+        WHERE ev.id = evaluacion_id AND c.docente_id = auth.uid()
+    )
+)
+WITH CHECK (
+    public.es_superadmin() OR EXISTS (
+        SELECT 1 FROM public.evaluaciones ev
+        JOIN public.catedras c ON c.id = ev.catedra_id
+        WHERE ev.id = evaluacion_id AND c.docente_id = auth.uid()
+    )
+);
 
 -- 13. Recursos
 DROP POLICY IF EXISTS "recursos_manage_own" ON public.recursos;

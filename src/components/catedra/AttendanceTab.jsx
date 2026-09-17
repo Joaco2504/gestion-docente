@@ -34,6 +34,7 @@ import PrintPreviewModal from '../common/PrintPreviewModal';
 import ExpandableSearch from '../common/ExpandableSearch';
 import EditClassModal from './EditClassModal';
 import ConfirmDeleteClassModal from './ConfirmDeleteClassModal';
+import QuickSaveFAB from '../common/QuickSaveFAB';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { formatFechaDMY, parseDMYtoYMD, getTodayYMD } from '../../lib/dateUtils';
@@ -415,6 +416,7 @@ export default function AttendanceTab({
   const [isDecretoModalOpen, setIsDecretoModalOpen] = useState(false);
   const [isLicenciasApartadoOpen, setIsLicenciasApartadoOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [savingQuickAttendance, setSavingQuickAttendance] = useState(false);
 
   // Opciones completas de artículos oficiales según Decreto Acuerdo N° 1092/2015
   const articuloOptions = React.useMemo(() => [
@@ -836,6 +838,42 @@ export default function AttendanceTab({
     } catch (err) {
       setAsistencias(previousState);
       handleAppError(err, 'AttendanceTab / Marcar Todos Presentes', user);
+    }
+  };
+
+  // Guardado rápido y sincronización de asistencias de la clase activa (FAB / Ctrl + S)
+  const handleQuickSaveAttendance = async () => {
+    if (cursadaFinalizada) {
+      toast.error('El cursado está finalizado. La asistencia no puede modificarse.');
+      return;
+    }
+    if (!activeClase) {
+      toast.info('Selecciona una clase para registrar o guardar la asistencia.');
+      return;
+    }
+
+    setSavingQuickAttendance(true);
+    try {
+      const classAsistencias = asistencias.filter(a => a.clase_id === activeClase.id);
+
+      if (classAsistencias.length > 0 && isSupabaseConfigured && !isDemo) {
+        if (!user?.id) {
+          throw new Error('Sesión de usuario requerida.');
+        }
+
+        const { error } = await supabase
+          .from('asistencias')
+          .upsert(classAsistencias, { onConflict: 'clase_id,estudiante_id' });
+
+        if (error) throw error;
+      }
+
+      localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(asistencias));
+      toast.success(`Asistencia de la clase del ${formatFechaDMY(activeClase.fecha)} guardada correctamente.`);
+    } catch (err) {
+      handleAppError(err, 'AttendanceTab / Guardado Rápido Asistencia', user);
+    } finally {
+      setSavingQuickAttendance(false);
     }
   };
 
@@ -1937,6 +1975,15 @@ export default function AttendanceTab({
           institucionNombre: 'INSTITUTO DE EDUCACIÓN SUPERIOR',
           docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular'
         }}
+      />
+
+      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) con Ctrl + S */}
+      <QuickSaveFAB
+        onSave={handleQuickSaveAttendance}
+        loading={savingQuickAttendance}
+        disabled={!activeClase || cursadaFinalizada}
+        tooltipText="Guardado rápido (Ctrl + S)"
+        ariaLabel="Guardar asistencia de la clase actual"
       />
     </div>
   );

@@ -27,6 +27,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { handleAppError } from '../utils/handleAppError';
+import QuickSaveFAB from '../components/common/QuickSaveFAB';
 
 export default function SettingsPage() {
   const { user, isDemo } = useAuth();
@@ -374,6 +375,13 @@ export default function SettingsPage() {
       handleAppError(err, 'SettingsPage / Guardar criterios', user);
     } finally {
       setSavingCriteria(false);
+    }
+  };
+
+  const handleQuickSaveAll = async () => {
+    handleSaveCriteria();
+    if (isPeriodsOpen) {
+      await handleSavePeriods();
     }
   };
 
@@ -796,6 +804,13 @@ export default function SettingsPage() {
           </Button>
         </div>
       </Card>
+
+      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) */}
+      <QuickSaveFAB
+        onSave={handleQuickSaveAll}
+        loading={savingPeriods || savingCriteria}
+        title="Guardar configuraciones y criterios"
+      />
     </div>
   );
 }

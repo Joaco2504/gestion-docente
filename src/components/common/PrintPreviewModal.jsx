@@ -622,10 +622,25 @@ function CalificacionesTemplate({ data }) {
     criterios = {},
     cicloAnio = '2026',
     institucionNombre = '',
-    docenteNombre = ''
+    docenteNombre = '',
+    printConfig = {}
   } = data;
 
-  const mainEvaluations = evaluaciones.filter(e => e.tipo !== 'RECUPERATORIO');
+  const includeAsistencia = printConfig.includeAsistencia !== false;
+  const includeNotaFinal = printConfig.includeNotaFinal !== false;
+  const includeCondicion = printConfig.includeCondicion !== false;
+  const includeSignature = printConfig.includeSignature !== false;
+  const selectedEvalIds = Array.isArray(printConfig.selectedEvalIds) ? printConfig.selectedEvalIds : null;
+
+  const mainEvaluations = evaluaciones.filter(e => {
+    if (e.tipo === 'RECUPERATORIO') return false;
+    if (selectedEvalIds) {
+      return selectedEvalIds.includes(e.id);
+    }
+    return true;
+  });
+
+  const totalCols = 3 + (includeAsistencia ? 1 : 0) + mainEvaluations.length + (includeNotaFinal ? 1 : 0) + (includeCondicion ? 1 : 0);
 
   // Cálculos estadísticos globales
   const totalAlumnos = matrixData.length;
@@ -684,20 +699,27 @@ function CalificacionesTemplate({ data }) {
               <th className="p-1.5 border-r border-slate-400 text-center w-8">#</th>
               <th className="p-1.5 border-r border-slate-400 w-24">D.N.I.</th>
               <th className="p-1.5 border-r border-slate-400 min-w-[160px]">Apellido y Nombres</th>
-              <th className="p-1.5 border-r border-slate-400 text-center w-16">% Asist.</th>
+              {includeAsistencia && (
+                <th className="p-1.5 border-r border-slate-400 text-center w-16">% Asist.</th>
+              )}
               {mainEvaluations.map(ev => (
                 <th key={ev.id} className="p-1.5 border-r border-slate-400 text-center min-w-[70px]">
                   <span className="block truncate max-w-[100px]">{ev.titulo}</span>
                   <span className="text-[8px] text-slate-600 block">{ev.tipo}</span>
                 </th>
               ))}
-              <th className="p-1.5 text-center w-28">Condición Final</th>
+              {includeNotaFinal && (
+                <th className="p-1.5 border-r border-slate-400 text-center w-16">Nota Final</th>
+              )}
+              {includeCondicion && (
+                <th className="p-1.5 text-center w-28">Condición Final</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-300">
             {matrixData.length === 0 ? (
               <tr>
-                <td colSpan={5 + mainEvaluations.length} className="p-6 text-center text-slate-500 italic">
+                <td colSpan={totalCols} className="p-6 text-center text-slate-500 italic">
                   No hay calificaciones asentadas para esta cátedra.
                 </td>
               </tr>
@@ -707,6 +729,31 @@ function CalificacionesTemplate({ data }) {
                 const cond = item.condicion?.condicion || 'REGULAR';
                 const isPromo = cond === 'PROMOCIONAL' || cond === 'APROBADO';
                 const isLibre = cond === 'LIBRE' || cond === 'DESAPROBADO';
+
+                // Cálculo de promedio / nota final de cursada
+                const studentGrades = [];
+                mainEvaluations.forEach(ev => {
+                  const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
+                  const isRecupAllowed = !selectedEvalIds || (recup && selectedEvalIds.includes(recup.id));
+                  const notaRecord = notas.find(n => n.estudiante_id === est.id && n.evaluacion_id === ev.id);
+                  const recupRecord = (recup && isRecupAllowed) ? notas.find(n => n.estudiante_id === est.id && n.evaluacion_id === recup.id) : null;
+
+                  let val = null;
+                  if (notaRecord?.valor !== undefined && notaRecord.valor !== null && notaRecord.valor !== '') {
+                    val = Number(notaRecord.valor);
+                  }
+                  if (recupRecord?.valor !== undefined && recupRecord.valor !== null && recupRecord.valor !== '') {
+                    const rVal = Number(recupRecord.valor);
+                    val = val !== null ? Math.max(val, rVal) : rVal;
+                  }
+                  if (val !== null && !isNaN(val)) {
+                    studentGrades.push(val);
+                  }
+                });
+
+                const finalAvg = studentGrades.length > 0
+                  ? (studentGrades.reduce((a, b) => a + b, 0) / studentGrades.length).toFixed(1).replace('.0', '')
+                  : null;
 
                 return (
                   <tr key={est.id || idx} className="print-row hover:bg-slate-50 text-[11px]">
@@ -719,28 +766,38 @@ function CalificacionesTemplate({ data }) {
                     <td className="p-1.5 border-r border-slate-300 font-bold text-slate-900 uppercase">
                       {est.apellido}, {est.nombre}
                     </td>
-                    <td className="p-1.5 border-r border-slate-300 text-center font-mono font-bold">
-                      {item.asistenciaPct}%
-                    </td>
+                    {includeAsistencia && (
+                      <td className="p-1.5 border-r border-slate-300 text-center font-mono font-bold">
+                        {item.asistenciaPct}%
+                      </td>
+                    )}
                     {mainEvaluations.map(ev => {
                       const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
+                      const isRecupAllowed = !selectedEvalIds || (recup && selectedEvalIds.includes(recup.id));
                       const notaRecord = notas.find(n => n.estudiante_id === est.id && n.evaluacion_id === ev.id);
-                      const recupRecord = recup ? notas.find(n => n.estudiante_id === est.id && n.evaluacion_id === recup.id) : null;
+                      const recupRecord = (recup && isRecupAllowed) ? notas.find(n => n.estudiante_id === est.id && n.evaluacion_id === recup.id) : null;
                       
                       return (
                         <td key={ev.id} className="p-1.5 border-r border-slate-300 text-center font-mono font-bold">
-                          {notaRecord?.valor !== undefined ? notaRecord.valor : '—'}
-                          {recupRecord?.valor !== undefined && (
+                          {notaRecord?.valor !== undefined && notaRecord.valor !== null ? notaRecord.valor : '—'}
+                          {recupRecord?.valor !== undefined && recupRecord.valor !== null && (
                             <span className="block text-[9px] text-purple-700">R: {recupRecord.valor}</span>
                           )}
                         </td>
                       );
                     })}
-                    <td className="p-1.5 text-center font-black uppercase text-[10px]">
-                      <span className={isPromo ? 'text-emerald-700 font-black' : isLibre ? 'text-rose-700 font-black' : 'text-slate-800 font-bold'}>
-                        {cond}
-                      </span>
-                    </td>
+                    {includeNotaFinal && (
+                      <td className={`p-1.5 ${includeCondicion ? 'border-r border-slate-300' : ''} text-center font-mono font-black text-slate-900`}>
+                        {finalAvg !== null ? finalAvg : '—'}
+                      </td>
+                    )}
+                    {includeCondicion && (
+                      <td className="p-1.5 text-center font-black uppercase text-[10px]">
+                        <span className={isPromo ? 'text-emerald-700 font-black' : isLibre ? 'text-rose-700 font-black' : 'text-slate-800 font-bold'}>
+                          {cond}
+                        </span>
+                      </td>
+                    )}
                   </tr>
                 );
               })
@@ -750,40 +807,44 @@ function CalificacionesTemplate({ data }) {
       </div>
 
       {/* 3. Resumen Estadístico y Firmas */}
-      <div className="p-3 bg-slate-50 rounded-xl border border-slate-300 grid grid-cols-4 gap-2 text-center text-xs font-mono print-avoid-break">
-        <div>
-          <span className="text-[10px] uppercase text-slate-500 block font-sans">Total Alumnos</span>
-          <strong className="text-slate-900 text-sm">{totalAlumnos}</strong>
-        </div>
-        <div>
-          <span className="text-[10px] uppercase text-emerald-700 block font-sans">Promocionados</span>
-          <strong className="text-emerald-700 text-sm">{promocionados} ({totalAlumnos > 0 ? Math.round((promocionados/totalAlumnos)*100) : 0}%)</strong>
-        </div>
-        <div>
-          <span className="text-[10px] uppercase text-slate-700 block font-sans">Regulares</span>
-          <strong className="text-slate-900 text-sm">{regulares} ({totalAlumnos > 0 ? Math.round((regulares/totalAlumnos)*100) : 0}%)</strong>
-        </div>
-        <div>
-          <span className="text-[10px] uppercase text-rose-700 block font-sans">Libres</span>
-          <strong className="text-rose-700 text-sm">{libres} ({totalAlumnos > 0 ? Math.round((libres/totalAlumnos)*100) : 0}%)</strong>
-        </div>
-      </div>
-
-      <div className="pt-8 pb-4 print-avoid-break">
-        <div className="grid grid-cols-2 gap-12 text-center text-xs">
-          <div className="flex flex-col items-center">
-            <div className="w-56 border-b-2 border-slate-800 mb-2"></div>
-            <strong className="text-slate-900 uppercase font-bold text-xs">{docenteNombre || catedra?.docentes?.nombre || 'Docente Titular'}</strong>
-            <span className="text-[10px] text-slate-500 uppercase">Firma del Docente Evaluador</span>
+      {includeCondicion && (
+        <div className="p-3 bg-slate-50 rounded-xl border border-slate-300 grid grid-cols-4 gap-2 text-center text-xs font-mono print-avoid-break">
+          <div>
+            <span className="text-[10px] uppercase text-slate-500 block font-sans">Total Alumnos</span>
+            <strong className="text-slate-900 text-sm">{totalAlumnos}</strong>
           </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-56 border-b-2 border-slate-800 mb-2"></div>
-            <strong className="text-slate-900 uppercase font-bold text-xs">Secretaría Académica</strong>
-            <span className="text-[10px] text-slate-500 uppercase">Recepción y Registro Matriz</span>
+          <div>
+            <span className="text-[10px] uppercase text-emerald-700 block font-sans">Promocionados</span>
+            <strong className="text-emerald-700 text-sm">{promocionados} ({totalAlumnos > 0 ? Math.round((promocionados/totalAlumnos)*100) : 0}%)</strong>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase text-slate-700 block font-sans">Regulares</span>
+            <strong className="text-slate-900 text-sm">{regulares} ({totalAlumnos > 0 ? Math.round((regulares/totalAlumnos)*100) : 0}%)</strong>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase text-rose-700 block font-sans">Libres</span>
+            <strong className="text-rose-700 text-sm">{libres} ({totalAlumnos > 0 ? Math.round((libres/totalAlumnos)*100) : 0}%)</strong>
           </div>
         </div>
-      </div>
+      )}
+
+      {includeSignature && (
+        <div className="pt-8 pb-4 print-avoid-break">
+          <div className="grid grid-cols-2 gap-12 text-center text-xs">
+            <div className="flex flex-col items-center">
+              <div className="w-56 border-b-2 border-slate-800 mb-2"></div>
+              <strong className="text-slate-900 uppercase font-bold text-xs">{docenteNombre || catedra?.docentes?.nombre || 'Docente Titular'}</strong>
+              <span className="text-[10px] text-slate-500 uppercase">Firma del Docente Evaluador</span>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <div className="w-56 border-b-2 border-slate-800 mb-2"></div>
+              <strong className="text-slate-900 uppercase font-bold text-xs">Secretaría Académica</strong>
+              <span className="text-[10px] text-slate-500 uppercase">Recepción y Registro Matriz</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

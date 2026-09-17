@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { 
@@ -11,7 +12,8 @@ import {
   Upload, 
   X,
   ShieldCheck,
-  GraduationCap
+  GraduationCap,
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { uploadCatedraFile, supabase } from '../../lib/supabase';
@@ -136,6 +138,11 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Modal de Datos Personales ("Mi Perfil")
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+
   const currentAvatar = user?.user_metadata?.avatar_url || 'preset:avatar-1';
 
   // Cerrar popover al hacer clic fuera
@@ -163,6 +170,50 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose, anchorRef]);
+
+  // Manejo de guardado de datos personales
+  const handleSaveProfile = async (e) => {
+    e?.preventDefault();
+    if (!profileName.trim()) {
+      toast.error('Por favor ingresa un nombre válido.');
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      if (isDemo || !supabase) {
+        const updatedUser = {
+          ...user,
+          user_metadata: {
+            ...user?.user_metadata,
+            nombre: profileName.trim()
+          }
+        };
+        localStorage.setItem('docentepro_demo_user', JSON.stringify(updatedUser));
+        toast.success('Datos personales actualizados correctamente');
+        setIsProfileModalOpen(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.updateUser({
+        data: { nombre: profileName.trim() }
+      });
+      if (error) throw error;
+
+      try {
+        await supabase
+          .from('perfiles')
+          .update({ nombre: profileName.trim() })
+          .eq('id', user.id);
+      } catch (_) {}
+
+      toast.success('Datos personales actualizados correctamente');
+      setIsProfileModalOpen(false);
+    } catch (err) {
+      handleAppError(err, 'AvatarPopover / Guardar Perfil', user);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   // Manejo de selección de avatar ilustrado
   const handleSelectPreset = async (presetId) => {
@@ -241,18 +292,24 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
     window.location.href = '/login';
   };
 
-  if (!isOpen) return null;
-
   const teacherName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente';
   const teacherEmail = user?.email || 'profesor@docentepro.edu.ar';
 
-  return (
+  const popoverContent = isOpen ? (
     <>
+      {/* Backdrop transparente para cerrar al hacer clic afuera en móvil y desktop */}
+      <div 
+        className="fixed inset-0 z-[89] bg-black/10 dark:bg-black/30 backdrop-blur-[1px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Popover flotante desplegado hacia la derecha/arriba con z-[90] */}
       <div
         ref={popoverRef}
-        className="fixed left-4 right-4 sm:left-20 sm:right-auto bottom-20 md:bottom-4 z-50 w-auto sm:w-80 bg-white dark:bg-[#0c1222] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl shadow-black/25 dark:shadow-black/70 ring-1 ring-black/5 dark:ring-white/10 p-3 animate-fadeIn text-text-primary origin-bottom-left"
+        className="fixed left-4 right-4 sm:left-20 sm:right-auto bottom-20 md:bottom-4 z-[90] w-auto sm:w-80 bg-white dark:bg-[#0c1222] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl shadow-black/25 dark:shadow-black/70 ring-1 ring-black/5 dark:ring-white/10 p-3 animate-scaleIn text-text-primary origin-bottom-left select-none"
       >
-        {/* Cabecera del usuario: Avatar, Nombre, Email y Rol Badge */}
+        {/* Encabezado: Avatar, Nombre del docente, Correo electrónico y Badge de rol (Docente o Superadmin) */}
         <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 flex items-center gap-3 mb-2">
           <div className="relative shrink-0">
             <div className="w-11 h-11 rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/50 flex items-center justify-center shadow-xs">
@@ -272,14 +329,18 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-1.5 mb-0.5">
-              <span className="text-xs font-bold text-text-primary truncate block">
+              <span className="text-xs font-bold text-text-primary truncate block" title={teacherName}>
                 {teacherName}
               </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 shrink-0">
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                esSuperadmin 
+                  ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50' 
+                  : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50'
+              }`}>
                 {esSuperadmin ? 'Superadmin' : 'Docente'}
               </span>
             </div>
-            <p className="text-[11px] text-text-muted truncate font-mono">
+            <p className="text-[11px] text-text-muted truncate font-mono" title={teacherEmail}>
               {teacherEmail}
             </p>
             <div className="flex items-center gap-1 text-[10px] text-primary font-semibold mt-1">
@@ -289,42 +350,51 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
           </div>
         </div>
 
-        {/* Separador horizontal fino */}
+        {/* Divisor fino */}
         <div className="border-t border-slate-200/80 dark:border-white/10 my-1" />
 
-        {/* Acciones principales: Mi Perfil / Configuración / Personalizar Avatar */}
+        {/* Acciones principales */}
         <div className="p-1 space-y-1">
+          {/* Opción 1: [ 👤 Mi Perfil ] (abre modal de datos personales) */}
+          <button
+            type="button"
+            onClick={() => {
+              setProfileName(user?.user_metadata?.nombre || user?.nombre || '');
+              onClose();
+              setIsProfileModalOpen(true);
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer group"
+          >
+            <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+            <span className="flex-1">Mi Perfil</span>
+            <span className="text-[10px] font-normal text-text-muted">Datos</span>
+          </button>
+
+          {/* Opción 2: [ ⚙️ Preferencias ] */}
           <button
             type="button"
             onClick={() => {
               onClose();
               navigate('/configuracion');
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer group"
           >
-            <User className="w-4 h-4 text-text-muted shrink-0" />
-            <span>Mi Perfil & Períodos</span>
+            <Settings className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0 transition-transform duration-200 group-hover:rotate-45" />
+            <span className="flex-1">Preferencias</span>
+            <span className="text-[10px] font-normal text-text-muted">Temas</span>
           </button>
 
+          {/* Opción 3: Personalizar Avatar */}
           <button
             type="button"
             onClick={() => {
               onClose();
-              navigate('/configuracion');
+              setIsAvatarModalOpen(true);
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer"
-          >
-            <Settings className="w-4 h-4 text-text-muted shrink-0" />
-            <span>Configuración & Temas</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsAvatarModalOpen(true)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-primary hover:bg-primary/5 transition-colors text-left cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-primary hover:bg-primary/5 transition-colors text-left cursor-pointer group"
           >
             <div className="flex items-center gap-2.5">
-              <Camera className="w-4 h-4 text-primary shrink-0" />
+              <Camera className="w-4 h-4 text-primary shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span className="font-semibold text-primary">Personalizar Avatar</span>
             </div>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
@@ -333,18 +403,141 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
           </button>
         </div>
 
-        {/* Separador y Salida Destructiva */}
+        {/* Divisor fino y Opción destacada en rojo: [ 🚪 Cerrar Sesión ] */}
         <div className="p-1 border-t border-slate-200/80 dark:border-white/10 mt-1">
           <button
             type="button"
             onClick={handleSignOut}
-            className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2 p-2 rounded-lg cursor-pointer w-full text-left font-medium text-sm transition-colors group"
+            className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer w-full text-left font-semibold text-xs transition-colors group"
           >
-            <LogOut className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5" />
+            <LogOut className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-1" />
             <span>Cerrar Sesión</span>
           </button>
         </div>
       </div>
+    </>
+  ) : null;
+
+  return (
+    <>
+      {typeof document !== 'undefined' && isOpen && createPortal(popoverContent, document.body)}
+
+      {/* Modal de Datos Personales ("Mi Perfil") */}
+      <Modal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        title="Datos Personales del Docente"
+        subtitle="Consulta y actualiza tus datos personales y credenciales de acceso"
+      >
+        <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+          {/* Tarjeta de Avatar y Rol */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-white/5 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white dark:bg-slate-800 border-2 border-indigo-500/30 flex items-center justify-center shrink-0 shadow-md">
+              {currentAvatar?.startsWith('preset:') ? (
+                PRESET_AVATARS.find(a => `preset:${a.id}` === currentAvatar)?.svg || (
+                  <User className="w-8 h-8 text-primary" />
+                )
+              ) : currentAvatar?.startsWith('data:') || currentAvatar?.startsWith('http') ? (
+                <img src={currentAvatar} alt={teacherName} className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-8 h-8 text-primary" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-text-primary truncate">
+                  {teacherName}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  esSuperadmin 
+                    ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50' 
+                    : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50'
+                }`}>
+                  {esSuperadmin ? 'Superadministrador' : 'Docente'}
+                </span>
+              </div>
+              <p className="text-[11px] text-text-muted font-mono truncate">{teacherEmail}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileModalOpen(false);
+                  setIsAvatarModalOpen(true);
+                }}
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer pt-0.5"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Cambiar fotografía o avatar</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Nombre Completo */}
+          <div className="space-y-1.5">
+            <label className="block font-semibold text-text-secondary">
+              Nombre Completo:
+            </label>
+            <input
+              type="text"
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+              placeholder="Ej: Prof. Emilio Martínez"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              required
+            />
+          </div>
+
+          {/* Correo Electrónico (Solo Lectura) */}
+          <div className="space-y-1.5">
+            <label className="block font-semibold text-text-secondary">
+              Correo Electrónico Institucional:
+            </label>
+            <div className="relative">
+              <input
+                type="email"
+                value={teacherEmail}
+                readOnly
+                disabled
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-text-muted text-sm font-mono cursor-not-allowed"
+              />
+              <span className="absolute right-3 top-2.5 flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Verificado</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Rol del Sistema */}
+          <div className="p-3 rounded-xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="block font-bold text-text-primary text-xs">Rol y Privilegios</span>
+              <span className="text-[11px] text-text-muted">
+                {esSuperadmin ? 'Acceso global a auditoría, materias y administración' : 'Gestión integral de cátedras, asistencias y notas'}
+              </span>
+            </div>
+            <span className="font-mono text-xs font-bold px-2 py-1 rounded-lg bg-surface text-text-primary border border-surface-border">
+              {esSuperadmin ? 'SUPERADMIN' : 'DOCENTE'}
+            </span>
+          </div>
+
+          {/* Botones de Acción */}
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200/80 dark:border-white/10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsProfileModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={savingProfile}
+            >
+              Guardar Cambios
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal para Selección y Carga de Avatar */}
       <Modal

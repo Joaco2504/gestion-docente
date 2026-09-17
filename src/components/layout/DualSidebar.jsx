@@ -361,7 +361,13 @@ export default function DualSidebar({ isOpen = false, onClose }) {
               <button
                 ref={avatarButtonRef}
                 type="button"
-                onClick={() => setIsAvatarPopoverOpen(prev => !prev)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAvatarPopoverOpen(prev => !prev);
+                }}
+                aria-haspopup="true"
+                aria-expanded={isAvatarPopoverOpen}
+                aria-label="Abrir menú de usuario"
                 className="relative w-10 h-10 rounded-xl overflow-hidden border-2 border-indigo-500/40 hover:border-indigo-500 transition-all duration-200 ease-out hover:ring-2 hover:ring-indigo-500 hover:ring-offset-2 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center bg-surface-hover"
                 title={`Perfil: ${teacherName}`}
               >

@@ -8,7 +8,8 @@ export default function Modal({
   title,
   subtitle,
   children,
-  maxWidth = 'max-w-lg'
+  maxWidth = 'max-w-lg',
+  zIndex = 'z-[110]'
 }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -27,7 +28,7 @@ export default function Modal({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6">
+    <div className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6`}>
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200"

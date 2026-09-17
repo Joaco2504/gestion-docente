@@ -72,6 +72,10 @@
   background: #475569;
 }
 
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
 /* Sticky column for tables with dark-mode shadow */
 .sticky-col {
   position: sticky;

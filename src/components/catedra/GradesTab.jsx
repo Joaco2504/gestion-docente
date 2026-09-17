@@ -39,6 +39,7 @@ import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
+import PrintGradesConfigModal from './PrintGradesConfigModal';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { exportGradesToExcel, exportGradesToCsv } from '../../lib/excel';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -285,7 +286,22 @@ export default function GradesTab({
     nota_min_sec: 6
   });
   const [loading, setLoading] = useState(true);
+  const [isPrintConfigModalOpen, setIsPrintConfigModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printConfig, setPrintConfig] = useState({
+    includeAsistencia: true,
+    selectedEvalIds: [],
+    includeNotaFinal: true,
+    includeCondicion: true,
+    orientation: 'landscape',
+    includeSignature: true
+  });
+
+  const handleGeneratePreview = (config) => {
+    setPrintConfig(config);
+    setIsPrintConfigModalOpen(false);
+    setIsPrintModalOpen(true);
+  };
 
   // Mobile View mode: 'table' | 'cards' | 'evaluaciones'
   // Default to cards on mobile screens (< 768px)
@@ -1195,10 +1211,10 @@ export default function GradesTab({
               variant="outline"
               size="sm"
               icon={Printer}
-              onClick={() => setIsPrintModalOpen(true)}
+              onClick={() => setIsPrintConfigModalOpen(true)}
               disabled={estudiantes.length === 0}
               className="text-xs font-bold border-primary/40 text-primary hover:bg-primary/10 whitespace-nowrap shrink-0"
-              title="Abrir visor interactivo de impresión y PDF oficial de la sábana de notas"
+              title="Abrir configuración de impresión y PDF oficial de la sábana de notas"
             >
               <span className="hidden sm:inline">Imprimir / PDF</span>
               <span className="sm:hidden">PDF</span>
@@ -1683,72 +1699,43 @@ export default function GradesTab({
                   </th>
                   <th className="px-3 py-3 text-center w-24 font-mono">% Asist.</th>
 
-                  {/* Main Evaluation Columns */}
+                  {/* Main Evaluation Columns - Encabezados compactos y limpios */}
                   {mainEvaluations.map(ev => {
-                    const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
                     return (
-                      <th key={ev.id} className="px-3 sm:px-4 py-3 text-center border-l border-surface-border min-w-[145px] align-top">
-                        <div className="font-bold text-text-primary text-xs sm:text-sm truncate" title={ev.titulo}>
+                      <th key={ev.id} className="px-3 sm:px-4 py-2.5 text-center border-l border-surface-border min-w-[145px] align-top">
+                        {/* Línea 1: Nombre de la evaluación */}
+                        <div className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate" title={ev.titulo}>
                           {ev.titulo}
                         </div>
-                        <div className="flex items-center justify-center gap-1 mt-1 flex-wrap">
-                          <span className="text-[10px] font-mono uppercase bg-primary/10 dark:bg-primary/20 text-primary px-1.5 py-0.5 rounded font-bold">
-                            {ev.tipo}
-                          </span>
-                          {recup && (
-                            <span className="text-[10px] font-mono uppercase bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold">
-                              +RECUP
-                            </span>
-                          )}
+
+                        {/* Línea 2: Fecha de entrega */}
+                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" title={ev.fecha_entrega ? `Entrega: ${formatFechaDMY(ev.fecha_entrega)}` : 'Sin fecha asignada'}>
+                          {ev.fecha_entrega ? `Entrega: ${formatFechaDMY(ev.fecha_entrega)}` : 'Sin fecha'}
                         </div>
 
-                        {/* Fecha de Entrega si existe */}
-                        {ev.fecha_entrega && (
-                          <div className="mt-1 flex items-center justify-center gap-1 text-[10px] font-mono text-text-muted" title={`Fecha límite de entrega: ${formatFechaDMY(ev.fecha_entrega)}`}>
-                            <Clock className="w-3 h-3 text-primary/70 shrink-0" />
-                            <span>Entrega: {formatFechaDMY(ev.fecha_entrega)}</span>
-                          </div>
-                        )}
-
-                        {/* Enlace a Google Drive de TP si fue adjuntado */}
-                        {ev.archivo_url && (
-                          <div className="mt-1 flex items-center justify-center">
-                            <a
-                              href={ev.archivo_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
-                              title={`Abrir consignas en Google Drive: ${ev.archivo_nombre || 'Google Drive'}`}
-                            >
-                              <ExternalLink className="w-2.5 h-2.5 shrink-0" />
-                              <span className="truncate max-w-[85px]">{ev.archivo_nombre || 'Drive TP'}</span>
-                            </a>
-                          </div>
-                        )}
-
-                        {/* Botones de acción rápida en cabecera: Calificar, Editar, Borrar */}
-                        <div className="flex items-center justify-center gap-1 mt-1.5 pt-1.5 border-t border-surface-border/60">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenBatchGrade(ev)}
-                            title={`Calificar a todo el curso en "${ev.titulo}"`}
-                            className="p-1 rounded-md text-text-muted hover:text-primary hover:bg-surface transition-colors"
-                          >
-                            <ListChecks className="w-3.5 h-3.5" />
-                          </button>
+                        {/* Botones de acción inferiores: Editar, Calificar, Borrar */}
+                        <div className="flex items-center justify-center gap-1 mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
                           <button
                             type="button"
                             onClick={() => handleOpenEditEvaluacion(ev)}
                             title={`Editar datos de "${ev.titulo}"`}
-                            className="p-1 rounded-md text-text-muted hover:text-amber-600 hover:bg-surface transition-colors"
+                            className="p-1 rounded-md text-text-muted hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
+                            onClick={() => handleOpenBatchGrade(ev)}
+                            title={`Calificar a todo el curso en "${ev.titulo}"`}
+                            className="p-1 rounded-md text-text-muted hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                          >
+                            <ListChecks className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleDeleteEvaluacion(ev.id, ev.titulo)}
                             title={`Eliminar "${ev.titulo}" y todas sus notas`}
-                            className="p-1 rounded-md text-text-muted hover:text-rose-600 hover:bg-surface transition-colors"
+                            className="p-1 rounded-md text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -2176,6 +2163,15 @@ export default function GradesTab({
         </form>
       </Modal>
 
+      {/* Modal Interactivo de Configuración Previa de Impresión */}
+      <PrintGradesConfigModal
+        isOpen={isPrintConfigModalOpen}
+        onClose={() => setIsPrintConfigModalOpen(false)}
+        evaluaciones={evaluaciones}
+        onGeneratePreview={handleGeneratePreview}
+        initialConfig={printConfig}
+      />
+
       {/* Visor Unificado de Impresión de Calificaciones */}
       <PrintPreviewModal
         isOpen={isPrintModalOpen}
@@ -2183,7 +2179,7 @@ export default function GradesTab({
         type="calificaciones"
         title="Planilla Oficial de Calificaciones y Condiciones Finales"
         subtitle="Sábana panorámica reglamentaria para archivo institucional y Libro Matriz"
-        defaultOrientation="landscape"
+        defaultOrientation={printConfig.orientation || 'landscape'}
         data={{
           catedra: { id: catedraId, nombre: catedraName, nivel: academicLevel, modalidad },
           estudiantes,
@@ -2193,7 +2189,8 @@ export default function GradesTab({
           criterios,
           cicloAnio: '2026',
           institucionNombre: 'INSTITUTO DE EDUCACIÓN SUPERIOR',
-          docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular'
+          docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular',
+          printConfig
         }}
       />
     </div>

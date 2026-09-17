@@ -2,6 +2,31 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { calcularPorcentajeAsistencia, calcularCondicionFinal } from '../lib/academicLogic';
 
 /**
+ * Convierte un nombre de cátedra o texto en un slug amigable y limpio en kebab-case.
+ * Remueve tildes, caracteres especiales (°/º/() etc.) y colapsa espacios/guiones.
+ */
+export function slugifyCatedra(nombre) {
+  if (!nombre) return '';
+  return String(nombre)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quitar diacríticos / tildes
+    .toLowerCase()
+    .trim()
+    .replace(/[°ºª]/g, '') // Quitar indicadores ordinales
+    .replace(/[^a-z0-9\s-]/g, '') // Quitar símbolos y puntuación restante
+    .replace(/[\s_]+/g, '-') // Espacios y guiones bajos a guiones medios
+    .replace(/-+/g, '-') // Colapsar múltiples guiones consecutivos
+    .replace(/^-+|-+$/g, ''); // Limpiar guiones iniciales o finales
+}
+
+/**
+ * Valida si una cadena cumple el formato estándar de UUID v4.
+ */
+export function isUuid(str) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim());
+}
+
+/**
  * Normaliza un número de DNI removiendo espacios, puntos, guiones y letras.
  */
 export function normalizeDni(dni) {
@@ -19,35 +44,125 @@ export function formatDniDisplay(dni) {
 
 /**
  * Carga la configuración de visibilidad del portal y datos públicos de la cátedra.
+ * Admite tanto UUID directo como slugs o alias amigables de cátedra.
  */
 export async function getCatedraPortalConfig(catedraId, isDemo = false) {
   if (!catedraId) return null;
+  const inputIdentifier = String(catedraId).trim();
+  const isInputUuid = isUuid(inputIdentifier);
 
   // 1. Intentar cargar desde Supabase si está activo
   if (isSupabaseConfigured && !isDemo) {
     try {
-      const { data, error } = await supabase
-        .from('catedras')
-        .select(`
-          id,
-          nombre,
-          nivel,
-          modalidad,
-          portal_activo,
-          portal_mostrar_asistencia,
-          portal_mostrar_notas,
-          portal_mostrar_condicion,
-          instituciones (
-            nombre
-          )
-        `)
-        .eq('id', catedraId)
-        .maybeSingle();
+      let data = null;
 
-      if (!error && data) {
+      if (isInputUuid) {
+        // Búsqueda directa por UUID
+        const res = await supabase
+          .from('catedras')
+          .select(`
+            id,
+            nombre,
+            alias,
+            nivel,
+            modalidad,
+            portal_activo,
+            portal_mostrar_asistencia,
+            portal_mostrar_notas,
+            portal_mostrar_condicion,
+            instituciones (
+              nombre
+            )
+          `)
+          .eq('id', inputIdentifier)
+          .maybeSingle();
+
+        if (!res.error && res.data) {
+          data = res.data;
+        } else if (res.error) {
+          // Fallback en caso de que la columna 'alias' no exista en la tabla aún
+          const retryRes = await supabase
+            .from('catedras')
+            .select(`
+              id,
+              nombre,
+              nivel,
+              modalidad,
+              portal_activo,
+              portal_mostrar_asistencia,
+              portal_mostrar_notas,
+              portal_mostrar_condicion,
+              instituciones (
+                nombre
+              )
+            `)
+            .eq('id', inputIdentifier)
+            .maybeSingle();
+          if (!retryRes.error && retryRes.data) {
+            data = retryRes.data;
+          }
+        }
+      } else {
+        // Búsqueda por slug o alias amigable
+        // Intento 1: Buscar por columna alias si existe
+        try {
+          const aliasRes = await supabase
+            .from('catedras')
+            .select(`
+              id,
+              nombre,
+              alias,
+              nivel,
+              modalidad,
+              portal_activo,
+              portal_mostrar_asistencia,
+              portal_mostrar_notas,
+              portal_mostrar_condicion,
+              instituciones (
+                nombre
+              )
+            `)
+            .eq('alias', inputIdentifier)
+            .maybeSingle();
+
+          if (!aliasRes.error && aliasRes.data) {
+            data = aliasRes.data;
+          }
+        } catch (_) {}
+
+        // Intento 2: Si no coincidió por alias o no existe la columna, resolver por slug del nombre
+        if (!data) {
+          const { data: activeList, error: listErr } = await supabase
+            .from('catedras')
+            .select(`
+              id,
+              nombre,
+              nivel,
+              modalidad,
+              portal_activo,
+              portal_mostrar_asistencia,
+              portal_mostrar_notas,
+              portal_mostrar_condicion,
+              instituciones (
+                nombre
+              )
+            `)
+            .eq('portal_activo', true);
+
+          if (!listErr && activeList) {
+            data = activeList.find(c => 
+              slugifyCatedra(c.nombre) === inputIdentifier || 
+              (c.alias && c.alias.toLowerCase() === inputIdentifier.toLowerCase())
+            ) || null;
+          }
+        }
+      }
+
+      if (data) {
         return {
           id: data.id,
           nombre: data.nombre,
+          alias: data.alias || slugifyCatedra(data.nombre),
           nivel: data.nivel || 'TERCIARIO',
           modalidad: data.modalidad || 'ANUAL',
           institucion_nombre: data.instituciones?.nombre || 'Institución Educativa',
@@ -64,35 +179,61 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
 
   // 2. Fallback / Modo Demo desde LocalStorage
   try {
-    const savedConfig = localStorage.getItem(`portal_config_${catedraId}`);
-    let localPortalConfig = savedConfig ? JSON.parse(savedConfig) : null;
-
     const savedCatedras = JSON.parse(localStorage.getItem('demo_catedras') || '[]');
-    const cat = savedCatedras.find(c => c.id === catedraId);
+    let cat = savedCatedras.find(c => 
+      c.id === inputIdentifier || 
+      c.alias === inputIdentifier || 
+      slugifyCatedra(c.nombre) === inputIdentifier
+    );
 
-    return {
-      id: catedraId,
-      nombre: cat?.nombre || localPortalConfig?.nombre || 'Cátedra',
-      nivel: cat?.nivel || localPortalConfig?.nivel || 'TERCIARIO',
-      modalidad: cat?.modalidad || localPortalConfig?.modalidad || 'ANUAL',
-      institucion_nombre: cat?.institucion_nombre || localPortalConfig?.institucion_nombre || 'I.S.F.T. N° 179',
-      portal_activo: localPortalConfig?.portal_activo ?? cat?.portal_activo ?? false,
-      portal_mostrar_asistencia: localPortalConfig?.portal_mostrar_asistencia ?? cat?.portal_mostrar_asistencia ?? true,
-      portal_mostrar_notas: localPortalConfig?.portal_mostrar_notas ?? cat?.portal_mostrar_notas ?? true,
-      portal_mostrar_condicion: localPortalConfig?.portal_mostrar_condicion ?? cat?.portal_mostrar_condicion ?? true
-    };
+    let resolvedId = cat?.id || inputIdentifier;
+    let localPortalConfig = null;
+
+    // Buscar en portal_config_ por ID resuelto o explorar todas las claves
+    const savedConfig = localStorage.getItem(`portal_config_${resolvedId}`);
+    if (savedConfig) {
+      localPortalConfig = JSON.parse(savedConfig);
+    } else {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('portal_config_')) {
+          try {
+            const parsed = JSON.parse(localStorage.getItem(key));
+            if (
+              parsed?.alias === inputIdentifier || 
+              slugifyCatedra(parsed?.nombre) === inputIdentifier
+            ) {
+              localPortalConfig = parsed;
+              resolvedId = key.replace('portal_config_', '');
+              if (!cat) {
+                cat = savedCatedras.find(c => c.id === resolvedId) || { id: resolvedId, ...parsed };
+              }
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (cat || localPortalConfig) {
+      const nombre = cat?.nombre || localPortalConfig?.nombre || 'Cátedra';
+      return {
+        id: resolvedId,
+        nombre,
+        alias: cat?.alias || localPortalConfig?.alias || slugifyCatedra(nombre),
+        nivel: cat?.nivel || localPortalConfig?.nivel || 'TERCIARIO',
+        modalidad: cat?.modalidad || localPortalConfig?.modalidad || 'ANUAL',
+        institucion_nombre: cat?.institucion_nombre || localPortalConfig?.institucion_nombre || 'I.S.F.T. N° 179',
+        portal_activo: localPortalConfig?.portal_activo ?? cat?.portal_activo ?? false,
+        portal_mostrar_asistencia: localPortalConfig?.portal_mostrar_asistencia ?? cat?.portal_mostrar_asistencia ?? true,
+        portal_mostrar_notas: localPortalConfig?.portal_mostrar_notas ?? cat?.portal_mostrar_notas ?? true,
+        portal_mostrar_condicion: localPortalConfig?.portal_mostrar_condicion ?? cat?.portal_mostrar_condicion ?? true
+      };
+    }
+
+    return null;
   } catch (_) {
-    return {
-      id: catedraId,
-      nombre: 'Cátedra',
-      nivel: 'TERCIARIO',
-      modalidad: 'ANUAL',
-      institucion_nombre: 'Institución Educativa',
-      portal_activo: false,
-      portal_mostrar_asistencia: true,
-      portal_mostrar_notas: true,
-      portal_mostrar_condicion: true
-    };
+    return null;
   }
 }
 
@@ -109,15 +250,22 @@ export async function saveCatedraPortalConfig(catedraId, config, isDemo = false)
     portal_mostrar_condicion: Boolean(config.portal_mostrar_condicion)
   };
 
+  const aliasVal = config.alias ? slugifyCatedra(config.alias) : undefined;
+
   // 1. Guardar en LocalStorage (Siempre como caché / respaldo inmediato)
   try {
     localStorage.setItem(`portal_config_${catedraId}`, JSON.stringify({
       ...config,
-      ...payload
+      ...payload,
+      ...(aliasVal ? { alias: aliasVal } : {})
     }));
 
     const storedCats = JSON.parse(localStorage.getItem('demo_catedras') || '[]');
-    const updatedCats = storedCats.map(c => c.id === catedraId ? { ...c, ...payload } : c);
+    const updatedCats = storedCats.map(c => c.id === catedraId ? { 
+      ...c, 
+      ...payload,
+      ...(aliasVal ? { alias: aliasVal } : {})
+    } : c);
     localStorage.setItem('demo_catedras', JSON.stringify(updatedCats));
   } catch (e) {
     console.warn('No se pudo guardar la configuración en localStorage:', e);
@@ -126,12 +274,23 @@ export async function saveCatedraPortalConfig(catedraId, config, isDemo = false)
   // 2. Si Supabase está conectado, actualizar la tabla 'catedras'
   if (isSupabaseConfigured && !isDemo) {
     try {
+      const updatePayload = {
+        ...payload,
+        ...(aliasVal ? { alias: aliasVal } : {})
+      };
       const { error } = await supabase
         .from('catedras')
-        .update(payload)
+        .update(updatePayload)
         .eq('id', catedraId);
 
-      if (error) throw error;
+      if (error) {
+        // Si falló por columna 'alias' no existente, reintentar sin alias
+        const { error: retryErr } = await supabase
+          .from('catedras')
+          .update(payload)
+          .eq('id', catedraId);
+        if (retryErr) throw retryErr;
+      }
     } catch (err) {
       console.warn('Aviso: Columnas de portal no encontradas en DB o error RLS. Se mantuvo en localStorage:', err);
     }
@@ -154,11 +313,21 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
     };
   }
 
+  // Resolver ID real si catedraId es un slug o alias
+  let resolvedCatedraId = catedraId;
+  let resolvedConfig = null;
+  if (!isUuid(catedraId)) {
+    resolvedConfig = await getCatedraPortalConfig(catedraId, isDemo);
+    if (resolvedConfig?.id) {
+      resolvedCatedraId = resolvedConfig.id;
+    }
+  }
+
   // 1. Si Supabase está activo y no es demo, intentar RPC primero
   if (isSupabaseConfigured && !isDemo) {
     try {
       const { data: rpcData, error: rpcError } = await supabase.rpc('consultar_estado_alumno', {
-        p_catedra_id: catedraId,
+        p_catedra_id: resolvedCatedraId,
         p_dni: cleanDni
       });
 
@@ -186,7 +355,7 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
   }
 
   // 2. Motor de consulta local y resiliente (Demo / Offline / Fallback)
-  const portalConfig = await getCatedraPortalConfig(catedraId, isDemo);
+  const portalConfig = resolvedConfig || await getCatedraPortalConfig(resolvedCatedraId, isDemo);
   if (!portalConfig) {
     return {
       success: false,

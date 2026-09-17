@@ -12,7 +12,12 @@ import {
   FileCode,
   Sparkles,
   UploadCloud,
-  File
+  File,
+  SlidersHorizontal,
+  Scale,
+  Calendar,
+  GraduationCap,
+  Pencil
 } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
@@ -22,9 +27,11 @@ import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
 import MinimalSpinner from '../common/MinimalSpinner';
 import CloudUploadIllustration from '../illustrations/CloudUploadIllustration';
+import EditEvaluacionParamsModal from './EditEvaluacionParamsModal';
 import { toast } from 'sonner';
 import { handleAppError } from '../../utils/handleAppError';
 import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
+import { formatFechaDMY } from '../../lib/dateUtils';
 import { useAuth } from '../../context/AuthContext';
 
 const CATEGORIES = [
@@ -38,12 +45,23 @@ const CATEGORIES = [
 
 export default function ResourcesTab({ catedraId, catedraName }) {
   const { user, isDemo } = useAuth();
+  
+  // Selector de vista principal: 'materials' (Archivos y Repositorio) | 'evaluaciones' (Evaluaciones y Parámetros)
+  const [activeMainView, setActiveMainView] = useState('materials');
+
+  // Estado de recursos de la cátedra
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Form state
+  // Estado de evaluaciones vinculadas
+  const [evaluaciones, setEvaluaciones] = useState([]);
+  const [selectedEvalCategory, setSelectedEvalCategory] = useState('ALL');
+  const [isEditEvalModalOpen, setIsEditEvalModalOpen] = useState(false);
+  const [editingEval, setEditingEval] = useState(null);
+
+  // Form state para nuevo recurso general
   const [originType, setOriginType] = useState('LOCAL'); // 'LOCAL' | 'GOOGLE_LINK'
   const [selectedFile, setSelectedFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -53,12 +71,13 @@ export default function ResourcesTab({ catedraId, catedraName }) {
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    fetchResources();
+    fetchAllData();
   }, [catedraId]);
 
-  async function fetchResources() {
+  async function fetchAllData() {
     setLoading(true);
     try {
+      // 1. Cargar recursos
       if (isSupabaseConfigured && !isDemo) {
         const { data, error } = await supabase
           .from('recursos')
@@ -69,7 +88,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
         if (error) throw error;
         setResources(data || []);
       } else {
-        // Mock data for demo mode
+        // Mock data para modo demo
         const stored = localStorage.getItem(`recursos_${catedraId}`);
         if (stored) {
           setResources(JSON.parse(stored));
@@ -107,13 +126,93 @@ export default function ResourcesTab({ catedraId, catedraName }) {
           localStorage.setItem(`recursos_${catedraId}`, JSON.stringify(sample));
         }
       }
+
+      // 2. Cargar evaluaciones vinculadas con fusión resiliente local/remota
+      if (isSupabaseConfigured && !isDemo) {
+        const { data: evalData } = await supabase
+          .from('evaluaciones')
+          .select('*')
+          .eq('catedra_id', catedraId)
+          .order('created_at', { ascending: true });
+
+        const localKey = `evaluaciones_${catedraId}`;
+        let localEvals = [];
+        try {
+          localEvals = JSON.parse(localStorage.getItem(localKey) || '[]');
+        } catch {
+          localEvals = [];
+        }
+
+        const combinedMap = new Map();
+        (evalData || []).forEach(e => combinedMap.set(e.id, e));
+        localEvals.forEach(localEv => {
+          if (!combinedMap.has(localEv.id)) {
+            const match = (evalData || []).find(e => 
+              e.titulo?.trim().toLowerCase() === localEv.titulo?.trim().toLowerCase() &&
+              String(e.catedra_id) === String(localEv.catedra_id)
+            );
+            if (!match) {
+              combinedMap.set(localEv.id, localEv);
+            }
+          }
+        });
+
+        setEvaluaciones(Array.from(combinedMap.values()));
+      } else {
+        const storedEval = localStorage.getItem(`evaluaciones_${catedraId}`);
+        if (storedEval) {
+          setEvaluaciones(JSON.parse(storedEval));
+        } else {
+          const sampleEvals = [
+            {
+              id: 'eval-1',
+              catedra_id: catedraId,
+              titulo: 'Trabajo Práctico N° 1 - Introducción y Marco Teórico',
+              tipo: 'TP',
+              fecha_entrega: '2026-04-20',
+              ponderacion: 20,
+              escala_notas: 'NUMERICA_1_10',
+              archivo_url: 'https://drive.google.com/sample-tp1',
+              archivo_nombre: 'Consignas TP N°1 en Google Drive',
+              created_at: new Date().toISOString()
+            },
+            {
+              id: 'eval-2',
+              catedra_id: catedraId,
+              titulo: 'Primer Examen Parcial Teórico-Práctico',
+              tipo: 'PARCIAL',
+              fecha_entrega: '2026-06-15',
+              ponderacion: 40,
+              escala_notas: 'NUMERICA_1_10',
+              archivo_url: null,
+              archivo_nombre: null,
+              created_at: new Date().toISOString()
+            },
+            {
+              id: 'eval-3',
+              catedra_id: catedraId,
+              titulo: 'Segundo Examen Parcial Integrador',
+              tipo: 'PARCIAL',
+              fecha_entrega: '2026-10-24',
+              ponderacion: 40,
+              escala_notas: 'NUMERICA_1_10',
+              archivo_url: null,
+              archivo_nombre: null,
+              created_at: new Date().toISOString()
+            }
+          ];
+          setEvaluaciones(sampleEvals);
+          localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(sampleEvals));
+        }
+      }
     } catch (err) {
-      handleAppError(err, 'ResourcesTab / fetchResources', user);
+      handleAppError(err, 'ResourcesTab / fetchAllData', user);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
+  // Guardar nuevo material en el repositorio general
   const handleSaveResource = async (e) => {
     e.preventDefault();
 
@@ -148,7 +247,6 @@ export default function ResourcesTab({ catedraId, catedraName }) {
           }
           finalUrl = uploadRes.publicUrl || uploadRes.url || uploadRes.path;
         } else {
-          // Fallback para modo demo / sin supabase
           finalUrl = URL.createObjectURL(selectedFile);
         }
       } else {
@@ -181,7 +279,6 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       }
 
       toast.success(originType === 'LOCAL' ? 'Archivo subido a Supabase Storage con éxito.' : 'Documento de Google Drive vinculado correctamente.');
-      // Reset & close
       setTitle('');
       setExternalUrl('');
       setSelectedFile(null);
@@ -193,6 +290,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
     }
   };
 
+  // Eliminar recurso general
   const handleDeleteResource = async (id) => {
     if (!confirm('¿Estás seguro de eliminar este recurso?')) return;
 
@@ -212,9 +310,97 @@ export default function ResourcesTab({ catedraId, catedraName }) {
     }
   };
 
+  // Guardar edición de parámetros de evaluación (Nombre, Fecha, Ponderación, Escala, Drive/Adjunto)
+  const handleSaveEvaluacionParams = async (updatedEval) => {
+    try {
+      if (isSupabaseConfigured && !isDemo && !String(updatedEval.id).startsWith('eval-')) {
+        try {
+          const { error } = await supabase
+            .from('evaluaciones')
+            .update({
+              titulo: updatedEval.titulo,
+              tipo: updatedEval.tipo,
+              fecha_entrega: updatedEval.fecha_entrega,
+              ponderacion: updatedEval.ponderacion,
+              escala_notas: updatedEval.escala_notas,
+              archivo_url: updatedEval.archivo_url,
+              archivo_nombre: updatedEval.archivo_nombre
+            })
+            .eq('id', updatedEval.id);
+
+          if (error) {
+            // Fallback en caso de que la tabla remota aún no cuente con las columnas ponderacion o escala_notas
+            await supabase
+              .from('evaluaciones')
+              .update({
+                titulo: updatedEval.titulo,
+                tipo: updatedEval.tipo,
+                fecha_entrega: updatedEval.fecha_entrega,
+                archivo_url: updatedEval.archivo_url,
+                archivo_nombre: updatedEval.archivo_nombre
+              })
+              .eq('id', updatedEval.id);
+          }
+        } catch (dbErr) {
+          console.warn('Evaluación actualizada localmente. Aviso Supabase:', dbErr);
+        }
+      }
+
+      // Actualizar estado local y localStorage de evaluaciones
+      const updatedEvals = evaluaciones.map(ev => ev.id === updatedEval.id ? updatedEval : ev);
+      setEvaluaciones(updatedEvals);
+      localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedEvals));
+
+      // Sincronizar con el repositorio de recursos si la evaluación tiene un archivo o enlace a Drive
+      if (updatedEval.archivo_url) {
+        try {
+          const matchingRec = resources.find(r => r.url_o_path === updatedEval.archivo_url);
+          if (!matchingRec) {
+            const newRec = {
+              catedra_id: catedraId,
+              categoria: updatedEval.tipo === 'PARCIAL' ? 'PARCIAL' : 'TP',
+              tipo_origen: updatedEval.archivo_url.includes('drive.google.com') || updatedEval.archivo_url.includes('docs.google.com') ? 'GOOGLE_LINK' : 'LOCAL',
+              titulo: `Consignas: ${updatedEval.titulo}`,
+              url_o_path: updatedEval.archivo_url,
+              created_at: new Date().toISOString()
+            };
+
+            if (isSupabaseConfigured && !isDemo) {
+              const { data: recData } = await supabase.from('recursos').insert(newRec).select().single();
+              if (recData) {
+                setResources(prev => [recData, ...prev]);
+              }
+            } else {
+              const recWithId = { ...newRec, id: 'rec-' + Date.now() };
+              const prevRecs = JSON.parse(localStorage.getItem(`recursos_${catedraId}`) || '[]');
+              const updatedRecs = [recWithId, ...prevRecs];
+              setResources(updatedRecs);
+              localStorage.setItem(`recursos_${catedraId}`, JSON.stringify(updatedRecs));
+            }
+          }
+        } catch (syncErr) {
+          console.warn('Aviso sincronización recursos:', syncErr);
+        }
+      }
+
+      toast.success(`Parámetros de "${updatedEval.titulo}" actualizados correctamente.`);
+      setIsEditEvalModalOpen(false);
+      setEditingEval(null);
+    } catch (err) {
+      handleAppError(err, 'ResourcesTab / Guardar parámetros de evaluación', user);
+      throw err;
+    }
+  };
+
+  // Filtrado de materiales
   const filteredResources = selectedCategory === 'ALL'
     ? resources
     : resources.filter(r => r.categoria === selectedCategory);
+
+  // Filtrado de evaluaciones
+  const filteredEvaluaciones = selectedEvalCategory === 'ALL'
+    ? evaluaciones
+    : evaluaciones.filter(e => e.tipo === selectedEvalCategory);
 
   const getCategoryBadgeVariant = (cat) => {
     switch (cat) {
@@ -229,136 +415,377 @@ export default function ResourcesTab({ catedraId, catedraName }) {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Action bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface p-4 rounded-xl border border-surface-border">
-        <div>
-          <h3 className="text-base font-bold text-text-primary">Repositorio Documental de la Cátedra</h3>
-          <p className="text-xs text-text-muted mt-0.5">
-            Archivos locales subidos a Supabase Storage y carpetas compartidas de Google Drive para {catedraName}.
-          </p>
+      
+      {/* 1. SELECTOR SUPERIOR DE VISTA: MATERIALES VS EVALUACIONES Y PARÁMETROS */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3.5 sm:p-4 rounded-2xl border border-surface-border shadow-xs">
+        <div className="flex items-center gap-2 p-1 bg-surface-hover/70 rounded-2xl border border-surface-border">
+          <button
+            type="button"
+            onClick={() => setActiveMainView('materials')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
+              activeMainView === 'materials'
+                ? 'bg-surface text-primary shadow-xs border border-surface-border'
+                : 'text-text-muted hover:text-text-primary'
+            }`}
+          >
+            <FolderOpen className="w-4 h-4 text-primary" />
+            <span>Materiales y Archivos</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-primary/10 text-primary font-mono font-bold">
+              {resources.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveMainView('evaluaciones')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
+              activeMainView === 'evaluaciones'
+                ? 'bg-surface text-primary shadow-xs border border-surface-border'
+                : 'text-text-muted hover:text-text-primary'
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4 text-primary" />
+            <span>Evaluaciones y Parámetros</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-primary/10 text-primary font-mono font-bold">
+              {evaluaciones.length}
+            </span>
+          </button>
         </div>
-        <Button 
-          variant="primary" 
-          icon={Plus} 
-          onClick={() => {
-            setErrorMsg('');
-            setIsModalOpen(true);
-          }}
-        >
-          Agregar Material / Recurso
-        </Button>
+
+        {activeMainView === 'materials' ? (
+          <Button 
+            variant="primary" 
+            icon={Plus} 
+            size="sm"
+            onClick={() => {
+              setErrorMsg('');
+              setIsModalOpen(true);
+            }}
+            className="text-xs font-bold shadow-xs whitespace-nowrap self-stretch sm:self-auto"
+          >
+            Agregar Material / Recurso
+          </Button>
+        ) : (
+          <div className="text-xs text-text-muted flex items-center gap-1.5 font-medium">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <span>Edición de consignas, fechas y ponderación</span>
+          </div>
+        )}
       </div>
 
-      {/* Category Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
-        {CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat.id;
-          const count = cat.id === 'ALL' 
-            ? resources.length 
-            : resources.filter(r => r.categoria === cat.id).length;
+      {/* 2. VISTA A: MATERIALES Y REPOSITORIO GENERAL */}
+      {activeMainView === 'materials' && (
+        <div className="space-y-5">
+          {/* Category Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+            {CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat.id;
+              const count = cat.id === 'ALL' 
+                ? resources.length 
+                : resources.filter(r => r.categoria === cat.id).length;
 
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-                isSelected 
-                  ? 'bg-primary text-white shadow-sm font-semibold' 
-                  : 'bg-surface hover:bg-surface-hover text-text-secondary border border-surface-border'
-              }`}
-            >
-              {cat.label}
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                isSelected ? 'bg-white/20 text-white' : 'bg-surface-hover text-text-muted'
-              }`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Resource Grid / List */}
-      {loading ? (
-        <div className="flex justify-center items-center py-16">
-          <MinimalSpinner size="lg" color="primary" />
-        </div>
-      ) : filteredResources.length === 0 ? (
-        <EmptyState
-          illustration="folder"
-          title="No hay recursos en esta categoría"
-          description="Sube archivos a Supabase Storage o vincula carpetas compartidas de Google Drive."
-          actionLabel="Agregar primer recurso"
-          actionIcon={Plus}
-          onAction={() => setIsModalOpen(true)}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredResources.map((res) => {
-            const isLocal = res.tipo_origen === 'LOCAL';
-
-            return (
-              <Card key={res.id} hover className="flex flex-col justify-between p-4 group">
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-2.5">
-                    <Badge variant={getCategoryBadgeVariant(res.categoria)}>
-                      {res.categoria}
-                    </Badge>
-                    <button
-                      onClick={() => handleDeleteResource(res.id)}
-                      className="text-text-muted hover:text-danger p-1 rounded transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                      title="Eliminar recurso"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-start gap-3 mt-1">
-                    <div className={`p-2.5 rounded-xl shrink-0 ${
-                      isLocal 
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                    }`}>
-                      {isLocal ? <FileText className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-bold text-text-primary leading-snug break-words">
-                        {res.titulo}
-                      </h4>
-                      <p className="text-[11px] text-text-muted mt-1 flex items-center gap-1.5">
-                        <span className={`font-semibold ${
-                          isLocal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                        }`}>
-                          {isLocal ? 'Supabase Storage' : 'Google Drive'}
-                        </span>
-                        <span>•</span>
-                        <span>{new Date(res.created_at).toLocaleDateString('es-AR')}</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-surface-border flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-text-muted truncate max-w-[140px]">
-                    {res.url_o_path?.replace(/^https?:\/\//, '')}
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                    isSelected 
+                      ? 'bg-primary text-white shadow-sm font-semibold' 
+                      : 'bg-surface hover:bg-surface-hover text-text-secondary border border-surface-border'
+                  }`}
+                >
+                  {cat.label}
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-surface-hover text-text-muted'
+                  }`}>
+                    {count}
                   </span>
-                  <a
-                    href={res.url_o_path}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
-                  >
-                    <span>{isLocal ? 'Ver / Descargar' : 'Abrir en Drive'}</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </Card>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Banner contextual si se seleccionan TPs o Parciales */}
+          {(selectedCategory === 'TP' || selectedCategory === 'PARCIAL') && evaluaciones.length > 0 && (
+            <div className="p-3 bg-primary/5 border border-primary/20 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 text-text-primary">
+                <SlidersHorizontal className="w-4 h-4 text-primary shrink-0" />
+                <span>
+                  ¿Deseas configurar las fechas, ponderación o enlaces de las evaluaciones?
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveMainView('evaluaciones')}
+                className="font-bold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                <span>Ir a Evaluaciones y Parámetros</span>
+                <span>→</span>
+              </button>
+            </div>
+          )}
+
+          {/* Resource Grid / List */}
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <MinimalSpinner size="lg" color="primary" />
+            </div>
+          ) : filteredResources.length === 0 ? (
+            <EmptyState
+              illustration="folder"
+              title="No hay recursos en esta categoría"
+              description="Sube archivos a Supabase Storage o vincula carpetas compartidas de Google Drive."
+              actionLabel="Agregar primer recurso"
+              actionIcon={Plus}
+              onAction={() => setIsModalOpen(true)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredResources.map((res) => {
+                const isLocal = res.tipo_origen === 'LOCAL';
+
+                return (
+                  <Card key={res.id} hover className="flex flex-col justify-between p-4.5 group space-y-4">
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-2.5">
+                        <Badge variant={getCategoryBadgeVariant(res.categoria)}>
+                          {res.categoria}
+                        </Badge>
+                        <button
+                          onClick={() => handleDeleteResource(res.id)}
+                          className="text-text-muted hover:text-danger p-1 rounded-lg hover:bg-danger/10 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                          title="Eliminar recurso"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-start gap-3 mt-1">
+                        <div className={`p-2.5 rounded-xl shrink-0 ${
+                          isLocal 
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                        }`}>
+                          {isLocal ? <FileText className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-bold text-text-primary leading-snug break-words">
+                            {res.titulo}
+                          </h4>
+                          <p className="text-[11px] text-text-muted mt-1 flex items-center gap-1.5 font-mono">
+                            <span className={`font-semibold ${
+                              isLocal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                            }`}>
+                              {isLocal ? 'Supabase Storage' : 'Google Drive'}
+                            </span>
+                            <span>•</span>
+                            <span>{new Date(res.created_at).toLocaleDateString('es-AR')}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-surface-border flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-text-muted truncate max-w-[140px]">
+                        {res.url_o_path?.replace(/^https?:\/\//, '')}
+                      </span>
+                      <a
+                        href={res.url_o_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
+                      >
+                        <span>{isLocal ? 'Ver / Descargar' : 'Abrir en Drive'}</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Modal Agregar Recurso (Storage Local o Google Drive) */}
+      {/* 3. VISTA B: EVALUACIONES Y PARÁMETROS VINCULADOS */}
+      {activeMainView === 'evaluaciones' && (
+        <div className="space-y-5">
+          {/* Subheader & filter pills */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <h4 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                <GraduationCap className="w-4 h-4 text-primary" />
+                Parámetros Académicos y Consignas de Evaluaciones
+              </h4>
+              <p className="text-xs text-text-muted mt-0.5">
+                Edita nombres, fechas límites, escalas de calificación, ponderaciones y enlaces a Google Drive.
+              </p>
+            </div>
+
+            {/* Filter pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+              {[
+                { id: 'ALL', label: 'Todas', count: evaluaciones.length },
+                { id: 'TP', label: 'Trabajos Prácticos', count: evaluaciones.filter(e => e.tipo === 'TP').length },
+                { id: 'PARCIAL', label: 'Parciales', count: evaluaciones.filter(e => e.tipo === 'PARCIAL').length },
+                { id: 'RECUPERATORIO', label: 'Recuperatorios', count: evaluaciones.filter(e => e.tipo === 'RECUPERATORIO').length }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedEvalCategory(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all cursor-pointer whitespace-nowrap ${
+                    selectedEvalCategory === tab.id
+                      ? 'bg-primary text-white font-bold shadow-2xs'
+                      : 'bg-surface hover:bg-surface-hover text-text-secondary border border-surface-border'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    selectedEvalCategory === tab.id ? 'bg-white/20 text-white' : 'bg-surface-hover text-text-muted'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Grid de evaluaciones */}
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <MinimalSpinner size="lg" color="primary" />
+            </div>
+          ) : filteredEvaluaciones.length === 0 ? (
+            <EmptyState
+              illustration="folder"
+              title="No hay evaluaciones en esta categoría"
+              description="Las evaluaciones creadas en la cátedra se sincronizan automáticamente con sus parámetros."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredEvaluaciones.map(ev => {
+                const isDrive = ev.archivo_url && (ev.archivo_url.includes('drive.google.com') || ev.archivo_url.includes('docs.google.com'));
+
+                return (
+                  <Card key={ev.id} hover className="flex flex-col justify-between p-4.5 group space-y-4">
+                    <div>
+                      {/* Top bar: Badge & Action */}
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant={ev.tipo === 'PARCIAL' ? 'warning' : ev.tipo === 'TP' ? 'info' : 'secondary'}>
+                          {ev.tipo === 'TP' ? 'TRABAJO PRÁCTICO' : ev.tipo === 'PARCIAL' ? 'PARCIAL' : 'RECUPERATORIO'}
+                        </Badge>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingEval(ev);
+                            setIsEditEvalModalOpen(true);
+                          }}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-primary hover:text-white bg-primary/10 hover:bg-primary rounded-xl transition-all cursor-pointer shadow-2xs"
+                          title="Editar parámetros, fecha, ponderación o archivo"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Editar</span>
+                        </button>
+                      </div>
+
+                      {/* Title */}
+                      <h4 className="text-sm font-bold text-text-primary mt-2.5 leading-snug line-clamp-2">
+                        {ev.titulo}
+                      </h4>
+
+                      {/* Parámetros: Fecha y Ponderación */}
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                        {/* Fecha */}
+                        <div className="p-2 rounded-xl bg-surface border border-surface-border">
+                          <span className="text-[10px] uppercase font-bold text-text-muted flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-primary" />
+                            Fecha Límite
+                          </span>
+                          <span className="font-semibold text-text-primary mt-0.5 block truncate">
+                            {ev.fecha_entrega ? formatFechaDMY(ev.fecha_entrega) : 'Sin fecha fijada'}
+                          </span>
+                        </div>
+
+                        {/* Ponderación */}
+                        <div className="p-2 rounded-xl bg-surface border border-surface-border">
+                          <span className="text-[10px] uppercase font-bold text-text-muted flex items-center gap-1">
+                            <Scale className="w-3 h-3 text-primary" />
+                            Ponderación
+                          </span>
+                          <span className="font-bold text-primary mt-0.5 block font-mono">
+                            {ev.ponderacion !== undefined && ev.ponderacion !== null ? `${ev.ponderacion}%` : '100%'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Escala de Calificación */}
+                      <div className="mt-2 px-2.5 py-1.5 rounded-xl bg-surface/50 border border-surface-border text-[11px] flex items-center justify-between text-text-muted">
+                        <span className="text-[10px] uppercase font-bold text-text-muted">Escala:</span>
+                        <span className="font-semibold text-text-secondary truncate">
+                          {ev.escala_notas === 'NUMERICA_1_100' ? 'Porcentual (0 a 100 pts)' :
+                           ev.escala_notas === 'CONCEPTUAL' ? 'Conceptual (Sobresaliente/Bueno/Insuf.)' :
+                           ev.escala_notas === 'APROBADO_DESAPROBADO' ? 'Binaria (Aprobado / Desaprobado)' :
+                           'Numérica Oficial (1 a 10)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Consignas y Archivo Adjunto */}
+                    <div className="pt-3 border-t border-surface-border">
+                      {ev.archivo_url ? (
+                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/20">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {isDrive ? (
+                              <ExternalLink className="w-4 h-4 text-amber-500 shrink-0" />
+                            ) : (
+                              <FileCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-text-primary block truncate max-w-[140px] sm:max-w-[170px]">
+                                {ev.archivo_nombre || (isDrive ? 'Google Drive' : 'Consignas adjuntas')}
+                              </span>
+                              <span className="text-[10px] text-text-muted block">
+                                {isDrive ? 'Google Docs / Drive' : 'Supabase Storage'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <a
+                            href={ev.archivo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary-hover transition-colors shrink-0 ml-2"
+                            title="Abrir consignas de la evaluación"
+                          >
+                            <span>Abrir</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={() => {
+                            setEditingEval(ev);
+                            setIsEditEvalModalOpen(true);
+                          }}
+                          className="p-2.5 rounded-xl border border-dashed border-surface-border hover:border-primary/40 bg-surface/30 hover:bg-surface transition-all text-center cursor-pointer group/btn"
+                        >
+                          <span className="text-xs text-text-muted group-hover/btn:text-primary font-medium flex items-center justify-center gap-1.5">
+                            <Plus className="w-3.5 h-3.5" />
+                            Vincular consignas / Drive
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal Agregar Recurso General (Storage Local o Google Drive) */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -433,7 +860,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
                   {selectedFile ? (
                     <div>
                       <p className="text-xs font-bold text-text-primary break-all">{selectedFile.name}</p>
-                      <p className="text-[11px] text-text-muted">
+                      <p className="text-[11px] text-text-muted font-mono">
                         {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
                       </p>
                     </div>
@@ -551,6 +978,18 @@ export default function ResourcesTab({ catedraId, catedraName }) {
           </div>
         </form>
       </Modal>
+
+      {/* Modal para Editar Parámetros de la Evaluación */}
+      <EditEvaluacionParamsModal
+        isOpen={isEditEvalModalOpen}
+        onClose={() => {
+          setIsEditEvalModalOpen(false);
+          setEditingEval(null);
+        }}
+        evaluacion={editingEval}
+        onSave={handleSaveEvaluacionParams}
+        catedraId={catedraId}
+      />
     </div>
   );
 }

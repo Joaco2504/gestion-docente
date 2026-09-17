@@ -63,6 +63,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState('ALL'); // 'ALL' | 'TERCIARIO' | 'SECUNDARIO'
   const [selectedInstFilter, setSelectedInstFilter] = useState('ALL');
+  const [selectedMetricsCatedraId, setSelectedMetricsCatedraId] = useState('all');
 
   // Modal Nueva Cátedra
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -180,10 +181,12 @@ export default function DashboardPage() {
             inscripcionesByCat[row.catedra_id] = (inscripcionesByCat[row.catedra_id] || 0) + 1;
           });
 
-          // Obtener la clase más reciente de cada cátedra
+          // Obtener la clase más reciente de cada cátedra y conteo total de clases por cátedra
           const allClases = clasesRes.data || [];
           const latestClaseIds = [];
+          const clasesCountByCat = {};
           allClases.forEach(c => {
+            clasesCountByCat[c.catedra_id] = (clasesCountByCat[c.catedra_id] || 0) + 1;
             if (!latestClaseByCat[c.catedra_id]) {
               latestClaseByCat[c.catedra_id] = { ...c };
               latestClaseIds.push(c.id);
@@ -259,6 +262,7 @@ export default function DashboardPage() {
           institucion_nombre: c.instituciones?.nombre || 'Institución',
           institucion_nivel: c.instituciones?.nivel || c.nivel,
           estudiantes_count: inscripcionesByCat[c.id] ?? 0,
+          clases_count: clasesCountByCat[c.id] ?? 0,
           ultima_clase: latestClaseByCat[c.id] || null,
           asistencia_promedio: attendancePctByCat[c.id] ?? null
         }));
@@ -343,6 +347,7 @@ export default function DashboardPage() {
         institucion_nivel: 'TERCIARIO',
         estudiantes_count: 26,
         asistencia_promedio: 88.5,
+        clases_count: 8,
         horarios_semanales: [{ dia: 'Lunes', desde: '18:00', hasta: '20:00', aula: 'Lab 1' }],
         ultima_clase: {
           id: 'clase-demo-1',
@@ -361,6 +366,7 @@ export default function DashboardPage() {
         institucion_nivel: 'TERCIARIO',
         estudiantes_count: 31,
         asistencia_promedio: 92.0,
+        clases_count: 12,
         horarios_semanales: [{ dia: 'Martes', desde: '19:00', hasta: '21:00', aula: 'Lab 2' }],
         ultima_clase: {
           id: 'clase-demo-2',
@@ -379,6 +385,7 @@ export default function DashboardPage() {
         institucion_nivel: 'SECUNDARIO',
         estudiantes_count: 28,
         asistencia_promedio: 84.2,
+        clases_count: 5,
         horarios_semanales: [{ dia: 'Miércoles', desde: '08:30', hasta: '10:30', aula: 'Aula 4' }],
         ultima_clase: {
           id: 'clase-demo-3',
@@ -397,6 +404,7 @@ export default function DashboardPage() {
         institucion_nivel: 'TERCIARIO',
         estudiantes_count: 22,
         asistencia_promedio: 86.0,
+        clases_count: 0,
         horarios_semanales: [{ dia: 'Jueves', desde: '18:00', hasta: '20:00', aula: 'Lab 3' }],
         ultima_clase: null // Cátedra sin clases aún para probar estado vacío
       }
@@ -587,33 +595,76 @@ const normalizeSearchText = (str) => {
   }, [agendaItems]);
 
   /**
-   * Bento Box 3: Métricas Rápidas Globales
+   * Bento Box 3: Opciones del Selector de Cátedras
    */
-  const globalMetrics = useMemo(() => {
-    let totalStudents = 0;
-    let validAttendanceSum = 0;
-    let attendanceCount = 0;
-    let totalClasses = 0;
-
-    catedrasList.forEach(c => {
-      totalStudents += (c.estudiantes_count || 0);
-      if (c.asistencia_promedio !== null && !isNaN(c.asistencia_promedio)) {
-        validAttendanceSum += Number(c.asistencia_promedio);
-        attendanceCount += 1;
-      }
-      if (c.ultima_clase) {
-        totalClasses += 1;
-      }
-    });
-
-    const averageAttendance = attendanceCount > 0 ? Math.round(validAttendanceSum / attendanceCount) : 0;
-    return {
-      totalStudents,
-      averageAttendance,
-      totalClasses,
-      activeCatedras: catedrasList.length
-    };
+  const metricsCatedraOptions = useMemo(() => {
+    return [
+      { value: 'all', label: '📊 Consolidado General (Todas)' },
+      ...catedrasList.map(c => ({
+        value: c.id,
+        label: `${c.nombre} (${c.institucion_nombre || 'Inst.'})`,
+        badge: c.nivel === 'TERCIARIO' ? 'Terc.' : 'Sec.'
+      }))
+    ];
   }, [catedrasList]);
+
+  /**
+   * Bento Box 3: Métricas Rápidas Dinámicas (Consolidado o por Cátedra puntual)
+   */
+  const displayedMetrics = useMemo(() => {
+    if (selectedMetricsCatedraId === 'all') {
+      let totalStudents = 0;
+      let validAttendanceSum = 0;
+      let attendanceCount = 0;
+      let totalClasses = 0;
+
+      catedrasList.forEach(c => {
+        totalStudents += (c.estudiantes_count || 0);
+        if (c.asistencia_promedio !== null && !isNaN(c.asistencia_promedio)) {
+          validAttendanceSum += Number(c.asistencia_promedio);
+          attendanceCount += 1;
+        }
+        totalClasses += (c.clases_count !== undefined ? c.clases_count : (c.ultima_clase ? 1 : 0));
+      });
+
+      const averageAttendance = attendanceCount > 0 ? Math.round(validAttendanceSum / attendanceCount) : 0;
+      return {
+        totalStudents,
+        averageAttendance,
+        totalClasses,
+        activeCatedras: catedrasList.length,
+        isFiltered: false,
+        catedraNombre: 'Todas las materias'
+      };
+    }
+
+    const selectedCat = catedrasList.find(c => String(c.id) === String(selectedMetricsCatedraId));
+    if (!selectedCat) {
+      return {
+        totalStudents: 0,
+        averageAttendance: 0,
+        totalClasses: 0,
+        activeCatedras: 0,
+        isFiltered: true,
+        catedraNombre: 'Cátedra no encontrada'
+      };
+    }
+
+    const attendance = selectedCat.asistencia_promedio !== null && !isNaN(selectedCat.asistencia_promedio)
+      ? Math.round(Number(selectedCat.asistencia_promedio))
+      : 0;
+
+    return {
+      totalStudents: selectedCat.estudiantes_count || 0,
+      averageAttendance: attendance,
+      totalClasses: selectedCat.clases_count !== undefined ? selectedCat.clases_count : (selectedCat.ultima_clase ? 1 : 0),
+      activeCatedras: 1,
+      isFiltered: true,
+      catedraNombre: selectedCat.nombre
+    };
+  }, [selectedMetricsCatedraId, catedrasList]);
+
+  const globalMetrics = displayedMetrics;
 
   /**
    * Crear Cátedra
@@ -1066,22 +1117,38 @@ const normalizeSearchText = (str) => {
            ========================================================= */}
         <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 relative overflow-hidden group">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-3">
+            {/* Cabecera sin solapamientos (flex-between) */}
+            <div className="flex items-center justify-between gap-2 w-full mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2 min-w-0">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                <div className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
                   Métricas Rápidas
                 </span>
               </div>
-              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
-                globalMetrics.averageAttendance >= 75
-                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
-                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
+              <span className={`shrink-0 text-xs px-2.5 py-0.5 rounded-full border ${
+                displayedMetrics.averageAttendance >= 75
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
               }`}>
-                {globalMetrics.averageAttendance >= 75 ? 'Asistencia Óptima' : 'En Seguimiento'}
+                {displayedMetrics.averageAttendance >= 75 ? 'Asistencia Óptima' : 'En Seguimiento'}
               </span>
+            </div>
+
+            {/* Selector desplegable para filtrar por Cátedra o Consolidado General */}
+            <div className="mb-4">
+              <CustomSelect
+                value={selectedMetricsCatedraId}
+                onChange={(val) => {
+                  const targetVal = typeof val === 'object' && val?.target ? val.target.value : val;
+                  setSelectedMetricsCatedraId(targetVal);
+                }}
+                options={metricsCatedraOptions}
+                placeholder="Consolidado General"
+                className="w-full text-xs"
+                buttonClassName="py-1.5 px-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-xl font-medium"
+              />
             </div>
 
             {/* Layout Horizontal 2 Columnas (PC/Desktop): Col 1 Donut 100px, Col 2 Contadores */}
@@ -1102,20 +1169,20 @@ const normalizeSearchText = (str) => {
                     cy="50"
                     r="40"
                     className={`transition-all duration-1000 ease-out ${
-                      globalMetrics.averageAttendance >= 75
+                      displayedMetrics.averageAttendance >= 75
                         ? 'stroke-emerald-500 dark:stroke-emerald-400'
                         : 'stroke-amber-500 dark:stroke-amber-400'
                     }`}
                     strokeWidth="10"
                     strokeDasharray={251.3}
-                    strokeDashoffset={251.3 - (251.3 * Math.min(globalMetrics.averageAttendance, 100)) / 100}
+                    strokeDashoffset={251.3 - (251.3 * Math.min(displayedMetrics.averageAttendance, 100)) / 100}
                     strokeLinecap="round"
                     fill="transparent"
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
                   <span className="text-base font-mono font-bold text-slate-900 dark:text-white leading-tight">
-                    {globalMetrics.averageAttendance}%
+                    {displayedMetrics.averageAttendance}%
                   </span>
                   <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5 leading-none">
                     ASISTENCIA
@@ -1131,16 +1198,16 @@ const normalizeSearchText = (str) => {
                     <span>Alumnos Activos:</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
-                    {globalMetrics.totalStudents}
+                    {displayedMetrics.totalStudents}
                   </span>
                 </div>
                 <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-normal">
                     <span className="text-sm">📖</span>
-                    <span>Cátedras:</span>
+                    <span>{displayedMetrics.isFiltered ? 'Materia:' : 'Cátedras:'}</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
-                    {globalMetrics.activeCatedras}
+                    {displayedMetrics.isFiltered ? '1 Activa' : displayedMetrics.activeCatedras}
                   </span>
                 </div>
                 <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
@@ -1149,7 +1216,7 @@ const normalizeSearchText = (str) => {
                     <span>Clases Totales:</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
-                    {globalMetrics.totalClasses}
+                    {displayedMetrics.totalClasses}
                   </span>
                 </div>
               </div>
@@ -1157,11 +1224,13 @@ const normalizeSearchText = (str) => {
           </div>
 
           <div className="pt-3 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs">
-            <span className="text-[11px] text-text-muted font-mono flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span>Datos sincronizados</span>
+            <span className="text-[11px] text-text-muted font-mono flex items-center gap-1.5 truncate max-w-[200px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+              <span className="truncate">
+                {displayedMetrics.isFiltered ? displayedMetrics.catedraNombre : 'Datos sincronizados'}
+              </span>
             </span>
-            <span className="text-[11px] font-semibold text-primary">Ciclo {activeCiclo?.anio || '2026'}</span>
+            <span className="text-[11px] font-semibold text-primary shrink-0">Ciclo {activeCiclo?.anio || '2026'}</span>
           </div>
         </div>
       </section>
