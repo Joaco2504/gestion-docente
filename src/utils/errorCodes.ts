@@ -101,6 +101,31 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
   const fullText = `${rawStr} ${messageStr} ${detailsStr} ${hintStr} ${codeStr}`;
   const lowerText = fullText.toLowerCase();
 
+  // 0. Detectar y aislar excepciones nativas de JavaScript (ReferenceError, TypeError, SyntaxError, etc.)
+  // Estas NUNCA deben asociarse a errores de la base de datos (evita falsos positivos como ERR-311 por variables con 'clases')
+  const isNativeJsError = 
+    error instanceof ReferenceError ||
+    error instanceof TypeError ||
+    error instanceof RangeError ||
+    error instanceof SyntaxError ||
+    (error instanceof Error && ['ReferenceError', 'TypeError', 'RangeError', 'SyntaxError', 'URIError'].includes(error.name)) ||
+    (error?.name && ['ReferenceError', 'TypeError', 'RangeError', 'SyntaxError', 'URIError'].includes(error.name));
+
+  if (isNativeJsError && !error?.code && !error?.details && !error?.hint && !error?.status && !error?.statusCode) {
+    return {
+      codigo: DICCIONARIO_ERRORES.DEFAULT.codigo,
+      mensaje: DICCIONARIO_ERRORES.DEFAULT.mensaje,
+      originalError: error
+    };
+  }
+
+  // Indicador de error originado en API / PostgREST / PostgreSQL
+  const hasDbSignal = Boolean(codeStr) || Boolean(detailsStr) || Boolean(hintStr) || 
+    lowerText.includes('postgrest') || lowerText.includes('postgres') || 
+    lowerText.includes('relation') || lowerText.includes('table') || 
+    lowerText.includes('column') || lowerText.includes('foreign key') || 
+    lowerText.includes('violates');
+
   // 1. Sesión y Token JWT
   if (
     lowerText.includes('jwt') ||
@@ -181,10 +206,11 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     };
   }
 
-  // 6. Evaluaciones
+  // 6. Evaluaciones (requiere señal de DB o coincidencia de palabra completa)
   if (
-    lowerText.includes('evaluaciones') ||
-    lowerText.includes('evaluacion')
+    (hasDbSignal && /\b(evaluaciones|evaluacion)\b/i.test(fullText)) ||
+    lowerText.includes('public.evaluaciones') ||
+    lowerText.includes('table "evaluaciones"')
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["evaluaciones"].codigo,
@@ -193,11 +219,12 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     };
   }
 
-  // 7. Calificaciones y Notas
+  // 7. Calificaciones y Notas (solo si es error genuino de DB/API o coincidencia exacta de tabla)
   if (
-    lowerText.includes('notas') ||
-    lowerText.includes('calificacion') ||
-    lowerText.includes('calificaciones')
+    (hasDbSignal && /\b(notas|nota|calificacion|calificaciones)\b/i.test(fullText)) ||
+    lowerText.includes('public.notas') ||
+    lowerText.includes('table "notas"') ||
+    Boolean(detailsStr && /\b(notas|nota)\b/i.test(detailsStr))
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["notas"].codigo,
@@ -208,9 +235,9 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
 
   // 8. Asistencias e Inasistencias
   if (
-    lowerText.includes('asistencias') ||
-    lowerText.includes('asistencia') ||
-    lowerText.includes('inasistencias_docente')
+    (hasDbSignal && /\b(asistencias|asistencia|inasistencias_docente)\b/i.test(fullText)) ||
+    lowerText.includes('public.asistencias') ||
+    lowerText.includes('table "asistencias"')
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["asistencias"].codigo,
@@ -219,12 +246,12 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     };
   }
 
-  // 9. Clases y Libro de Temas
+  // 9. Clases y Libro de Temas (solo ante errores genuinos de API/DB, jamás en ReferenceError/TypeError)
   if (
-    lowerText.includes('clases') ||
-    lowerText.includes('clase') ||
-    lowerText.includes('libro_temas') ||
-    lowerText.includes('temas_dictados')
+    (hasDbSignal && /\b(clases|clase|libro_temas|temas_dictados)\b/i.test(fullText)) ||
+    lowerText.includes('public.clases') ||
+    lowerText.includes('table "clases"') ||
+    Boolean(detailsStr && /\b(clases|clase)\b/i.test(detailsStr))
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["clases"].codigo,
@@ -235,10 +262,9 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
 
   // 10. Inscripciones y Estado Académico
   if (
-    lowerText.includes('inscripciones') ||
-    lowerText.includes('inscripcion') ||
-    lowerText.includes('estado_academico') ||
-    lowerText.includes('nota_final_acreditacion')
+    (hasDbSignal && /\b(inscripciones|inscripcion|estado_academico|nota_final_acreditacion)\b/i.test(fullText)) ||
+    lowerText.includes('public.inscripciones') ||
+    lowerText.includes('table "inscripciones"')
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["inscripciones"].codigo,
@@ -249,10 +275,9 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
 
   // 11. Estudiantes / Nómina
   if (
-    lowerText.includes('estudiantes') ||
-    lowerText.includes('estudiante') ||
-    lowerText.includes('matricul') ||
-    lowerText.includes('alumno')
+    (hasDbSignal && /\b(estudiantes|estudiante|matricul|alumno)\b/i.test(fullText)) ||
+    lowerText.includes('public.estudiantes') ||
+    lowerText.includes('table "estudiantes"')
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["estudiantes"].codigo,
@@ -261,12 +286,11 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     };
   }
 
-  // 11. Períodos académicos y ciclos
+  // 12. Períodos académicos y ciclos
   if (
     lowerText.includes('periodos_academicos') ||
     lowerText.includes('ciclos_lectivos') ||
-    lowerText.includes('ciclo_id') ||
-    lowerText.includes('periodo')
+    lowerText.includes('ciclo_id')
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["periodos_academicos"].codigo,
@@ -275,10 +299,11 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     };
   }
 
-  // 12. Cátedras
+  // 13. Cátedras
   if (
-    lowerText.includes('catedras') ||
-    lowerText.includes('catedra')
+    (hasDbSignal && /\b(catedras|catedra)\b/i.test(fullText)) ||
+    lowerText.includes('public.catedras') ||
+    lowerText.includes('table "catedras"')
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["catedras"].codigo,

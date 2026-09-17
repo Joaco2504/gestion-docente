@@ -160,6 +160,7 @@ export default function DashboardPage() {
         let inscripcionesByCat = {};
         let latestClaseByCat = {};
         let attendancePctByCat = {};
+        let clasesCountByCat = {};
 
         if (catedraIds.length > 0) {
           // 2. Consultar inscripciones y todas las clases en paralelo
@@ -184,9 +185,14 @@ export default function DashboardPage() {
           // Obtener la clase más reciente de cada cátedra y conteo total de clases por cátedra
           const allClases = clasesRes.data || [];
           const latestClaseIds = [];
-          const clasesCountByCat = {};
+          
+          clasesCountByCat = (allClases || []).reduce((acc, c) => {
+            const catId = c.catedra_id;
+            acc[catId] = (acc[catId] || 0) + 1;
+            return acc;
+          }, {});
+
           allClases.forEach(c => {
-            clasesCountByCat[c.catedra_id] = (clasesCountByCat[c.catedra_id] || 0) + 1;
             if (!latestClaseByCat[c.catedra_id]) {
               latestClaseByCat[c.catedra_id] = { ...c };
               latestClaseIds.push(c.id);
@@ -262,7 +268,7 @@ export default function DashboardPage() {
           institucion_nombre: c.instituciones?.nombre || 'Institución',
           institucion_nivel: c.instituciones?.nivel || c.nivel,
           estudiantes_count: inscripcionesByCat[c.id] ?? 0,
-          clases_count: clasesCountByCat[c.id] ?? 0,
+          clases_count: clasesCountByCat?.[c.id] ?? 0,
           ultima_clase: latestClaseByCat[c.id] || null,
           asistencia_promedio: attendancePctByCat[c.id] ?? null
         }));
