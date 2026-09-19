@@ -826,11 +826,12 @@ const normalizeSearchText = (str) => {
           const autoAsist = inscData.map(i => ({
             clase_id: data.id,
             estudiante_id: i.estudiante_id,
-            estado: 'PRESENTE'
+            estado: 'PRESENTE',
+            updated_at: new Date().toISOString()
           }));
           const { error: asistErr } = await supabase
             .from('asistencias')
-            .upsert(autoAsist, { onConflict: 'clase_id,estudiante_id' });
+            .upsert(autoAsist, { onConflict: 'clase_id, estudiante_id' });
           if (asistErr) {
             console.warn('Aviso al guardar asistencias automáticas:', asistErr);
           }
@@ -927,68 +928,88 @@ const normalizeSearchText = (str) => {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-fadeIn pb-12">
-      {/* 1. WELCOME BENTO HEADER */}
-      <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl p-5 sm:p-7 border border-slate-200/80 dark:border-white/10 shadow-xs relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-5">
-        {/* Glow decorativo sutil */}
-        <div className="absolute -right-10 -top-10 w-52 h-52 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
-              Panel de Control Central
-            </span>
-            <span className="text-xs text-text-muted flex items-center gap-1 font-medium">
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>{formatFechaLegible(new Date())}</span>
-            </span>
+    <div className="space-y-6">
+      {/* 1. FILA SUPERIOR DE ACCIONES RÁPIDAS (BENTO ACTION CARDS) */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <button
+          type="button"
+          onClick={() => { setErrorMsg(''); setIsModalOpen(true); }}
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+            <Plus className="w-4 h-4" />
           </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-text-primary block truncate">Nueva Cátedra</span>
+            <span className="text-[10px] text-text-muted block truncate">Crear asignatura</span>
+          </div>
+        </button>
 
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-primary">
-            ¡Hola, {user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Profesor'}!
-          </h1>
-          <p className="text-xs sm:text-sm text-text-secondary max-w-2xl leading-relaxed">
-            Arquitectura visual unificada para el seguimiento de cátedras, asistencias y agenda académica.
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/calendario')}
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
+            <CalendarIcon className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-text-primary block truncate">Calendario y Mesas</span>
+            <span className="text-[10px] text-text-muted block truncate">Cronograma</span>
+          </div>
+        </button>
 
-        <div className="flex items-center gap-2 sm:gap-3 relative z-10 flex-wrap sm:flex-nowrap">
-          <Button
-            variant="outline"
-            icon={CalendarIcon}
-            onClick={() => {
-              navigate('/calendario');
-              window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-              document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-            }}
-            className="flex-1 sm:flex-initial text-xs rounded-xl touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0"
-          >
-            <span className="hidden sm:inline">Ver Calendario</span>
-            <span className="sm:hidden">Calendario</span>
-          </Button>
+        <button
+          type="button"
+          onClick={() => {
+            if (upcomingClass) {
+              navigate(`/catedra/${upcomingClass.catedraId}?tab=asistencias`);
+            } else if (catedrasList.length > 0) {
+              navigate(`/catedra/${catedrasList[0].id}?tab=asistencias`);
+            } else {
+              toast.info('Crea una cátedra primero para gestionar inasistencias docentes.');
+            }
+          }}
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
+            <ShieldAlert className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-text-primary block truncate">Licencia Docente</span>
+            <span className="text-[10px] text-text-muted block truncate">Artículos y partes</span>
+          </div>
+        </button>
 
-          <Button
-            variant="primary"
-            icon={Plus}
-            onClick={() => {
-              setErrorMsg('');
-              setIsModalOpen(true);
-            }}
-            className="flex-1 sm:flex-initial text-xs shadow-xs rounded-xl touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0"
-          >
-            <span className="hidden sm:inline">Nueva Cátedra</span>
-            <span className="sm:hidden">+ Cátedra</span>
-          </Button>
-        </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (upcomingClass) {
+              navigate(`/catedra/${upcomingClass.catedraId}?tab=recursos`);
+            } else if (catedrasList.length > 0) {
+              navigate(`/catedra/${catedrasList[0].id}?tab=recursos`);
+            } else {
+              toast.info('Crea una cátedra primero para subir archivos.');
+            }
+          }}
+          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+            <ExternalLink className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-text-primary block truncate">Recursos y Drive</span>
+            <span className="text-[10px] text-text-muted block truncate">Repositorio de cátedra</span>
+          </div>
+        </button>
+      </section>
 
-      {/* 2. BENTO GRID SYSTEM OVERVIEW (ASYMMETRICAL 4-COL GRID) */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 items-stretch">
+      {/* 2. SEGUNDA FILA: MONITOREO OPERATIVO (LAYOUT 50/50) */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-stretch">
         {/* =========================================================
-            BENTO BOX 1 (HERO CARD - col-span-1 md:col-span-2 lg:col-span-2)
-            "Próxima Clase Inminente"
+            BENTO BOX 1: [ Próxima Clase ]
            ========================================================= */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-2 backdrop-blur-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 group">
+        <div className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/10 rounded-3xl p-6 relative overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 group">
           {/* Ambient Glow */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/15 via-emerald-500/5 to-transparent rounded-full blur-2xl pointer-events-none" />
 
@@ -1052,81 +1073,14 @@ const normalizeSearchText = (str) => {
                 onClick={() => navigate(`/catedra/${upcomingClass.catedraId}?tab=asistencias`)}
                 className="text-xs font-bold shadow-xs whitespace-nowrap rounded-xl"
               >
-                Iniciar Asistencia Rápida
+                Iniciar Asistencia
               </Button>
             )}
           </div>
         </div>
 
         {/* =========================================================
-            BENTO BOX 2 (col-span-1)
-            "Agenda Crítica & Exámenes"
-           ========================================================= */}
-        <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
-
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                  <Award className="w-4 h-4" />
-                </div>
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-text-muted">
-                  Agenda Crítica
-                </span>
-              </div>
-              {nextCriticalEvent && (
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                  {getRelativeDateLabel(nextCriticalEvent.fecha)}
-                </span>
-              )}
-            </div>
-
-            {nextCriticalEvent ? (
-              <div className="my-auto py-3 space-y-2">
-                <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-text-secondary border border-slate-200/60 dark:border-white/5">
-                  {nextCriticalEvent.tipo === 'TRIBUNAL_EXAMEN' ? 'Mesa de Examen Final' : nextCriticalEvent.tipo === 'PERIODO' ? 'Cierre Académico' : 'Reunión Docente'}
-                </span>
-                <h4 className="text-sm font-bold text-text-primary leading-snug line-clamp-2">
-                  {nextCriticalEvent.titulo}
-                </h4>
-                <p className="text-[11px] text-text-muted font-mono flex items-center gap-1">
-                  <CalendarDays className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                  <span>{formatFechaLegible(nextCriticalEvent.fecha)}</span>
-                  {nextCriticalEvent.hora && <span>• {nextCriticalEvent.hora} hs</span>}
-                </p>
-              </div>
-            ) : (
-              <div className="my-auto py-6 text-center">
-                <CalendarIcon className="w-7 h-7 text-text-muted/40 mx-auto mb-1.5" />
-                <p className="text-xs text-text-muted">Sin mesas ni vencimientos en los próximos 15 días.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="pt-3 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-xs">
-            <button
-              type="button"
-              onClick={() => setIsNewEventModalOpen(true)}
-              className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Nuevo Recordatorio</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/calendario')}
-              className="text-[11px] text-text-muted hover:text-text-primary flex items-center gap-0.5 cursor-pointer"
-            >
-              <span>Ver todo</span>
-              <ChevronRight className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-
-        {/* =========================================================
-            BENTO BOX 3 (col-span-1)
-            "Métricas Rápidas & Asistencia Global"
+            BENTO BOX 2: [ Métricas Rápidas ]
            ========================================================= */}
         <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 relative overflow-hidden group">
           <div>
@@ -1248,81 +1202,6 @@ const normalizeSearchText = (str) => {
         </div>
       </section>
 
-      {/* 3. BENTO BOX 5: ACCIONES RÁPIDAS Y ATAJOS MODULARES */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <button
-          type="button"
-          onClick={() => { setErrorMsg(''); setIsModalOpen(true); }}
-          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
-        >
-          <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
-            <Plus className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Nueva Cátedra</span>
-            <span className="text-[10px] text-text-muted block truncate">Crear asignatura</span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate('/calendario')}
-          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
-        >
-          <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
-            <CalendarIcon className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Calendario y Mesas</span>
-            <span className="text-[10px] text-text-muted block truncate">Cronograma</span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (upcomingClass) {
-              navigate(`/catedra/${upcomingClass.catedraId}?tab=asistencias`);
-            } else if (catedrasList.length > 0) {
-              navigate(`/catedra/${catedrasList[0].id}?tab=asistencias`);
-            } else {
-              toast.info('Crea una cátedra primero para gestionar inasistencias docentes.');
-            }
-          }}
-          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
-        >
-          <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
-            <ShieldAlert className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Licencia Docente</span>
-            <span className="text-[10px] text-text-muted block truncate">Artículos y partes</span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (upcomingClass) {
-              navigate(`/catedra/${upcomingClass.catedraId}?tab=recursos`);
-            } else if (catedrasList.length > 0) {
-              navigate(`/catedra/${catedrasList[0].id}?tab=recursos`);
-            } else {
-              toast.info('Crea una cátedra primero para subir archivos.');
-            }
-          }}
-          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
-        >
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
-            <ExternalLink className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Recursos y Drive</span>
-            <span className="text-[10px] text-text-muted block truncate">Repositorio de cátedra</span>
-          </div>
-        </button>
-      </section>
-
       {/* 4. BENTO BOX 4 (GRILLA EXPANDIDA): MIS CÁTEDRAS */}
       <section className="space-y-4">
         {/* Cabecera de Cátedras con Filtros y Buscador */}
@@ -1418,25 +1297,25 @@ const normalizeSearchText = (str) => {
             <SkeletonCatedraCard count={3} />
           </div>
         ) : filteredCatedras.length === 0 ? (
-          <EmptyState
-            illustration={searchQuery ? "search" : "folder"}
-            title={searchQuery ? `No se encontraron cátedras que coincidan con "${searchQuery}"` : "No hay cátedras registradas"}
-            description={
-              searchQuery
-                ? `No hay materias ni colegios que coincidan con "${searchQuery}". Intenta con otro término de búsqueda o cambia de nivel.`
-                : 'Aún no has registrado materias en este ciclo lectivo o nivel educativo.'
-            }
-            actionLabel={searchQuery ? "Restablecer Vista" : "Crear Primera Cátedra"}
-            actionIcon={searchQuery ? X : Plus}
-            onAction={() => {
-              if (searchQuery) {
+          searchQuery ? (
+            <EmptyState
+              illustration="search"
+              title={`No se encontraron cátedras que coincidan con "${searchQuery}"`}
+              description={`No hay materias ni colegios que coincidan con "${searchQuery}". Intenta con otro término de búsqueda o cambia de nivel.`}
+              actionLabel="Restablecer Vista"
+              actionIcon={X}
+              onAction={() => {
                 setSearchQuery('');
                 setLevelFilter('ALL');
-              } else {
-                setIsModalOpen(true);
-              }
-            }}
-          />
+              }}
+            />
+          ) : (
+            <EmptyState
+              tipo="catedras"
+              onAction={() => setIsModalOpen(true)}
+              actionIcon={Plus}
+            />
+          )
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredCatedras.map((cat) => {

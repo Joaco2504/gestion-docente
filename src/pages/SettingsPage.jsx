@@ -77,6 +77,7 @@ export default function SettingsPage() {
     nota_min_reg: 4,
     nota_min_sec: 6
   });
+  const [isDirty, setIsDirty] = useState(false);
 
   // Asegura formato de fecha ISO estándar (YYYY-MM-DD)
   const formatToIsoDate = (val) => {
@@ -210,6 +211,7 @@ export default function SettingsPage() {
     }
     updated[index][field] = finalValue;
     setPeriodos(updated);
+    setIsDirty(true);
   };
 
   const handleAddPeriod = () => {
@@ -222,6 +224,7 @@ export default function SettingsPage() {
       fecha_fin: todayIso
     };
     setPeriodos([...periodos, newPeriod]);
+    setIsDirty(true);
   };
 
   const handleRemovePeriod = (index) => {
@@ -234,6 +237,7 @@ export default function SettingsPage() {
       setDeletedPeriodIds(prev => [...prev, target.id]);
     }
     setPeriodos(periodos.filter((_, i) => i !== index));
+    setIsDirty(true);
   };
 
   const handleSavePeriods = async () => {
@@ -359,6 +363,7 @@ export default function SettingsPage() {
       window.dispatchEvent(new CustomEvent('docentepro:periodos_updated', { detail: finalPeriods }));
 
       toast.success('Límites de períodos académicos y receso guardados correctamente.');
+      setIsDirty(false);
     } catch (err) {
       handleAppError(err, 'SettingsPage / Guardar Períodos Académicos', user);
     } finally {
@@ -371,6 +376,7 @@ export default function SettingsPage() {
     try {
       localStorage.setItem('docentepro_default_criteria', JSON.stringify(criterios));
       toast.success('Criterios de evaluación predeterminados guardados.');
+      setIsDirty(false);
     } catch (err) {
       handleAppError(err, 'SettingsPage / Guardar criterios', user);
     } finally {
@@ -383,6 +389,7 @@ export default function SettingsPage() {
     if (isPeriodsOpen) {
       await handleSavePeriods();
     }
+    setIsDirty(false);
   };
 
   return (
@@ -730,7 +737,10 @@ export default function SettingsPage() {
               min="0"
               max="100"
               value={criterios.min_asist_promo}
-              onChange={(e) => setCriterios({ ...criterios, min_asist_promo: Number(e.target.value) })}
+              onChange={(e) => {
+                setCriterios({ ...criterios, min_asist_promo: Number(e.target.value) });
+                setIsDirty(true);
+              }}
               className="w-full px-3.5 py-2 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
           </div>
@@ -744,7 +754,10 @@ export default function SettingsPage() {
               min="0"
               max="100"
               value={criterios.min_asist_reg}
-              onChange={(e) => setCriterios({ ...criterios, min_asist_reg: Number(e.target.value) })}
+              onChange={(e) => {
+                setCriterios({ ...criterios, min_asist_reg: Number(e.target.value) });
+                setIsDirty(true);
+              }}
               className="w-full px-3.5 py-2 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
           </div>
@@ -758,7 +771,10 @@ export default function SettingsPage() {
               min="1"
               max="10"
               value={criterios.nota_min_promo}
-              onChange={(e) => setCriterios({ ...criterios, nota_min_promo: Number(e.target.value) })}
+              onChange={(e) => {
+                setCriterios({ ...criterios, nota_min_promo: Number(e.target.value) });
+                setIsDirty(true);
+              }}
               className="w-full px-3.5 py-2 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
           </div>
@@ -772,7 +788,10 @@ export default function SettingsPage() {
               min="1"
               max="10"
               value={criterios.nota_min_reg}
-              onChange={(e) => setCriterios({ ...criterios, nota_min_reg: Number(e.target.value) })}
+              onChange={(e) => {
+                setCriterios({ ...criterios, nota_min_reg: Number(e.target.value) });
+                setIsDirty(true);
+              }}
               className="w-full px-3.5 py-2 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
           </div>
@@ -786,7 +805,10 @@ export default function SettingsPage() {
               min="1"
               max="10"
               value={criterios.nota_min_sec}
-              onChange={(e) => setCriterios({ ...criterios, nota_min_sec: Number(e.target.value) })}
+              onChange={(e) => {
+                setCriterios({ ...criterios, nota_min_sec: Number(e.target.value) });
+                setIsDirty(true);
+              }}
               className="w-full px-3.5 py-2 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
           </div>
@@ -805,10 +827,13 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) */}
+      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) reactivo con Ctrl + S */}
       <QuickSaveFAB
         onSave={handleQuickSaveAll}
         loading={savingPeriods || savingCriteria}
+        isDirty={isDirty}
+        hasChanges={isDirty}
+        visible={isDirty}
         title="Guardar configuraciones y criterios"
       />
     </div>

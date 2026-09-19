@@ -13,9 +13,11 @@ import {
   ExternalLink,
   Sparkles,
   Heart,
-  FileText
+  FileText,
+  Award,
+  Building2,
+  Users
 } from 'lucide-react';
-import { isSupabaseConfigured } from '../../lib/supabase';
 import Modal from '../common/Modal';
 
 export default function Footer() {
@@ -24,26 +26,26 @@ export default function Footer() {
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
 
   return (
-    <footer className="mt-16 text-text-secondary font-sans selection:bg-primary selection:text-white">
+    <div className="mt-16 text-text-secondary font-sans selection:bg-primary selection:text-white">
       {/* ========================================================
-          1. BANNER SUPERIOR DE LLAMADO A LA ACCIÓN (LIQUID GLASS CTA BANNER)
+          1. BANNER SUPERIOR DE INVITACIÓN CÁLIDO Y HUMANO
          ======================================================== */}
       <div className="bg-surface/90 dark:bg-[#0c1222]/90 backdrop-blur-xl border-t border-b border-surface-border relative overflow-hidden py-12 px-4 sm:px-6 lg:px-8 transition-colors">
-        {/* Glow de fondo con color primario dinámico */}
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 left-1/3 w-80 h-80 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
+        {/* Glows de fondo con acento esmeralda */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 left-1/3 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
           <div className="space-y-2 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-mono font-bold tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Plataforma Docente Inteligente</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold tracking-wider uppercase">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Espacio Docente</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">
-              ¿Listo para optimizar la gestión de tus cátedras?
+              ¿Querés tener tus cátedras organizadas sin perder tiempo?
             </h2>
             <p className="text-sm text-text-muted max-w-2xl leading-relaxed">
-              Centraliza asistencias en tiempo real, cálculo automático de condiciones académicas, cronograma de exámenes y respaldo seguro en la nube.
+              Menos planillas manuales y más tiempo para tus clases. Todo el seguimiento de notas, asistencias y actas oficiales en un solo lugar y al instante.
             </p>
           </div>
 
@@ -55,7 +57,7 @@ export default function Footer() {
                 window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
                 document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
               }}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
             >
               <span>Explorar Mis Cátedras</span>
               <ArrowRight className="w-4 h-4" />
@@ -64,161 +66,154 @@ export default function Footer() {
             <button
               type="button"
               onClick={() => {
-                navigate('/calendario');
+                navigate('/mesas-examen');
                 window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
                 document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
               }}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-surface-hover hover:bg-surface border border-surface-border text-text-primary text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-surface-hover hover:bg-surface border border-surface-border text-text-primary text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
-              <Calendar className="w-4 h-4 text-primary" />
-              <span>Ver Calendario</span>
+              <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>📅 Ver Mesas y Calendario</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* ========================================================
-          2. FOOTER INFERIOR LIQUID GLASS
+          2. FOOTER INFERIOR CON FONDO ILUSTRADO Y ANCLAJE PROPORCIONAL
          ======================================================== */}
-      <div className="bg-surface/75 dark:bg-[#080d1a]/95 backdrop-blur-xl border-t border-surface-border py-12 px-4 sm:px-6 lg:px-8 transition-colors">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 pb-10 border-b border-surface-border">
-          {/* Columna 1: Branding Institucional Yastai de Geti */}
-          <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center text-white shadow-md shadow-primary/25 shrink-0">
-                <GraduationCap className="w-6 h-6" />
-              </div>
-              <div>
-                <span className="font-extrabold text-lg text-text-primary tracking-tight">
-                  Planilla<span className="text-primary">Docente</span>
-                </span>
-                <span className="block text-[11px] font-mono text-text-muted">
-                  Una solución de <strong className="text-text-secondary">Yastai de Geti</strong>
-                </span>
+      <footer className="relative w-full overflow-hidden bg-[#F8FAFC] dark:bg-[#080C14] border-t border-slate-200/80 dark:border-slate-800/80 transition-colors duration-300">
+        {/* Capa de fondo ilustrado con anclaje a la derecha y escalado proporcional */}
+        <div 
+          className="absolute inset-0 w-full h-full pointer-events-none bg-no-repeat bg-right-bottom sm:bg-right bg-contain opacity-75 dark:opacity-85 transition-opacity duration-300 bg-[url('/footer-light.webp')] dark:bg-[url('/footer.webp')]"
+        />
+
+        {/* Máscara de degradado hacia la izquierda para que los textos siempre tengan contraste 100% legible */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/80 to-transparent dark:from-[#080C14] dark:via-[#080C14]/85 dark:to-transparent pointer-events-none" 
+        />
+
+        {/* Contenido HTML del Footer montado con z-10 */}
+        <div className="relative z-10 max-w-7xl mx-auto px-6 py-10 sm:py-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12 pb-10 border-b border-surface-border/60">
+            {/* Columna 1: Descripción y Contacto (el isotipo y KORUM están integrados en la imagen de fondo) */}
+            <div className="md:col-span-2 space-y-3 pt-2">
+              <p className="text-xs text-text-muted leading-relaxed max-w-md">
+                Una herramienta pensada por y para docentes. Creada para que llevar las notas al día, tomar asistencia y cerrar actas sea una tarea ágil, transparente y sin complicaciones.
+              </p>
+
+              <div className="pt-1">
+                <a 
+                  href="mailto:emiliopacheco521@gmail.com.ar" 
+                  className="text-xs font-mono text-slate-500 hover:text-emerald-500 flex items-center gap-1.5 transition-colors mt-3"
+                >
+                  <Mail className="w-3.5 h-3.5 text-emerald-500" /> 
+                  <span>emiliopacheco521@gmail.com.ar</span>
+                </a>
               </div>
             </div>
 
-            <p className="text-xs text-text-muted leading-relaxed max-w-md">
-              Software de grado enterprise diseñado para profesores de nivel secundario, terciario y universitario. Cumple con normativas jurisdiccionales vigentes (RAM) para el régimen de cursada y promociones.
+            {/* Columna 2: Navegación del Sistema */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                Navegación
+              </h4>
+              <ul className="space-y-2 text-xs">
+                <li>
+                  <Link to="/dashboard" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Panel de Cátedras</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/mesas-examen" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
+                    <Award className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Mesas de Examen</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/calendario" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Calendario Académico</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/instituciones" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Instituciones</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Columna 3: Asistencia y Legal */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                Ayuda & Seguridad
+              </h4>
+              <ul className="space-y-2 text-xs">
+                <li>
+                  <Link to="/guias" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Guías Paso a Paso</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/consulta/demo" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Consulta de Estudiantes (Portal DNI)</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/soporte" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
+                    <LifeBuoy className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Soporte Directo</span>
+                  </Link>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setIsPrivacyModalOpen(true)}
+                    className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2 text-left cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Seguridad y RLS de Datos</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setIsTermsModalOpen(true)}
+                    className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2 text-left cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Términos Institucionales</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Sub-barra de Créditos y Derechos Reservados */}
+          <div className="pt-6 mt-8 border-t border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <p>© 2026 Korum. Todos los derechos reservados.</p>
+            <p className="text-center sm:text-right">
+              Diseñado y desarrollado para la gestión académica por el <span className="font-semibold text-slate-700 dark:text-slate-300">Prof. Pacheco E. Joaquín</span> — Una solución de <span className="font-semibold text-emerald-600 dark:text-emerald-400">Yastai de GeTi (Automatizaciones)</span>.
             </p>
-
-            <div className="flex items-center gap-4 text-xs text-text-muted font-mono">
-              <a
-                href="mailto:soporte@docentepro.edu.ar"
-                className="inline-flex items-center gap-1.5 hover:text-primary transition-colors"
-              >
-                <Mail className="w-3.5 h-3.5 text-primary" />
-                <span>contacto@geti.com.ar</span>
-              </a>
-            </div>
-          </div>
-
-          {/* Columna 2: Navegación del Sistema */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
-              Navegación
-            </h4>
-            <ul className="space-y-2 text-xs">
-              <li>
-                <Link to="/dashboard" className="text-text-muted hover:text-primary transition-colors flex items-center gap-2">
-                  <BookOpen className="w-3.5 h-3.5 text-primary" />
-                  <span>Panel de Cátedras</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/calendario" className="text-text-muted hover:text-primary transition-colors flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5 text-primary" />
-                  <span>Calendario y Mesas</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/instituciones" className="text-text-muted hover:text-primary transition-colors flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Instituciones y Ciclos</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/configuracion" className="text-text-muted hover:text-primary transition-colors flex items-center gap-2">
-                  <Settings className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Ajustes y Períodos</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Columna 3: Asistencia y Legal con Iconos */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
-              Ayuda & Seguridad
-            </h4>
-            <ul className="space-y-2 text-xs">
-              <li>
-                <Link to="/guias" className="text-text-muted hover:text-primary transition-colors flex items-center gap-2">
-                  <BookOpen className="w-3.5 h-3.5 text-primary" />
-                  <span>Guías Paso a Paso</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/soporte" className="text-text-muted hover:text-primary transition-colors flex items-center gap-2">
-                  <LifeBuoy className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Soporte Técnico Directo</span>
-                </Link>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setIsPrivacyModalOpen(true)}
-                  className="text-text-muted hover:text-primary transition-colors flex items-center gap-2 text-left cursor-pointer"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Seguridad y RLS de Datos</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setIsTermsModalOpen(true)}
-                  className="text-text-muted hover:text-primary transition-colors flex items-center gap-2 text-left cursor-pointer"
-                >
-                  <FileText className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Términos Institucionales</span>
-                </button>
-              </li>
-            </ul>
           </div>
         </div>
-
-        {/* Sub-barra: Copyright y Estado del Sistema en Tiempo Real */}
-        <div className="max-w-7xl mx-auto pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-mono text-text-muted">
-          <div>
-            © {new Date().getFullYear()} <strong className="text-text-primary">PlanillaDocente</strong>. Desarrollado con tecnología de vanguardia por <strong className="text-text-primary">Yastai de Geti</strong>.
-          </div>
-
-          {/* Indicador de Estado en Tiempo Real */}
-          <div className="flex items-center gap-2 bg-surface/90 border border-surface-border px-3 py-1.5 rounded-full shadow-xs">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="text-text-secondary">
-              {isSupabaseConfigured 
-                ? 'Base de datos Supabase conectada / Sistema operativo (Latencia < 28ms)' 
-                : 'Modo Demostración Activo / Almacenamiento Local Seguro'}
-            </span>
-          </div>
-        </div>
-      </div>
+      </footer>
 
       {/* Modal Informativo: Privacidad y RLS */}
       <Modal
         isOpen={isPrivacyModalOpen}
         onClose={() => setIsPrivacyModalOpen(false)}
         title="Seguridad y Protección de Datos Institucionales"
-        subtitle="PlanillaDocente garantiza el aislamiento estricto de la información académica"
+        subtitle="Korum garantiza el aislamiento estricto de la información académica"
       >
         <div className="space-y-4 text-xs text-text-secondary leading-relaxed">
           <p>
-            PlanillaDocente aplica políticas de <strong>Row Level Security (RLS)</strong> a nivel de motor PostgreSQL en Supabase. Cada registro de cátedras, asistencias, notas y nómina de estudiantes está criptográficamente vinculado al identificador de usuario (`auth.uid()`) del docente.
+            Korum aplica políticas de <strong>Row Level Security (RLS)</strong> a nivel de motor PostgreSQL en Supabase. Cada registro de cátedras, asistencias, notas y nómina de estudiantes está criptográficamente vinculado al identificador de usuario (`auth.uid()`) del docente.
           </p>
           <p>
             Ningún otro docente o tercero tiene acceso de lectura o escritura a tus planillas de calificación ni a los archivos cargados en el bucket de Storage.
@@ -245,6 +240,6 @@ export default function Footer() {
           </p>
         </div>
       </Modal>
-    </footer>
+    </div>
   );
 }

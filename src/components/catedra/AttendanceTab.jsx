@@ -70,7 +70,6 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
 }) {
   const isPresente = estado === 'PRESENTE';
   const isAusente = estado === 'AUSENTE';
-  const isJustificada = estado === 'JUSTIFICADA';
   const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
 
   return (
@@ -108,11 +107,11 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5 pt-1">
+      <div className="grid grid-cols-2 gap-2 pt-1">
         <button
           type="button"
           onClick={() => onToggle(est.id, 'PRESENTE')}
-          className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
             isPresente
               ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-extrabold'
               : 'bg-slate-100/90 dark:bg-white/[0.05] text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200/80 dark:border-white/10'
@@ -125,7 +124,7 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
         <button
           type="button"
           onClick={() => onToggle(est.id, 'AUSENTE')}
-          className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
             isAusente
               ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-extrabold'
               : 'bg-slate-100/90 dark:bg-white/[0.05] text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200/80 dark:border-white/10'
@@ -133,19 +132,6 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
         >
           <X className="w-3.5 h-3.5 shrink-0" />
           <span>Ausente</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onToggle(est.id, 'JUSTIFICADA')}
-          className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
-            isJustificada
-              ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30 font-extrabold'
-              : 'bg-slate-100/90 dark:bg-white/[0.05] text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200/80 dark:border-white/10'
-          }`}
-        >
-          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          <span>Justificada</span>
         </button>
       </div>
     </div>
@@ -176,7 +162,6 @@ const AttendanceRow = React.memo(function AttendanceRow({
 }) {
   const isPresente = estado === 'PRESENTE';
   const isAusente = estado === 'AUSENTE';
-  const isJustificada = estado === 'JUSTIFICADA';
 
   return (
     <tr
@@ -201,11 +186,11 @@ const AttendanceRow = React.memo(function AttendanceRow({
         </div>
       </td>
       <td className="px-3 sm:px-4 py-3">
-        <div className="flex items-center justify-center gap-1.5">
+        <div className="flex items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => onToggle(est.id, 'PRESENTE')}
-            className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+            className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
               isPresente
                 ? 'bg-emerald-600 text-white shadow-xs font-bold'
                 : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
@@ -218,7 +203,7 @@ const AttendanceRow = React.memo(function AttendanceRow({
           <button
             type="button"
             onClick={() => onToggle(est.id, 'AUSENTE')}
-            className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+            className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
               isAusente
                 ? 'bg-rose-600 text-white shadow-xs font-bold'
                 : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200 dark:border-white/10'
@@ -227,24 +212,29 @@ const AttendanceRow = React.memo(function AttendanceRow({
             <X className="w-3.5 h-3.5 shrink-0" />
             <span>Ausente</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => onToggle(est.id, 'JUSTIFICADA')}
-            className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
-              isJustificada
-                ? 'bg-amber-500 text-white shadow-xs font-bold'
-                : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200 dark:border-white/10'
-            }`}
-          >
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>Justificada</span>
-          </button>
         </div>
       </td>
     </tr>
   );
 }, areAttendanceRowPropsEqual);
+
+// Sanitizador defensivo para evitar error PostgreSQL 23502 (ERR-310: null value in column "id")
+const sanitizeAttendancePayload = (itemsToSave, fallbackClaseId = null) => {
+  const list = Array.isArray(itemsToSave) ? itemsToSave : [itemsToSave];
+  return list.map(item => {
+    const registro = {
+      clase_id: item.clase_id || fallbackClaseId,
+      estudiante_id: item.estudiante_id,
+      estado: item.estado === 'JUSTIFICADA' ? 'AUSENTE' : (item.estado || 'AUSENTE'),
+      updated_at: new Date().toISOString()
+    };
+    // Solo agregar id si es un UUID válido y existente (NUNCA id: null ni id: undefined)
+    if (item.id && typeof item.id === 'string' && item.id.trim() !== '' && !item.id.startsWith('temp-')) {
+      registro.id = item.id;
+    }
+    return registro;
+  });
+};
 
 export default function AttendanceTab({
   catedraId,
@@ -262,6 +252,7 @@ export default function AttendanceTab({
   const [criterios, setCriterios] = useState({});
   const [loading, setLoading] = useState(true);
   const [flashingStudentId, setFlashingStudentId] = useState(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Unidades Temáticas del Programa Didáctico
   const [unidades, setUnidades] = useState([]);
@@ -412,9 +403,8 @@ export default function AttendanceTab({
   const [obsInasistencia, setObsInasistencia] = useState('');
   const [savingInasistencia, setSavingInasistencia] = useState(false);
 
-  // Estados para Tabla Resumen Decreto Acuerdo N° 1092 Catamarca
+  // Estados para Tabla Resumen Decreto Acuerdo N° 1092 Catamarca (Modal Selector)
   const [isDecretoModalOpen, setIsDecretoModalOpen] = useState(false);
-  const [isLicenciasApartadoOpen, setIsLicenciasApartadoOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [savingQuickAttendance, setSavingQuickAttendance] = useState(false);
 
@@ -725,16 +715,23 @@ export default function AttendanceTab({
         }));
 
         if (isSupabaseConfigured && !isDemo) {
-          const { error: asistError } = await supabase
+          const payload = sanitizeAttendancePayload(defaultAttendance);
+          const { data, error: asistError } = await supabase
             .from('asistencias')
-            .upsert(defaultAttendance, { onConflict: 'clase_id, estudiante_id' });
+            .upsert(payload, { onConflict: 'clase_id, estudiante_id' })
+            .select();
+
           if (asistError) console.warn('Aviso al autocompletar asistencias:', asistError);
+          if (data && Array.isArray(data)) {
+            setAsistencias(prev => [...prev, ...data]);
+          } else {
+            setAsistencias(prev => [...prev, ...defaultAttendance]);
+          }
         } else {
           const prevStored = JSON.parse(localStorage.getItem(`asistencias_${catedraId}`) || '[]');
           localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify([...prevStored, ...defaultAttendance]));
+          setAsistencias(prev => [...prev, ...defaultAttendance]);
         }
-
-        setAsistencias(prev => [...prev, ...defaultAttendance]);
       }
 
       toast.success(`Clase del ${fechaDmy} creada con éxito.`);
@@ -757,8 +754,13 @@ export default function AttendanceTab({
     }
     if (!activeClase) return;
     triggerHapticFeedback();
+    setIsDirty(true);
     setFlashingStudentId(estudianteId);
     setTimeout(() => setFlashingStudentId(null), 800);
+
+    const existing = (asistencias ?? []).find(
+      a => a.clase_id === activeClase.id && a.estudiante_id === estudianteId
+    );
 
     // Preserve previous state for rollback on error
     let previousState = [];
@@ -767,7 +769,12 @@ export default function AttendanceTab({
       const filtered = prev.filter(
         a => !(a.clase_id === activeClase.id && a.estudiante_id === estudianteId)
       );
-      return [...filtered, { clase_id: activeClase.id, estudiante_id: estudianteId, estado: nuevoEstado }];
+      return [...filtered, { 
+        id: existing?.id,
+        clase_id: activeClase.id, 
+        estudiante_id: estudianteId, 
+        estado: nuevoEstado 
+      }];
     });
 
     try {
@@ -776,15 +783,33 @@ export default function AttendanceTab({
           throw new Error('Sesión de usuario requerida para registrar asistencias.');
         }
 
-        const { error } = await supabase
-          .from('asistencias')
-          .upsert({
-            clase_id: activeClase.id,
-            estudiante_id: estudianteId,
-            estado: nuevoEstado
-          }, { onConflict: 'clase_id,estudiante_id' });
+        const registro = {
+          clase_id: activeClase.id,
+          estudiante_id: estudianteId,
+          estado: nuevoEstado || 'AUSENTE',
+          updated_at: new Date().toISOString()
+        };
+        // Solo agregar id si es un UUID válido y existente (NUNCA null ni undefined)
+        if (existing?.id && typeof existing.id === 'string' && existing.id.trim() !== '' && !existing.id.startsWith('temp-')) {
+          registro.id = existing.id;
+        }
 
-        if (error) throw error;
+        const { data, error } = await supabase
+          .from('asistencias')
+          .upsert([registro], { onConflict: 'clase_id, estudiante_id' })
+          .select()
+          .maybeSingle();
+
+        if (error) {
+          handleAppError(error, 'AttendanceTab / Guardar Asistencia', user);
+          return;
+        }
+
+        if (data?.id) {
+          setAsistencias(prev => prev.map(a => 
+            (a.clase_id === activeClase.id && a.estudiante_id === estudianteId) ? data : a
+          ));
+        }
       } else {
         setAsistencias(curr => {
           localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(curr));
@@ -796,7 +821,7 @@ export default function AttendanceTab({
       setAsistencias(previousState);
       handleAppError(err, 'AttendanceTab / Guardar Asistencia', user);
     }
-  }, [cursadaFinalizada, activeClase, isDemo, user, catedraId]);
+  }, [cursadaFinalizada, activeClase, isDemo, user, catedraId, asistencias]);
 
   const handleMarcarTodosPresentes = async () => {
     if (cursadaFinalizada) {
@@ -805,18 +830,25 @@ export default function AttendanceTab({
     }
     if (!activeClase || estudiantes.length === 0) return;
     triggerHapticFeedback();
+    setIsDirty(true);
     setFlashingStudentId('ALL');
     setTimeout(() => setFlashingStudentId(null), 800);
 
     const previousState = [...asistencias];
-    const newRecords = estudiantes.map(e => ({
-      clase_id: activeClase.id,
-      estudiante_id: e.id,
-      estado: 'PRESENTE'
-    }));
+    const itemsToSave = estudiantes.map(e => {
+      const existing = (asistencias ?? []).find(
+        a => a.clase_id === activeClase.id && a.estudiante_id === e.id
+      );
+      return {
+        id: existing?.id,
+        clase_id: activeClase.id,
+        estudiante_id: e.id,
+        estado: 'PRESENTE'
+      };
+    });
 
     const otherClases = asistencias.filter(a => a.clase_id !== activeClase.id);
-    const updated = [...otherClases, ...newRecords];
+    const updated = [...otherClases, ...itemsToSave];
     setAsistencias(updated);
 
     try {
@@ -825,11 +857,35 @@ export default function AttendanceTab({
           throw new Error('Sesión requerida.');
         }
 
-        const { error } = await supabase
-          .from('asistencias')
-          .upsert(newRecords, { onConflict: 'clase_id,estudiante_id' });
+        const payload = itemsToSave.map(item => {
+          const registro = {
+            clase_id: activeClase.id,
+            estudiante_id: item.estudiante_id,
+            estado: 'PRESENTE',
+            updated_at: new Date().toISOString()
+          };
+          if (item.id && typeof item.id === 'string' && item.id.trim() !== '' && !item.id.startsWith('temp-')) {
+            registro.id = item.id;
+          }
+          return registro;
+        });
 
-        if (error) throw error;
+        const { data, error } = await supabase
+          .from('asistencias')
+          .upsert(payload, { onConflict: 'clase_id, estudiante_id' })
+          .select();
+
+        if (error) {
+          handleAppError(error, 'AttendanceTab / Marcar Todos Presentes', user);
+          return;
+        }
+
+        if (data && Array.isArray(data)) {
+          setAsistencias(prev => {
+            const others = (prev ?? []).filter(a => a.clase_id !== activeClase.id);
+            return [...others, ...data];
+          });
+        }
       } else {
         localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(updated));
       }
@@ -854,21 +910,57 @@ export default function AttendanceTab({
 
     setSavingQuickAttendance(true);
     try {
-      const classAsistencias = asistencias.filter(a => a.clase_id === activeClase.id);
+      const itemsToSave = estudiantes.map(item => {
+        const existing = (asistencias ?? []).find(
+          a => a.clase_id === activeClase.id && a.estudiante_id === item.id
+        );
+        return {
+          id: existing?.id,
+          clase_id: activeClase.id,
+          estudiante_id: item.id,
+          estado: existing?.estado || 'AUSENTE'
+        };
+      });
 
-      if (classAsistencias.length > 0 && isSupabaseConfigured && !isDemo) {
+      const payload = itemsToSave.map(item => {
+        const registro = {
+          clase_id: activeClase.id,
+          estudiante_id: item.estudiante_id,
+          estado: item.estado || 'AUSENTE',
+          updated_at: new Date().toISOString()
+        };
+        // Solo agregar id si es un UUID válido y existente (NUNCA null ni undefined)
+        if (item.id && typeof item.id === 'string' && item.id.trim() !== '' && !item.id.startsWith('temp-')) {
+          registro.id = item.id;
+        }
+        return registro;
+      });
+
+      if (payload.length > 0 && isSupabaseConfigured && !isDemo) {
         if (!user?.id) {
           throw new Error('Sesión de usuario requerida.');
         }
 
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('asistencias')
-          .upsert(classAsistencias, { onConflict: 'clase_id,estudiante_id' });
+          .upsert(payload, { onConflict: 'clase_id, estudiante_id' })
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          handleAppError(error, 'AttendanceTab / Guardado Rápido Asistencia', user);
+          return;
+        }
+
+        if (data && Array.isArray(data)) {
+          setAsistencias(prev => {
+            const others = (prev ?? []).filter(a => a.clase_id !== activeClase.id);
+            return [...others, ...data];
+          });
+        }
       }
 
       localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(asistencias));
+      setIsDirty(false);
       toast.success(`Asistencia de la clase del ${formatFechaDMY(activeClase.fecha)} guardada correctamente.`);
     } catch (err) {
       handleAppError(err, 'AttendanceTab / Guardado Rápido Asistencia', user);
@@ -1105,7 +1197,6 @@ export default function AttendanceTab({
 
   const presentesCount = estudiantes.filter(e => getEstado(e.id) === 'PRESENTE').length;
   const ausentesCount = estudiantes.filter(e => getEstado(e.id) === 'AUSENTE').length;
-  const justificadasCount = estudiantes.filter(e => getEstado(e.id) === 'JUSTIFICADA').length;
   const presentismoPct = estudiantes.length > 0 
     ? ((presentesCount / estudiantes.length) * 100).toFixed(1) 
     : 0;
@@ -1193,7 +1284,7 @@ export default function AttendanceTab({
                       title="Editar fecha, tema y detalles de la clase"
                       className="shrink-0 text-xs px-2.5 py-1.5 touch-target-44"
                     >
-                      <span className="hidden sm:inline">✏️ Editar Tema</span>
+                      <span className="hidden sm:inline">Editar Tema</span>
                     </Button>
                   )}
                 </div>
@@ -1210,7 +1301,7 @@ export default function AttendanceTab({
           )}
         </div>
 
-        {/* Fila 2: Grilla Flexible de Botones de Asistencia (Captura 1) */}
+        {/* Fila 2: Grilla Flexible de Botones de Asistencia */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full mt-3">
           <Button
             variant="primary"
@@ -1221,7 +1312,7 @@ export default function AttendanceTab({
             className="w-full text-xs font-bold shadow-xs min-h-[44px] touch-target-44"
             title="Marcar todos los alumnos como presentes en esta fecha"
           >
-            ✓ Todos
+            Todos
           </Button>
 
           <Button
@@ -1247,7 +1338,7 @@ export default function AttendanceTab({
             className="w-full text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
             title="Registrar o editar inasistencia / licencia del docente"
           >
-            {inasistenciaActual ? 'Licencia' : '+ Falta'}
+            {inasistenciaActual ? 'Licencia' : 'Falta Docente'}
           </Button>
 
           <Button
@@ -1259,7 +1350,7 @@ export default function AttendanceTab({
             className="w-full text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
             title="Exportar sábana completa de asistencias a Excel (.xlsx)"
           >
-            📥 Excel
+            Excel
           </Button>
 
           <Button
@@ -1271,7 +1362,7 @@ export default function AttendanceTab({
             className="w-full text-xs border-primary/30 text-primary hover:bg-primary/10 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
             title="Abrir visor de impresión y PDF oficial de la planilla de asistencias"
           >
-            🖨️ PDF
+            PDF
           </Button>
 
           <Button
@@ -1329,7 +1420,7 @@ export default function AttendanceTab({
 
       {/* Attendance summary cards */}
       {activeClase && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
           <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
             <div>
               <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Presentes</p>
@@ -1351,18 +1442,6 @@ export default function AttendanceTab({
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
               <X className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </Card>
-
-          <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Justificadas</p>
-              <p className="text-xl sm:text-2xl font-mono font-bold text-amber-600 dark:text-amber-400 mt-0.5">
-                {justificadasCount}
-              </p>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </Card>
 
@@ -1505,7 +1584,7 @@ export default function AttendanceTab({
                     Mostrando {filteredEstudiantes.length} de {estudiantes.length} Alumnos
                   </span>
                   <span className="font-mono text-[11px]">
-                    {presentesCount} P / {ausentesCount} A {justificadasCount > 0 ? `/ ${justificadasCount} J` : ''}
+                    {presentesCount} P / {ausentesCount} A
                   </span>
                 </div>
 
@@ -1557,67 +1636,6 @@ export default function AttendanceTab({
         </>
       )}
 
-      {/* ========================================================
-          APARTADO: RÉGIMEN DE LICENCIAS DOCENTES - DECRETO 1092
-         ======================================================== */}
-      <div className="mt-8 pt-6 border-t border-surface-border space-y-4">
-        <div 
-          onClick={() => setIsLicenciasApartadoOpen(!isLicenciasApartadoOpen)}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 sm:p-5 rounded-2xl border border-surface-border shadow-xs cursor-pointer select-none transition-all"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/20 shadow-xs">
-              <BookOpen className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base font-extrabold text-text-primary tracking-tight">
-                  Régimen de Licencias Docentes — Decreto Acuerdo N° 1092
-                </h3>
-                <Badge variant="primary" className="text-[10px] uppercase font-bold">
-                  Catamarca
-                </Badge>
-              </div>
-              <p className="text-xs text-text-muted mt-0.5">
-                Ministerio de Educación, Ciencia y Tecnología • Tabla oficial de justificaciones, licencias y franquicias.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsLicenciasApartadoOpen(!isLicenciasApartadoOpen);
-              }}
-              aria-label={isLicenciasApartadoOpen ? "Colapsar tabla" : "Desplegar tabla"}
-              className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer shrink-0 active:scale-95 shadow-xs"
-            >
-              <ChevronDown
-                className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
-                  isLicenciasApartadoOpen ? 'rotate-180 text-primary' : 'rotate-0 text-text-muted'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {isLicenciasApartadoOpen && (
-          <div className="animate-fadeIn">
-            <LicenciasDecreto1092Table
-              onSelectArticle={(art) => {
-                setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
-                setArticuloLicencia(`${art.numero} - ${art.titulo}`);
-                setTipoInasistencia('LICENCIA');
-                setIsInasistenciaModalOpen(true);
-                toast.info(`Artículo seleccionado: ${art.numero}. Completa la fecha y confirma.`);
-              }}
-              selectedArticleNumero={articuloLicencia}
-            />
-          </div>
-        )}
-      </div>
 
       {/* Modal / Bottom Sheet Nueva Clase */}
       <Modal
@@ -1977,10 +1995,13 @@ export default function AttendanceTab({
         }}
       />
 
-      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) con Ctrl + S */}
+      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) reactivo con Ctrl + S */}
       <QuickSaveFAB
         onSave={handleQuickSaveAttendance}
         loading={savingQuickAttendance}
+        isDirty={isDirty}
+        hasChanges={isDirty}
+        visible={isDirty}
         disabled={!activeClase || cursadaFinalizada}
         tooltipText="Guardado rápido (Ctrl + S)"
         ariaLabel="Guardar asistencia de la clase actual"

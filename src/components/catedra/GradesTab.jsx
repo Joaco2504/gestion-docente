@@ -48,6 +48,7 @@ import { useAuth } from '../../context/AuthContext';
 import RiskBadge from '../common/RiskBadge';
 import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 import { handleAppError } from '../../utils/handleAppError';
+import { QuickSaveFab } from '../common/QuickSaveFAB';
 
 /**
  * DebouncedGradeInput - Input de nota con debounce configurable (default 300ms)
@@ -278,6 +279,7 @@ export default function GradesTab({
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
   const [flashingGradeKey, setFlashingGradeKey] = useState(null);
+  const [isDirty, setIsDirty] = useState(false);
   const [criterios, setCriterios] = useState({
     min_asist_promo: 80,
     min_asist_reg: 70,
@@ -699,6 +701,7 @@ export default function GradesTab({
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updated));
 
       toast.success(`Nota de ${selectedStudentForNota.apellido} actualizada a ${valNum}`);
+      setIsDirty(false);
       setFlashingGradeKey(`${selectedStudentForNota.id}_${selectedEvalForNota.id}`);
       setTimeout(() => setFlashingGradeKey(null), 1200);
       setIsEditNotaModalOpen(false);
@@ -1019,12 +1022,59 @@ export default function GradesTab({
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(newNotas));
 
       toast.success(`Calificaciones de "${targetEvalForBatch.titulo}" guardadas con éxito.`);
+      setIsDirty(false);
       setIsBatchGradeModalOpen(false);
       setTargetEvalForBatch(null);
     } catch (err) {
       handleAppError(err, 'GradesTab / Guardar Calificaciones Masivas', user);
     } finally {
       setSavingBatchGrades(false);
+    }
+  };
+
+  // Guardado rápido global (FAB / Ctrl + S) para la vista de calificaciones
+  const [savingQuickGrades, setSavingQuickGrades] = useState(false);
+
+  const handleQuickSaveGrades = async () => {
+    if (isBatchGradeModalOpen && targetEvalForBatch) {
+      await handleSaveBatchGrades({ preventDefault: () => {} });
+      return;
+    }
+    if (isEditNotaModalOpen && selectedStudentForNota && selectedEvalForNota) {
+      await handleSaveNotaSubmit({ preventDefault: () => {} });
+      return;
+    }
+    if (isEditEvalModalOpen && editingEval) {
+      await handleSaveEditEvaluacion({ preventDefault: () => {} });
+      return;
+    }
+    if (isNewEvalModalOpen) {
+      await handleCreateEvaluacion({ preventDefault: () => {} });
+      return;
+    }
+
+    setSavingQuickGrades(true);
+    try {
+      if (isSupabaseConfigured && !isDemo && notas.length > 0) {
+        const validNotas = notas.filter(n => !String(n.evaluacion_id).startsWith('eval-') && n.valor !== null);
+        if (validNotas.length > 0) {
+          const payload = validNotas.map(n => ({
+            evaluacion_id: n.evaluacion_id,
+            estudiante_id: n.estudiante_id,
+            valor: n.valor,
+            updated_at: new Date().toISOString()
+          }));
+          const { error } = await supabase.from('notas').upsert(payload, { onConflict: 'evaluacion_id,estudiante_id' });
+          if (error) throw error;
+        }
+      }
+      localStorage.setItem(`notas_${catedraId}`, JSON.stringify(notas));
+      setIsDirty(false);
+      toast.success('Sábana de calificaciones guardada y sincronizada.');
+    } catch (err) {
+      handleAppError(err, 'GradesTab / Guardado Rápido', user);
+    } finally {
+      setSavingQuickGrades(false);
     }
   };
 
@@ -1788,7 +1838,10 @@ export default function GradesTab({
               placeholder="Ej: 7.5 (dejar vacío para borrar nota)"
               value={inputNotaValor}
               delay={300}
-              onDebouncedChange={(val) => setInputNotaValor(val)}
+              onDebouncedChange={(val) => {
+                setInputNotaValor(val);
+                setIsDirty(true);
+              }}
               className="w-full px-3.5 py-3 text-lg font-mono font-bold border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
             />
             <p className="text-[11px] text-text-muted mt-1.5">
@@ -2129,6 +2182,7 @@ export default function GradesTab({
                       delay={300}
                       onDebouncedChange={(val) => {
                         setBatchGradesMap(prev => ({ ...prev, [est.id]: val }));
+                        setIsDirty(true);
                       }}
                       className="w-full px-2.5 py-1.5 text-sm font-mono font-bold text-center border border-surface-border rounded-lg bg-surface text-text-primary focus:ring-2 focus:ring-primary/20 outline-none"
                     />
@@ -2192,6 +2246,15 @@ export default function GradesTab({
           docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular',
           printConfig
         }}
+      />
+
+      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) reactivo con Ctrl + S */}
+      <QuickSaveFab
+        onSave={handleQuickSaveGrades}
+        isSaving={savingQuickGrades || savingBatchGrades || savingNota || savingEval || savingEditEval}
+        isDirty={isDirty}
+        hasChanges={isDirty}
+        visible={isDirty && !cursadaFinalizada}
       />
     </div>
   );

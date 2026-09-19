@@ -36,7 +36,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { handleAppError } from '../utils/handleAppError';
 import { generateIcsContent, downloadIcsFile, getGoogleCalendarUrl } from '../lib/calendarSync';
-import { formatFechaLegible, getRelativeDateLabel, getTodayYMD } from '../lib/dateUtils';
+import { formatFechaDMY, formatFechaLegible, getRelativeDateLabel, getTodayYMD } from '../lib/dateUtils';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const SHORT_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -808,8 +808,8 @@ export default function CalendarPage() {
                     p.tipo === 'SEGUNDO_CUATRIMESTRE' ? '2° Cuatrimestre' : `Período ${idx + 1}`
                   );
                   const isReceso = p.tipo === 'RECESO_INVERNAL' || p.tipo === 'RECESO';
-                  const startStr = p.fecha_inicio ? String(p.fecha_inicio).split('T')[0] : 'S/F';
-                  const endStr = p.fecha_fin ? String(p.fecha_fin).split('T')[0] : 'S/F';
+                  const startStr = p.fecha_inicio ? formatFechaDMY(p.fecha_inicio) : 'S/F';
+                  const endStr = p.fecha_fin ? formatFechaDMY(p.fecha_fin) : 'S/F';
 
                   return (
                     <div 
@@ -915,19 +915,20 @@ export default function CalendarPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="transition-all duration-300 ease-out"
             >
               {/* ========================================================
                   VISTA 1: DÍA (DAY VIEW)
                  ======================================================== */}
               {viewMode === 'dia' && (
-                <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 space-y-4 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+                <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 space-y-4 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all duration-300 ease-out">
                   <div className="border-b border-slate-200/60 dark:border-white/10 pb-3 flex items-center justify-between">
                     <div>
                       <h3 className="text-base font-bold text-text-primary">
                         Agenda del {formatFechaLegible(currentDate)}
                       </h3>
-                      <p className="text-xs text-text-muted">Horarios y compromisos asignados para la jornada</p>
+                      <p className="text-xs text-text-muted">Horarios y compromisos de la jornada (orden cronológico)</p>
                     </div>
                     <button
                       type="button"
@@ -935,14 +936,14 @@ export default function CalendarPage() {
                         setFecha(currentDate.toISOString().split('T')[0]);
                         setIsNewEventModalOpen(true);
                       }}
-                      className="group relative inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/35 border border-indigo-400/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer shrink-0"
+                      className="group relative inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/35 border border-emerald-400/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer shrink-0"
                     >
                       <Plus className="w-3.5 h-3.5 transition-transform duration-300 ease-out group-hover:rotate-90 shrink-0" />
                       <span>Agregar a este día</span>
                     </button>
                   </div>
 
-                  {/* Eventos y Clases de este Día */}
+                  {/* Eventos y Clases de este Día (Orden Estricto Ascendente por hora_inicio) */}
                   <div className="space-y-3">
                     {(() => {
                       const currIso = currentDate.toISOString().split('T')[0];
@@ -960,7 +961,32 @@ export default function CalendarPage() {
                         return evIso === currIso;
                       });
 
-                      if (matchingClasses.length === 0 && matchingEvents.length === 0) {
+                      // Unificar y ordenar ASCENDENTEMENTE por hora de ingreso
+                      const dayScheduleItems = [
+                        ...matchingClasses.map(cls => ({
+                          id: `cls-${cls.id}`,
+                          tipo: 'CLASE',
+                          titulo: cls.catedra_nombre,
+                          subtitulo: `${cls.nivel || 'Nivel Superior'} • ${cls.aula || 'Aula regular'}`,
+                          hora_inicio: cls.desde || '00:00',
+                          hora_fin: cls.hasta || '',
+                          isClass: true,
+                          data: cls
+                        })),
+                        ...matchingEvents.map(ev => ({
+                          id: `ev-${ev.id}`,
+                          tipo: ev.tipo,
+                          titulo: ev.titulo,
+                          subtitulo: ev.notas || '',
+                          hora_inicio: ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : (ev.hora || '08:00'),
+                          hora_fin: ev.fecha_fin ? ev.fecha_fin.substring(11, 16) : '',
+                          isClass: false,
+                          isPeriodo: ev.isPeriodo,
+                          data: ev
+                        }))
+                      ].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+
+                      if (dayScheduleItems.length === 0) {
                         return (
                           <div className="py-12 text-center text-text-muted space-y-2 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01]">
                             <CalendarIcon className="w-8 h-8 mx-auto opacity-40" />
@@ -971,67 +997,39 @@ export default function CalendarPage() {
 
                       return (
                         <div className="space-y-3">
-                          {/* Clases regulares */}
-                          {matchingClasses.map(cls => {
-                            const styles = getEventStyle('CLASE');
+                          {dayScheduleItems.map(item => {
+                            const styles = getEventStyle(item.tipo);
                             return (
                               <div
-                                key={cls.id}
-                                className={`p-4 rounded-2xl border transition-all ${styles.bg} flex items-start justify-between gap-3`}
-                              >
-                                <div className="space-y-1">
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles.badge}`}>
-                                    Clase de Cátedra
-                                  </span>
-                                  <h4 className={`text-sm font-bold ${styles.text}`}>
-                                    {cls.catedra_nombre}
-                                  </h4>
-                                  <p className="text-xs text-text-secondary">
-                                    {cls.nivel} • {cls.aula}
-                                  </p>
-                                </div>
-                                <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary shrink-0">
-                                  {cls.desde} - {cls.hasta} hs
-                                </span>
-                              </div>
-                            );
-                          })}
-
-                          {/* Eventos registrados e hitos de períodos */}
-                          {matchingEvents.map(ev => {
-                            const styles = getEventStyle(ev.tipo);
-                            const timeBadge = ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : '08:00';
-                            return (
-                              <div
-                                key={ev.id}
-                                onClick={() => setSelectedEventForDetail(ev)}
-                                className={`p-4 rounded-2xl border cursor-pointer transition-all ${styles.bg} flex items-start justify-between gap-3`}
+                                key={item.id}
+                                onClick={() => !item.isClass && setSelectedEventForDetail(item.data)}
+                                className={`p-4 rounded-2xl border transition-all ${styles.bg} flex items-start justify-between gap-3 ${!item.isClass ? 'cursor-pointer' : ''}`}
                               >
                                 <div className="space-y-1">
                                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${styles.badge}`}>
                                     {styles.tag}
                                   </span>
                                   <h4 className={`text-sm font-bold ${styles.text}`}>
-                                    {ev.titulo}
+                                    {item.titulo}
                                   </h4>
-                                  {ev.notas && (
+                                  {item.subtitulo && (
                                     <p className="text-xs text-text-secondary line-clamp-2">
-                                      {ev.notas}
+                                      {item.subtitulo}
                                     </p>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-surface border border-surface-border text-text-primary">
-                                    {timeBadge} hs
+                                    {item.hora_inicio}{item.hora_fin ? ` - ${item.hora_fin}` : ''} hs
                                   </span>
-                                  {!ev.isPeriodo && (
+                                  {!item.isClass && !item.isPeriodo && (
                                     <button
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleDeleteEvent(ev.id);
+                                        handleDeleteEvent(item.data.id);
                                       }}
-                                      className="p-1 text-text-muted hover:text-rose-600 rounded"
+                                      className="p-1 text-text-muted hover:text-rose-600 rounded cursor-pointer"
                                       title="Eliminar evento"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
@@ -1052,30 +1050,46 @@ export default function CalendarPage() {
                   VISTA 2: SEMANAL (WEEK VIEW)
                  ======================================================== */}
               {viewMode === 'semanal' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 transition-all duration-300 ease-out">
                   {DAYS_OF_WEEK.map((diaName) => {
-                    // Clases regulares de este día de la semana
+                    const todayDayName = DAYS_OF_WEEK[(new Date().getDay() + 6) % 7];
+                    const isToday = diaName === todayDayName;
+
+                    // Clases regulares ordenadas estrictamente de forma ascendente por hora de inicio
                     const dayClasses = (selectedCategory === 'TODOS' || selectedCategory === 'CLASE')
-                      ? regularClasses.filter(c => c.dia_semana === diaName)
+                      ? regularClasses
+                          .filter(c => c.dia_semana === diaName)
+                          .sort((a, b) => (a.desde || '').localeCompare(b.desde || ''))
                       : [];
 
                     return (
                       <div
                         key={diaName}
-                        className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 space-y-3 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] flex flex-col justify-between hover:border-indigo-400/40 hover:-translate-y-0.5 transition-all duration-200"
+                        className={`p-4 sm:p-5 space-y-3 flex flex-col justify-between transition-all duration-300 ease-out ${
+                          isToday
+                            ? 'bg-emerald-500/5 dark:bg-emerald-950/20 border-2 border-emerald-500 rounded-2xl shadow-sm'
+                            : 'backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-xs dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] hover:border-emerald-400/40 hover:-translate-y-0.5'
+                        }`}
                       >
                         <div>
                           {/* Cabecera del Día */}
-                          <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-2.5">
-                            <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
-                              {diaName}
-                            </span>
+                          <div className={`flex items-center justify-between border-b pb-2.5 ${isToday ? 'border-emerald-500/30' : 'border-slate-200/60 dark:border-white/10'}`}>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-text-primary'}`}>
+                                {diaName}
+                              </span>
+                              {isToday && (
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                  HOY
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[10px] font-mono font-bold text-text-muted">
                               {dayClasses.length} {dayClasses.length === 1 ? 'materia' : 'materias'}
                             </span>
                           </div>
 
-                          {/* Tarjetas de clases del día */}
+                          {/* Tarjetas de clases del día ordenadas ascendentemente */}
                           <div className="mt-3 space-y-2">
                             {dayClasses.length === 0 ? (
                               <p className="text-[11px] text-text-muted italic py-3 text-center">
@@ -1093,8 +1107,8 @@ export default function CalendarPage() {
                                       <h4 className="text-xs font-bold text-text-primary truncate">
                                         {cls.catedra_nombre}
                                       </h4>
-                                      <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.2 rounded shrink-0">
-                                        {cls.desde}
+                                      <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded shrink-0">
+                                        {cls.desde} hs
                                       </span>
                                     </div>
                                     <div className="flex items-center justify-between text-[10px] text-text-muted">
@@ -1113,7 +1127,7 @@ export default function CalendarPage() {
                           onClick={() => {
                             setIsNewEventModalOpen(true);
                           }}
-                          className="group inline-flex items-center justify-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 py-2 px-3 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800/60 hover:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all duration-200 cursor-pointer active:scale-95"
+                          className="group inline-flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 py-2 px-3 rounded-xl border border-dashed border-emerald-300 dark:border-emerald-800/60 hover:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all duration-200 cursor-pointer active:scale-95"
                         >
                           <Plus className="w-3.5 h-3.5 transition-transform duration-300 group-hover:rotate-90 shrink-0" />
                           <span>Agregar Compromiso</span>

@@ -1,0 +1,387 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  CheckCircle2, 
+  ShieldCheck, 
+  ArrowRight, 
+  AlertCircle,
+  Sparkles
+} from 'lucide-react';
+import { KorumIsotypeSvg } from '../components/common/BrandIllustrations';
+import ThemeToggle from '../components/common/ThemeToggle';
+import { useAuth } from '../context/AuthContext';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { handleAppError } from '../utils/handleAppError';
+import { procesarErrorDocente } from '../utils/errorCodes';
+import { toast } from 'sonner';
+
+const getFriendlyAuthError = (err) => {
+  const msg = (err?.message || '').toLowerCase();
+  if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+    return 'Correo o contraseña incorrectos.';
+  }
+  if (msg.includes('user already registered') || msg.includes('already exists')) {
+    return 'Este correo electrónico ya se encuentra registrado.';
+  }
+  if (msg.includes('password should be at least')) {
+    return 'La contraseña debe tener al menos 6 caracteres.';
+  }
+  if (msg.includes('email not confirmed')) {
+    return 'Por favor confirma tu dirección de correo electrónico.';
+  }
+  if (msg.includes('rate limit') || msg.includes('too many requests')) {
+    return 'Demasiados intentos. Por favor espera unos minutos antes de reintentar.';
+  }
+  if (err?.message && !err.message.includes('relation') && !err.message.includes('column') && !err.message.includes('select') && !err.message.includes('insert') && !err.message.includes('sql') && !err.message.includes('postgres') && !err.message.includes('schema')) {
+    return err.message;
+  }
+  const info = procesarErrorDocente(err);
+  return `${info.mensaje} (${info.codigo})`;
+};
+
+export default function Login() {
+  const navigate = useNavigate();
+  const { user, signIn, signUp, enterDemoMode } = useAuth();
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Notificar al usuario si la sesión anterior caducó por seguridad
+  useEffect(() => {
+    try {
+      const expiredNotice = sessionStorage.getItem('auth_expired_notice');
+      if (expiredNotice) {
+        sessionStorage.removeItem('auth_expired_notice');
+        toast.info('Tu sesión ha caducado por seguridad. Por favor, ingresa nuevamente.');
+      }
+    } catch (_) {}
+  }, []);
+
+  // Redirigir al dashboard si ya está autenticado
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
+
+  const handleGoogleSignIn = async () => {
+    setErrorMsg('');
+    try {
+      if (!isSupabaseConfigured || !supabase) {
+        throw new Error('Supabase no está configurado en las variables de entorno.');
+      }
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      const info = handleAppError(err, 'Login / Google Auth', null, { mostrarToast: false });
+      const friendly = getFriendlyAuthError(err) || info.mensaje;
+      setErrorMsg(friendly);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (error) throw error;
+      } else {
+        if (!nombre.trim()) {
+          throw new Error('Por favor ingresa tu nombre y apellido.');
+        }
+        const { error } = await signUp(email, password, nombre.trim());
+        if (error) throw error;
+        setSuccessMsg('¡Cuenta creada! Revisa tu correo si tienes confirmación activada o inicia sesión.');
+      }
+    } catch (err) {
+      const info = handleAppError(err, 'Login / Form Submit', null, { mostrarToast: false });
+      const friendly = getFriendlyAuthError(err) || info.mensaje;
+      setErrorMsg(friendly);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoAccess = () => {
+    enterDemoMode();
+    toast.success('Accediendo en Modo Demostración de Korum');
+    navigate('/dashboard', { replace: true });
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-[#0B0F19]">
+      {/* ===================================================================
+          COLUMNA IZQUIERDA: ACCESO DOCENTE (FORMULARIO)
+          =================================================================== */}
+      <div className="flex flex-col justify-between p-6 sm:p-12 md:p-16 relative z-10">
+        {/* Barra superior con toggle de tema o enlaces rápidos */}
+        <div className="flex items-center justify-between w-full max-w-md mx-auto">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+              Korum Node v2.0
+            </span>
+          </div>
+          <ThemeToggle />
+        </div>
+
+        {/* Contenedor central del formulario */}
+        <div className="w-full max-w-md mx-auto my-auto py-8">
+          {/* Encabezado con Isotipo Korum, título y subtítulo */}
+          <div className="mb-8 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start">
+              <KorumIsotypeSvg className="w-10 h-10 mb-3 drop-shadow-[0_4px_12px_rgba(16,185,129,0.3)]" />
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center justify-center sm:justify-start gap-2">
+              Korum
+            </h1>
+            <p className="text-sm text-slate-400 mt-1.5 font-medium">
+              Gestión Académica y Actas Reglamentarias
+            </p>
+          </div>
+
+          {/* Advertencia si falta Supabase */}
+          {!isSupabaseConfigured && (
+            <div className="mb-5 p-3.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs rounded-xl flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold block text-amber-300">Supabase no configurado en .env</span>
+                <span className="text-[11px] text-amber-400/90">
+                  Puedes ingresar utilizando el <strong>Modo Demostración</strong> interactivo.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Mensajes de error o éxito */}
+          {errorMsg && (
+            <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center gap-2 animate-fadeIn">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="mb-5 p-3.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* Formulario de Credenciales con estilo oscuro elegante */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Nombre y Apellido
+                </label>
+                <input
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Prof. Emilio Martínez"
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Correo Electrónico
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="docente@institucion.edu.ar"
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Contraseña
+                </label>
+                {isLogin && (
+                  <span className="text-[11px] text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors">
+                    ¿Olvidaste tu clave?
+                  </span>
+                )}
+              </div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+              />
+            </div>
+
+            {/* Botón de acceso con estética esmeralda */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl h-11 transition-all shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span>{isLogin ? 'Ingresar a Korum' : 'Crear Cuenta Docente'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Alternar entre Login y Registro */}
+          <div className="mt-5 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+              className="text-xs text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer font-medium"
+            >
+              {isLogin
+                ? '¿Aún no tienes cuenta? Regístrate aquí'
+                : '¿Ya tienes una cuenta activa? Inicia sesión'}
+            </button>
+          </div>
+
+          {/* Separador */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-800" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-[#0B0F19] px-3 text-slate-500 font-mono text-[10px]">
+                O continuar con
+              </span>
+            </div>
+          </div>
+
+          {/* Acciones Secundarias: Google y Demo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="h-10 px-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"
+                />
+              </svg>
+              <span>Google Workspace</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDemoAccess}
+              className="h-10 px-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Modo Demostración</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Pie de página izquierdo */}
+        <div className="w-full max-w-md mx-auto pt-6 border-t border-slate-900 text-center sm:text-left flex items-center justify-between text-[11px] text-slate-500">
+          <span>© 2026 Korum Platform</span>
+          <div className="flex items-center gap-1.5 text-emerald-500/80 font-mono">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>RLS PostgreSQL</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ===================================================================
+          COLUMNA DERECHA: PANEL DE IDENTIDAD KORUM (SPLIT-SCREEN)
+          =================================================================== */}
+      <div className="hidden lg:flex flex-col justify-between p-12 bg-[#0F172A] relative overflow-hidden border-l border-slate-800/80">
+        {/* Fondo con retícula matemática sutil */}
+        <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] opacity-40 pointer-events-none" />
+
+        {/* Resplandor esmeralda superior */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Resplandor inferior secundario */}
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Cabecera del panel derecho */}
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <KorumIsotypeSvg className="w-9 h-9" />
+            <span className="text-white font-bold tracking-tight text-lg">Korum</span>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-medium">
+            Sistema Académico Oficial
+          </span>
+        </div>
+
+        {/* Centro: Imagen oficial Korum Hero con resplandor esmeralda */}
+        <div className="relative z-10 max-w-lg mx-auto w-full my-auto">
+          <div className="relative w-full max-w-lg mx-auto flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <img 
+              src="/brand/login-hero.png" 
+              alt="Korum Academic Suite" 
+              className="w-full h-auto max-h-[480px] object-contain rounded-2xl shadow-2xl border border-slate-700/60 transition-transform duration-500 hover:scale-[1.02] relative z-10"
+              onError={(e) => {
+                // Fallback por si la imagen tiene extensión .jpg
+                if (!e.target.src.endsWith('.jpg')) e.target.src = '/brand/login-hero.jpg';
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Pie: Texto institucional obligatorio */}
+        <div className="relative z-10 pt-6 border-t border-slate-800/80">
+          <p className="text-sm font-medium text-slate-300 tracking-wide text-center">
+            Certeza matemática, actas reglamentarias y transparencia en cada cátedra.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -2,6 +2,11 @@ import React from 'react';
 import Card from './Card';
 import Button from './Button';
 import {
+  EmptyCatedrasSvg,
+  EmptyAlumnosSvg,
+  EmptyMesasSvg
+} from './BrandIllustrations';
+import {
   EmptyStateIllustration,
   SuccessTaskIllustration,
   SupportMailIllustration,
@@ -10,9 +15,10 @@ import {
 } from '../illustrations';
 
 /**
- * EmptyState - Componente reutilizable para estados vacíos con ilustraciones vectoriales Tabler.
+ * EmptyState - Componente universal para estados vacíos con ilustraciones vectoriales Korum.
  * 
- * @param {'folder'|'empty'|'upload'|'success'|'task'|'support'|'search'|React.ReactNode} illustration - Tipo de ilustración a mostrar
+ * @param {'catedras'|'alumnos'|'mesas'|null} tipo - Tipo de estado vacío estándar de Korum
+ * @param {'folder'|'empty'|'upload'|'success'|'task'|'support'|'search'|'catedras'|'alumnos'|'mesas'|React.ReactNode} illustration - Tipo o elemento de ilustración
  * @param {string} title - Título del estado vacío
  * @param {string} description - Explicación o guía para el usuario
  * @param {React.ReactNode} action - Botón o elemento de acción directa (opcional)
@@ -27,8 +33,9 @@ import {
  * @param {string} className - Clases adicionales de estilo
  */
 export default function EmptyState({
-  illustration = 'folder',
-  title = 'No hay elementos registrados',
+  tipo = null,
+  illustration = null,
+  title = null,
   description = '',
   action = null,
   actionLabel = '',
@@ -41,12 +48,51 @@ export default function EmptyState({
   secondaryActionVariant = 'secondary',
   className = ''
 }) {
+  // Inferir tipo según prop illustration si tipo no fue indicado explícitamente
+  const effectiveTipo = tipo || (
+    illustration === 'catedras' ? 'catedras' :
+    illustration === 'alumnos' ? 'alumnos' :
+    illustration === 'mesas' ? 'mesas' : null
+  );
+
+  // Valores predeterminados según tipo de Korum
+  let defaultTitle = 'No hay elementos registrados';
+  let defaultActionLabel = '';
+
+  if (effectiveTipo === 'catedras') {
+    defaultTitle = 'No tienes cátedras creadas en este ciclo';
+    defaultActionLabel = '+ Crear mi primera cátedra';
+  } else if (effectiveTipo === 'alumnos') {
+    defaultTitle = 'Nómina sin alumnos registrados';
+    defaultActionLabel = '📥 Importar Excel / CSV';
+  } else if (effectiveTipo === 'mesas') {
+    defaultTitle = 'Aún no has constituido mesas evaluadoras';
+    defaultActionLabel = '+ Nueva Mesa de Examen';
+  }
+
+  const finalTitle = title !== null ? title : defaultTitle;
+  const finalActionLabel = actionLabel || defaultActionLabel;
+
   const renderIllustration = () => {
+    // Si se pasa un elemento React explícito
     if (React.isValidElement(illustration)) {
       return illustration;
     }
 
-    switch (illustration) {
+    // Ilustraciones estándar Korum por tipo
+    if (effectiveTipo === 'catedras') {
+      return <EmptyCatedrasSvg className="w-40 h-40 mx-auto mb-2" />;
+    }
+    if (effectiveTipo === 'alumnos') {
+      return <EmptyAlumnosSvg className="w-40 h-40 mx-auto mb-2" />;
+    }
+    if (effectiveTipo === 'mesas') {
+      return <EmptyMesasSvg className="w-40 h-40 mx-auto mb-2" />;
+    }
+
+    // Ilustraciones clásicas/genéricas Tabler
+    const illKey = illustration || 'folder';
+    switch (illKey) {
       case 'search':
         return <SearchEmptyIllustration className="w-36 h-36 sm:w-44 sm:h-44 mx-auto mb-2" />;
       case 'support':
@@ -65,14 +111,14 @@ export default function EmptyState({
     }
   };
 
-  const hasAnyAction = action || actionLabel || secondaryActionLabel;
+  const hasAnyAction = action || finalActionLabel || secondaryActionLabel;
 
   return (
-    <Card className={`text-center py-10 sm:py-12 px-4 sm:px-6 flex flex-col items-center justify-center animate-fadeInUp ${className}`}>
+    <Card className={`text-center py-10 sm:py-12 px-4 sm:px-6 flex flex-col items-center justify-center animate-fadeInUp border-slate-200/80 dark:border-slate-800 ${className}`}>
       {renderIllustration()}
       
       <h4 className="text-base sm:text-lg font-bold text-text-primary tracking-tight mt-1 max-w-md">
-        {title}
+        {finalTitle}
       </h4>
 
       {description && (
@@ -98,15 +144,16 @@ export default function EmptyState({
                   {secondaryActionLabel}
                 </Button>
               )}
-              {actionLabel && (
+
+              {finalActionLabel && (
                 <Button
                   variant={actionVariant}
                   size="sm"
                   icon={actionIcon}
                   onClick={onAction}
-                  className="active:scale-95 duration-100"
+                  className="active:scale-95 duration-100 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/20"
                 >
-                  {actionLabel}
+                  {finalActionLabel}
                 </Button>
               )}
             </>

@@ -2,25 +2,28 @@ import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutGrid, 
-  BookOpen, 
-  Calendar, 
-  Building2, 
-  Settings, 
-  LifeBuoy, 
-  GraduationCap, 
+  Table2,
+  CalendarCheck,
   Award,
+  Building2, 
+  FileSpreadsheet,
+  ShieldCheck,
+  LifeBuoy, 
+  PanelLeftClose, 
+  PanelLeftOpen, 
   ChevronDown, 
   ChevronRight, 
   CheckSquare, 
   FolderOpen, 
   Users, 
   Plus, 
-  PanelLeftClose, 
-  PanelLeftOpen, 
   X,
   User,
   Layers,
-  ShieldAlert
+  BookOpen,
+  Settings,
+  GraduationCap,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -28,6 +31,8 @@ import CustomSelect from '../common/CustomSelect';
 import AvatarPopover, { PRESET_AVATARS } from './AvatarPopover';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
+import { KorumIsotypeSvg } from '../common/BrandIllustrations';
+import KorumGlobalMenu from './KorumGlobalMenu';
 import { toast } from 'sonner';
 import { handleAppError } from '../../utils/handleAppError';
 
@@ -120,72 +125,94 @@ export default function DualSidebar({ isOpen = false, onClose }) {
     }));
   };
 
-  // Íconos del Riel Superior con sus microinteracciones físicas independientes
-  const primaryUpperLinks = [
+  const activeCatedraId = location.pathname.match(/\/catedra\/([^/?#]+)/)?.[1] || catedras[0]?.id;
+
+  // =========================================================================
+  // 12 MÓDULOS DE NAVEGACIÓN GLOBAL KORUM (SIN HUECOS MUERTOS)
+  // =========================================================================
+  const navigationLinks = [
+    // 1. Inicio (reemplazando Dashboard)
     {
+      id: 'inicio',
       to: '/dashboard',
-      label: 'Dashboard & Cátedras',
+      label: 'Inicio',
       icon: LayoutGrid,
-      buttonHoverClass: 'group hover:bg-indigo-50 dark:hover:bg-indigo-950/40 p-2.5 rounded-xl transition-colors',
-      iconClass: 'transition-transform duration-200 ease-out group-hover:scale-110 group-hover:rotate-6 group-hover:text-indigo-600',
-      activeButtonClass: 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 rounded-xl',
-      activeIconClass: 'text-white'
+      isActive: location.pathname === '/dashboard' || location.pathname === '/'
     },
+    // 2. Calendario
     {
+      id: 'calendario',
+      to: '/calendario',
+      label: 'Calendario',
+      icon: Calendar,
+      isActive: location.pathname.startsWith('/calendario')
+    },
+    // 3. Asistencia
+    {
+      id: 'asistencias',
+      to: activeCatedraId ? `/catedra/${activeCatedraId}?tab=asistencias` : '/dashboard',
+      label: 'Asistencia',
+      icon: CalendarCheck,
+      isActive: location.pathname.startsWith('/catedra') && (location.search.includes('tab=asistencias') || (!location.search && !location.pathname.includes('/mesas-examen')))
+    },
+    // 4. Calificaciones
+    {
+      id: 'calificaciones',
+      to: activeCatedraId ? `/catedra/${activeCatedraId}?tab=calificaciones` : '/dashboard',
+      label: 'Calificaciones',
+      icon: Table2,
+      isActive: location.pathname.startsWith('/catedra') && location.search.includes('tab=calificaciones')
+    },
+    // 5. Mesas de Examen
+    {
+      id: 'mesas',
       to: '/mesas-examen',
       label: 'Mesas de Examen',
       icon: Award,
-      buttonHoverClass: 'group hover:bg-amber-50 dark:hover:bg-amber-950/40 p-2.5 rounded-xl transition-colors',
-      iconClass: 'transition-transform duration-250 ease-out group-hover:-translate-y-1.5 group-hover:-rotate-6 group-hover:text-amber-500',
-      activeButtonClass: 'bg-amber-500 text-white shadow-md shadow-amber-500/25 rounded-xl',
-      activeIconClass: 'text-white'
+      isActive: location.pathname.startsWith('/mesas-examen')
     },
+    // 6. Instituciones
     {
-      to: '/calendario',
-      label: 'Calendario & Horarios',
-      icon: Calendar,
-      buttonHoverClass: 'group hover:bg-blue-50 dark:hover:bg-blue-950/40 p-2.5 rounded-xl transition-colors',
-      iconClass: 'transition-transform duration-200 ease-in-out group-hover:rotate-12 group-hover:scale-105 group-hover:text-blue-500',
-      activeButtonClass: 'bg-blue-600 text-white shadow-md shadow-blue-500/25 rounded-xl',
-      activeIconClass: 'text-white'
-    },
-    {
+      id: 'instituciones',
       to: '/instituciones',
-      label: 'Instituciones & Ciclos',
+      label: 'Instituciones',
       icon: Building2,
-      buttonHoverClass: 'group hover:bg-emerald-50 dark:hover:bg-emerald-950/40 p-2.5 rounded-xl transition-colors',
-      iconClass: 'transition-transform duration-200 ease-out group-hover:-translate-y-1 group-hover:scale-105 group-hover:text-emerald-500',
-      activeButtonClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25 rounded-xl',
-      activeIconClass: 'text-white'
+      isActive: location.pathname.startsWith('/instituciones')
     },
+    // 7. Libro de Temas (renombrado desde Reportes Oficiales)
     {
-      to: '/configuracion',
+      id: 'libro-temas',
+      to: activeCatedraId ? `/catedra/${activeCatedraId}?tab=libro-temas` : '/guias',
+      label: 'Libro de Temas',
+      icon: FileSpreadsheet,
+      isActive: location.pathname.startsWith('/guias') || (location.pathname.startsWith('/catedra') && location.search.includes('tab=libro-temas'))
+    },
+    // 8. Centro de Superadmin (visible únicamente para autorizados)
+    ...(esSuperadmin ? [{
+      id: 'superadmin',
+      to: '/admin',
+      label: 'Centro Superadmin',
+      icon: ShieldCheck,
+      isActive: location.pathname.startsWith('/admin'),
+      isSuperadminItem: true,
+      hasPending: false
+    }] : []),
+    // 9. Configuración
+    {
+      id: 'configuracion',
+      to: activeCatedraId ? `/catedra/${activeCatedraId}?tab=configuracion` : '/instituciones',
       label: 'Configuración',
       icon: Settings,
-      buttonHoverClass: 'group hover:bg-slate-100 dark:hover:bg-slate-800/60 p-2.5 rounded-xl transition-colors',
-      iconClass: 'transition-transform duration-500 ease-in-out group-hover:rotate-90 group-hover:text-slate-900 dark:group-hover:text-white',
-      activeButtonClass: 'bg-slate-800 dark:bg-slate-700 text-white shadow-md rounded-xl',
-      activeIconClass: 'text-white'
+      isActive: location.pathname.startsWith('/catedra') && location.search.includes('tab=configuracion')
     },
+    // 10. Soporte Técnico
     {
-      to: '/guias',
-      label: 'Guías de Usuario',
-      icon: BookOpen,
-      buttonHoverClass: 'group hover:bg-violet-50 dark:hover:bg-violet-950/40 p-2.5 rounded-xl transition-colors',
-      iconClass: 'transition-transform duration-200 ease-out group-hover:skew-x-3 group-hover:scale-110 group-hover:text-violet-500',
-      activeButtonClass: 'bg-violet-600 text-white shadow-md shadow-violet-500/25 rounded-xl',
-      activeIconClass: 'text-white'
-    },
-    ...(esSuperadmin ? [{
-      to: '/admin',
-      label: 'Panel Superadmin',
-      icon: ShieldAlert,
-      buttonHoverClass: 'group hover:bg-rose-50 dark:hover:bg-rose-950/40 p-2.5 rounded-xl transition-colors',
-      iconClass: 'transition-transform duration-200 ease-out group-hover:scale-110 group-hover:text-rose-500',
-      activeButtonClass: 'bg-gradient-to-br from-rose-500 to-indigo-600 text-white shadow-md shadow-rose-500/25 rounded-xl',
-      activeIconClass: 'text-white',
-      isSpecial: true
-    }] : [])
+      id: 'soporte',
+      to: '/soporte',
+      label: 'Soporte Técnico',
+      icon: LifeBuoy,
+      isActive: location.pathname.startsWith('/soporte')
+    }
   ];
 
   // Crear Institución Rápida
@@ -260,104 +287,63 @@ export default function DualSidebar({ isOpen = false, onClose }) {
         {/* ========================================================
             1. RIEL PRINCIPAL DE ÍCONOS (SIN SCROLLBAR VERTICAL)
            ======================================================== */}
-        <div className={`w-16 min-w-[4rem] h-screen max-h-screen fixed left-0 top-0 bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-white/10 flex flex-col justify-between py-3 items-center z-40 select-none overflow-hidden ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} transition-transform duration-300 ease-in-out`}>
+        <div className={`w-16 min-w-[4rem] h-screen max-h-screen fixed left-0 top-0 bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-white/10 flex flex-col py-2.5 items-center z-40 select-none overflow-y-auto overflow-x-hidden scrollbar-none ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} transition-transform duration-300 ease-in-out`}>
           
-          {/* --- GRUPO SUPERIOR --- */}
-          <div className="flex flex-col items-center w-full">
-            {/* Logo superior en contenedor centrado con botón de home */}
-            <NavLink
-              to="/dashboard"
-              onClick={onClose}
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-              title="PlanillaDocente — Ir al Inicio"
-            >
-              <GraduationCap className="w-5 h-5 transition-transform duration-200 hover:rotate-12" />
-            </NavLink>
-
-            {/* Divisor fino horizontal */}
-            <div className="w-8 h-[1px] bg-slate-200 dark:bg-white/10 my-2" />
-
-            {/* Contenedor de iconos de navegación con espaciado compacto */}
-            <nav className="flex flex-col gap-1.5 items-center w-full" aria-label="Navegación principal">
-              {primaryUpperLinks.map((link) => {
-                const Icon = link.icon;
-                const isActive = location.pathname.startsWith(link.to);
-
-                return (
-                  <NavLink
-                    key={link.to}
-                    to={link.to}
-                    onClick={onClose}
-                    className={`
-                      relative w-10 h-10 flex items-center justify-center cursor-pointer touch-target-44
-                      ${isActive
-                        ? link.activeButtonClass
-                        : link.buttonHoverClass
-                      }
-                      ${link.isSpecial && !isActive ? 'border border-rose-500/30 bg-rose-500/10' : ''}
-                    `}
-                    title={link.label}
-                  >
-                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? link.activeIconClass : link.iconClass}`} />
-
-                    {/* Tooltip flotante a la derecha en modo hover */}
-                    <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg shadow-xl text-xs font-semibold text-text-primary whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
-                      {link.label}
-                    </span>
-                  </NavLink>
-                );
-              })}
-            </nav>
+          {/* Botón Disparador Directo Limpio y Transparente Menú Korum */}
+          <div className="mb-1 shrink-0">
+            <KorumGlobalMenu onToggleSidebar={toggleSecondaryNav} />
           </div>
 
-          {/* --- GRUPO INFERIOR (SIEMPRE VISIBLE SIN HACER SCROLL) --- */}
-          <div className="flex flex-col items-center gap-1.5 w-full mt-auto pt-2 border-t border-slate-200/60 dark:border-white/5">
-            
-            {/* Botón de Soporte / Ayuda */}
-            <NavLink
-              to="/soporte"
-              onClick={onClose}
-              className={`
-                relative w-10 h-10 flex items-center justify-center cursor-pointer touch-target-44
-                ${location.pathname === '/soporte'
-                  ? 'bg-rose-600 text-white shadow-md shadow-rose-500/25 rounded-xl'
-                  : 'group hover:bg-rose-50 dark:hover:bg-rose-950/40 p-2.5 rounded-xl transition-colors text-text-muted hover:text-rose-600'
-                }
-              `}
-              title="Soporte Técnico"
-            >
-              <LifeBuoy className={`w-5 h-5 shrink-0 ${
-                location.pathname === '/soporte' 
-                  ? 'text-white' 
-                  : 'transition-transform duration-300 ease-out group-hover:-rotate-45 group-hover:scale-110 group-hover:text-rose-500'
-              }`} />
+          {/* Divisor 1px */}
+          <div className="border-t border-slate-200 dark:border-slate-800 my-1.5 w-8 shrink-0" />
 
-              <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg shadow-xl text-xs font-semibold text-text-primary whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
-                Soporte Técnico
-              </span>
-            </NavLink>
+          {/* NAVEGACIÓN ESTRUCTURADA UNIFORME SIN HUECOS MUERTOS (gap-1.5) */}
+          <nav className="flex flex-col gap-1.5 items-center w-full" aria-label="Navegación Principal">
+            {navigationLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = link.isActive;
 
-            {/* Botón de Colapso/Expansión del panel secundario [ ◨ ] */}
-            <button
-              type="button"
-              onClick={toggleSecondaryNav}
-              className="group hover:bg-slate-100 dark:hover:bg-slate-800/60 p-2 rounded-xl transition-colors hidden md:flex items-center justify-center w-10 h-10 text-text-muted hover:text-text-primary cursor-pointer relative"
-              title={isSecondaryNavOpen ? 'Ocultar panel lateral (Ctrl + B)' : 'Mostrar panel lateral (Ctrl + B)'}
-              aria-label="Alternar panel de gestión docente"
-            >
-              {isSecondaryNavOpen ? (
-                <PanelLeftClose className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-1" />
-              ) : (
-                <PanelLeftOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400 transition-transform duration-200 ease-out group-hover:scale-110" />
-              )}
+              return (
+                <NavLink
+                  key={link.id}
+                  to={link.to}
+                  onClick={onClose}
+                  className={`
+                    relative w-10 h-10 flex items-center justify-center cursor-pointer touch-target-44 group transition-colors shrink-0
+                    ${isActive
+                      ? 'bg-emerald-500/10 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-xl font-semibold'
+                      : link.isSuperadminItem
+                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl p-2.5'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl p-2.5'
+                    }
+                  `}
+                  title={link.label}
+                >
+                  {/* Marcador de posición inequívoco: barra vertical 3px pegada al borde izquierdo */}
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-emerald-500 rounded-r" />
+                  )}
 
-              <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg shadow-xl text-xs font-semibold text-text-primary whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
-                {isSecondaryNavOpen ? 'Ocultar panel (Ctrl + B)' : 'Mostrar panel (Ctrl + B)'}
-              </span>
-            </button>
+                  <Icon className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
 
-            {/* Avatar del docente con indicador de estado (fijo al pie) */}
-            <div className="relative pt-1">
+                  {/* Indicador sutil si hay auditorías pendientes */}
+                  {link.isSuperadminItem && link.hasPending && (
+                    <span className="w-2 h-2 bg-amber-400 rounded-full absolute top-2 right-2" />
+                  )}
+
+                  {/* Tooltip flotante a la derecha en modo hover */}
+                  <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl text-xs font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
+                    {link.label}
+                  </span>
+                </NavLink>
+              );
+            })}
+
+            {/* Divisor 1px antes de controles finales */}
+            <div className="border-t border-slate-200 dark:border-slate-800 my-1.5 w-8 shrink-0" />
+
+            {/* 11. Mi Perfil (Avatar Docente con aro esmeralda y popover) */}
+            <div className="relative shrink-0">
               <button
                 ref={avatarButtonRef}
                 type="button"
@@ -367,22 +353,22 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                 }}
                 aria-haspopup="true"
                 aria-expanded={isAvatarPopoverOpen}
-                aria-label="Abrir menú de usuario"
-                className="relative w-10 h-10 rounded-xl overflow-hidden border-2 border-indigo-500/40 hover:border-indigo-500 transition-all duration-200 ease-out hover:ring-2 hover:ring-indigo-500 hover:ring-offset-2 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center bg-surface-hover"
-                title={`Perfil: ${teacherName}`}
+                aria-label="Abrir mi perfil"
+                className="relative w-10 h-10 overflow-hidden ring-2 ring-emerald-500/40 hover:ring-emerald-500 transition-all rounded-xl cursor-pointer flex items-center justify-center bg-slate-100 dark:bg-slate-900 hover:scale-105 active:scale-95"
+                title={`Mi Perfil: ${teacherName}`}
               >
                 {currentAvatar?.startsWith('preset:') ? (
                   PRESET_AVATARS.find(a => `preset:${a.id}` === currentAvatar)?.svg || (
-                    <User className="w-5 h-5 text-text-secondary" />
+                    <User className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                   )
                 ) : currentAvatar?.startsWith('data:') || currentAvatar?.startsWith('http') ? (
                   <img src={currentAvatar} alt={teacherName} className="w-full h-full object-cover transition-all duration-200 ease-out hover:scale-105 cursor-pointer" />
                 ) : (
-                  <User className="w-5 h-5 text-text-secondary" />
+                  <User className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                 )}
 
-                {/* Indicador de estado activo (Verde esmeralda) */}
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-950 shadow-xs" />
+                {/* Micro-badge de conexión activo en la esquina inferior derecha */}
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-950 rounded-full" />
               </button>
 
               {/* Avatar Popover Menu */}
@@ -393,17 +379,35 @@ export default function DualSidebar({ isOpen = false, onClose }) {
               />
             </div>
 
-            {/* Mobile close button on mobile */}
+            {/* 12. Mostrar/Ocultar Panel Lateral */}
+            <button
+              type="button"
+              onClick={toggleSecondaryNav}
+              className="group hover:bg-slate-100 dark:hover:bg-slate-800/60 p-2 rounded-xl transition-colors hidden md:flex items-center justify-center w-10 h-10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer relative shrink-0"
+              title={isSecondaryNavOpen ? 'Ocultar panel lateral (Ctrl + B)' : 'Mostrar panel lateral (Ctrl + B)'}
+              aria-label="Mostrar/Ocultar panel lateral"
+            >
+              {isSecondaryNavOpen ? (
+                <PanelLeftClose className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" />
+              ) : (
+                <PanelLeftOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400 transition-transform duration-200 ease-out group-hover:scale-110" />
+              )}
+
+              <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl text-xs font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
+                {isSecondaryNavOpen ? 'Ocultar panel (Ctrl + B)' : 'Mostrar panel (Ctrl + B)'}
+              </span>
+            </button>
+
+            {/* Botón cerrar para móvil */}
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-text-muted hover:text-text-primary rounded-lg md:hidden cursor-pointer"
+              className="p-2 text-text-muted hover:text-text-primary rounded-lg md:hidden cursor-pointer shrink-0"
               title="Cerrar menú"
             >
               <X className="w-5 h-5" />
             </button>
-
-          </div>
+          </nav>
         </div>
 
         {/* ========================================================
@@ -429,8 +433,8 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                 <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   Gestión Docente
                 </span>
-                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-500/20">
-                  Yastai
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                  Korum
                 </span>
               </div>
 
@@ -625,10 +629,10 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                   navigate('/admin');
                   if (onClose) onClose();
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-gradient-to-r from-rose-500/15 via-indigo-500/10 to-indigo-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/30 hover:bg-rose-500/20 transition-all cursor-pointer shadow-xs"
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700/60 transition-all cursor-pointer shadow-xs"
                 title="Acceder al Panel de Superadministrador"
               >
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
+                <ShieldCheck className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                 <span>Panel Superadmin</span>
               </button>
             )}
@@ -639,7 +643,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                 setOpenNewCatedraModal(true);
                 if (onClose) onClose();
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Nueva Cátedra</span>

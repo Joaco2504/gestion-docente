@@ -786,16 +786,11 @@ export default function StudentsTab({
             </div>
           ) : estudiantes.length === 0 ? (
             <EmptyState
-              illustration="folder"
-              title="Aún no hay alumnos matriculados en esta cátedra"
-              description="Comienza agregando el primer estudiante individualmente o importa tu planilla de Excel con un solo clic."
-              actionLabel="Carga Manual Rápida"
-              actionIcon={UserPlus}
-              onAction={() => setIsManualModalOpen(true)}
-              secondaryActionLabel="Importar Planilla Excel"
-              secondaryActionIcon={FileSpreadsheet}
-              onSecondaryAction={() => setViewMode('import-excel')}
-              secondaryActionVariant="secondary"
+              tipo="alumnos"
+              onAction={() => setViewMode('import-excel')}
+              secondaryActionLabel="Carga Manual Rápida"
+              secondaryActionIcon={UserPlus}
+              onSecondaryAction={() => setIsManualModalOpen(true)}
             />
           ) : filteredAndSortedStudents.length === 0 ? (
             <EmptyState

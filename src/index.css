@@ -4,6 +4,18 @@
 
 @layer base {
   :root {
+    --background: 210 40% 98%;      /* #F8FAFC Slate Porcelana */
+    --foreground: 222 47% 11%;      /* #0F172A Pizarra Grafito */
+    --card: 0 0% 100%;              /* #FFFFFF Blanco Puro */
+    --card-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;           /* #F1F5F9 Slate Hielo */
+    --muted-foreground: 215 16% 47%;/* #64748B Slate Medio */
+    --border: 214 32% 91%;          /* #E2E8F0 Gris Línea */
+    --primary: 158 64% 52%;         /* #10B981 Esmeralda Dinámico */
+    --primary-foreground: 0 0% 100%;
+    --ring: 158 64% 52%;
+
+    /* Compatibilidad con diseño de superficies y contrastes Korum */
     --canvas: #f8fafc;
     --surface: #ffffff;
     --surface-hover: #f1f5f9;
@@ -11,30 +23,42 @@
     --text-primary: #0f172a;
     --text-secondary: #334155;
     --text-muted: #64748b;
-    --color-primary-rgb: 26 86 219;
-    --color-primary-hover-rgb: 30 66 159;
-    --color-primary-light: #ebf5ff;
-    --color-primary-muted: #d0e1fd;
+    --color-primary-rgb: 16 185 129;
+    --color-primary-hover-rgb: 5 150 105;
+    --color-primary-light: #ecfdf5;
+    --color-primary-muted: #a7f3d0;
   }
 
   .dark {
-    --canvas: #0a0f1d;
-    --surface: #111927;
-    --surface-hover: #1c2638;
-    --surface-border: #1e2c44;
+    --background: 220 43% 6%;       /* #080C14 Pizarra Abisal */
+    --foreground: 210 40% 98%;      /* #F8FAFC Hielo Platino */
+    --card: 222 47% 11%;            /* #0F172A Pizarra Nocturna */
+    --card-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;           /* #1E293B Slate Carbón */
+    --muted-foreground: 215 20% 65%;/* #94A3B8 Slate Ceniza */
+    --border: 217 33% 27%;          /* #334155 Pizarra Trazo */
+    --primary: 160 84% 39%;         /* #059669 / #10B981 */
+    --primary-foreground: 0 0% 100%;
+    --ring: 151 75% 52%;            /* #34D399 Menta Neón */
+
+    /* Compatibilidad con diseño de superficies oscuras Korum */
+    --canvas: #080c14;
+    --surface: #0f172a;
+    --surface-hover: #1e293b;
+    --surface-border: #334155;
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
-    --color-primary-rgb: 37 99 235;
-    --color-primary-hover-rgb: 29 78 216;
-    --color-primary-light: #1e293b;
-    --color-primary-muted: #334155;
+    --color-primary-rgb: 16 185 129;
+    --color-primary-hover-rgb: 5 150 105;
+    --color-primary-light: #064e3b;
+    --color-primary-muted: #065f46;
   }
 
   body {
     background-color: var(--canvas);
     color: var(--text-primary);
-    font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', 'Geist Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -46,6 +70,27 @@
   .font-mono-numeric {
     font-family: 'JetBrains Mono', monospace;
     font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ==========================================================================
+   INSIGNIAS RAM DE ALTA LEGIBILIDAD (SISTEMA DE COLOR KORUM)
+   ========================================================================== */
+@layer utilities {
+  .badge-ram-promocionado, .badge-ram-presente {
+    @apply bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] dark:bg-[#064E3B]/40 dark:text-[#6EE7B7] dark:border-[#059669]/50;
+  }
+
+  .badge-ram-regular, .badge-ram-justificada {
+    @apply bg-[#EFF6FF] text-[#1E40AF] border border-[#BFDBFE] dark:bg-[#172554]/50 dark:text-[#93C5FD] dark:border-[#2563EB]/40;
+  }
+
+  .badge-ram-recuperatorio, .badge-ram-alerta {
+    @apply bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] dark:bg-[#451A03]/60 dark:text-[#FCD34D] dark:border-[#D97706]/40;
+  }
+
+  .badge-ram-libre, .badge-ram-ausente {
+    @apply bg-[#FEF2F2] text-[#991B1B] border border-[#FECACA] dark:bg-[#450A0A]/60 dark:text-[#FCA5A5] dark:border-[#DC2626]/40;
   }
 }
 

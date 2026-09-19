@@ -13,9 +13,12 @@ import CreateCatedraModal from './components/common/CreateCatedraModal';
 import RouteLoadingSpinner from './components/common/RouteLoadingSpinner';
 
 // Pages críticas de inicio (carga síncrona)
+import Login from './pages/Login';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import CatedraDetailPage from './pages/CatedraDetailPage';
+import OnboardingModal from './components/onboarding/OnboardingModal';
+import { KorumIsotypeSvg } from './components/common/BrandIllustrations';
 
 // Pages secundarias (Code-Splitting con React.lazy)
 const MesasExamenPage = lazy(() => import('./pages/MesasExamenPage'));
@@ -25,12 +28,30 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const GuidesPage = lazy(() => import('./pages/GuidesPage'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
-const StudentPortalPage = lazy(() => import('./pages/StudentPortalPage'));
+const ConsultaAlumnoPage = lazy(() => import('./pages/ConsultaAlumnoPage'));
 import AdminRoute from './components/auth/AdminRoute';
 import GlobalNoticeBanner from './components/layout/GlobalNoticeBanner';
 import ScrollToTop from './components/common/ScrollToTop';
 import { GraduationCap } from 'lucide-react';
 import { NotificationProvider } from './context/NotificationContext';
+
+function AsistenciaRedirect() {
+  const { catedras } = useApp();
+  const firstId = catedras?.[0]?.id;
+  return <Navigate to={firstId ? `/catedra/${firstId}?tab=asistencias` : '/dashboard'} replace />;
+}
+
+function CalificacionesRedirect() {
+  const { catedras } = useApp();
+  const firstId = catedras?.[0]?.id;
+  return <Navigate to={firstId ? `/catedra/${firstId}?tab=calificaciones` : '/dashboard'} replace />;
+}
+
+function LibroTemasRedirect() {
+  const { catedras } = useApp();
+  const firstId = catedras?.[0]?.id;
+  return <Navigate to={firstId ? `/catedra/${firstId}?tab=libro-temas` : '/guias'} replace />;
+}
 
 /**
  * Shell autenticado para el panel docente
@@ -42,29 +63,29 @@ function AuthenticatedDocenteShell() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-canvas relative overflow-hidden">
-        <div className="absolute w-72 h-72 rounded-full bg-primary/10 blur-3xl pointer-events-none animate-pulseGlow" />
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0F19] relative overflow-hidden">
+        <div className="absolute w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none animate-pulseGlow" />
         <div className="flex flex-col items-center gap-4 relative z-10">
           <div className="relative">
-            <div className="w-16 h-16 rounded-2xl border-2 border-primary/20 border-t-primary animate-spin" />
-            <div className="absolute inset-0 flex items-center justify-center text-primary">
-              <GraduationCap className="w-7 h-7" />
+            <div className="w-16 h-16 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <KorumIsotypeSvg className="w-8 h-8" />
             </div>
           </div>
           <div className="text-center">
-            <span className="font-bold text-base tracking-tight text-text-primary block">
-              Planilla<span className="text-primary">Docente</span>
+            <span className="font-bold text-lg tracking-tight text-white block">
+              Korum
             </span>
-            <span className="text-xs font-mono text-text-muted">Iniciando plataforma...</span>
+            <span className="text-xs font-mono text-slate-400">Iniciando plataforma académica...</span>
           </div>
         </div>
       </div>
     );
   }
 
-  // Si no está autenticado, mostrar pantalla de Auth (Login / Registro)
+  // Si no está autenticado, mostrar pantalla de Login Korum
   if (!user) {
-    return <AuthPage />;
+    return <Login />;
   }
 
   return (
@@ -101,6 +122,10 @@ function AuthenticatedDocenteShell() {
                 <Route path="/guias" element={<GuidesPage />} />
                 <Route path="/soporte" element={<SupportPage />} />
                 <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+                <Route path="/asistencia" element={<AsistenciaRedirect />} />
+                <Route path="/calificaciones" element={<CalificacionesRedirect />} />
+                <Route path="/libro-temas" element={<LibroTemasRedirect />} />
+                <Route path="/perfil" element={<Navigate to="/configuracion" replace />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>
@@ -120,6 +145,9 @@ function AuthenticatedDocenteShell() {
         onClose={() => setOpenNewCatedraModal(false)} 
         onCreated={refreshCatedras} 
       />
+
+      {/* Modal de Onboarding Asistido Korum */}
+      <OnboardingModal />
     </div>
   );
 }
@@ -144,10 +172,10 @@ export default function App() {
         <Suspense fallback={<RouteLoadingSpinner mensaje="Iniciando portal..." />}>
           <Routes>
             {/* Ruta Pública del Estudiante: Accesible sin autenticación */}
-            <Route path="/consulta/:catedraId" element={<StudentPortalPage />} />
+            <Route path="/consulta/:catedraId" element={<ConsultaAlumnoPage />} />
 
             {/* Ruta Explícita de Autenticación / Login */}
-            <Route path="/login" element={<AuthPage />} />
+            <Route path="/login" element={<Login />} />
 
             {/* Rutas del Sistema Docente */}
             <Route path="/*" element={<AuthenticatedDocenteShell />} />

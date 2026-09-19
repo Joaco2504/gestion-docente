@@ -75,7 +75,7 @@ export default function SupportPage() {
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
-      toast.success('¡Consulta enviada al equipo de soporte de Yastai de Geti! Recibirás respuesta a la brevedad.');
+      toast.success('¡Consulta enviada al equipo de soporte de Korum! Recibirás respuesta a la brevedad.');
       setTicketSubject('');
       setTicketMessage('');
       setLinkedCatedra('none');
@@ -194,7 +194,7 @@ export default function SupportPage() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-text-muted mt-0.5">
-                Canal de atención docente oficial de <strong className="text-text-primary">PlanillaDocente — Yastai de Geti</strong>.
+                Canal de atención docente oficial de <strong className="text-text-primary">Korum</strong>.
               </p>
             </div>
           </div>
@@ -600,11 +600,11 @@ export default function SupportPage() {
         isOpen={isPrivacyModalOpen}
         onClose={() => setIsPrivacyModalOpen(false)}
         title="Seguridad y Protección de Datos Institucionales"
-        subtitle="PlanillaDocente garantiza el aislamiento estricto de la información académica"
+        subtitle="Korum garantiza el aislamiento estricto de la información académica"
       >
         <div className="space-y-4 text-xs text-text-secondary leading-relaxed">
           <p>
-            PlanillaDocente aplica políticas de <strong>Row Level Security (RLS)</strong> a nivel de motor PostgreSQL en Supabase. Cada registro de cátedras, asistencias, notas y nómina de estudiantes está criptográficamente vinculado al identificador de usuario (`auth.uid()`) del docente.
+            Korum aplica políticas de <strong>Row Level Security (RLS)</strong> a nivel de motor PostgreSQL en Supabase. Cada registro de cátedras, asistencias, notas y nómina de estudiantes está criptográficamente vinculado al identificador de usuario (`auth.uid()`) del docente.
           </p>
           <p>
             Ningún otro docente o tercero tiene acceso de lectura o escritura a tus planillas de calificación ni a los archivos cargados en el bucket de Storage.

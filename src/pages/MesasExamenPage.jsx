@@ -469,20 +469,25 @@ export default function MesasExamenPage() {
               <span className="text-xs text-text-muted">Cargando mesas examinadoras...</span>
             </div>
           ) : filteredMesas.length === 0 ? (
-            <EmptyState
-              title={
-                searchQuery || selectedCatedraFilter !== 'TODAS' || selectedCondicionFilter !== 'TODAS'
-                  ? 'No se encontraron mesas de examen'
-                  : 'Sin mesas de examen constituidas'
-              }
-              description={
-                searchQuery || selectedCatedraFilter !== 'TODAS' || selectedCondicionFilter !== 'TODAS'
-                  ? 'Intenta restableciendo los filtros o buscando con otros términos.'
-                  : 'Constituye la primera mesa para asentar exámenes finales o promociones en Libro Matriz.'
-              }
-              actionLabel="Constituir Mesa de Examen"
-              onAction={() => setIsConstituirModalOpen(true)}
-            />
+            searchQuery || selectedCatedraFilter !== 'TODAS' || selectedCondicionFilter !== 'TODAS' ? (
+              <EmptyState
+                illustration="search"
+                title="No se encontraron mesas de examen"
+                description="Intenta restableciendo los filtros o buscando con otros términos."
+                actionLabel="Restablecer Filtros"
+                onAction={() => {
+                  setSearchQuery('');
+                  setSelectedCatedraFilter('TODAS');
+                  setSelectedCondicionFilter('TODAS');
+                }}
+              />
+            ) : (
+              <EmptyState
+                tipo="mesas"
+                actionLabel="+ Nueva Mesa de Examen"
+                onAction={() => setIsConstituirModalOpen(true)}
+              />
+            )
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredMesas.map((m) => {

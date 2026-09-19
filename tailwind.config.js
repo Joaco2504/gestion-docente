@@ -8,22 +8,31 @@ export default {
   theme: {
     extend: {
       colors: {
+        brand: {
+          500: '#10B981',
+          600: '#059669',
+          700: '#047857',
+          glow: '#34D399'
+        },
         primary: {
-          DEFAULT: 'rgb(var(--color-primary-rgb, 26 86 219) / <alpha-value>)',
-          hover: 'rgb(var(--color-primary-hover-rgb, 30 66 159) / <alpha-value>)',
-          light: 'var(--color-primary-light, #ebf5ff)',
-          muted: 'var(--color-primary-muted, #d0e1fd)',
-          dark: 'rgb(var(--color-primary-rgb, 26 86 219) / <alpha-value>)',
+          DEFAULT: 'rgb(var(--color-primary-rgb, 16 185 129) / <alpha-value>)',
+          hover: 'rgb(var(--color-primary-hover-rgb, 5 150 105) / <alpha-value>)',
+          light: 'var(--color-primary-light, #ecfdf5)',
+          muted: 'var(--color-primary-muted, #a7f3d0)',
+          dark: 'rgb(var(--color-primary-rgb, 16 185 129) / <alpha-value>)',
         },
         surface: {
           DEFAULT: 'var(--surface)',
           hover: 'var(--surface-hover)',
           border: 'var(--surface-border)',
+          canvas: 'var(--background)',
+          card: 'var(--card)',
+          muted: 'var(--muted)',
         },
         canvas: {
           DEFAULT: 'var(--canvas)',
-          light: '#faf8ff',
-          dark: '#0b0f19',
+          light: '#f8fafc',
+          dark: '#080c14',
         },
         academic: {
           promo: '#059669', // Emerald
@@ -41,8 +50,8 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['"Hanken Grotesk"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        sans: ['Inter', 'Geist Sans', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'Geist Mono', 'monospace'],
       },
       borderRadius: {
         'xl': '0.75rem',

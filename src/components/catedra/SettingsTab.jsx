@@ -11,13 +11,15 @@ import {
   AlertCircle, 
   HelpCircle,
   Calendar as CalendarIcon,
-  ChevronDown
+  ChevronDown,
+  BookOpen
 } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
 import CustomSelect from '../common/CustomSelect';
 import QuickSaveFAB from '../common/QuickSaveFAB';
+import LicenciasDecreto1092Table from './LicenciasDecreto1092Table';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -100,9 +102,12 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
     { id: 'per-3', nombre: '2° Cuatrimestre', tipo: 'SEGUNDO_CUATRIMESTRE', fecha_inicio: '2026-08-03', fecha_fin: '2026-11-20' }
   ]);
 
-  // Accordion collapse states (OBLIGATORIAMENTE CERRADOS / COLAPSADOS por defecto)
+  // Accordion collapse states
+  const [isInfoOpen, setIsInfoOpen] = useState(true);
+  const [isHorariosOpen, setIsHorariosOpen] = useState(true);
   const [isPeriodosOpen, setIsPeriodosOpen] = useState(false);
   const [isCriteriosOpen, setIsCriteriosOpen] = useState(false);
+  const [isLicenciasOpen, setIsLicenciasOpen] = useState(false);
 
   // Initial snapshot to automatically detect dirty/modified state
   const [initialSnapshot, setInitialSnapshot] = useState(null);
@@ -410,127 +415,228 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         </div>
       )}
 
-      {/* Basic info */}
+      {/* Basic info (Acordeón Bento) */}
       <Card>
-        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-surface-border">
-          <Settings className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-bold text-text-primary">Información General de la Cátedra</h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Nombre de la Asignatura / Cátedra *
-            </label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-surface-border rounded-lg bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-              required
-            />
+        <div 
+          onClick={() => setIsInfoOpen(!isInfoOpen)}
+          className={`flex items-center justify-between cursor-pointer select-none transition-all ${
+            isInfoOpen ? 'pb-3 mb-4 border-b border-surface-border' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Settings className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-text-primary">Información General de la Cátedra</h3>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {modalidad}
+                </span>
+              </div>
+              {!isInfoOpen && (
+                <p className="text-xs text-text-muted mt-0.5 truncate">
+                  {nombre || 'Sin nombre'} • Nivel {nivel}
+                </p>
+              )}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Régimen / Modalidad
-            </label>
-            <CustomSelect
-              value={modalidad}
-              onChange={(val) => setModalidad(typeof val === 'object' ? val.target.value : val)}
-              options={[
-                { value: '1° CUATRIMESTRE', label: '1° Cuatrimestre', badge: '1° Cuat.' },
-                { value: '2° CUATRIMESTRE', label: '2° Cuatrimestre', badge: '2° Cuat.' },
-                { value: 'ANUAL', label: 'Anual', badge: 'Anual' },
-                { value: 'CUATRIMESTRAL', label: 'Cuatrimestral (Genérico)', badge: 'Cuat.' }
-              ]}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsInfoOpen(!isInfoOpen);
+            }}
+            aria-label={isInfoOpen ? "Colapsar sección" : "Desplegar sección"}
+            className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer shrink-0 active:scale-95 shadow-xs"
+          >
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
+                isInfoOpen ? 'rotate-180 text-primary' : 'rotate-0 text-text-muted'
+              }`}
             />
-          </div>
+          </button>
         </div>
+
+        {isInfoOpen && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in duration-200">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                Nombre de la Asignatura / Cátedra *
+              </label>
+              <input
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-surface-border rounded-lg bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                Régimen / Modalidad
+              </label>
+              <CustomSelect
+                value={modalidad}
+                onChange={(val) => setModalidad(typeof val === 'object' ? val.target.value : val)}
+                options={[
+                  { value: '1° CUATRIMESTRE', label: '1° Cuatrimestre', badge: '1° Cuat.' },
+                  { value: '2° CUATRIMESTRE', label: '2° Cuatrimestre', badge: '2° Cuat.' },
+                  { value: 'ANUAL', label: 'Anual', badge: 'Anual' },
+                  { value: 'CUATRIMESTRAL', label: 'Cuatrimestral (Genérico)', badge: 'Cuat.' }
+                ]}
+              />
+            </div>
+          </div>
+        )}
       </Card>
 
-      {/* Weekly Schedule */}
+      {/* Weekly Schedule (Acordeón Bento) */}
       <Card>
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-surface-border">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold text-text-primary">Horarios Semanales de Dictado</h3>
+        <div 
+          onClick={() => setIsHorariosOpen(!isHorariosOpen)}
+          className={`flex items-center justify-between cursor-pointer select-none transition-all ${
+            isHorariosOpen ? 'pb-3 mb-4 border-b border-surface-border' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-text-primary">Horarios Semanales de Dictado</h3>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-hover text-text-muted border border-surface-border">
+                  {horarios.length} {horarios.length === 1 ? 'franja' : 'franjas'}
+                </span>
+              </div>
+              {!isHorariosOpen && (
+                <p className="text-xs text-text-muted mt-0.5 truncate hidden sm:block">
+                  {horarios.length > 0
+                    ? horarios.map(h => `${h.dia} ${h.desde}-${h.hasta}`).join(' • ')
+                    : 'Sin horarios configurados'}
+                </p>
+              )}
+            </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            icon={Plus}
-            onClick={handleAddHorario}
-          >
-            Agregar Franja Horaria
-          </Button>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isHorariosOpen && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                icon={Plus}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddHorario();
+                }}
+                className="text-xs hidden sm:inline-flex"
+              >
+                Agregar Franja Horaria
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsHorariosOpen(!isHorariosOpen);
+              }}
+              aria-label={isHorariosOpen ? "Colapsar sección" : "Desplegar sección"}
+              className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer shrink-0 active:scale-95 shadow-xs"
+            >
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
+                  isHorariosOpen ? 'rotate-180 text-primary' : 'rotate-0 text-text-muted'
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
-        <p className="text-xs text-text-muted mb-4">
-          Configura los días y horarios en los que se dicta esta cátedra. Se utilizarán para calendarizar clases y verificar solapamientos.
-        </p>
-
-        {horarios.length === 0 ? (
-          <div className="text-center py-6 bg-surface-hover/50 rounded-xl border border-dashed border-surface-border">
-            <Clock className="w-6 h-6 text-text-muted mx-auto mb-1 opacity-50" />
-            <p className="text-xs text-text-muted">No se han configurado días ni horarios aún.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {horarios.map((slot, index) => (
-              <div
-                key={index}
-                className="relative z-20 flex flex-col sm:flex-row items-center gap-3 p-3 rounded-lg bg-surface-hover/40 border border-surface-border"
-                style={{ zIndex: 40 - index }}
+        {isHorariosOpen && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="flex sm:hidden justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                icon={Plus}
+                onClick={handleAddHorario}
+                className="text-xs w-full"
               >
-                <div className="w-full sm:w-36">
-                  <CustomSelect
-                    value={slot.dia}
-                    onChange={(val) => handleHorarioChange(index, 'dia', typeof val === 'object' ? val.target.value : val)}
-                    options={DAYS_OF_WEEK.map((d) => ({ value: d, label: d }))}
-                    buttonClassName="py-1.5 px-2.5 text-xs font-semibold"
-                    menuClassName="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-white/10 rounded-xl max-h-48 overflow-y-auto"
-                  />
-                </div>
+                Agregar Franja Horaria
+              </Button>
+            </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <span className="text-xs text-text-muted">De</span>
-                  <input
-                    type="time"
-                    value={slot.desde}
-                    onChange={(e) => handleHorarioChange(index, 'desde', e.target.value)}
-                    className="px-2 py-1 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
-                  />
-                  <span className="text-xs text-text-muted">a</span>
-                  <input
-                    type="time"
-                    value={slot.hasta}
-                    onChange={(e) => handleHorarioChange(index, 'hasta', e.target.value)}
-                    className="px-2 py-1 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
-                  />
-                </div>
+            <p className="text-xs text-text-muted mb-4">
+              Configura los días y horarios en los que se dicta esta cátedra. Se utilizarán para calendarizar clases y verificar solapamientos.
+            </p>
 
-                <div className="flex-1 w-full sm:w-auto">
-                  <input
-                    type="text"
-                    value={slot.aula || ''}
-                    placeholder="Aula / Laboratorio (opcional)"
-                    onChange={(e) => handleHorarioChange(index, 'aula', e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-surface-border rounded-lg bg-surface text-text-primary placeholder:text-text-muted"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleRemoveHorario(index)}
-                  className="p-1.5 text-text-muted hover:text-danger rounded-md hover:bg-red-50 transition-colors shrink-0"
-                  title="Eliminar horario"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+            {horarios.length === 0 ? (
+              <div className="text-center py-6 bg-surface-hover/50 rounded-xl border border-dashed border-surface-border">
+                <Clock className="w-6 h-6 text-text-muted mx-auto mb-1 opacity-50" />
+                <p className="text-xs text-text-muted">No se han configurado días ni horarios aún.</p>
               </div>
-            ))}
+            ) : (
+              <div className="space-y-3">
+                {horarios.map((slot, index) => (
+                  <div
+                    key={index}
+                    className="relative z-20 flex flex-col sm:flex-row items-center gap-3 p-3 rounded-lg bg-surface-hover/40 border border-surface-border"
+                    style={{ zIndex: 40 - index }}
+                  >
+                    <div className="w-full sm:w-36">
+                      <CustomSelect
+                        value={slot.dia}
+                        onChange={(val) => handleHorarioChange(index, 'dia', typeof val === 'object' ? val.target.value : val)}
+                        options={DAYS_OF_WEEK.map((d) => ({ value: d, label: d }))}
+                        buttonClassName="py-1.5 px-2.5 text-xs font-semibold"
+                        menuClassName="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-white/10 rounded-xl max-h-48 overflow-y-auto"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <span className="text-xs text-text-muted">De</span>
+                      <input
+                        type="time"
+                        value={slot.desde}
+                        onChange={(e) => handleHorarioChange(index, 'desde', e.target.value)}
+                        className="px-2 py-1 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
+                      />
+                      <span className="text-xs text-text-muted">a</span>
+                      <input
+                        type="time"
+                        value={slot.hasta}
+                        onChange={(e) => handleHorarioChange(index, 'hasta', e.target.value)}
+                        className="px-2 py-1 text-xs font-mono border border-surface-border rounded-lg bg-surface text-text-primary"
+                      />
+                    </div>
+
+                    <div className="flex-1 w-full sm:w-auto">
+                      <input
+                        type="text"
+                        value={slot.aula || ''}
+                        placeholder="Aula / Laboratorio (opcional)"
+                        onChange={(e) => handleHorarioChange(index, 'aula', e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs border border-surface-border rounded-lg bg-surface text-text-primary placeholder:text-text-muted"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveHorario(index)}
+                      className="p-1.5 text-text-muted hover:text-danger rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0 cursor-pointer"
+                      title="Eliminar horario"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </Card>
@@ -842,6 +948,57 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         )}
       </Card>
 
+      {/* Régimen de Licencias Docentes — Decreto Acuerdo N° 1092 (Acordeón Bento) */}
+      <Card>
+        <div 
+          onClick={() => setIsLicenciasOpen(!isLicenciasOpen)}
+          className={`flex items-center justify-between cursor-pointer select-none transition-all ${
+            isLicenciasOpen ? 'pb-3 mb-4 border-b border-surface-border' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-text-primary">
+                  Régimen de Licencias Docentes — Decreto Acuerdo N° 1092
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                  Catamarca
+                </span>
+              </div>
+              <p className="text-xs text-text-muted mt-0.5 truncate">
+                Ministerio de Educación, Ciencia y Tecnología • Tabla oficial de justificaciones, licencias y franquicias
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsLicenciasOpen(!isLicenciasOpen);
+            }}
+            aria-label={isLicenciasOpen ? "Colapsar sección" : "Desplegar sección"}
+            className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer shrink-0 active:scale-95 shadow-xs"
+          >
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
+                isLicenciasOpen ? 'rotate-180 text-primary' : 'rotate-0 text-text-muted'
+              }`}
+            />
+          </button>
+        </div>
+
+        {isLicenciasOpen && (
+          <div className="pt-2 animate-in fade-in duration-200">
+            <LicenciasDecreto1092Table compact={false} />
+          </div>
+        )}
+      </Card>
+
       {/* Bottom Save Bar */}
       <div className="flex justify-end items-center gap-3 pt-4">
         <Button
@@ -851,16 +1008,17 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
           loading={loading}
           size="lg"
         >
-          Guardar Cambios de Configuración
+          Guardar Cambios
         </Button>
       </div>
 
-      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) con Ctrl + S */}
+      {/* Botón Flotante de Guardado Rápido (Quick Action FAB) visible solo cuando hay cambios pendientes */}
       <QuickSaveFAB
         onSave={handleSaveAll}
         loading={loading}
+        visible={isDirty}
         hasChanges={isDirty}
-        tooltipText="Guardado rápido (Ctrl + S)"
+        tooltipText="Guardar Cambios (Ctrl + S)"
       />
     </form>
   );
