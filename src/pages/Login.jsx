@@ -49,6 +49,21 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [heroBgUrl, setHeroBgUrl] = useState('/brand/login-hero.png');
+
+  // Fallback reactivo si la imagen login-hero tiene extensión .webp o .jpg
+  useEffect(() => {
+    const testImg = new Image();
+    testImg.src = '/brand/login-hero.png';
+    testImg.onerror = () => {
+      const testWebp = new Image();
+      testWebp.src = '/brand/login-hero.webp';
+      testWebp.onload = () => setHeroBgUrl('/brand/login-hero.webp');
+      testWebp.onerror = () => {
+        setHeroBgUrl('/brand/login-hero.jpg');
+      };
+    };
+  }, []);
 
   // Notificar al usuario si la sesión anterior caducó por seguridad
   useEffect(() => {
@@ -335,52 +350,48 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ===================================================================
-          COLUMNA DERECHA: PANEL DE IDENTIDAD KORUM (SPLIT-SCREEN)
-          =================================================================== */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-[#0F172A] relative overflow-hidden border-l border-slate-800/80">
-        {/* Fondo con retícula matemática sutil */}
-        <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] opacity-40 pointer-events-none" />
+      {/* ========================================================= */}
+      {/* COLUMNA DERECHA: PANEL INMERSIVO KORUM (FULL-BLEED BACKGROUND) */}
+      {/* ========================================================= */}
+      <div className="relative hidden lg:flex flex-col justify-between p-10 xl:p-14 overflow-hidden border-l border-slate-800/80 bg-[#080C14]">
+        
+        {/* 1. Imagen de Fondo a Pantalla Completa (Cubre el 100% del contenedor) */}
+        <div 
+          className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-1000 ease-out hover:scale-105"
+          style={{ backgroundImage: `url('${heroBgUrl}')` }}
+        />
 
-        {/* Resplandor esmeralda superior */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+        {/* 2. Filtro / Overlay de Gradiente para Garantizar Contraste y Fusión */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#080C14] via-[#080C14]/40 to-[#080C14]/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-[#080C14]/70 pointer-events-none" />
 
-        {/* Resplandor inferior secundario */}
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Cabecera del panel derecho */}
+        {/* 3. Badge Institucional Superior (Montado sobre z-10) */}
         <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <KorumIsotypeSvg className="w-9 h-9" />
-            <span className="text-white font-bold tracking-tight text-lg">Korum</span>
+          <div className="flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/60 shadow-lg">
+            <img src="/dashboard.ico" alt="Korum" className="w-5 h-5 rounded-md" />
+            <span className="text-xs font-mono font-medium text-slate-200 tracking-wider uppercase">
+              Korum Suite Académica
+            </span>
           </div>
-          <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-medium">
-            Sistema Académico Oficial
+          <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-md">
+            v2.6 Operativa
           </span>
         </div>
 
-        {/* Centro: Imagen oficial Korum Hero con resplandor esmeralda */}
-        <div className="relative z-10 max-w-lg mx-auto w-full my-auto">
-          <div className="relative w-full max-w-lg mx-auto flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <img 
-              src="/brand/login-hero.png" 
-              alt="Korum Academic Suite" 
-              className="w-full h-auto max-h-[480px] object-contain rounded-2xl shadow-2xl border border-slate-700/60 transition-transform duration-500 hover:scale-[1.02] relative z-10"
-              onError={(e) => {
-                // Fallback por si la imagen tiene extensión .jpg
-                if (!e.target.src.endsWith('.jpg')) e.target.src = '/brand/login-hero.jpg';
-              }}
-            />
+        {/* 4. Cita / Manifiesto Institucional Inferior (Montado sobre z-10) */}
+        <div className="relative z-10 max-w-lg">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Rigor Reglamentario & Exactitud Algorítmica
           </div>
-        </div>
-
-        {/* Pie: Texto institucional obligatorio */}
-        <div className="relative z-10 pt-6 border-t border-slate-800/80">
-          <p className="text-sm font-medium text-slate-300 tracking-wide text-center">
-            Certeza matemática, actas reglamentarias y transparencia en cada cátedra.
+          <h2 className="text-2xl xl:text-3xl font-bold text-white tracking-tight leading-snug drop-shadow-md">
+            Certeza matemática, actas oficiales y transparencia en cada cátedra.
+          </h2>
+          <p className="text-xs xl:text-sm text-slate-300 mt-2.5 leading-relaxed drop-shadow">
+            Plataforma de gestión docente integral con cálculo automatizado de regularidades, actas volantes de examen y portal de consulta directa por DNI.
           </p>
         </div>
+
       </div>
     </div>
   );
