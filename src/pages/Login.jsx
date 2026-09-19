@@ -83,6 +83,21 @@ export default function Login() {
     }
   }, [user, navigate]);
 
+  // Capturar errores devueltos por Supabase OAuth en el hash o query params
+  useEffect(() => {
+    try {
+      const hash = window.location.hash;
+      const search = window.location.search;
+      if (hash.includes('error=') || search.includes('error=')) {
+        const params = new URLSearchParams(hash.startsWith('#') ? hash.substring(1) : search);
+        const errDesc = params.get('error_description') || params.get('error');
+        if (errDesc) {
+          setErrorMsg(decodeURIComponent(errDesc.replace(/\+/g, ' ')));
+        }
+      }
+    } catch (_) {}
+  }, []);
+
   const handleGoogleSignIn = async () => {
     setErrorMsg('');
     try {
