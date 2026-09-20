@@ -3,6 +3,7 @@ import { X, ArrowRight, ArrowLeft, Check, Sparkles } from 'lucide-react';
 import { OnboardingStepIllustration, KorumIsotypeSvg } from '../common/BrandIllustrations';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { toast } from 'sonner';
 
 const STEPS_DATA = [
@@ -27,12 +28,12 @@ const STEPS_DATA = [
 ];
 
 export default function OnboardingModal({ forceOpen = false, onClose = null }) {
-  const { catedras, loading, setOpenNewCatedraModal } = useApp();
-  const { user } = useAuth();
+  const { catedras, loading: appLoading, setOpenNewCatedraModal } = useApp();
+  const { user, loading: authLoading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Apertura automática si el usuario no tiene cátedras y no ha completado el onboarding
+  // Apertura defensiva: SOLO para usuarios realmente nuevos que ingresan por primera vez
   useEffect(() => {
     if (forceOpen) {
       setIsOpen(true);
@@ -40,32 +41,71 @@ export default function OnboardingModal({ forceOpen = false, onClose = null }) {
       return;
     }
 
-    if (!loading && user) {
-      const onboardingCompleted = localStorage.getItem('korum_onboarding_v1');
-      if (!onboardingCompleted && (!catedras || catedras.length === 0)) {
-        setIsOpen(true);
-      }
+    // 1. Diagnóstico y prevención de race-condition:
+    // No evaluar el onboarding si la sesión o las cátedras aún están cargando
+    if (appLoading || authLoading || !user) return;
+
+    // 2. Si el usuario YA TIENE cátedras registradas, marcar como completado inmediatamente en segundo plano
+    if (user.id && catedras && catedras.length > 0) {
+      localStorage.setItem(`korum_onboarding_completed_${user.id}`, 'true');
+      return;
     }
-  }, [loading, user, catedras, forceOpen]);
+
+    // 3. Lógica defensiva de usuario nuevo (deben cumplirse TODAS las condiciones juntas):
+    // - El docente tiene exactamente 0 cátedras
+    // - No existe marca en localStorage vinculada a su ID
+    // - No tiene la marca en sus metadatos de Supabase
+    // - No tiene marca previa de versión anterior
+    const localCompleted = localStorage.getItem(`korum_onboarding_completed_${user.id}`);
+    const legacyCompleted = localStorage.getItem('korum_onboarding_v1');
+    const metadataCompleted = user.user_metadata?.onboarding_completed;
+
+    if (
+      (!catedras || catedras.length === 0) &&
+      !localCompleted &&
+      !metadataCompleted &&
+      legacyCompleted !== 'completed' &&
+      legacyCompleted !== 'skipped'
+    ) {
+      setIsOpen(true);
+    }
+  }, [appLoading, authLoading, user, catedras, forceOpen]);
 
   if (!isOpen) return null;
 
   const currentData = STEPS_DATA[currentStep - 1] || STEPS_DATA[0];
 
-  const handleClose = () => {
+  /**
+   * Persistencia atómica centralizada al omitir, cerrar o completar el onboarding
+   */
+  const handleDismissOnboarding = async (reason = 'skipped') => {
+    if (user?.id) {
+      // 1. Persistencia inmediata en cliente
+      localStorage.setItem(`korum_onboarding_completed_${user.id}`, 'true');
+      localStorage.setItem('korum_onboarding_v1', reason);
+
+      // 2. Persistencia remota en Supabase User Metadata (no depende del navegador)
+      try {
+        if (isSupabaseConfigured && supabase) {
+          await supabase.auth.updateUser({
+            data: { onboarding_completed: true }
+          });
+        }
+      } catch (err) {
+        console.warn('No se pudo sincronizar el flag de onboarding en Supabase', err);
+      }
+    }
     setIsOpen(false);
     if (onClose) onClose();
   };
 
-  const handleSkip = () => {
-    localStorage.setItem('korum_onboarding_v1', 'skipped');
-    handleClose();
+  const handleSkip = async () => {
+    await handleDismissOnboarding('skipped');
     toast.info('Guía pospuesta. Puedes consultarla cuando desees desde la barra de soporte.');
   };
 
-  const handleFinish = () => {
-    localStorage.setItem('korum_onboarding_v1', 'completed');
-    handleClose();
+  const handleFinish = async () => {
+    await handleDismissOnboarding('completed');
     toast.success('¡Bienvenido a Korum! Plataforma lista para tus cátedras.', {
       duration: 4500,
       icon: '🎉'
