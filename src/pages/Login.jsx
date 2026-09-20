@@ -7,7 +7,6 @@ import {
   AlertCircle,
   Sparkles
 } from 'lucide-react';
-import { KorumIsotypeSvg } from '../components/common/BrandIllustrations';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -177,7 +176,11 @@ export default function Login() {
           {/* Encabezado con Isotipo Korum, título y subtítulo */}
           <div className="mb-8 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start">
-              <KorumIsotypeSvg className="w-10 h-10 mb-3 drop-shadow-[0_4px_12px_rgba(16,185,129,0.3)]" />
+              <img 
+                src="/dashboard.ico" 
+                alt="Korum" 
+                className="w-12 h-12 object-contain rounded-2xl mb-3 shadow-lg shadow-emerald-950/30" 
+              />
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center justify-center sm:justify-start gap-2">
               Korum

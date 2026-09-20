@@ -31,8 +31,6 @@ import {
   CornerDownLeft
 } from 'lucide-react';
 import ThemeToggle from '../common/ThemeToggle';
-import { KorumIsotypeSvg } from '../common/BrandIllustrations';
-import KorumGlobalMenu from './KorumGlobalMenu';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 function formatTimestamp(date) {
@@ -277,38 +275,35 @@ export default function Navbar({ onToggleSidebar }) {
   );
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0c1222]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs md:pl-16">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0c1222]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs">
       {/* Animated top shimmer beam */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-80 animate-pulseGlow" />
 
       <div className="w-full px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
         
-        {/* Brand & Mobile Hamburger (solo visible en pantallas móviles) */}
-        <div className="flex items-center gap-2 sm:gap-3 md:hidden">
+        {/* Brand & Mobile Drawer Button (solo visible en pantallas móviles / < md) */}
+        <div className="flex items-center gap-2.5 md:hidden">
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="p-2 -ml-1 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 touch-target-44 flex items-center justify-center cursor-pointer"
+            className="p-1 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-transform duration-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center group"
             title="Abrir menú de navegación"
             aria-label="Abrir menú"
           >
-            <Menu className="w-5 h-5" />
+            <img
+              src="/dashboard.ico"
+              alt="Korum"
+              className="w-8 h-8 object-contain rounded-xl drop-shadow-xs group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.3)] transition-all"
+            />
           </button>
 
-          <KorumGlobalMenu onToggleSidebar={onToggleSidebar} />
-
-          <div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white">
-                Korum
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono">
-                v2.0
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 -mt-0.5 font-medium">
-              Gestión Académica
-            </p>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white">
+              Korum
+            </span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono">
+              v2.0
+            </span>
           </div>
         </div>
 
@@ -316,9 +311,6 @@ export default function Navbar({ onToggleSidebar }) {
             SELECTOR DE CÁTEDRA (ESCRITORIO / TABLET)
            ========================================================================= */}
         <div className="hidden md:flex items-center gap-3">
-          {/* Disparador Menú Global Korum en Header */}
-          <KorumGlobalMenu onToggleSidebar={onToggleSidebar} />
-
           {/* Selector Rápido de Cátedra Activa */}
           <div className="relative" ref={catedraDropdownRef}>
             <button

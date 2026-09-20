@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -30,9 +30,18 @@ export default function KorumGlobalMenu({ onToggleSidebar, className = '' }) {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const menuWidth = 270;
-      const left = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
-      const top = Math.min(rect.bottom + 8, window.innerHeight - 450);
-      setCoords({ top, left });
+      // Si está anclado en el riel lateral izquierdo (pantallas >= 768px):
+      if (rect.left < 100 && window.innerWidth >= 768) {
+        // Desplegar suavemente hacia la derecha del riel lateral
+        const left = rect.right + 12;
+        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 480));
+        setCoords({ top, left });
+      } else {
+        // Modo estándar / móvil: debajo del disparador
+        const left = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
+        const top = Math.min(rect.bottom + 8, window.innerHeight - 450);
+        setCoords({ top, left });
+      }
     }
   };
 
@@ -94,19 +103,23 @@ export default function KorumGlobalMenu({ onToggleSidebar, className = '' }) {
 
   return (
     <div className={`relative inline-flex items-center justify-center ${className}`}>
-      {/* Botón Disparador Directo sin contenedores negros */}
+      {/* Botón Disparador Directo Limpio y Transparente Menú Korum */}
       <button
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className="relative p-0 m-0 bg-transparent border-0 rounded-2xl transition-transform duration-200 hover:scale-105 active:scale-95 focus:outline-none cursor-pointer flex items-center justify-center group"
+        onContextMenu={(e) => {
+          e.preventDefault();
+          handleToggle();
+        }}
+        className="relative p-0 m-0 w-10 h-10 rounded-2xl flex items-center justify-center transition-transform duration-200 hover:scale-105 active:scale-95 focus:outline-none cursor-pointer group"
         title="Menú Korum"
         aria-label="Menú principal Korum"
       >
         <img
           src="/dashboard.ico"
           alt="Korum"
-          className="w-9 h-9 object-contain rounded-2xl shadow-sm group-hover:shadow-emerald-500/20"
+          className="w-full h-full object-contain rounded-2xl drop-shadow-md group-hover:drop-shadow-[0_0_12px_rgba(16,185,129,0.3)] transition-all"
         />
       </button>
 

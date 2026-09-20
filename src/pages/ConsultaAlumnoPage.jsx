@@ -17,7 +17,6 @@ import {
   Lock
 } from 'lucide-react';
 import ThemeToggle from '../components/common/ThemeToggle';
-import { KorumIsotypeSvg } from '../components/common/BrandIllustrations';
 import { 
   getCatedraPortalConfig, 
   consultarEstadoAlumno, 
@@ -139,7 +138,7 @@ export default function ConsultaAlumnoPage() {
           <div className="relative">
             <div className="w-14 h-14 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <KorumIsotypeSvg className="w-7 h-7" />
+              <img src="/dashboard.ico" alt="Korum" className="w-7 h-7 object-contain rounded-xl" />
             </div>
           </div>
           <div>
@@ -199,7 +198,7 @@ export default function ConsultaAlumnoPage() {
       <header className="w-full bg-white/80 dark:bg-[#080C14]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <KorumIsotypeSvg className="w-8 h-8 rounded-xl" />
+            <img src="/dashboard.ico" alt="Korum" className="w-8 h-8 object-contain rounded-xl drop-shadow-xs" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">

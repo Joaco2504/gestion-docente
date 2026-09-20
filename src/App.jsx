@@ -14,11 +14,9 @@ import RouteLoadingSpinner from './components/common/RouteLoadingSpinner';
 
 // Pages críticas de inicio (carga síncrona)
 import Login from './pages/Login';
-import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import CatedraDetailPage from './pages/CatedraDetailPage';
 import OnboardingModal from './components/onboarding/OnboardingModal';
-import { KorumIsotypeSvg } from './components/common/BrandIllustrations';
 
 // Pages secundarias (Code-Splitting con React.lazy)
 const MesasExamenPage = lazy(() => import('./pages/MesasExamenPage'));
@@ -69,7 +67,7 @@ function AuthenticatedDocenteShell() {
           <div className="relative">
             <div className="w-16 h-16 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <KorumIsotypeSvg className="w-8 h-8" />
+              <img src="/dashboard.ico" alt="Korum" className="w-8 h-8 object-contain rounded-xl" />
             </div>
           </div>
           <div className="text-center">
@@ -89,23 +87,23 @@ function AuthenticatedDocenteShell() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary overflow-x-hidden">
-      {/* Top Navbar */}
-      <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+    <div className="flex h-screen w-full overflow-hidden bg-canvas dark:bg-[#080C14] text-text-primary antialiased selection:bg-primary/20 selection:text-primary">
+      {/* 1. Barra Lateral Anclada a Altura Completa */}
+      <DualSidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+      />
 
-      {/* Global Notice Banner & Maintenance Alert (Realtime Broadcast) */}
-      <GlobalNoticeBanner />
+      {/* 2. Área de Trabajo Principal (Header pegado arriba + Scroll interno) */}
+      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+        {/* Header adosado de forma continua al Sidebar, sin huecos */}
+        <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
-      {/* Main Shell */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Dual-Sidebar Navigation (Icon Rail 64px + Secondary Expandable Tree 224px) */}
-        <DualSidebar 
-          isOpen={sidebarOpen} 
-          onClose={() => setSidebarOpen(false)} 
-        />
+        {/* Global Notice Banner & Maintenance Alert (Realtime Broadcast) */}
+        <GlobalNoticeBanner />
 
-        {/* Content Area with extra bottom padding on mobile for BottomNav */}
-        <main className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 w-full max-w-full overflow-x-hidden">
+        {/* Contenido con scroll independiente */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 w-full max-w-full scrollbar-thin">
           <div className="max-w-7xl 2xl:max-w-[96rem] mx-auto space-y-6 transition-all duration-300">
             {/* Global Context Bar: Institución y Ciclo Activo */}
             <HeaderSelector />

@@ -31,7 +31,6 @@ import CustomSelect from '../common/CustomSelect';
 import AvatarPopover, { PRESET_AVATARS } from './AvatarPopover';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import { KorumIsotypeSvg } from '../common/BrandIllustrations';
 import KorumGlobalMenu from './KorumGlobalMenu';
 import { toast } from 'sonner';
 import { handleAppError } from '../../utils/handleAppError';
@@ -276,18 +275,15 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       {/* DUAL SIDEBAR CONTAINER */}
       <aside
         className={`
-          fixed md:sticky top-0 md:top-16 bottom-0 left-0 z-50 md:z-20 h-[100dvh] md:h-[calc(100vh-4rem)]
+          fixed md:relative inset-y-0 left-0 z-50 md:z-20 h-screen
           flex shrink-0 transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        {/* Espaciador de riel fijo de 64px para desktop */}
-        <div className="w-16 min-w-[4rem] shrink-0 hidden md:block pointer-events-none" aria-hidden="true" />
-
         {/* ========================================================
             1. RIEL PRINCIPAL DE ÍCONOS (SIN SCROLLBAR VERTICAL)
            ======================================================== */}
-        <div className={`w-16 min-w-[4rem] h-screen max-h-screen fixed left-0 top-0 bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-white/10 flex flex-col py-2.5 items-center z-40 select-none overflow-y-auto overflow-x-hidden scrollbar-none ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} transition-transform duration-300 ease-in-out`}>
+        <div className="w-16 min-w-[4rem] h-screen max-h-screen bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-white/10 flex flex-col py-2.5 items-center z-20 select-none overflow-y-auto overflow-x-hidden scrollbar-none shrink-0">
           
           {/* Botón Disparador Directo Limpio y Transparente Menú Korum */}
           <div className="mb-1 shrink-0">
