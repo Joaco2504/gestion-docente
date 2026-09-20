@@ -62,7 +62,7 @@ export default function HeaderSelector() {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-surface p-3 rounded-2xl border border-surface-border shadow-xs">
+    <div className="hidden md:flex flex-wrap items-center gap-2 sm:gap-3 bg-surface p-3 rounded-2xl border border-surface-border shadow-xs">
       {/* Selector de Institución */}
       <div className="flex items-center gap-1.5 flex-1 min-w-[200px] max-w-xs">
         <CustomSelect

@@ -336,25 +336,27 @@ export default function PortalSettingsModal({
                       Autogenerar slug
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 p-1.5 pl-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 shadow-2xs">
-                    <span className="text-xs font-mono text-text-secondary truncate select-all flex-1" title={portalUrl}>
-                      {portalUrl}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant={copiedType === 'link' ? 'secondary' : 'primary'}
-                      icon={copiedType === 'link' ? Check : Copy}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <LinkIcon className="w-4 h-4 text-emerald-500 shrink-0"/>
+                      <span className="text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-300 truncate" title={portalUrl}>
+                        {portalUrl}
+                      </span>
+                    </div>
+                    <button 
+                      type="button"
                       onClick={handleCopyLink}
-                      className="text-xs font-semibold rounded-xl px-3 shrink-0 cursor-pointer"
+                      className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shadow-sm transition-all active:scale-95 cursor-pointer"
                     >
-                      {copiedType === 'link' ? 'Copiado' : 'Copiar Enlace'}
-                    </Button>
+                      {copiedType === 'link' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5"/>}
+                      <span>{copiedType === 'link' ? 'Copiado' : 'Copiar'}</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Fila del Alias de Cátedra */}
-                <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-slate-100/70 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5">
-                  <div className="flex items-center gap-2 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0">
                       Alias:
                     </span>
@@ -363,19 +365,18 @@ export default function PortalSettingsModal({
                       value={alias}
                       onChange={(e) => setAlias(slugifyCatedra(e.target.value))}
                       placeholder={slugifyCatedra(catedra?.nombre || 'alias-catedra')}
-                      className="text-xs font-mono font-medium text-text-primary bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 focus:border-primary focus:outline-none px-1 py-0.5 max-w-[200px] truncate"
+                      className="text-xs font-mono font-medium text-text-primary bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 focus:border-primary focus:outline-none px-1 py-0.5 w-full min-w-0 truncate"
                       title="Haz clic para personalizar el alias"
                     />
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    icon={copiedType === 'alias' ? Check : Copy}
+                  <button 
+                    type="button"
                     onClick={handleCopyAlias}
-                    className="text-[11px] font-medium py-1 px-2.5 rounded-xl shrink-0 cursor-pointer text-text-secondary hover:text-primary border-slate-200 dark:border-white/10"
+                    className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300/80 dark:border-slate-700 text-xs font-medium shadow-xs hover:border-emerald-500 transition-all active:scale-95 cursor-pointer"
                   >
-                    {copiedType === 'alias' ? 'Alias Copiado' : 'Copiar Alias'}
-                  </Button>
+                    {copiedType === 'alias' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-400"/>}
+                    <span>{copiedType === 'alias' ? 'Alias Copiado' : 'Copiar Alias'}</span>
+                  </button>
                 </div>
 
                 {/* Botones de Difusión WhatsApp y QR */}

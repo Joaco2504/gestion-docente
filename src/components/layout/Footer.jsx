@@ -70,10 +70,10 @@ export default function Footer() {
                 window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
                 document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
               }}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-surface-hover hover:bg-surface border border-surface-border text-text-primary text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300/60 dark:border-slate-700/60 text-xs sm:text-sm font-medium transition-all shadow-sm cursor-pointer active:scale-95"
             >
-              <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>📅 Ver Mesas y Calendario</span>
+              <Calendar className="w-4 h-4 text-emerald-500" />
+              <span>Ver Mesas y Calendario</span>
             </button>
           </div>
         </div>

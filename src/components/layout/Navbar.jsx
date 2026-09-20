@@ -30,7 +30,8 @@ import {
   User,
   CornerDownLeft
 } from 'lucide-react';
-import ThemeToggle from '../common/ThemeToggle';
+import SunMoonThemeToggle from '../common/SunMoonThemeToggle';
+import { useTheme } from '../../context/ThemeContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 function formatTimestamp(date) {
@@ -51,6 +52,7 @@ export default function Navbar({ onToggleSidebar }) {
   const location = useLocation();
   const { user, esSuperadmin } = useAuth();
   const { catedras } = useApp();
+  const { isDark, toggleTheme } = useTheme();
   const { 
     notificaciones, 
     unreadCount, 
@@ -406,8 +408,8 @@ export default function Navbar({ onToggleSidebar }) {
             </span>
           </div>
 
-          {/* Botón de Tema (Claro / Oscuro) */}
-          <ThemeToggle />
+          {/* Botón de Tema (Sol / Luna con máscara SVG) */}
+          <SunMoonThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
           {/* Notificaciones con Campana */}
           <div className="relative" ref={notifRef}>

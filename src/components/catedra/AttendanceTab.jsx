@@ -31,7 +31,7 @@ import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
-import ExpandableSearch from '../common/ExpandableSearch';
+import AnimatedSearchBar from '../common/AnimatedSearchBar';
 import EditClassModal from './EditClassModal';
 import ConfirmDeleteClassModal from './ConfirmDeleteClassModal';
 import QuickSaveFAB from '../common/QuickSaveFAB';
@@ -239,7 +239,8 @@ const sanitizeAttendancePayload = (itemsToSave, fallbackClaseId = null) => {
 export default function AttendanceTab({
   catedraId,
   catedraName,
-  cursadaFinalizada = false
+  cursadaFinalizada = false,
+  onNavigateToLibroTemas
 }) {
   const { user, isDemo } = useAuth();
   
@@ -332,7 +333,41 @@ export default function AttendanceTab({
 
   // Estados de Búsqueda Rápida y Filtros de Asistencia
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
-  const [attendanceFilter, setAttendanceFilter] = useState('TODOS'); // 'TODOS' | 'AUSENTES' | 'RIESGO'
+  const [attendanceFilter, setAttendanceFilter] = useState('TODOS'); // 'TODOS' | 'AUSENTES' | 'RIESGO' | 'AMBAR' | 'VERDE'
+
+  // Resumen de alumnos por nivel del Semáforo de Riesgo RAM
+  const riskCounts = React.useMemo(() => {
+    let verde = 0;
+    let ambar = 0;
+    let critico = 0;
+    (estudiantes ?? []).forEach(est => {
+      const risk = studentRiskMap.get(est.id);
+      const level = risk?.level;
+      if (level === 'RAM_RISK' || level === 'RED') {
+        critico++;
+      } else if (level === 'AMBER') {
+        ambar++;
+      } else {
+        verde++;
+      }
+    });
+    return { verde, ambar, critico };
+  }, [estudiantes, studentRiskMap]);
+
+  // Avance del Programa Didáctico (Unidades dictadas)
+  const programaMetrics = React.useMemo(() => {
+    const unidadesDictadasIds = new Set((clases ?? []).filter(c => c.unidad_id).map(c => c.unidad_id));
+    const totalUnidades = unidades.length;
+    const dictadasCount = unidadesDictadasIds.size;
+    const progresoPct = totalUnidades > 0 ? Math.min(100, Math.round((dictadasCount / totalUnidades) * 100)) : 0;
+    const currentUnit = (unidades ?? []).find(u => u.id === activeClase?.unidad_id) || unidades[0];
+    return {
+      totalUnidades,
+      dictadasCount,
+      progresoPct,
+      currentUnit
+    };
+  }, [clases, unidades, activeClase]);
 
   // Total de alumnos en riesgo (< 75% de asistencia)
   const totalEnRiesgo = React.useMemo(() => {
@@ -357,13 +392,20 @@ export default function AttendanceTab({
 
     return (estudiantes ?? []).filter(est => {
       if (!est) return false;
-      // 1. Filtro por píldoras
+      // 1. Filtro por píldoras y categorías del Semáforo RAM
       if (attendanceFilter === 'AUSENTES') {
         const estado = getEstado(est.id);
         if (estado !== 'AUSENTE') return false;
       } else if (attendanceFilter === 'RIESGO') {
+        const risk = studentRiskMap.get(est.id);
         const asistPct = studentStatsMap.get(est.id) ?? 100;
-        if (asistPct >= 75) return false;
+        if (risk?.level !== 'RAM_RISK' && risk?.level !== 'RED' && asistPct >= 70) return false;
+      } else if (attendanceFilter === 'AMBAR') {
+        const risk = studentRiskMap.get(est.id);
+        if (risk?.level !== 'AMBER') return false;
+      } else if (attendanceFilter === 'VERDE') {
+        const risk = studentRiskMap.get(est.id);
+        if (risk?.level !== 'GREEN' && risk?.level !== undefined) return false;
       }
 
       // 2. Filtro por texto si hay búsqueda
@@ -385,7 +427,7 @@ export default function AttendanceTab({
 
       return matchApellido || matchNombre || matchFullName || matchDni;
     });
-  }, [estudiantes, studentSearchQuery, attendanceFilter, asistencias, activeClase, studentStatsMap]);
+  }, [estudiantes, studentSearchQuery, attendanceFilter, asistencias, activeClase, studentStatsMap, studentRiskMap]);
 
   // Estados Modal Edición Rápida y Eliminación Segura de Clase
   const [isEditClassModalOpen, setIsEditClassModalOpen] = useState(false);
@@ -1241,400 +1283,620 @@ export default function AttendanceTab({
         </div>
       )}
 
-      {/* Top selector & action bar (Sticky on mobile for quick access while scrolling) */}
-      <div className="backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm sticky top-0 sm:static z-20 transition-all space-y-3">
-        {/* Fila 1: Sesión de Clase, Selector con botón Editar Tema, y Badge de Edición Activa */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">
-                Sesión de Clase {activeClase ? `• ${formatFechaDMY(activeClase.fecha)}` : ''}
-              </label>
-              {clases.length === 0 ? (
-                <span className="text-xs font-medium text-text-muted">No hay clases registradas aún. Pulsa [+ Clase] para iniciar.</span>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <CustomSelect
-                    value={activeClase?.id || ''}
-                    onChange={(val) => setSelectedClaseId(typeof val === 'object' ? val.target.value : val)}
-                    options={(clases ?? []).map(c => {
-                      const hasAbsence = (inasistenciasDocente ?? []).some(i => i?.fecha === c?.fecha);
-                      const matchedUnit = (unidades ?? []).find(u => u?.id === c?.unidad_id);
-                      const unitNum = c?.unidades_tematicas?.numero ?? matchedUnit?.numero ?? c?.unidad_numero ?? null;
-                      const unitPrefix = unitNum ? `[U${unitNum}] ` : '';
-                      return {
-                        value: c.id,
-                        label: `${formatFechaDMY(c.fecha)} — ${unitPrefix}${c.tema || 'Sin tema especificado'}`,
-                        badge: hasAbsence ? 'Licencia' : unitNum ? `U${unitNum}` : undefined
-                      };
-                    })}
-                    placeholder="Seleccionar clase..."
-                    buttonClassName="py-1 px-2 text-xs sm:text-sm font-semibold border-transparent hover:border-surface-border bg-transparent shadow-none flex-1"
-                  />
-                  {activeClase && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={Pencil}
-                      onClick={handleOpenEditClass}
-                      disabled={cursadaFinalizada}
-                      title="Editar fecha, tema y detalles de la clase"
-                      className="shrink-0 text-xs px-2.5 py-1.5 touch-target-44"
-                    >
-                      <span className="hidden sm:inline">Editar Tema</span>
-                    </Button>
+      {/* ========================================================================= */}
+      {/* LAYOUT PRINCIPAL BENTO ASIMÉTRICO 7 / 5                                    */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* ========================================================================= */}
+        {/* COLUMNA IZQUIERDA (lg:col-span-7): TOMA Y REGISTRO DE ASISTENCIA            */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-5">
+            {/* 1. Cabecera de la Sesión de Asistencia Actual */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                      Sesión de Asistencia Actual
+                    </h2>
+                  </div>
+                  {activeClase ? (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      {formatFechaDMY(activeClase.fecha)} — {activeClase.tema || 'Clase ordinaria'}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic mt-0.5">
+                      No hay clases registradas
+                    </p>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Badge visible con la fecha de la clase que se está editando activamente */}
-          {activeClase && (
-            <div className="self-start sm:self-center inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold font-mono">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span>Modificando asistencia del {formatFechaDMY(activeClase.fecha)}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Fila 2: Grilla Flexible de Botones de Asistencia */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full mt-3">
-          <Button
-            variant="primary"
-            size="sm"
-            icon={CheckCheck}
-            onClick={handleMarcarTodosPresentes}
-            disabled={cursadaFinalizada || !activeClase || estudiantes.length === 0}
-            className="w-full text-xs font-bold shadow-xs min-h-[44px] touch-target-44"
-            title="Marcar todos los alumnos como presentes en esta fecha"
-          >
-            Todos
-          </Button>
-
-          <Button
-            variant={inasistenciaActual ? 'secondary' : 'outline'}
-            size="sm"
-            icon={ShieldAlert}
-            type="button"
-            disabled={cursadaFinalizada}
-            onClick={() => {
-              setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
-              if (inasistenciaActual) {
-                setTipoInasistencia(inasistenciaActual.tipo || 'LICENCIA');
-                setArticuloLicencia(inasistenciaActual.articulo_licencia || 'Art. 17° - Afecciones Comunes de Corto Tratamiento');
-                setObsInasistencia(inasistenciaActual.observaciones || '');
-              } else {
-                setTipoInasistencia('LICENCIA');
-                setArticuloLicencia('Art. 17° - Afecciones Comunes de Corto Tratamiento');
-                setOtroArticulo('');
-                setObsInasistencia('');
-              }
-              setIsInasistenciaModalOpen(true);
-            }}
-            className="w-full text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
-            title="Registrar o editar inasistencia / licencia del docente"
-          >
-            {inasistenciaActual ? 'Licencia' : 'Falta Docente'}
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            icon={FileSpreadsheet}
-            onClick={handleExportExcel}
-            disabled={estudiantes.length === 0}
-            className="w-full text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
-            title="Exportar sábana completa de asistencias a Excel (.xlsx)"
-          >
-            Excel
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            icon={Printer}
-            onClick={() => setIsPrintModalOpen(true)}
-            disabled={estudiantes.length === 0}
-            className="w-full text-xs border-primary/30 text-primary hover:bg-primary/10 min-h-[44px] touch-target-44 whitespace-nowrap shrink-0"
-            title="Abrir visor de impresión y PDF oficial de la planilla de asistencias"
-          >
-            PDF
-          </Button>
-
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Plus}
-            onClick={() => setIsModalOpen(true)}
-            disabled={cursadaFinalizada}
-            className="w-full text-xs min-h-[44px] touch-target-44 font-semibold whitespace-nowrap shrink-0"
-            title="Crear nueva sesión de clase"
-          >
-            Clase
-          </Button>
-        </div>
-      </div>
-
-      {/* Banner de Inasistencia Docente si aplica a esta clase */}
-      {activeClase && inasistenciaActual && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="warning" className="font-bold text-xs">
-                  {inasistenciaActual.tipo === 'LICENCIA'
-                    ? `Licencia Docente — ${inasistenciaActual.articulo_licencia || 'Artículo'}`
-                    : 'Docente Ausente — Razones Particulares'}
-                </Badge>
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
-                  (No computa como falta para los alumnos)
-                </span>
               </div>
-              <p className="text-xs text-text-muted mt-1">
-                {inasistenciaActual.observaciones 
-                  ? inasistenciaActual.observaciones 
-                  : 'Esta clase está contemplada como excepción y se descuenta del total de clases para no penalizar a los estudiantes.'}
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-center">
-            <button
-              onClick={handleDeleteInasistencia}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-danger hover:bg-danger/10 border border-danger/20 transition-all cursor-pointer"
-              title="Cancelar inasistencia docente de esta fecha"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Quitar Licencia</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Attendance summary cards */}
-      {activeClase && (
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-          <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Presentes</p>
-              <p className="text-xl sm:text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                {presentesCount}
-              </p>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Check className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </Card>
-
-          <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Ausentes</p>
-              <p className="text-xl sm:text-2xl font-mono font-bold text-rose-600 dark:text-rose-400 mt-0.5">
-                {ausentesCount}
-              </p>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </Card>
-
-          <Card className="p-3 sm:p-4 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[10px] sm:text-xs font-bold uppercase text-text-muted">Presentismo</p>
-              <p className="text-xl sm:text-2xl font-mono font-bold text-primary mt-0.5">
-                {presentismoPct}%
-              </p>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center shrink-0">
-              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Students list */}
-      {estudiantes.length === 0 ? (
-        <EmptyState
-          illustration="folder"
-          title="No hay estudiantes inscriptos en esta cátedra"
-          description="Ve a la pestaña 'Alumnos' para cargar manualmente o importar la nómina de estudiantes desde Excel."
-        />
-      ) : !activeClase ? (
-        <EmptyState
-          illustration="folder"
-          title="No hay clases registradas aún"
-          description="No hay clases registradas aún. Pulsa [+ Clase] para iniciar."
-          action={
-            <Button variant="primary" size="sm" icon={Plus} onClick={() => setIsModalOpen(true)}>
-              Clase
-            </Button>
-          }
-        />
-      ) : (
-        <>
-          {/* ========================================================
-              BARRA SUPERIOR: BÚSQUEDA RÁPIDA DE ALUMNOS Y FILTROS RÁPIDOS
-             ======================================================== */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-surface border border-surface-border shadow-xs">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <ExpandableSearch
-                value={studentSearchQuery}
-                onChange={(e) => setStudentSearchQuery(e.target.value)}
-                onClear={() => setStudentSearchQuery('')}
-                placeholder="Buscar por Apellido, Nombre o DNI..."
-                widthClass="w-full sm:w-80 md:w-96"
-              />
-
-              {studentSearchQuery.trim() && (
-                <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold font-mono shrink-0 animate-fadeIn">
-                  {filteredEstudiantes.length} {filteredEstudiantes.length === 1 ? 'coincidencia' : 'coincidencias'}
-                </span>
+              {/* Badge activo de estado de edición */}
+              {activeClase && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 text-xs font-bold font-mono shrink-0 self-start sm:self-center">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Modificando asistencia del {formatFechaDMY(activeClase.fecha)}</span>
+                </div>
               )}
             </div>
 
-            {/* Píldoras de Filtro Rápido */}
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-hover/70 border border-surface-border shrink-0 overflow-x-auto">
-              <button
-                type="button"
-                onClick={() => setAttendanceFilter('TODOS')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  attendanceFilter === 'TODOS'
-                    ? 'bg-surface text-text-primary shadow-xs font-extrabold'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                <span>Todos</span>
-                <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/60 dark:bg-white/10 text-text-secondary">
-                  {estudiantes.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setAttendanceFilter('AUSENTES')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  attendanceFilter === 'AUSENTES'
-                    ? 'bg-rose-500 text-white shadow-xs font-extrabold'
-                    : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
-                }`}
-              >
-                <span>Solo Ausentes (✗)</span>
-                <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
-                  attendanceFilter === 'AUSENTES' ? 'bg-white/20 text-white' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
-                }`}>
-                  {ausentesCount}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setAttendanceFilter('RIESGO')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  attendanceFilter === 'RIESGO'
-                    ? 'bg-amber-500 text-white shadow-xs font-extrabold'
-                    : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
-                }`}
-              >
-                <span>En Riesgo (⚠️)</span>
-                <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
-                  attendanceFilter === 'RIESGO' ? 'bg-white/20 text-white' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
-                }`}>
-                  {totalEnRiesgo}
-                </span>
-              </button>
+            {/* 2. Selector de clase y Botón Editar Tema */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex-1 min-w-0">
+                {clases.length === 0 ? (
+                  <span className="text-xs font-medium text-slate-400">
+                    No hay clases registradas aún. Pulsa [+ Clase] para iniciar.
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <CustomSelect
+                      value={activeClase?.id || ''}
+                      onChange={(val) => setSelectedClaseId(typeof val === 'object' ? val.target.value : val)}
+                      options={(clases ?? []).map(c => {
+                        const hasAbsence = (inasistenciasDocente ?? []).some(i => i?.fecha === c?.fecha);
+                        const matchedUnit = (unidades ?? []).find(u => u?.id === c?.unidad_id);
+                        const unitNum = c?.unidades_tematicas?.numero ?? matchedUnit?.numero ?? c?.unidad_numero ?? null;
+                        const unitPrefix = unitNum ? `[U${unitNum}] ` : '';
+                        return {
+                          value: c.id,
+                          label: `${formatFechaDMY(c.fecha)} — ${unitPrefix}${c.tema || 'Sin tema especificado'}`,
+                          badge: hasAbsence ? 'Licencia' : unitNum ? `U${unitNum}` : undefined
+                        };
+                      })}
+                      placeholder="Seleccionar clase..."
+                      buttonClassName="py-2 px-3 text-xs sm:text-sm font-semibold border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl flex-1 shadow-2xs"
+                    />
+                    {activeClase && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={Pencil}
+                        onClick={handleOpenEditClass}
+                        disabled={cursadaFinalizada}
+                        title="Editar fecha, tema y detalles de la clase"
+                        className="shrink-0 text-xs px-3 py-2 rounded-xl"
+                      >
+                        <span className="hidden sm:inline">Editar Tema</span>
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {filteredEstudiantes.length === 0 ? (
-            <div className="py-12 px-4 text-center rounded-2xl border border-dashed border-surface-border bg-surface/40 space-y-3">
-              <Users className="w-8 h-8 text-text-muted/40 mx-auto" />
-              <p className="text-sm font-semibold text-text-primary">
-                No se encontraron alumnos con los filtros seleccionados
-              </p>
-              <p className="text-xs text-text-muted">
-                Prueba cambiando el término de búsqueda o selecciona "Todos".
-              </p>
+            {/* 3. Fila de Acciones Rápidas */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button
-                variant="outline"
+                variant="primary"
                 size="sm"
-                onClick={() => {
-                  setStudentSearchQuery('');
-                  setAttendanceFilter('TODOS');
-                }}
-                className="text-xs mx-auto"
+                icon={CheckCheck}
+                onClick={handleMarcarTodosPresentes}
+                disabled={cursadaFinalizada || !activeClase || estudiantes.length === 0}
+                className="text-xs font-bold shadow-xs px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                title="Marcar todos los alumnos como presentes en esta fecha"
               >
-                Limpiar Filtros
+                Todos Presentes
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                disabled={cursadaFinalizada}
+                className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/60 font-semibold text-xs shadow-2xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Crear nueva sesión de clase"
+              >
+                <Plus className="w-3.5 h-3.5 text-emerald-500" />
+                <span>+ Clase</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={estudiantes.length === 0}
+                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/60 font-medium text-xs shadow-2xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Exportar asistencias a Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsPrintModalOpen(true)}
+                disabled={estudiantes.length === 0}
+                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/60 font-medium text-xs shadow-2xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Imprimir / Exportar a PDF"
+              >
+                <Printer className="w-3.5 h-3.5 text-emerald-500" />
+                <span>PDF</span>
+              </button>
+
+              <Button
+                variant={inasistenciaActual ? 'secondary' : 'outline'}
+                size="sm"
+                icon={ShieldAlert}
+                type="button"
+                disabled={cursadaFinalizada}
+                onClick={() => {
+                  setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
+                  if (inasistenciaActual) {
+                    setTipoInasistencia(inasistenciaActual.tipo || 'LICENCIA');
+                    setArticuloLicencia(inasistenciaActual.articulo_licencia || 'Art. 17° - Afecciones Comunes de Corto Tratamiento');
+                    setObsInasistencia(inasistenciaActual.observaciones || '');
+                  } else {
+                    setTipoInasistencia('LICENCIA');
+                    setArticuloLicencia('Art. 17° - Afecciones Comunes de Corto Tratamiento');
+                    setOtroArticulo('');
+                    setObsInasistencia('');
+                  }
+                  setIsInasistenciaModalOpen(true);
+                }}
+                className="text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 px-3 py-2 rounded-xl whitespace-nowrap ml-auto"
+                title="Registrar o editar licencia del docente"
+              >
+                {inasistenciaActual ? 'Licencia' : 'Falta Docente'}
               </Button>
             </div>
-          ) : (
-            <>
-              {/* ========================================================
-                  VISTA MÓVIL: TARJETAS RÁPIDAS TÁCTILES TOUCH (< 768px)
-                 ======================================================== */}
-              <div className="block md:hidden space-y-3">
-                <div className="flex items-center justify-between px-1 text-xs text-text-muted">
-                  <span className="font-semibold uppercase tracking-wider text-[11px]">
-                    Mostrando {filteredEstudiantes.length} de {estudiantes.length} Alumnos
-                  </span>
-                  <span className="font-mono text-[11px]">
-                    {presentesCount} P / {ausentesCount} A
-                  </span>
-                </div>
 
-                {filteredEstudiantes.map((est) => (
-                  <AttendanceMobileCard
-                    key={est.id}
-                    est={est}
-                    estado={getEstado(est.id)}
-                    isFlashing={flashingStudentId === est.id || flashingStudentId === 'ALL'}
-                    asistPct={studentStatsMap.get(est.id) ?? 100}
-                    risk={studentRiskMap.get(est.id)}
-                    onToggle={handleToggle}
-                  />
-                ))}
+            {/* Banner de Licencia Docente si aplica */}
+            {activeClase && inasistenciaActual && (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-2.5">
+                  <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <div>
+                    <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                      {inasistenciaActual.tipo === 'LICENCIA'
+                        ? `Licencia Docente: ${inasistenciaActual.articulo_licencia || 'Artículo oficial'}`
+                        : 'Docente Ausente (Razones Particulares)'}
+                    </span>
+                    <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
+                      No computa como falta para los alumnos en esta fecha.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDeleteInasistencia}
+                  className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-semibold self-end sm:self-center cursor-pointer"
+                >
+                  Quitar Licencia
+                </button>
+              </div>
+            )}
+
+            {/* Fila de métricas rápidas de la sesión */}
+            {activeClase && (
+              <div className="flex flex-wrap items-center gap-2 text-xs py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+                <span className="font-semibold">
+                  Presentes: <strong className="text-emerald-600 dark:text-emerald-400">{presentesCount}</strong>
+                </span>
+                <span className="text-slate-300 dark:text-slate-700">·</span>
+                <span className="font-semibold">
+                  Ausentes: <strong className="text-rose-600 dark:text-rose-400">{ausentesCount}</strong>
+                </span>
+                <span className="text-slate-300 dark:text-slate-700">·</span>
+                <span className="font-semibold">
+                  Presentismo: <strong className="text-emerald-600 dark:text-emerald-400">{presentismoPct}%</strong>
+                </span>
+              </div>
+            )}
+
+            {/* 4. Barra de Búsqueda Rápida y Filtros Pills */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <AnimatedSearchBar
+                  value={studentSearchQuery}
+                  onChange={(e) => setStudentSearchQuery(e.target.value)}
+                  placeholder="Buscar por Apellido, Nombre o DNI..."
+                />
               </div>
 
-              {/* ========================================================
-                  VISTA DESKTOP / TABLET (>= 768px): TABLA TRADICIONAL
-                 ======================================================== */}
-              <div className="hidden md:block backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 overflow-hidden shadow-xs">
-                <div className="overflow-x-auto touch-pan-x select-none scrollbar-thin max-h-[75vh]">
-                  <table className="w-full text-left text-xs sm:text-sm">
-                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary font-semibold border-b border-slate-200/80 dark:border-white/10">
-                      <tr>
-                        <th className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-slate-200/80 dark:border-white/10 min-w-[200px] sm:min-w-[240px]">
-                          Estudiante / DNI
-                        </th>
-                        <th className="px-3 sm:px-4 py-3 text-center min-w-[240px]">Estado de Asistencia</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
-                      {filteredEstudiantes.map((est, index) => (
-                        <AttendanceRow
-                          key={est.id}
-                          est={est}
-                          index={index}
-                          estado={getEstado(est.id)}
-                          isFlashing={flashingStudentId === est.id || flashingStudentId === 'ALL'}
-                          risk={studentRiskMap.get(est.id)}
-                          onToggle={handleToggle}
+              {/* Filtros rápidos tipo pill */}
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shrink-0 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setAttendanceFilter('TODOS')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    attendanceFilter === 'TODOS'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span>Todos</span>
+                  <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/60 dark:bg-white/10">
+                    {estudiantes.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAttendanceFilter('AUSENTES')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    attendanceFilter === 'AUSENTES'
+                      ? 'bg-rose-500 text-white shadow-xs'
+                      : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
+                  }`}
+                >
+                  <span>Ausentes (✗)</span>
+                  <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
+                    attendanceFilter === 'AUSENTES' ? 'bg-white/20 text-white' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                  }`}>
+                    {ausentesCount}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAttendanceFilter('RIESGO')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    attendanceFilter === 'RIESGO'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                  }`}
+                >
+                  <span>Riesgo (⚠️)</span>
+                  <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
+                    attendanceFilter === 'RIESGO' ? 'bg-white/20 text-white' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                  }`}>
+                    {riskCounts.critico + riskCounts.ambar}
+                  </span>
+                </button>
+
+                {(attendanceFilter === 'VERDE' || attendanceFilter === 'AMBAR') && (
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceFilter('TODOS')}
+                    className="px-2 py-1 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300"
+                    title="Limpiar filtro semáforo"
+                  >
+                    <span>Filtro: {attendanceFilter} ✕</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 5. Matriz / Tabla de Alumnos */}
+            {estudiantes.length === 0 ? (
+              <EmptyState
+                illustration="folder"
+                title="No hay estudiantes inscriptos en esta cátedra"
+                description="Ve a la pestaña 'Alumnos' para cargar manualmente o importar la nómina de estudiantes desde Excel."
+              />
+            ) : !activeClase ? (
+              <EmptyState
+                illustration="folder"
+                title="No hay clases registradas aún"
+                description="Pulsa [+ Clase] para registrar la primera sesión de cursado."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Clase</span>
+                  </button>
+                }
+              />
+            ) : filteredEstudiantes.length === 0 ? (
+              <div className="py-12 px-4 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
+                <Users className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  No se encontraron alumnos con el filtro actual
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStudentSearchQuery('');
+                    setAttendanceFilter('TODOS');
+                  }}
+                  className="text-xs mx-auto"
+                >
+                  Restablecer Filtros
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Vista Móvil Touch (< 768px) */}
+                <div className="block md:hidden space-y-3">
+                  <div className="flex items-center justify-between px-1 text-xs text-slate-500">
+                    <span className="font-semibold uppercase tracking-wider text-[11px]">
+                      {filteredEstudiantes.length} de {estudiantes.length} Alumnos
+                    </span>
+                    <span className="font-mono text-[11px] font-bold">
+                      {presentesCount} P / {ausentesCount} A ({presentismoPct}%)
+                    </span>
+                  </div>
+
+                  {filteredEstudiantes.map((est) => (
+                    <AttendanceMobileCard
+                      key={est.id}
+                      est={est}
+                      estado={getEstado(est.id)}
+                      isFlashing={flashingStudentId === est.id || flashingStudentId === 'ALL'}
+                      asistPct={studentStatsMap.get(est.id) ?? 100}
+                      risk={studentRiskMap.get(est.id)}
+                      onToggle={handleToggle}
+                    />
+                  ))}
+                </div>
+
+                {/* Vista Desktop / Tablet (>= 768px): Tabla con Controles Binarios */}
+                <div className="hidden md:block rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto touch-pan-x select-none scrollbar-thin max-h-[60vh]">
+                    <table className="w-full text-left text-xs sm:text-sm">
+                      <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200/80 dark:border-slate-800">
+                        <tr>
+                          <th className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 px-4 py-3 border-r border-slate-200/80 dark:border-slate-800 min-w-[220px]">
+                            Estudiante / DNI
+                          </th>
+                          <th className="px-4 py-3 text-center min-w-[200px]">
+                            Asistencia
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800">
+                        {filteredEstudiantes.map((est, index) => (
+                          <AttendanceRow
+                            key={est.id}
+                            index={index}
+                            est={est}
+                            estado={getEstado(est.id)}
+                            isFlashing={flashingStudentId === est.id || flashingStudentId === 'ALL'}
+                            risk={studentRiskMap.get(est.id)}
+                            onToggle={handleToggle}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* COLUMNA DERECHA (lg:col-span-5): WIDGETS BENTO COMPACTOS APILADOS          */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-5 space-y-6">
+
+          {/* Widget 1: Avance del Programa Didáctico */}
+          <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Programa Didáctico
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {programaMetrics.dictadasCount} de {programaMetrics.totalUnidades || 0} Unidades Dictadas
+                  </p>
+                </div>
+              </div>
+
+              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                {programaMetrics.progresoPct}%
+              </span>
+            </div>
+
+            {/* Barra de progreso horizontal fina verde esmeralda */}
+            <div className="space-y-1.5">
+              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div 
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-700 ease-out"
+                  style={{ width: `${programaMetrics.progresoPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Estado de dictado actual */}
+            <div className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-xs space-y-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Dictando actualmente
+              </span>
+              <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                {programaMetrics.currentUnit 
+                  ? `Unidad ${programaMetrics.currentUnit.numero}: ${programaMetrics.currentUnit.titulo}` 
+                  : 'Sin unidad temática vinculada'}
+              </p>
+            </div>
+
+            {/* Enlace para ir al Libro de Temas */}
+            {onNavigateToLibroTemas && (
+              <button
+                type="button"
+                onClick={onNavigateToLibroTemas}
+                className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/40 hover:bg-emerald-50/30 dark:hover:bg-slate-800 text-xs font-semibold text-emerald-600 dark:text-emerald-400 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>Ver Libro de Temas completo</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            )}
+          </div>
+
+          {/* Widget 2: Alertas y Semáforo de Riesgo (Early Warning System) */}
+          <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm relative overflow-hidden space-y-4">
+            {/* Brillo ambiental sutil */}
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Semáforo de Riesgo (RAM)
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Monitoreo de asistencia y pautas de regularidad
+                </p>
+              </div>
+            </div>
+
+            {/* 3 Estados interactivos */}
+            <div className="grid grid-cols-1 gap-2.5">
+              {/* 1. Verde */}
+              <button
+                type="button"
+                onClick={() => setAttendanceFilter(attendanceFilter === 'VERDE' ? 'TODOS' : 'VERDE')}
+                className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  attendanceFilter === 'VERDE'
+                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-950 dark:text-emerald-100 shadow-2xs font-bold'
+                    : 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300'
+                }`}
+                title="Filtrar alumnos en condición regular / óptima"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="text-xs font-bold truncate">Alumnos al día (Verde)</span>
+                </div>
+                <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-lg bg-emerald-500/20">
+                  {riskCounts.verde}
+                </span>
+              </button>
+
+              {/* 2. Ámbar */}
+              <button
+                type="button"
+                onClick={() => setAttendanceFilter(attendanceFilter === 'AMBAR' ? 'TODOS' : 'AMBAR')}
+                className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  attendanceFilter === 'AMBAR'
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-950 dark:text-amber-100 shadow-2xs font-bold'
+                    : 'bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-300'
+                }`}
+                title="Filtrar alumnos en observación preventiva"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                  <span className="text-xs font-bold truncate">En observación (Ámbar)</span>
+                </div>
+                <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-lg bg-amber-500/20">
+                  {riskCounts.ambar}
+                </span>
+              </button>
+
+              {/* 3. Riesgo RAM Crítico */}
+              <button
+                type="button"
+                onClick={() => setAttendanceFilter(attendanceFilter === 'RIESGO' ? 'TODOS' : 'RIESGO')}
+                className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  attendanceFilter === 'RIESGO'
+                    ? 'bg-rose-500/20 border-rose-500 text-rose-950 dark:text-rose-100 shadow-2xs font-bold'
+                    : 'bg-rose-500/5 hover:bg-rose-500/10 border-rose-500/20 text-rose-800 dark:text-rose-300'
+                }`}
+                title="Filtrar alumnos en riesgo de no cumplir la asistencia mínima"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
+                  <span className="text-xs font-bold truncate">Riesgo RAM Crítico (Rojo)</span>
+                </div>
+                <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-lg bg-rose-500/20">
+                  {riskCounts.critico}
+                </span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">
+              Haz clic en cualquier estado para filtrar la nómina de la izquierda.
+            </p>
+          </div>
+
+          {/* Widget 3: Sesiones de Clase / Historial de Clases */}
+          <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <CalendarIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Historial de Clases
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {clases.length} sesiones registradas
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                disabled={cursadaFinalizada}
+                className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                title="Nueva clase"
+              >
+                <Plus className="w-4 h-4 text-emerald-500" />
+              </button>
+            </div>
+
+            {/* Lista cronológica con selección rápida */}
+            <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+              {clases.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-4 text-center">
+                  No hay clases registradas aún.
+                </p>
+              ) : (
+                clases.map((c) => {
+                  const isActive = c.id === activeClase?.id;
+                  const hasAbsence = (inasistenciasDocente ?? []).some(i => i?.fecha === c?.fecha);
+                  const matchedUnit = (unidades ?? []).find(u => u?.id === c?.unidad_id);
+                  const unitNum = c?.unidades_tematicas?.numero ?? matchedUnit?.numero ?? c?.unidad_numero ?? null;
+
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedClaseId(c.id)}
+                      className={`w-full p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                        isActive
+                          ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-500/40 text-emerald-950 dark:text-emerald-200 shadow-2xs font-semibold'
+                          : 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span 
+                          className={`w-2 h-2 rounded-full shrink-0 ${
+                            hasAbsence ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`} 
                         />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-        </>
-      )}
+                        <span className="font-mono text-xs font-bold shrink-0">
+                          {formatFechaDMY(c.fecha)}
+                        </span>
+                        {unitNum && (
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0">
+                            U{unitNum}
+                          </span>
+                        )}
+                        <span className="text-xs truncate text-slate-600 dark:text-slate-300">
+                          {c.tema || 'Clase ordinaria'}
+                        </span>
+                      </div>
+
+                      {isActive && (
+                        <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded shrink-0">
+                          Activa
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
 
 
       {/* Modal / Bottom Sheet Nueva Clase */}

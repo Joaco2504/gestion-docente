@@ -8,6 +8,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import ThemeToggle from '../components/common/ThemeToggle';
+import WaveAnimatedInput from '../components/auth/WaveAnimatedInput';
 import { useAuth } from '../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { handleAppError } from '../utils/handleAppError';
@@ -218,58 +219,45 @@ export default function Login() {
             </div>
           )}
 
-          {/* Formulario de Credenciales con estilo oscuro elegante */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Formulario de Credenciales con estilo oscuro elegante y onda de letras */}
+          <form onSubmit={handleSubmit} className="space-y-2">
             {!isLogin && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Nombre y Apellido
-                </label>
-                <input
-                  type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Prof. Emilio Martínez"
-                  required
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-                />
-              </div>
+              <WaveAnimatedInput
+                label="Nombre y Apellido"
+                type="text"
+                name="nombre"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                required
+              />
             )}
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Correo Electrónico
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="docente@institucion.edu.ar"
-                required
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-              />
-            </div>
+            <WaveAnimatedInput
+              label="Correo Electrónico"
+              type="email"
+              name="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Contraseña
-                </label>
-                {isLogin && (
+            <div className="relative">
+              <WaveAnimatedInput
+                label="Contraseña"
+                type="password"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+              {isLogin && (
+                <div className="text-right -mt-2 mb-3">
                   <span className="text-[11px] text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors">
                     ¿Olvidaste tu clave?
                   </span>
-                )}
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-              />
+                </div>
+              )}
             </div>
 
             {/* Botón de acceso con estética esmeralda */}

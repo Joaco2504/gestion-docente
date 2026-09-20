@@ -418,19 +418,19 @@ export default function ResourcesTab({ catedraId, catedraName }) {
       
       {/* 1. SELECTOR SUPERIOR DE VISTA: MATERIALES VS EVALUACIONES Y PARÁMETROS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3.5 sm:p-4 rounded-2xl border border-surface-border shadow-xs">
-        <div className="flex items-center gap-2 p-1 bg-surface-hover/70 rounded-2xl border border-surface-border">
+        <div className="p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl flex items-center gap-1 border border-slate-200/60 dark:border-white/5">
           <button
             type="button"
             onClick={() => setActiveMainView('materials')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
+            className={`transition-all cursor-pointer select-none ${
               activeMainView === 'materials'
-                ? 'bg-surface text-primary shadow-xs border border-surface-border'
-                : 'text-text-muted hover:text-text-primary'
+                ? 'px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 font-medium text-xs shadow-sm flex items-center gap-2'
+                : 'px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium text-xs flex items-center gap-2'
             }`}
           >
-            <FolderOpen className="w-4 h-4 text-primary" />
+            <FolderOpen className="w-4 h-4" />
             <span>Materiales y Archivos</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-primary/10 text-primary font-mono font-bold">
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/20 font-mono text-[10px]">
               {resources.length}
             </span>
           </button>
@@ -438,33 +438,32 @@ export default function ResourcesTab({ catedraId, catedraName }) {
           <button
             type="button"
             onClick={() => setActiveMainView('evaluaciones')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
+            className={`transition-all cursor-pointer select-none ${
               activeMainView === 'evaluaciones'
-                ? 'bg-surface text-primary shadow-xs border border-surface-border'
-                : 'text-text-muted hover:text-text-primary'
+                ? 'px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 font-medium text-xs shadow-sm flex items-center gap-2'
+                : 'px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium text-xs flex items-center gap-2'
             }`}
           >
-            <SlidersHorizontal className="w-4 h-4 text-primary" />
+            <SlidersHorizontal className="w-4 h-4" />
             <span>Evaluaciones y Parámetros</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-primary/10 text-primary font-mono font-bold">
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/20 font-mono text-[10px]">
               {evaluaciones.length}
             </span>
           </button>
         </div>
 
         {activeMainView === 'materials' ? (
-          <Button 
-            variant="primary" 
-            icon={Plus} 
-            size="sm"
+          <button
+            type="button"
             onClick={() => {
               setErrorMsg('');
               setIsModalOpen(true);
             }}
-            className="text-xs font-bold shadow-xs whitespace-nowrap self-stretch sm:self-auto"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap self-stretch sm:self-auto"
           >
-            Agregar Material / Recurso
-          </Button>
+            <Plus className="w-4 h-4" />
+            <span>Agregar Material / Recurso</span>
+          </button>
         ) : (
           <div className="text-xs text-text-muted flex items-center gap-1.5 font-medium">
             <Sparkles className="w-3.5 h-3.5 text-primary" />

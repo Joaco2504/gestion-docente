@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, 
   Download, 
@@ -40,6 +40,7 @@ import EmptyState from '../common/EmptyState';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
 import PrintGradesConfigModal from './PrintGradesConfigModal';
+import AnimatedSearchBar from '../common/AnimatedSearchBar';
 import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { exportGradesToExcel, exportGradesToCsv } from '../../lib/excel';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -278,6 +279,7 @@ export default function GradesTab({
   const [clases, setClases] = useState([]);
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [flashingGradeKey, setFlashingGradeKey] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
   const [criterios, setCriterios] = useState({
@@ -1137,6 +1139,17 @@ export default function GradesTab({
     };
   });
 
+  const filteredMatrixData = useMemo(() => {
+    if (!studentSearchQuery.trim()) return matrixData;
+    const q = studentSearchQuery.toLowerCase().trim();
+    return matrixData.filter(item => {
+      const est = item.estudiante;
+      const fullName = `${est.apellido || ''} ${est.nombre || ''}`.toLowerCase();
+      const dni = String(est.dni || '');
+      return fullName.includes(q) || dni.includes(q);
+    });
+  }, [matrixData, studentSearchQuery]);
+
   const handleExportExcel = () => {
     try {
       exportGradesToExcel(
@@ -1255,56 +1268,59 @@ export default function GradesTab({
             </button>
           </div>
 
+          {/* Búsqueda Animada de Alumnos */}
+          <AnimatedSearchBar
+            value={studentSearchQuery}
+            onChange={(e) => setStudentSearchQuery(e.target.value)}
+            placeholder="Buscar alumno..."
+          />
+
           {/* Exportación: Excel & CSV */}
           <div className="inline-flex items-center gap-1.5">
-            <Button
-              variant="outline"
-              size="sm"
-              icon={Printer}
+            <button
+              type="button"
               onClick={() => setIsPrintConfigModalOpen(true)}
               disabled={estudiantes.length === 0}
-              className="text-xs font-bold border-primary/40 text-primary hover:bg-primary/10 whitespace-nowrap shrink-0"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               title="Abrir configuración de impresión y PDF oficial de la sábana de notas"
             >
+              <Printer className="w-4 h-4 text-emerald-500" />
               <span className="hidden sm:inline">Imprimir / PDF</span>
               <span className="sm:hidden">PDF</span>
-            </Button>
+            </button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              icon={FileSpreadsheet}
+            <button
+              type="button"
               onClick={handleExportExcel}
               disabled={estudiantes.length === 0}
-              className="text-xs"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               title="Descargar sábana completa en Excel (.xlsx)"
             >
-              <span className="hidden md:inline">Exportar </span>Excel
-            </Button>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+              <span><span className="hidden md:inline">Exportar </span>Excel</span>
+            </button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              icon={FileText}
+            <button
+              type="button"
               onClick={handleExportCsv}
               disabled={estudiantes.length === 0}
-              className="text-xs"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               title="Descargar calificaciones en CSV (.csv)"
             >
-              CSV
-            </Button>
+              <FileText className="w-4 h-4 text-emerald-500" />
+              <span>CSV</span>
+            </button>
           </div>
 
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Plus}
+          <button
+            type="button"
             onClick={() => setIsNewEvalModalOpen(true)}
             disabled={cursadaFinalizada}
-            className="text-xs"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
-            Nueva Eval.
-          </Button>
+            <Plus className="w-4 h-4" />
+            <span>Nueva Eval.</span>
+          </button>
         </div>
       </div>
 
@@ -1321,15 +1337,14 @@ export default function GradesTab({
                 Supervisa fechas de entrega, consignas en Google Drive, califica alumnos o elimina registros.
               </p>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
+            <button
+              type="button"
               onClick={() => setIsNewEvalModalOpen(true)}
-              className="text-xs self-start sm:self-auto"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
             >
-              Nueva Evaluación
-            </Button>
+              <Plus className="w-4 h-4" />
+              <span>Nueva Evaluación</span>
+            </button>
           </div>
 
           {evaluaciones.length === 0 ? (
@@ -1520,7 +1535,7 @@ export default function GradesTab({
           {/* Quick Actions Bar for Cards View */}
           <div className="flex items-center justify-between px-1 py-1">
             <span className="text-xs font-semibold text-text-muted">
-              {matrixData.length} estudiante{matrixData.length !== 1 ? 's' : ''} en nómina
+              {filteredMatrixData.length} estudiante{filteredMatrixData.length !== 1 ? 's' : ''} {studentSearchQuery.trim() ? 'encontrado' + (filteredMatrixData.length !== 1 ? 's' : '') : 'en nómina'}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -1542,7 +1557,7 @@ export default function GradesTab({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {matrixData.map((item, idx) => {
+            {filteredMatrixData.map((item, idx) => {
               const est = item.estudiante;
               const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
               const isExpanded = !!expandedStudents[est.id];
@@ -1801,7 +1816,7 @@ export default function GradesTab({
               </thead>
 
               <tbody className="divide-y divide-surface-border">
-                {matrixData.map((item, idx) => (
+                {filteredMatrixData.map((item, idx) => (
                   <GradeRow
                     key={item.estudiante.id}
                     item={item}

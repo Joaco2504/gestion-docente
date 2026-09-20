@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -49,6 +49,7 @@ import { useApp } from '../context/AppContext';
 import { handleAppError } from '../utils/handleAppError';
 import { generateIcsContent, downloadIcsFile } from '../lib/calendarSync';
 import { formatFechaDMY, parseDMYtoYMD, formatFechaLegible, getRelativeDateLabel, getTodayYMD, getTodayDMY } from '../lib/dateUtils';
+import { FERIADOS_ARGENTINA } from '../data/feriadosArgentina';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const SHORT_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -63,12 +64,36 @@ const HOUR_ROW_HEIGHT = 80; // px por hora
 
 export default function CalendarPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isDemo } = useAuth();
   const { catedras, activeInstitucion, activeCiclo, periodosAcademicos } = useApp();
 
+  // Sincronizar vista desde parámetro URL (?view=dia | semanal | mensual)
+  const initialView = useMemo(() => {
+    const v = new URLSearchParams(location.search).get('view');
+    return v === 'dia' || v === 'mensual' || v === 'semanal' ? v : 'semanal';
+  }, []);
+
   // Vistas: 'semanal' | 'mensual' | 'dia'
-  const [viewMode, setViewMode] = useState('semanal');
+  const [viewMode, setViewMode] = useState(initialView);
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Mapeo indexado de feriados para consultas O(1)
+  const feriadosMap = useMemo(() => {
+    const map = new Map();
+    FERIADOS_ARGENTINA.forEach((f) => {
+      map.set(f.fecha, f);
+    });
+    return map;
+  }, []);
+
+  // Sincronizar reactivamente si cambia location.search
+  useEffect(() => {
+    const v = new URLSearchParams(location.search).get('view');
+    if (v && (v === 'dia' || v === 'semanal' || v === 'mensual')) {
+      setViewMode(v);
+    }
+  }, [location.search]);
 
   // Datos
   const [events, setEvents] = useState([]);
@@ -1084,6 +1109,8 @@ export default function CalendarPage() {
                       {weekDays.map((d, idx) => {
                         const dayName = DAYS_OF_WEEK[idx];
                         const isToday = d.toDateString() === new Date().toDateString();
+                        const dayStr = d.toISOString().split('T')[0];
+                        const feriado = feriadosMap.get(dayStr);
 
                         return (
                           <div
@@ -1093,7 +1120,7 @@ export default function CalendarPage() {
                               setViewMode('dia');
                             }}
                             className={`
-                              flex flex-col items-center justify-center p-2.5 rounded-2xl cursor-pointer transition-all
+                              flex flex-col items-center justify-center p-2 rounded-2xl cursor-pointer transition-all text-center
                               ${isToday
                                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 scale-105'
                                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400'
@@ -1106,6 +1133,14 @@ export default function CalendarPage() {
                             <span className={`text-xl font-bold font-mono ${isToday ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
                               {d.getDate()}
                             </span>
+                            {feriado && (
+                              <span 
+                                className="mt-1 bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20 text-[9px] font-mono px-1 py-0.5 rounded truncate max-w-[84px] block"
+                                title={`${feriado.nombre} (${feriado.tipo === 'provincial' ? 'Feriado Provincial Catamarca' : 'Feriado Nacional'})`}
+                              >
+                                {feriado.nombre}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -1272,6 +1307,7 @@ export default function CalendarPage() {
                       const dStr = d.toISOString().split('T')[0];
                       const isToday = d.toDateString() === new Date().toDateString();
                       const isSelected = d.toDateString() === currentDate.toDateString();
+                      const feriado = feriadosMap.get(dStr);
 
                       const dayEvents = allFilteredEvents.filter(e => {
                         const evDate = (e.fecha_inicio || e.fecha || '').split('T')[0];
@@ -1303,6 +1339,15 @@ export default function CalendarPage() {
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             )}
                           </div>
+
+                          {feriado && (
+                            <span 
+                              className="bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20 text-[10px] font-mono px-1.5 py-0.5 rounded truncate block mt-0.5"
+                              title={`${feriado.nombre} (${feriado.tipo === 'provincial' ? 'Feriado Provincial Catamarca' : 'Feriado Nacional'})`}
+                            >
+                              {feriado.nombre}
+                            </span>
+                          )}
 
                           <div className="space-y-1 overflow-hidden mt-1">
                             {dayEvents.slice(0, 2).map((ev) => {
@@ -1343,6 +1388,20 @@ export default function CalendarPage() {
                       <p className="text-xs text-slate-400">
                         Horarios de ingreso, dictado y cierre en orden cronológico
                       </p>
+                      {(() => {
+                        const diaStr = currentDate.toISOString().split('T')[0];
+                        const feriadoDia = feriadosMap.get(diaStr);
+                        if (!feriadoDia) return null;
+                        return (
+                          <div className="mt-2 inline-flex items-center gap-1.5 bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20 text-xs font-mono px-2.5 py-1 rounded-xl">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                            <span className="font-semibold">{feriadoDia.nombre}</span>
+                            <span className="text-[10px] opacity-75">
+                              ({feriadoDia.tipo === 'provincial' ? 'Feriado Provincial Catamarca' : 'Feriado Nacional'})
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <button

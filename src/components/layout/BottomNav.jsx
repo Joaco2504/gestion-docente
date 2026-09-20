@@ -5,13 +5,10 @@ import {
   Calendar, 
   CheckSquare, 
   GraduationCap, 
-  Sun, 
-  Moon 
+  Clock 
 } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
 
 export default function BottomNav() {
-  const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
 
   // Extract current catedra ID or fallback to last active from localStorage
@@ -23,11 +20,13 @@ export default function BottomNav() {
   // Check query params for active tab inside catedra detail page
   const searchParams = new URLSearchParams(location.search);
   const activeTab = searchParams.get('tab') || 'asistencias';
+  const calendarView = searchParams.get('view');
 
   const isAsistenciaActive = location.pathname.startsWith('/catedra') && activeTab === 'asistencias';
   const isNotasActive = location.pathname.startsWith('/catedra') && activeTab === 'calificaciones';
   const isCatedrasActive = location.pathname === '/dashboard' || location.pathname === '/' || (location.pathname.startsWith('/catedra') && !isAsistenciaActive && !isNotasActive);
-  const isCalendarioActive = location.pathname.startsWith('/calendario');
+  const isClasesActive = location.pathname.startsWith('/calendario') && calendarView === 'dia';
+  const isHorariosActive = location.pathname.startsWith('/calendario') && !isClasesActive;
 
   const navItems = [
     {
@@ -52,7 +51,13 @@ export default function BottomNav() {
       to: '/calendario',
       label: 'Horarios',
       icon: Calendar,
-      isActive: isCalendarioActive
+      isActive: isHorariosActive
+    },
+    {
+      to: '/calendario?view=dia',
+      label: 'Clases',
+      icon: Clock,
+      isActive: isClasesActive
     },
   ];
 
@@ -84,23 +89,6 @@ export default function BottomNav() {
             </NavLink>
           );
         })}
-
-        {/* Theme toggle directly inside bottom nav */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="flex flex-col items-center justify-center flex-1 h-full py-1 text-[10.5px] font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-all select-none touch-target-44 cursor-pointer"
-          title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-        >
-          <div className="p-1 rounded-xl">
-            {isDark ? (
-              <Sun className="w-5 h-5 text-amber-400" />
-            ) : (
-              <Moon className="w-5 h-5 text-blue-500" />
-            )}
-          </div>
-          <span className="mt-0.5 tracking-tight">{isDark ? 'Claro' : 'Oscuro'}</span>
-        </button>
       </div>
     </nav>
   );

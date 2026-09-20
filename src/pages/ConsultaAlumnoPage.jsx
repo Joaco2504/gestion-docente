@@ -14,8 +14,12 @@ import {
   Sparkles,
   BookOpen,
   Zap,
-  Lock
+  Lock,
+  Link as LinkIcon,
+  Copy,
+  Check
 } from 'lucide-react';
+import { toast } from 'sonner';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { 
   getCatedraPortalConfig, 
@@ -41,6 +45,20 @@ export default function ConsultaAlumnoPage() {
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [resultado, setResultado] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const cajaDifusionUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(cajaDifusionUrl);
+      setCopiedLink(true);
+      toast.success('Enlace copiado al portapapeles');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      toast.error('No se pudo copiar el enlace');
+    }
+  };
 
   // Carga inicial de metadatos de la cátedra
   useEffect(() => {
@@ -316,7 +334,25 @@ export default function ConsultaAlumnoPage() {
                 </button>
               </form>
 
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center gap-2 text-xs text-slate-400 font-mono">
+              {/* Enlace de difusión responsivo sin colisiones */}
+              <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 w-full text-left">
+                <div className="flex items-center gap-2 min-w-0">
+                  <LinkIcon className="w-4 h-4 text-emerald-500 shrink-0"/>
+                  <span className="text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-300 truncate">
+                    {cajaDifusionUrl}
+                  </span>
+                </div>
+                <button 
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shadow-sm transition-all active:scale-95 cursor-pointer"
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5"/>}
+                  <span>{copiedLink ? 'Copiado' : 'Copiar'}</span>
+                </button>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center gap-2 text-xs text-slate-400 font-mono">
                 <Lock className="w-3.5 h-3.5 text-emerald-500"/>
                 <span>Conexión cifrada directa protegida por RLS.</span>
               </div>

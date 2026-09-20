@@ -690,24 +690,22 @@ export default function StudentsTab({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={FileSpreadsheet}
+              <button
+                type="button"
                 onClick={() => setViewMode('import-excel')}
-                className="flex-1 sm:flex-initial text-xs"
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer flex-1 sm:flex-initial"
               >
-                Importar Excel / CSV
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={UserPlus}
+                <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                <span>Importar Excel / CSV</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setIsManualModalOpen(true)}
-                className="flex-1 sm:flex-initial text-xs shadow-xs"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer flex-1 sm:flex-initial"
               >
-                Nuevo Alumno (Manual)
-              </Button>
+                <UserPlus className="w-4 h-4" />
+                <span>+ Nuevo Alumno (Manual)</span>
+              </button>
             </div>
           </div>
 

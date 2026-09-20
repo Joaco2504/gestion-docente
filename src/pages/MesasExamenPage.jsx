@@ -24,7 +24,7 @@ import {
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import EmptyState from '../components/common/EmptyState';
-import ExpandableSearch from '../components/common/ExpandableSearch';
+import AnimatedSearchBar from '../components/common/AnimatedSearchBar';
 import ConstituirMesaModal from '../components/mesas/ConstituirMesaModal';
 import MesaDetalleView from '../components/mesas/MesaDetalleView';
 import PrintPreviewModal from '../components/common/PrintPreviewModal';
@@ -357,14 +357,14 @@ export default function MesasExamenPage() {
                 <span className="hidden xs:inline">Guía Paso a Paso</span>
               </Link>
 
-              <Button
-                variant="primary"
-                icon={Plus}
+              <button
+                type="button"
                 onClick={() => setIsConstituirModalOpen(true)}
-                className="text-xs font-bold rounded-2xl min-h-[44px] shadow-sm whitespace-nowrap flex-1 sm:flex-initial"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial"
               >
-                + Nueva Mesa de Examen
-              </Button>
+                <Plus className="w-4 h-4" />
+                <span>+ Nueva Mesa de Examen</span>
+              </button>
             </div>
           </div>
 
@@ -374,9 +374,9 @@ export default function MesasExamenPage() {
               
               {/* Buscador Rápido */}
               <div className="flex-1 min-w-[240px]">
-                <ExpandableSearch
+                <AnimatedSearchBar
                   value={searchQuery}
-                  onChange={setSearchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar por cátedra, llamado, número de acta o tribunal..."
                 />
               </div>

@@ -37,6 +37,7 @@ import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
 import EmptyState from '../components/common/EmptyState';
 import ExpandableSearch from '../components/common/ExpandableSearch';
+import AnimatedSearchBar from '../components/common/AnimatedSearchBar';
 import { EmptyStateIllustration } from '../components/illustrations';
 import { SkeletonCatedraCard, SkeletonBentoGrid } from '../components/common/SkeletonLoader';
 const EditarCatedraModal = lazy(() => import('../components/catedra/EditarCatedraModal'));
@@ -929,33 +930,33 @@ const normalizeSearchText = (str) => {
 
   return (
     <div className="space-y-6">
-      {/* 1. FILA SUPERIOR DE ACCIONES RÁPIDAS (BENTO ACTION CARDS) */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* 1. FILA SUPERIOR DE ACCIONES RÁPIDAS (BENTO ACTION CARDS) - MATRIZ 2x2 EN MÓVIL */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <button
           type="button"
           onClick={() => { setErrorMsg(''); setIsModalOpen(true); }}
-          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+          className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer"
         >
-          <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform shrink-0">
             <Plus className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Nueva Cátedra</span>
-            <span className="text-[10px] text-text-muted block truncate">Crear asignatura</span>
+            <span className="text-xs font-semibold text-text-primary block truncate">+ Nueva Cátedra</span>
+            <span className="hidden sm:block text-[10px] text-text-muted truncate">Crear asignatura</span>
           </div>
         </button>
 
         <button
           type="button"
           onClick={() => navigate('/calendario')}
-          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+          className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer"
         >
-          <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform shrink-0">
             <CalendarIcon className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Calendario y Mesas</span>
-            <span className="text-[10px] text-text-muted block truncate">Cronograma</span>
+            <span className="text-xs font-semibold text-text-primary block truncate">Calendario y Mesas</span>
+            <span className="hidden sm:block text-[10px] text-text-muted truncate">Cronograma</span>
           </div>
         </button>
 
@@ -970,14 +971,14 @@ const normalizeSearchText = (str) => {
               toast.info('Crea una cátedra primero para gestionar inasistencias docentes.');
             }
           }}
-          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+          className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer"
         >
-          <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform shrink-0">
             <ShieldAlert className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Licencia Docente</span>
-            <span className="text-[10px] text-text-muted block truncate">Artículos y partes</span>
+            <span className="text-xs font-semibold text-text-primary block truncate">Licencia Docente</span>
+            <span className="hidden sm:block text-[10px] text-text-muted truncate">Artículos y partes</span>
           </div>
         </button>
 
@@ -992,14 +993,14 @@ const normalizeSearchText = (str) => {
               toast.info('Crea una cátedra primero para subir archivos.');
             }
           }}
-          className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-3 text-left group cursor-pointer"
+          className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer"
         >
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform shrink-0">
             <ExternalLink className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs font-bold text-text-primary block truncate">Recursos y Drive</span>
-            <span className="text-[10px] text-text-muted block truncate">Repositorio de cátedra</span>
+            <span className="text-xs font-semibold text-text-primary block truncate">Recursos y Drive</span>
+            <span className="hidden sm:block text-[10px] text-text-muted truncate">Repositorio de cátedra</span>
           </div>
         </button>
       </section>
@@ -1118,11 +1119,11 @@ const normalizeSearchText = (str) => {
               />
             </div>
 
-            {/* Layout Horizontal 2 Columnas (PC/Desktop): Col 1 Donut 100px, Col 2 Contadores */}
-            <div className="grid grid-cols-1 sm:grid-cols-[100px_1fr] items-center gap-4 py-2">
-              {/* Columna 1: Donut Chart de 100px con porcentaje de asistencia centrado */}
-              <div className="relative w-[100px] h-[100px] mx-auto flex items-center justify-center shrink-0">
-                <svg className="w-[100px] h-[100px] transform -rotate-90" viewBox="0 0 100 100">
+            {/* Layout Horizontal 2 Columnas (PC/Desktop): Col 1 Donut (w-28 h-28 en móvil, w-32 h-32 en desktop), Col 2 Contadores */}
+            <div className="grid grid-cols-1 sm:grid-cols-[128px_1fr] items-center gap-4 py-2">
+              {/* Columna 1: Donut Chart con porcentaje de asistencia centrado */}
+              <div className="relative w-28 h-28 sm:w-32 sm:h-32 mx-auto flex items-center justify-center shrink-0">
+                <svg className="w-28 h-28 sm:w-32 sm:h-32 transform -rotate-90" viewBox="0 0 100 100">
                   <circle
                     cx="50"
                     cy="50"
@@ -1148,10 +1149,10 @@ const normalizeSearchText = (str) => {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
-                  <span className="text-base font-mono font-bold text-slate-900 dark:text-white leading-tight">
+                  <span className="text-xl font-bold font-mono text-slate-900 dark:text-white leading-tight">
                     {displayedMetrics.averageAttendance}%
                   </span>
-                  <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5 leading-none">
+                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5 leading-none">
                     ASISTENCIA
                   </span>
                 </div>
@@ -1225,13 +1226,11 @@ const normalizeSearchText = (str) => {
 
           {/* Barra de Filtros interactiva */}
           <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            {/* Buscador de texto expandible */}
-            <ExpandableSearch
+            {/* Buscador de texto expandible Korum */}
+            <AnimatedSearchBar
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onClear={() => setSearchQuery('')}
               placeholder="Buscar materia o colegio..."
-              widthClass="w-56 sm:w-64 md:w-72"
             />
 
             {/* Contador de coincidencias en vivo si hay búsqueda activa */}

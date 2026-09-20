@@ -33,7 +33,7 @@ import Card from '../common/Card';
 import Modal from '../common/Modal';
 import CustomSelect from '../common/CustomSelect';
 import EmptyState from '../common/EmptyState';
-import ExpandableSearch from '../common/ExpandableSearch';
+import AnimatedSearchBar from '../common/AnimatedSearchBar';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
 import CargarAlumnosMesaModal from './CargarAlumnosMesaModal';
@@ -1077,29 +1077,29 @@ export default function MesasExamenTab({
             </div>
 
             <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap">
-              <ExpandableSearch
+              <AnimatedSearchBar
                 value={searchQuery}
-                onChange={setSearchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar mesa por llamado, acta, docente..."
               />
-              <Button
-                variant="outline"
-                icon={Sparkles}
+              <button
+                type="button"
                 onClick={() => handleOpenNewMesaModal('PROMOCIONAL')}
-                className="text-xs font-bold rounded-2xl min-h-[44px] border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 whitespace-nowrap"
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
+                <Sparkles className="w-4 h-4 text-emerald-500" />
                 <span className="hidden sm:inline">🎖️ Mesa Promocional</span>
                 <span className="sm:hidden">🎖️ Promocional</span>
-              </Button>
-              <Button
-                variant="primary"
-                icon={Plus}
+              </button>
+              <button
+                type="button"
                 onClick={() => handleOpenNewMesaModal('FINAL')}
-                className="text-xs font-bold rounded-2xl min-h-[44px] shadow-sm whitespace-nowrap"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
+                <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">+ Nueva Mesa Final</span>
                 <span className="sm:hidden">+ Mesa</span>
-              </Button>
+              </button>
             </div>
           </div>
 

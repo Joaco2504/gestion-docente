@@ -1,0 +1,45 @@
+.wave-form-control {
+  position: relative;
+  margin: 24px 0 20px;
+  width: 100%;
+}
+
+.wave-input {
+  background-color: transparent;
+  border: 0;
+  border-bottom: 2px solid #334155; /* border-slate-700 */
+  display: block;
+  width: 100%;
+  padding: 12px 0 8px;
+  font-size: 15px;
+  transition: border-bottom-color 0.3s ease;
+}
+
+.wave-input:focus,
+.wave-input:valid,
+.wave-input:not(:placeholder-shown) {
+  outline: 0;
+  border-bottom-color: #10B981; /* brand-emerald */
+}
+
+.wave-label {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  pointer-events: none;
+}
+
+.wave-label span {
+  display: inline-block;
+  font-size: 14px;
+  transition: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.wave-input:focus + .wave-label span,
+.wave-input:valid + .wave-label span,
+.wave-input:not(:placeholder-shown) + .wave-label span {
+  color: #10B981;
+  transform: translateY(-24px);
+  font-size: 12px;
+  font-weight: 600;
+}

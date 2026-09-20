@@ -334,27 +334,27 @@ export default function UnidadesTab({ catedraId, catedraName, onNavigateToLibroT
         {/* Acciones principales */}
         <div className="flex items-center gap-2 w-full md:w-auto flex-wrap sm:flex-nowrap">
           {onNavigateToLibroTemas && (
-            <Button
-              variant="outline"
-              icon={BookOpen}
+            <button
+              type="button"
               onClick={onNavigateToLibroTemas}
-              className="flex-1 sm:flex-initial text-xs rounded-xl shadow-xs font-semibold whitespace-nowrap shrink-0"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial"
               title="Ir a la Línea de Tiempo del Libro de Temas"
             >
+              <BookOpen className="w-4 h-4 text-emerald-500" />
               <span className="hidden sm:inline">Ver Libro de Temas</span>
               <span className="sm:hidden">Libro</span>
-            </Button>
+            </button>
           )}
 
-          <Button
-            variant="primary"
-            icon={Plus}
+          <button
+            type="button"
             onClick={handleOpenCreate}
-            className="flex-1 sm:flex-initial text-xs rounded-xl shadow-xs font-bold whitespace-nowrap shrink-0"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial"
           >
+            <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Nueva Unidad Temática</span>
             <span className="sm:hidden">+ Unidad</span>
-          </Button>
+          </button>
         </div>
       </div>
 

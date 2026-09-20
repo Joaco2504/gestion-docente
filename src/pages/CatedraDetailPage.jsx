@@ -14,11 +14,13 @@ import {
   BarChart3,
   BookOpen,
   Award,
-  Layers,
-  Globe,
-  Lock,
-  Flag,
-  Unlock
+  Layers, 
+  Globe, 
+  Lock, 
+  Flag, 
+  Unlock,
+  Building2,
+  Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { handleAppError } from '../utils/handleAppError';
@@ -56,10 +58,9 @@ const TABS_CONFIG = [
   { id: 'alumnos', label: 'Alumnos', icon: Users },
   { id: 'asistencias', label: 'Asistencias', icon: CheckSquare },
   { id: 'calificaciones', label: 'Calificaciones', icon: GraduationCap },
-  { id: 'unidades', label: 'Programa / Unidades', icon: Layers },
-  { id: 'libro-temas', label: 'Libro de Temas', icon: BookOpen },
-  { id: 'recursos', label: 'Recursos y Archivos', icon: FolderOpen },
-  { id: 'configuracion', label: 'Configuración y Criterios', icon: SettingsIcon }
+  { id: 'libro-temas', label: 'Programa (Libro de Temas)', icon: BookOpen },
+  { id: 'recursos', label: 'Recursos', icon: FolderOpen },
+  { id: 'configuracion', label: 'Configuración', icon: SettingsIcon }
 ];
 
 export default function CatedraDetailPage() {
@@ -352,100 +353,144 @@ export default function CatedraDetailPage() {
     );
   }
 
+  const institucionNombre = 
+    catedra?.instituciones?.nombre ?? 
+    catedra?.institucion_nombre ?? 
+    'Sin Institución';
+
+  const anioCiclo = 
+    catedra?.ciclos_lectivos?.anio ?? 
+    catedra?.ciclos_lectivos?.nombre ?? 
+    activeCiclo?.anio ?? 
+    '2026';
+
+  const modalidadRaw = catedra?.modalidad || 'ANUAL';
+  const modalidadLabel = modalidadRaw.toLowerCase().includes('cuatrimestre') || modalidadRaw.toLowerCase().includes('1') 
+    ? '1° Cuatrimestre' 
+    : modalidadRaw.toLowerCase().includes('2') 
+    ? '2° Cuatrimestre' 
+    : 'Anual';
+
   return (
     <ErrorBoundary onReset={fetchCatedraData} title="Error al visualizar la cátedra">
       <div className="space-y-6">
-        {/* Top navigation back button */}
-        <div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-primary transition-colors mb-3.5 group cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Volver al Panel de Cátedras</span>
-          </button>
+        {/* ========================================================
+            PARTE 1: BARRA SUPERIOR INSTITUCIONAL Y BREADCRUMB
+           ======================================================== */}
+        <div className="w-full flex items-center justify-between py-2.5 px-4 sm:px-6 border-b border-slate-200/80 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-950/40 backdrop-blur-sm rounded-2xl mb-4">
+          {/* Lado izquierdo (Migas de pan) */}
+          <div className="flex items-center gap-1.5 font-medium">
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+            >
+              Panel de Cátedras
+            </button>
+            <span className="text-slate-300 dark:text-slate-700 select-none">/</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">
+              {catedra?.nombre ?? 'Cátedra'}
+            </span>
+          </div>
 
-          {/* Hero Bento Header unificado */}
-          <CatedraHeader
-            catedra={catedra}
-            criterios={criterios}
-            activeCiclo={activeCiclo}
-            onOpenPortal={() => setIsPortalModalOpen(true)}
-            onOpenStats={() => setIsStatsModalOpen(true)}
-            onEditCatedra={() => setIsEditCatedraModalOpen(true)}
-            cursadaFinalizada={Boolean(catedra?.cursada_finalizada)}
-            fechaCierreCursada={catedra?.fecha_cierre_cursada}
-            onFinalizarCursada={() => setIsCierreModalOpen(true)}
-            onReabrirCursada={() => setIsReabrirModalOpen(true)}
-          />
-
-          {/* Banner de Aviso cuando la cursada está finalizada */}
-          {Boolean(catedra?.cursada_finalizada) && (
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-primary/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 animate-fadeIn">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
-                  <Lock className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
-                    Cursada finalizada — Período de Exámenes y Acreditación
-                  </p>
-                  <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
-                    El registro diario de asistencias y parciales regulares está cerrado. Gestiona actas y acredita a los estudiantes en Mesas de Examen.
-                  </p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="primary"
-                icon={Award}
-                onClick={() => navigate(`/mesas-examen?catedraId=${id}`)}
-                className="text-xs shrink-0 font-bold"
-              >
-                Ir a Mesas de Examen
-              </Button>
+          {/* Lado derecho (Contexto Académico y Herramientas) */}
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="hidden sm:flex items-center gap-1.5 font-medium">
+              <Building2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span>{institucionNombre} ({catedra?.nivel ? (catedra.nivel.toUpperCase() === 'TERCIARIO' ? 'Terciario' : 'Secundario') : 'Terciario'})</span>
+              <span className="text-slate-300 dark:text-slate-700 select-none">|</span>
+              <span>Ciclo {anioCiclo}</span>
+              <span className="text-slate-300 dark:text-slate-700 select-none">|</span>
+              <span>{modalidadLabel}</span>
             </div>
-          )}
-
-          {/* Floating Pill Tab Navigation Dock con touch targets mínimos de 44px */}
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 rounded-2xl p-1.5 sm:p-2 shadow-xs mb-6 overflow-x-auto scrollbar-thin scroll-smooth">
-            <div className="flex items-center gap-1.5 min-w-max">
-              {TABS_CONFIG.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => handleTabChange(tab.id)}
-                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-200 active:scale-95 cursor-pointer ${
-                      isActive
-                        ? 'bg-primary text-white shadow-sm shadow-primary/30 font-bold scale-[1.01]'
-                        : 'text-text-muted hover:text-text-primary hover:bg-slate-100/80 dark:hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{tab.label}</span>
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <button
+                type="button"
+                onClick={() => handleTabChange('configuracion')}
+                title="Configuración de cátedra"
+                className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <SettingsIcon className="w-4 h-4 hover:text-emerald-500 cursor-pointer transition-colors" />
+              </button>
+              <button
+                type="button"
+                onClick={() => toast.info('No hay notificaciones pendientes para esta cátedra.')}
+                title="Notificaciones"
+                className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <Bell className="w-4 h-4 hover:text-emerald-500 cursor-pointer transition-colors" />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Tarjeta Bento: Avance del Programa Curricular y Unidades */}
-        <ProgramaProgressCard
-          catedraId={catedra.id}
-          onSelectTab={handleTabChange}
+        {/* Hero Bento Header unificado */}
+        <CatedraHeader
+          catedra={catedra}
+          criterios={criterios}
+          activeCiclo={activeCiclo}
+          onOpenPortal={() => setIsPortalModalOpen(true)}
+          onOpenStats={() => setIsStatsModalOpen(true)}
+          onEditCatedra={() => setIsEditCatedraModalOpen(true)}
+          cursadaFinalizada={Boolean(catedra?.cursada_finalizada)}
+          fechaCierreCursada={catedra?.fecha_cierre_cursada}
+          onFinalizarCursada={() => setIsCierreModalOpen(true)}
+          onReabrirCursada={() => setIsReabrirModalOpen(true)}
+          onNavigateToConfig={() => handleTabChange('configuracion')}
         />
 
-        {/* Tarjeta Bento: Alertas Preventivas y Semáforo de Riesgo */}
-        <EarlyWarningCard
-          catedraId={catedra.id}
-          criterios={criterios}
-          academicLevel={catedra.nivel}
-          modalidad={catedra.modalidad}
-          onSelectTab={handleTabChange}
-        />
+        {/* Banner de Aviso cuando la cursada está finalizada */}
+        {Boolean(catedra?.cursada_finalizada) && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-primary/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
+                  Cursada finalizada — Período de Exámenes y Acreditación
+                </p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                  El registro diario de asistencias y parciales regulares está cerrado. Gestiona actas y acredita a los estudiantes en Mesas de Examen.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              icon={Award}
+              onClick={() => navigate(`/mesas-examen?catedraId=${id}`)}
+              className="text-xs shrink-0 font-bold"
+            >
+              Ir a Mesas de Examen
+            </Button>
+          </div>
+        )}
+
+        {/* ========================================================
+            PARTE 3: BARRA DE PESTAÑAS SEGMENTADAS (TABS)
+           ======================================================== */}
+        <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2 mb-6 overflow-x-auto scrollbar-none">
+          {TABS_CONFIG.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex items-center gap-2 text-xs sm:text-sm transition-all duration-150 cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-semibold border-b-2 border-emerald-500 rounded-t-xl px-4 py-2.5 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-4 py-2.5 rounded-t-xl hover:bg-slate-100/50 dark:hover:bg-slate-800/40 font-medium'
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
         {/* Tab Contents envuelto en Suspense con esqueleto especializado CatedraTabSkeleton */}
         <div key={activeTab} className="mt-4 animate-fadeInUp">
@@ -455,6 +500,7 @@ export default function CatedraDetailPage() {
                 catedraId={catedra.id} 
                 catedraName={catedra.nombre} 
                 cursadaFinalizada={Boolean(catedra?.cursada_finalizada)}
+                onNavigateToLibroTemas={() => handleTabChange('libro-temas')}
               />
             )}
 
