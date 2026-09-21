@@ -1,60 +1,74 @@
-.wave-dni-container {
+.wave-dni-group {
   position: relative;
-  margin: 32px 0 24px;
+  margin: 28px 0 20px;
   width: 100%;
 }
 
-.wave-dni-input {
+.wave-dni-icon {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+}
+
+.wave-dni-field {
   background-color: transparent;
   border: 0;
   border-bottom: 2px solid #cbd5e1; /* slate-300 */
   display: block;
   width: 100%;
-  padding: 14px 0 8px;
+  padding: 12px 28px 8px 28px;
   outline: none;
-  font-weight: 700;
+  font-size: 1.125rem;
+  line-height: 1.5;
   transition: border-color 0.3s ease;
 }
 
-.dark .wave-dni-input {
+:is(.dark) .wave-dni-field {
   border-bottom: 2px solid #334155; /* slate-700 */
 }
 
-.wave-dni-label {
+.wave-dni-floating-label {
   position: absolute;
   top: 14px;
-  left: 0;
+  left: 28px;
   pointer-events: none;
   display: flex;
+  user-select: none;
+  z-index: 1;
 }
 
-.wave-dni-label span {
+.wave-dni-floating-label span {
   display: inline-block;
   transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55), color 0.3s ease;
 }
 
-/* Elevación en onda al hacer foco o si ya contiene texto */
-.wave-dni-input:focus ~ .wave-dni-label span,
-.wave-dni-input.has-value ~ .wave-dni-label span,
-.wave-dni-input:not(:placeholder-shown) ~ .wave-dni-label span {
+/* Elevación en onda al hacer foco, si contiene valor o si no muestra placeholder */
+.wave-dni-field:focus ~ .wave-dni-floating-label span,
+.wave-dni-field.has-value ~ .wave-dni-floating-label span,
+.wave-dni-field:not(:placeholder-shown) ~ .wave-dni-floating-label span {
   color: #10B981; /* brand emerald */
-  transform: translateY(-28px);
-  font-size: 11px;
+  transform: translateY(-26px);
+  font-size: 10px;
   font-weight: 600;
+  letter-spacing: 0.05em;
 }
 
 /* Efecto de resplandor de la barra inferior */
-.wave-dni-bar {
+.wave-dni-glow-line {
   position: absolute;
   bottom: 0;
   left: 0;
   width: 0;
   height: 2px;
   background: #10B981;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
   transition: width 0.35s ease-in-out;
 }
 
-.wave-dni-input:focus ~ .wave-dni-bar {
+.wave-dni-field:focus ~ .wave-dni-glow-line {
   width: 100%;
 }

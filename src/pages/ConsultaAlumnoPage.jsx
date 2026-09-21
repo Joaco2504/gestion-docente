@@ -35,6 +35,7 @@ import {
   normalizeDni 
 } from '../services/studentPortalService';
 import { handleAppError } from '../utils/handleAppError';
+import { WaveDniInput } from '../components/portal/WaveDniInput';
 
 /**
  * Composición gráfica vectorial de estudiante con credencial y escudo de seguridad
@@ -351,28 +352,18 @@ export default function ConsultaAlumnoPage() {
 
                 {/* Formulario */}
                 <form onSubmit={handleConsultarDni} className="mt-4">
-                  {/* Input con ícono a la izquierda */}
-                  <div className="relative my-4">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-mono text-xs">
-                      <CreditCard className="w-4 h-4 mr-1 text-slate-400" />
-                    </div>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={formattedDni}
-                      onChange={handleDniInputFormatting}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleConsultarDni();
-                        }
-                      }}
-                      placeholder="Ej. 43.923.141"
-                      maxLength={10}
-                      autoFocus
-                      className="w-full h-12 pl-10 pr-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-base font-semibold text-slate-900 dark:text-white tracking-widest placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner"
-                    />
-                  </div>
+                  {/* Campo DNI con animación Wave Floating Label */}
+                  <WaveDniInput
+                    value={formattedDni}
+                    onChange={handleDniInputFormatting}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleConsultarDni();
+                      }
+                    }}
+                    onClear={() => setFormattedDni('')}
+                  />
 
                   {/* Micro-nota de respaldo */}
                   <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 text-[11px] text-slate-500 dark:text-slate-400 font-medium mb-4">
