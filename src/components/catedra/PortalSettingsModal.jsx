@@ -1,31 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Globe, 
-  Share2, 
-  QrCode, 
-  Copy, 
-  Check, 
-  ExternalLink, 
-  Eye, 
-  EyeOff, 
-  CheckSquare, 
-  GraduationCap, 
-  TrafficCone, 
-  Sparkles, 
-  Save, 
-  X, 
-  AlertCircle, 
-  ShieldCheck, 
   Users,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  CalendarCheck,
+  GraduationCap,
+  Award,
+  FileText,
+  Receipt,
+  Lightbulb,
+  ArrowRight,
+  X,
+  Globe,
+  Share2,
+  QrCode,
+  Copy,
+  Check,
+  Sparkles,
+  Save,
   Smartphone,
+  BookOpen,
   Link2 as LinkIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { handleAppError } from '../../utils/handleAppError';
-import Modal from '../common/Modal';
-import Button from '../common/Button';
-import Badge from '../common/Badge';
-import Card from '../common/Card';
 import QRCodeDisplay from '../common/QRCodeDisplay';
 import { 
   getCatedraPortalConfig, 
@@ -34,6 +33,38 @@ import {
 } from '../../services/studentPortalService';
 import { useAuth } from '../../context/AuthContext';
 
+/**
+ * Switch accesible y estilizado con soporte de microinteracciones Korum.
+ */
+function Switch({ checked, onChange, disabled = false, ariaLabel }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${
+        disabled ? 'opacity-40 cursor-not-allowed' : ''
+      } ${
+        checked ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
+
+/**
+ * PortalSettingsModal / PortalConfigModal - Panel expandido con Split Live Preview
+ * para la configuración del Portal Estudiantil.
+ */
 export default function PortalSettingsModal({
   isOpen,
   onClose,
@@ -46,12 +77,25 @@ export default function PortalSettingsModal({
   const [copiedType, setCopiedType] = useState(''); // 'link' | 'alias' | ''
   const [showQR, setShowQR] = useState(false);
 
-  // Configuración del portal
+  // Estados de configuración reactivos
   const [portalActivo, setPortalActivo] = useState(false);
   const [mostrarAsistencia, setMostrarAsistencia] = useState(true);
   const [mostrarNotas, setMostrarNotas] = useState(true);
   const [mostrarCondicion, setMostrarCondicion] = useState(true);
+  const [mostrarInfoAcademica, setMostrarInfoAcademica] = useState(true);
+  const [mostrarAranceles, setMostrarAranceles] = useState(false);
   const [alias, setAlias] = useState('');
+
+  // Cerrar con tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen && !showQR) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, showQR, onClose]);
 
   // Cargar configuración inicial
   useEffect(() => {
@@ -65,6 +109,8 @@ export default function PortalSettingsModal({
           setMostrarAsistencia(config.portal_mostrar_asistencia !== false);
           setMostrarNotas(config.portal_mostrar_notas !== false);
           setMostrarCondicion(config.portal_mostrar_condicion !== false);
+          setMostrarInfoAcademica(config.portal_mostrar_info_academica !== false);
+          setMostrarAranceles(Boolean(config.portal_mostrar_aranceles));
           setAlias(config.alias || catedra?.alias || slugifyCatedra(catedra?.nombre || ''));
         } else {
           setAlias(catedra?.alias || slugifyCatedra(catedra?.nombre || ''));
@@ -81,6 +127,8 @@ export default function PortalSettingsModal({
     }
   }, [isOpen, catedra?.id, catedra?.nombre, catedra?.alias, isDemo, user]);
 
+  if (!isOpen) return null;
+
   // Slug amigable y URL limpia del portal público
   const activeSlug = alias.trim() || catedra?.alias || slugifyCatedra(catedra?.nombre || 'catedra');
   const portalUrl = typeof window !== 'undefined'
@@ -95,7 +143,7 @@ export default function PortalSettingsModal({
         description: 'Compártelo con tus alumnos para que consulten su estado directamente.'
       });
       setTimeout(() => setCopiedType(''), 2500);
-    } catch (err) {
+    } catch {
       toast.error('No se pudo copiar el enlace al portapapeles.');
     }
   };
@@ -108,13 +156,13 @@ export default function PortalSettingsModal({
         description: `Código slug: ${activeSlug}`
       });
       setTimeout(() => setCopiedType(''), 2500);
-    } catch (err) {
+    } catch {
       toast.error('No se pudo copiar el alias al portapapeles.');
     }
   };
 
   const handleWhatsAppShare = () => {
-    const text = `📢 Estimados estudiantes de *${catedra?.nombre || 'la cátedra'}*:\n\nYa pueden consultar su estado académico (asistencias y notas actualizadas) ingresando su número de DNI en nuestro portal oficial:\n👉 ${portalUrl}\n\nNo requiere registrarse ni contraseña. ¡Saludos!`;
+    const text = `📢 Estimados estudiantes de *${catedra?.nombre || 'la cátedra'}*:\n\nYa pueden consultar su situación académica (asistencias y notas actualizadas) ingresando su número de DNI en nuestro portal oficial:\n👉 ${portalUrl}\n\nNo requiere registrarse ni contraseña. ¡Saludos!`;
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(waUrl, '_blank');
   };
@@ -127,6 +175,8 @@ export default function PortalSettingsModal({
         portal_mostrar_asistencia: mostrarAsistencia,
         portal_mostrar_notas: mostrarNotas,
         portal_mostrar_condicion: mostrarCondicion,
+        portal_mostrar_info_academica: mostrarInfoAcademica,
+        portal_mostrar_aranceles: mostrarAranceles,
         alias: activeSlug
       };
 
@@ -142,7 +192,7 @@ export default function PortalSettingsModal({
       toast.success(
         portalActivo 
           ? 'Portal de alumnos activado y configuración guardada.' 
-          : 'Configuración del portal guardada (Portal actualmente pausado).'
+          : 'Configuración guardada (Portal actualmente pausado).'
       );
       onClose();
     } catch (err) {
@@ -154,168 +204,237 @@ export default function PortalSettingsModal({
 
   return (
     <>
-      <Modal
-        isOpen={isOpen && !showQR}
-        onClose={onClose}
-        maxWidth="max-w-4xl"
-        title="Portal Público de Consulta para Alumnos"
-        subtitle={`Control granular de visibilidad y acceso para ${catedra?.nombre || 'la cátedra'}`}
+      {/* Envoltorio Modal de dimensiones amplias */}
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fadeIn"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !showQR) onClose();
+        }}
       >
-        <div className="space-y-6 p-4 sm:p-6 overflow-y-auto max-h-[75vh] scrollbar-thin">
-          {/* Switch Maestro - Layout simétrico con margen de seguridad */}
-          <div className="flex items-center justify-between p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/60 shadow-sm w-full gap-4 transition-all duration-300">
-            {/* Lado izquierdo: Ícono centrado, título con badge ACTIVO/INACTIVO y texto explicativo */}
-            <div className="flex items-start gap-4 min-w-0 flex-1">
-              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
-                portalActivo 
-                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-sm' 
-                  : 'bg-slate-100 dark:bg-slate-800 text-text-muted border border-slate-200 dark:border-slate-700'
-              }`}>
-                <Globe className="w-5 h-5" />
+        <div 
+          className="relative w-full max-w-5xl xl:max-w-6xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* ========================================================================= */}
+          {/* PARTE 1: CABECERA DEL DIÁLOGO                                             */}
+          {/* ========================================================================= */}
+          <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/40 shrink-0">
+            {/* Lado Izquierdo */}
+            <div className="flex items-center min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center mr-3 shrink-0">
+                <Users className="w-5 h-5" />
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h4 className="text-sm sm:text-base font-bold text-text-primary">
-                    Habilitar Portal de Consulta Pública
-                  </h4>
-                  <span className={`text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full uppercase tracking-wider border shrink-0 ${
-                    portalActivo
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-                  }`}>
-                    {portalActivo ? 'ACTIVO' : 'INACTIVO'}
-                  </span>
-                </div>
-                <p className="text-xs text-text-muted mt-1 leading-relaxed">
-                  Permite a los alumnos matriculados consultar su situación académica ingresando su número de DNI, sin necesidad de registro previo.
+              <div className="min-w-0">
+                <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg truncate leading-tight">
+                  Portal Público de Consulta para Alumnos
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                  Controlá qué información pueden ver tus estudiantes en {catedra?.nombre || 'la cátedra'}.
                 </p>
               </div>
             </div>
 
-            {/* Lado derecho: Componente Switch estilizado con margen de seguridad */}
-            <div className="shrink-0 mr-1 flex items-center">
+            {/* Lado Derecho */}
+            <div className="flex items-center gap-3 shrink-0 ml-3">
+              <div className="hidden sm:flex px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-medium items-center gap-1.5 shadow-2xs">
+                <Eye className="w-3.5 h-3.5" />
+                <span>Vista previa en tiempo real</span>
+              </div>
               <button
                 type="button"
-                onClick={() => setPortalActivo(!portalActivo)}
-                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
-                  portalActivo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                }`}
-                role="switch"
-                aria-checked={portalActivo}
+                onClick={onClose}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Cerrar"
               >
-                <span
-                  aria-hidden="true"
-                  className={`pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
-                    portalActivo ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          {/* Grid Principal: Criterios de Visibilidad + Live Preview */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Columna Izquierda: Criterios Granulares y Difusión (7 columnas) */}
-            <div className="lg:col-span-7 space-y-5">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Eye className="w-4 h-4 text-primary" />
-                  <h5 className="text-xs font-bold uppercase tracking-wider text-text-primary">
-                    Criterios de Visibilidad del Alumno
-                  </h5>
+          {/* ========================================================================= */}
+          {/* PARTE 2 Y 3: CUERPO DISTRIBUIDO EN 2 COLUMNAS (CONTROLES VS LIVE PREVIEW)   */}
+          {/* ========================================================================= */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 scrollbar-thin">
+            
+            {/* --------------------------------------------------------------------- */}
+            {/* COLUMNA IZQUIERDA (lg:col-span-7) — CONFIGURACIÓN DE ACCESOS         */}
+            {/* --------------------------------------------------------------------- */}
+            <div className="lg:col-span-7 space-y-4">
+              
+              {/* Master Switch - Habilitar Portal de Consulta Pública */}
+              <div className="p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/20 flex items-center justify-between gap-4 transition-all duration-200">
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-tight">
+                        Habilitar Portal de Consulta Pública
+                      </h4>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border shrink-0 ${
+                        portalActivo
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                      }`}>
+                        {portalActivo ? 'ACTIVO' : 'INACTIVO'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                      Permite a los alumnos matriculados consultar su situación académica ingresando su número de DNI, sin necesidad de registro previo.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                  {/* Toggle 1: Asistencia */}
-                  <label className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                    mostrarAsistencia 
-                      ? 'bg-white/80 dark:bg-slate-800/60 border-primary/30 shadow-xs' 
-                      : 'bg-slate-50/50 dark:bg-white/[0.02] border-slate-200/60 dark:border-white/5 opacity-70'
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
-                        <CheckSquare className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-xs sm:text-sm font-semibold text-text-primary block">
-                          Mostrar Porcentaje y Registro de Asistencia
-                        </span>
-                        <span className="text-[11px] text-text-muted block mt-0.5 leading-snug">
-                          Desglosa clases dictadas, presentes, ausentes y el porcentaje global.
-                        </span>
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={mostrarAsistencia}
-                      onChange={(e) => setMostrarAsistencia(e.target.checked)}
-                      className="mt-1.5 h-4 w-4 rounded text-primary focus:ring-primary border-slate-300 dark:border-slate-700 cursor-pointer"
+                {/* Switch interactivo de encendido general (Emerald toggle) */}
+                <div className="shrink-0">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={portalActivo}
+                    aria-label="Habilitar Portal de Consulta Pública"
+                    onClick={() => setPortalActivo(!portalActivo)}
+                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${
+                      portalActivo ? 'bg-emerald-600 shadow-sm shadow-emerald-600/30' : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
+                        portalActivo ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                     />
-                  </label>
+                  </button>
+                </div>
+              </div>
 
-                  {/* Toggle 2: Exámenes y Notas */}
-                  <label className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                    mostrarNotas 
-                      ? 'bg-white/80 dark:bg-slate-800/60 border-primary/30 shadow-xs' 
-                      : 'bg-slate-50/50 dark:bg-white/[0.02] border-slate-200/60 dark:border-white/5 opacity-70'
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
-                        <GraduationCap className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-xs sm:text-sm font-semibold text-text-primary block">
-                          Mostrar Exámenes y Calificaciones
-                        </span>
-                        <span className="text-[11px] text-text-muted block mt-0.5 leading-snug">
-                          Exhibe parciales, trabajos prácticos y notas numéricas obtenidas.
-                        </span>
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={mostrarNotas}
-                      onChange={(e) => setMostrarNotas(e.target.checked)}
-                      className="mt-1.5 h-4 w-4 rounded text-primary focus:ring-primary border-slate-300 dark:border-slate-700 cursor-pointer"
-                    />
-                  </label>
+              {/* Etiqueta de Sección */}
+              <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 pt-1">
+                <Eye className="w-3.5 h-3.5 text-emerald-500" />
+                <span>INFORMACIÓN DISPONIBLE PARA EL ESTUDIANTE</span>
+              </div>
 
-                  {/* Toggle 3: Semáforo RAM */}
-                  <label className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                    mostrarCondicion 
-                      ? 'bg-white/80 dark:bg-slate-800/60 border-primary/30 shadow-xs' 
-                      : 'bg-slate-50/50 dark:bg-white/[0.02] border-slate-200/60 dark:border-white/5 opacity-70'
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                        <TrafficCone className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-xs sm:text-sm font-semibold text-text-primary block">
-                          Mostrar Semáforo de Condición RAM
-                        </span>
-                        <span className="text-[11px] text-text-muted block mt-0.5 leading-snug">
-                          Informa estado reglamentario (Promocional / Regular / En Riesgo o Libre).
-                        </span>
-                      </div>
+              {/* Lista de 5 Módulos Configurables (Cards con Switch) */}
+              <div className="space-y-2.5">
+                
+                {/* 1. Asistencia */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 flex items-center justify-between gap-4 transition-all hover:border-emerald-500/30 shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+                      <CalendarCheck className="w-5 h-5" />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={mostrarCondicion}
-                      onChange={(e) => setMostrarCondicion(e.target.checked)}
-                      className="mt-1.5 h-4 w-4 rounded text-primary focus:ring-primary border-slate-300 dark:border-slate-700 cursor-pointer"
-                    />
-                  </label>
+                    <div className="min-w-0">
+                      <h5 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                        Asistencia
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                        Muestra el porcentaje de asistencia y el detalle de inasistencias.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={mostrarAsistencia}
+                    onChange={setMostrarAsistencia}
+                    ariaLabel="Mostrar Asistencia"
+                  />
+                </div>
+
+                {/* 2. Calificaciones y Evaluaciones */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 flex items-center justify-between gap-4 transition-all hover:border-emerald-500/30 shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0">
+                      <GraduationCap className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                        Calificaciones y Evaluaciones
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                        Exhibe parciales, trabajos prácticos y notas numéricas obtenidas.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={mostrarNotas}
+                    onChange={setMostrarNotas}
+                    ariaLabel="Mostrar Calificaciones"
+                  />
+                </div>
+
+                {/* 3. Condición Reglamentaria */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 flex items-center justify-between gap-4 transition-all hover:border-emerald-500/30 shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+                      <Award className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                        Condición Reglamentaria
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                        Informa el estado de la regularidad y la condición académica (promocional, regular o libre).
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={mostrarCondicion}
+                    onChange={setMostrarCondicion}
+                    ariaLabel="Mostrar Condición Reglamentaria"
+                  />
+                </div>
+
+                {/* 4. Información Académica */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 flex items-center justify-between gap-4 transition-all hover:border-emerald-500/30 shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                        Información Académica
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                        Muestra datos de la carrera, plan de estudios y datos personales básicos.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={mostrarInfoAcademica}
+                    onChange={setMostrarInfoAcademica}
+                    ariaLabel="Mostrar Información Académica"
+                  />
+                </div>
+
+                {/* 5. Deudas y Aranceles */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 flex items-center justify-between gap-4 transition-all hover:border-emerald-500/30 shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20 flex items-center justify-center shrink-0">
+                      <Receipt className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                        Deudas y Aranceles
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                        Permite consultar el estado de pagos y conceptos pendientes (si aplica).
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={mostrarAranceles}
+                    onChange={setMostrarAranceles}
+                    ariaLabel="Mostrar Deudas y Aranceles"
+                  />
                 </div>
               </div>
 
               {/* Caja de Difusión para Alumnos */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/10 space-y-4">
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800/80 space-y-3.5 mt-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Share2 className="w-4 h-4 text-primary" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-text-primary">
-                      Caja de Difusión con Alumnos
+                    <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                      Difusión con Alumnos
                     </span>
                   </div>
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/20">
@@ -326,19 +445,19 @@ export default function PortalSettingsModal({
 
                 {/* Enlace Limpio Principal */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] text-text-muted">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                     <span>Enlace amigable para estudiantes:</span>
                     <button
                       type="button"
                       onClick={() => setAlias(slugifyCatedra(catedra?.nombre || ''))}
-                      className="text-primary hover:underline cursor-pointer text-[10px]"
+                      className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer text-[10px] font-medium"
                       title="Regenerar slug a partir del nombre de la cátedra"
                     >
                       Autogenerar slug
                     </button>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full shadow-2xs">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <LinkIcon className="w-4 h-4 text-emerald-500 shrink-0"/>
                       <span className="text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-300 truncate" title={portalUrl}>
                         {portalUrl}
@@ -350,15 +469,15 @@ export default function PortalSettingsModal({
                       className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shadow-sm transition-all active:scale-95 cursor-pointer"
                     >
                       {copiedType === 'link' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5"/>}
-                      <span>{copiedType === 'link' ? 'Copiado' : 'Copiar'}</span>
+                      <span>{copiedType === 'link' ? 'Copiado' : 'Copiar Enlace'}</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Fila del Alias de Cátedra */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full shadow-2xs">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted shrink-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
                       Alias:
                     </span>
                     <input
@@ -366,14 +485,14 @@ export default function PortalSettingsModal({
                       value={alias}
                       onChange={(e) => setAlias(slugifyCatedra(e.target.value))}
                       placeholder={slugifyCatedra(catedra?.nombre || 'alias-catedra')}
-                      className="text-xs font-mono font-medium text-text-primary bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 focus:border-primary focus:outline-none px-1 py-0.5 w-full min-w-0 truncate"
+                      className="text-xs font-mono font-medium text-slate-900 dark:text-white bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 focus:border-emerald-500 focus:outline-none px-1 py-0.5 w-full min-w-0 truncate"
                       title="Haz clic para personalizar el alias"
                     />
                   </div>
                   <button 
                     type="button"
                     onClick={handleCopyAlias}
-                    className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300/80 dark:border-slate-700 text-xs font-medium shadow-xs hover:border-emerald-500 transition-all active:scale-95 cursor-pointer"
+                    className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300/80 dark:border-slate-700 text-xs font-medium shadow-2xs hover:border-emerald-500 transition-all active:scale-95 cursor-pointer"
                   >
                     {copiedType === 'alias' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-400"/>}
                     <span>{copiedType === 'alias' ? 'Alias Copiado' : 'Copiar Alias'}</span>
@@ -381,115 +500,162 @@ export default function PortalSettingsModal({
                 </div>
 
                 {/* Botones de Difusión WhatsApp y QR */}
-                <div className="grid grid-cols-2 gap-2.5 pt-0.5">
-                  <Button
-                    variant="outline"
-                    icon={Smartphone}
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <button
+                    type="button"
                     onClick={handleWhatsAppShare}
-                    className="text-xs font-semibold rounded-2xl py-2 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all active:scale-95 cursor-pointer"
                   >
-                    Compartir en WhatsApp
-                  </Button>
+                    <Smartphone className="w-4 h-4" />
+                    <span>Compartir por WhatsApp</span>
+                  </button>
 
-                  <Button
-                    variant="outline"
-                    icon={QrCode}
+                  <button
+                    type="button"
                     onClick={() => setShowQR(true)}
-                    className="text-xs font-semibold rounded-2xl py-2 border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 border border-slate-300/80 dark:border-slate-700 transition-all active:scale-95 cursor-pointer"
                   >
-                    Ver Código QR
-                  </Button>
+                    <QrCode className="w-4 h-4 text-emerald-500" />
+                    <span>Ver Código QR</span>
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Columna Derecha: Live Preview Reactivo (5 columnas) */}
+            {/* --------------------------------------------------------------------- */}
+            {/* COLUMNA DERECHA (lg:col-span-5) — SIMULADOR EN VIVO                   */}
+            {/* --------------------------------------------------------------------- */}
             <div className="lg:col-span-5 flex flex-col">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-text-primary">
-                    Live Preview del Alumno
-                  </span>
+              
+              {/* Encabezado de la Columna */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100 font-semibold text-sm">
+                  <Eye className="w-4 h-4 text-emerald-500" />
+                  <span>Vista previa del alumno</span>
                 </div>
-                <span className="text-[10px] bg-slate-100 dark:bg-white/10 text-text-muted px-2 py-0.5 rounded-full font-mono">
+                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full font-mono">
                   En tiempo real
                 </span>
               </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                Así se verá la información en el portal estudiantil.
+              </p>
 
-              {/* Contenedor del Preview estilo Smartphone Bento */}
-              <div className="flex-1 rounded-3xl border border-slate-200/90 dark:border-white/10 bg-gradient-to-b from-slate-100/50 to-slate-200/30 dark:from-slate-900/80 dark:to-slate-950/80 p-4 flex flex-col justify-center">
+              {/* Tarjeta Simulada del Estudiante (Mockup Phone/Card) */}
+              <div className="flex-1 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-4 sm:p-5 shadow-inner space-y-3.5 flex flex-col justify-start">
+                
+                {/* Caso 1: Portal Pausado */}
                 {!portalActivo ? (
-                  <div className="text-center p-6 space-y-2">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
-                      <EyeOff className="w-5 h-5" />
+                  <div className="text-center py-12 px-4 space-y-3 my-auto">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto shadow-xs">
+                      <EyeOff className="w-7 h-7" />
                     </div>
-                    <p className="text-xs font-bold text-text-primary">Portal Pausado</p>
-                    <p className="text-[11px] text-text-muted max-w-xs mx-auto">
-                      Los alumnos verán un mensaje avisando que la consulta pública se encuentra temporalmente desactivada.
-                    </p>
+                    <div>
+                      <h5 className="text-sm font-bold text-slate-900 dark:text-white">
+                        Portal Desactivado o Pausado
+                      </h5>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto mt-1 leading-relaxed">
+                        Los alumnos verán un aviso indicando que la consulta pública se encuentra temporalmente suspendida por el equipo docente.
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <div className="backdrop-blur-xl bg-white dark:bg-slate-900/90 rounded-2xl p-4 border border-slate-200/80 dark:border-white/10 shadow-lg space-y-3.5 animate-fadeIn">
-                    {/* Header Mini Preview */}
-                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                          AM
+                  /* Caso 2: Simulación Reactiva en Vivo */
+                  <div className="backdrop-blur-xl bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-4.5 border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-3.5 animate-fadeIn transition-all duration-300">
+                    
+                    {/* Header Mini Preview (Identidad Simulada) */}
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-bold font-mono">
+                          AR
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-text-primary leading-tight">Álvarez, Martín</p>
-                          <p className="text-[10px] font-mono text-text-muted">DNI: 40.111.222</p>
+                          <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                            Álvarez, Martín
+                          </p>
+                          <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                            DNI: 40.111.222
+                          </p>
                         </div>
                       </div>
-                      
+
+                      {/* Insignia reactiva de condición */}
                       {mostrarCondicion && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700">
-                          Promocional
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700 animate-fadeIn">
+                          PROMOCIONAL
                         </span>
                       )}
                     </div>
 
-                    {/* Bloque Asistencia Mini */}
+                    {/* Módulo de Asistencia (Reactivo) */}
                     {mostrarAsistencia && (
-                      <div className="p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 flex items-center justify-between animate-fadeIn">
+                      <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/25 border border-blue-100 dark:border-blue-900/40 flex items-center justify-between animate-fadeIn transition-all">
                         <div className="space-y-0.5">
-                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 block uppercase">
+                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 block uppercase tracking-wider font-mono">
                             Asistencia
                           </span>
-                          <span className="text-[11px] text-text-muted block">14 de 16 Clases</span>
+                          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 block">
+                            14 de 16 Clases
+                          </span>
                         </div>
-                        <span className="text-sm font-mono font-black text-blue-600 dark:text-blue-400">
+                        <span className="text-base font-mono font-black text-emerald-600 dark:text-emerald-400">
                           87.5%
                         </span>
                       </div>
                     )}
 
-                    {/* Bloque Calificaciones Mini */}
+                    {/* Módulo de Calificaciones (Reactivo) */}
                     {mostrarNotas && (
-                      <div className="space-y-1.5 animate-fadeIn">
-                        <span className="text-[10px] font-bold text-text-muted uppercase block">
+                      <div className="space-y-1.5 animate-fadeIn transition-all">
+                        <span className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
                           Calificaciones Recientes
                         </span>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5">
-                            <span className="text-[10px] text-text-muted truncate block">1° Parcial</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block">1° Parcial</span>
                             <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">8.50 / 10</span>
                           </div>
-                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5">
-                            <span className="text-[10px] text-text-muted truncate block">TP N° 1</span>
+                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block">TP N° 1</span>
                             <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">9.00 / 10</span>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Si no hay bloques activos */}
-                    {!mostrarAsistencia && !mostrarNotas && !mostrarCondicion && (
-                      <div className="text-center py-3">
-                        <span className="text-[11px] text-text-muted italic">
-                          No has seleccionado ningún bloque de datos para mostrar.
+                    {/* Módulo de Información Académica (Reactivo) */}
+                    {mostrarInfoAcademica && (
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-start gap-2.5 animate-fadeIn transition-all">
+                        <BookOpen className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <div className="text-[11px] leading-snug">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                            Tec. Sup. en Higiene y Seguridad
+                          </span>
+                          <span className="text-slate-500 dark:text-slate-400 text-[10px]">
+                            Plan 2021 • {catedra?.nivel || 'Nivel Superior'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Módulo de Deudas y Aranceles (Reactivo) */}
+                    {mostrarAranceles && (
+                      <div className="p-2.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-between text-xs animate-fadeIn transition-all">
+                        <span className="text-slate-600 dark:text-slate-300 font-medium text-[11px]">
+                          Estado Arancelario:
                         </span>
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[11px]">
+                          Al día (Sin saldo)
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Si no hay bloques activos */}
+                    {!mostrarAsistencia && !mostrarNotas && !mostrarCondicion && !mostrarInfoAcademica && !mostrarAranceles && (
+                      <div className="text-center py-6 text-slate-400 dark:text-slate-500 animate-fadeIn">
+                        <p className="text-xs italic">
+                          No has seleccionado ningún módulo de información para exhibir a los estudiantes.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -498,28 +664,61 @@ export default function PortalSettingsModal({
             </div>
           </div>
 
-          {/* Footer de Acciones del Modal */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200/80 dark:border-white/10">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={saving}
-              className="text-xs font-semibold rounded-2xl px-4"
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="primary"
-              icon={Save}
-              onClick={handleSave}
-              disabled={saving}
-              className="text-xs font-bold rounded-2xl px-5"
-            >
-              {saving ? 'Guardando...' : 'Guardar Configuración'}
-            </Button>
+          {/* ========================================================================= */}
+          {/* PARTE 4: PIE DE RECOMENDACIONES Y ACCIONES DEL MODAL                       */}
+          {/* ========================================================================= */}
+          <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0F172A] shrink-0 space-y-3">
+            
+            {/* 1. Banner de Recomendaciones */}
+            <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-800/40 flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Lightbulb className="w-4 h-4 text-blue-500 shrink-0" />
+                <span className="text-slate-600 dark:text-slate-300 truncate sm:whitespace-normal">
+                  <strong>Recomendaciones:</strong> Para una mejor experiencia, activá solo la información que necesiten tus estudiantes y mantené actualizados los datos académicos.
+                </span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => toast.info('Ayuda: Podés activar o pausar el portal en cualquier momento del ciclo lectivo según el calendario institucional.')} 
+                className="text-blue-600 dark:text-blue-400 font-semibold hover:underline flex items-center gap-1 shrink-0 cursor-pointer text-xs"
+              >
+                <span>Ver ayuda</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* 2. Botones de Cierre y Persistencia */}
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold text-sm shadow-lg shadow-emerald-600/20 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+              >
+                {saving ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    <span>Guardando cambios...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Guardar Cambios</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
-      </Modal>
+      </div>
 
       {/* Visor de Código QR en pantalla grande para proyectores */}
       {showQR && (

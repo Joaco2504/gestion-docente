@@ -169,7 +169,9 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
           portal_activo: Boolean(data.portal_activo),
           portal_mostrar_asistencia: data.portal_mostrar_asistencia !== false,
           portal_mostrar_notas: data.portal_mostrar_notas !== false,
-          portal_mostrar_condicion: data.portal_mostrar_condicion !== false
+          portal_mostrar_condicion: data.portal_mostrar_condicion !== false,
+          portal_mostrar_info_academica: data.portal_mostrar_info_academica !== false,
+          portal_mostrar_aranceles: Boolean(data.portal_mostrar_aranceles)
         };
       }
     } catch (err) {
@@ -227,7 +229,9 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
         portal_activo: localPortalConfig?.portal_activo ?? cat?.portal_activo ?? false,
         portal_mostrar_asistencia: localPortalConfig?.portal_mostrar_asistencia ?? cat?.portal_mostrar_asistencia ?? true,
         portal_mostrar_notas: localPortalConfig?.portal_mostrar_notas ?? cat?.portal_mostrar_notas ?? true,
-        portal_mostrar_condicion: localPortalConfig?.portal_mostrar_condicion ?? cat?.portal_mostrar_condicion ?? true
+        portal_mostrar_condicion: localPortalConfig?.portal_mostrar_condicion ?? cat?.portal_mostrar_condicion ?? true,
+        portal_mostrar_info_academica: localPortalConfig?.portal_mostrar_info_academica ?? cat?.portal_mostrar_info_academica ?? true,
+        portal_mostrar_aranceles: localPortalConfig?.portal_mostrar_aranceles ?? cat?.portal_mostrar_aranceles ?? false
       };
     }
 
@@ -247,7 +251,9 @@ export async function saveCatedraPortalConfig(catedraId, config, isDemo = false)
     portal_activo: Boolean(config.portal_activo),
     portal_mostrar_asistencia: Boolean(config.portal_mostrar_asistencia),
     portal_mostrar_notas: Boolean(config.portal_mostrar_notas),
-    portal_mostrar_condicion: Boolean(config.portal_mostrar_condicion)
+    portal_mostrar_condicion: Boolean(config.portal_mostrar_condicion),
+    portal_mostrar_info_academica: Boolean(config.portal_mostrar_info_academica),
+    portal_mostrar_aranceles: Boolean(config.portal_mostrar_aranceles)
   };
 
   const aliasVal = config.alias ? slugifyCatedra(config.alias) : undefined;
@@ -284,15 +290,34 @@ export async function saveCatedraPortalConfig(catedraId, config, isDemo = false)
         .eq('id', catedraId);
 
       if (error) {
-        // Si falló por columna 'alias' no existente, reintentar sin alias
+        // Fallback 1: Si falló por nuevas columnas o 'alias', intentar con columnas base + alias
+        const basePayload = {
+          portal_activo: payload.portal_activo,
+          portal_mostrar_asistencia: payload.portal_mostrar_asistencia,
+          portal_mostrar_notas: payload.portal_mostrar_notas,
+          portal_mostrar_condicion: payload.portal_mostrar_condicion,
+          ...(aliasVal ? { alias: aliasVal } : {})
+        };
         const { error: retryErr } = await supabase
           .from('catedras')
-          .update(payload)
+          .update(basePayload)
           .eq('id', catedraId);
-        if (retryErr) throw retryErr;
+
+        if (retryErr) {
+          // Fallback 2: Solo columnas históricas seguras
+          await supabase
+            .from('catedras')
+            .update({
+              portal_activo: payload.portal_activo,
+              portal_mostrar_asistencia: payload.portal_mostrar_asistencia,
+              portal_mostrar_notas: payload.portal_mostrar_notas,
+              portal_mostrar_condicion: payload.portal_mostrar_condicion
+            })
+            .eq('id', catedraId);
+        }
       }
     } catch (err) {
-      console.warn('Aviso: Columnas de portal no encontradas en DB o error RLS. Se mantuvo en localStorage:', err);
+      console.warn('Aviso: Error al persistir configuración en Supabase. Se mantuvo en localStorage:', err);
     }
   }
 
