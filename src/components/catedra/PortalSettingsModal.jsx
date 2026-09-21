@@ -17,7 +17,8 @@ import {
   AlertCircle, 
   ShieldCheck, 
   Users,
-  Smartphone
+  Smartphone,
+  Link2 as LinkIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { handleAppError } from '../../utils/handleAppError';

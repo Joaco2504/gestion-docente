@@ -15,7 +15,7 @@ import {
   BookOpen,
   Zap,
   Lock,
-  Link as LinkIcon,
+  Link2 as IconLink,
   Copy,
   Check
 } from 'lucide-react';
@@ -337,7 +337,7 @@ export default function ConsultaAlumnoPage() {
               {/* Enlace de difusión responsivo sin colisiones */}
               <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 w-full text-left">
                 <div className="flex items-center gap-2 min-w-0">
-                  <LinkIcon className="w-4 h-4 text-emerald-500 shrink-0"/>
+                  <IconLink className="w-4 h-4 text-emerald-500 shrink-0"/>
                   <span className="text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-300 truncate">
                     {cajaDifusionUrl}
                   </span>
