@@ -9,8 +9,7 @@ import {
   CheckCircle2, 
   AlertTriangle, 
   ArrowLeft, 
-  ShieldAlert, 
-  X,
+  ShieldAlert,
   Sparkles,
   BookOpen,
   Zap,
@@ -21,6 +20,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ThemeToggle from '../components/common/ThemeToggle';
+import { WaveDniInput } from '../components/portal/WaveDniInput';
 import { 
   getCatedraPortalConfig, 
   consultarEstadoAlumno, 
@@ -279,33 +279,17 @@ export default function ConsultaAlumnoPage() {
 
               {/* Formulario de Entrada DNI Monospace */}
               <form onSubmit={handleConsultarDni} className="space-y-4">
-                <div className="text-left">
-                  <label className="block text-[11px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 ml-1 font-medium">
-                    Documento Nacional de Identidad
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={formattedDni}
-                      onChange={handleDniInputFormatting}
-                      placeholder="Ej. 42.123.456"
-                      maxLength={10}
-                      className="w-full h-13 px-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-lg text-slate-900 dark:text-white tracking-widest placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner"
-                      autoFocus
-                    />
-                    {formattedDni && (
-                      <button
-                        type="button"
-                        onClick={() => setFormattedDni('')}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                        title="Limpiar"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <WaveDniInput
+                  value={formattedDni}
+                  onChange={handleDniInputFormatting}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleConsultarDni();
+                    }
+                  }}
+                  onClear={() => setFormattedDni('')}
+                />
 
                 {searchError && (
                   <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2 text-left animate-fadeIn">
