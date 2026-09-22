@@ -20,7 +20,8 @@ import {
   Pencil,
   Layers,
   Lock,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CalendarOff
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -39,6 +40,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { formatFechaDMY, parseDMYtoYMD, getTodayYMD } from '../../lib/dateUtils';
 import { calcularPorcentajeAsistencia } from '../../lib/academicLogic';
+import { obtenerFeriado } from '../../utils/feriadosAcademicos';
 import { DECRETO_1092_CATAMARCA } from '../../data/decreto1092Catamarca';
 import LicenciasDecreto1092Table from './LicenciasDecreto1092Table';
 import RiskBadge from '../common/RiskBadge';
@@ -49,6 +51,7 @@ import { exportAttendanceToExcel } from '../../lib/excel';
 // Comparador memoizado para tarjeta táctil mobile
 function areAttendanceCardPropsEqual(prev, next) {
   return (
+    prev.disabled === next.disabled &&
     prev.est?.id === next.est?.id &&
     prev.estado === next.estado &&
     prev.isFlashing === next.isFlashing &&
@@ -66,7 +69,8 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
   isFlashing,
   asistPct,
   risk,
-  onToggle
+  onToggle,
+  disabled = false
 }) {
   const isPresente = estado === 'PRESENTE';
   const isAusente = estado === 'AUSENTE';
@@ -110,8 +114,9 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button
           type="button"
-          onClick={() => onToggle(est.id, 'PRESENTE')}
-          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+          disabled={disabled}
+          onClick={() => !disabled && onToggle(est.id, 'PRESENTE')}
+          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
             isPresente
               ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-extrabold'
               : 'bg-slate-100/90 dark:bg-white/[0.05] text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200/80 dark:border-white/10'
@@ -123,8 +128,9 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
 
         <button
           type="button"
-          onClick={() => onToggle(est.id, 'AUSENTE')}
-          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer ${
+          disabled={disabled}
+          onClick={() => !disabled && onToggle(est.id, 'AUSENTE')}
+          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
             isAusente
               ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-extrabold'
               : 'bg-slate-100/90 dark:bg-white/[0.05] text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200/80 dark:border-white/10'
@@ -141,6 +147,7 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
 // Comparador memoizado para fila desktop
 function areAttendanceRowPropsEqual(prev, next) {
   return (
+    prev.disabled === next.disabled &&
     prev.index === next.index &&
     prev.est?.id === next.est?.id &&
     prev.estado === next.estado &&
@@ -158,7 +165,8 @@ const AttendanceRow = React.memo(function AttendanceRow({
   estado,
   isFlashing,
   risk,
-  onToggle
+  onToggle,
+  disabled = false
 }) {
   const isPresente = estado === 'PRESENTE';
   const isAusente = estado === 'AUSENTE';
@@ -189,8 +197,9 @@ const AttendanceRow = React.memo(function AttendanceRow({
         <div className="flex items-center justify-center gap-2">
           <button
             type="button"
-            onClick={() => onToggle(est.id, 'PRESENTE')}
-            className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+            disabled={disabled}
+            onClick={() => !disabled && onToggle(est.id, 'PRESENTE')}
+            className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
               isPresente
                 ? 'bg-emerald-600 text-white shadow-xs font-bold'
                 : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200 dark:border-white/10'
@@ -202,8 +211,9 @@ const AttendanceRow = React.memo(function AttendanceRow({
 
           <button
             type="button"
-            onClick={() => onToggle(est.id, 'AUSENTE')}
-            className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer ${
+            disabled={disabled}
+            onClick={() => !disabled && onToggle(est.id, 'AUSENTE')}
+            className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
               isAusente
                 ? 'bg-rose-600 text-white shadow-xs font-bold'
                 : 'bg-slate-100 dark:bg-white/[0.05] text-text-muted hover:text-rose-700 dark:hover:text-rose-300 border border-slate-200 dark:border-white/10'
@@ -270,15 +280,24 @@ export default function AttendanceTab({
     const safeEstudiantes = estudiantes ?? [];
     const safeInasistencias = inasistenciasDocente ?? [];
 
-    const totalClases = safeClases.length;
+    // Salvaguarda RAM: Excluir feriados y clases no computables del denominador
+    const safeClasesComputables = safeClases.filter(
+      c => !obtenerFeriado(c.fecha) && c.es_computable !== false
+    );
+    const totalClases = safeClasesComputables.length;
     const clasesConLicencia = safeInasistencias.filter(
-      i => i.tipo === 'LICENCIA' && safeClases.some(c => c.fecha === i.fecha)
+      i => i.tipo === 'LICENCIA' && safeClasesComputables.some(c => c.fecha === i.fecha)
     ).length;
 
     const map = new Map();
     safeEstudiantes.forEach(est => {
       if (!est?.id) return;
-      const studentAsist = safeAsistencias.filter(a => a.estudiante_id === est.id);
+      const studentAsist = safeAsistencias.filter(a => {
+        if (a.estudiante_id !== est.id) return false;
+        const match = safeClases.find(c => c.id === a.clase_id);
+        if (match && (obtenerFeriado(match.fecha) || match.es_computable === false)) return false;
+        return true;
+      });
       const pct = calcularPorcentajeAsistencia(studentAsist, totalClases, clasesConLicencia);
       map.set(est.id, pct);
     });
@@ -321,6 +340,9 @@ export default function AttendanceTab({
 
   // Clase actualmente seleccionada (declarada antes de cualquier hook o cálculo derivado)
   const activeClase = (clases ?? []).find(c => c.id === selectedClaseId) || (clases ?? [])[0];
+
+  // Detección normativa de jornada no laborable (Feriado Nacional / Provincial)
+  const feriadoDetectado = activeClase?.fecha ? obtenerFeriado(activeClase.fecha) : null;
 
   // Función de estado de asistencia de estudiante (declarada antes de filteredEstudiantes)
   const getEstado = (estudianteId) => {
@@ -702,6 +724,13 @@ export default function AttendanceTab({
       const fechaIso = parseDMYtoYMD(nuevaFecha);
       const fechaDmy = formatFechaDMY(nuevaFecha);
 
+      const feriadoNuevaClase = obtenerFeriado(fechaIso);
+      if (feriadoNuevaClase) {
+        toast.error(`La fecha seleccionada (${fechaDmy}) coincide con el feriado "${feriadoNuevaClase.nombre}". No se pueden registrar clases presenciales ni asistencias en feriados.`);
+        setSavingClase(false);
+        return;
+      }
+
       const newClaseObj = {
         catedra_id: catedraId,
         fecha: fechaIso,
@@ -795,6 +824,10 @@ export default function AttendanceTab({
       return;
     }
     if (!activeClase) return;
+    if (feriadoDetectado || (activeClase.fecha && obtenerFeriado(activeClase.fecha))) {
+      toast.error(`No es posible asentar asistencias el día ${formatFechaDMY(activeClase.fecha)}: Jornada de Feriado.`);
+      return;
+    }
     triggerHapticFeedback();
     setIsDirty(true);
     setFlashingStudentId(estudianteId);
@@ -871,6 +904,10 @@ export default function AttendanceTab({
       return;
     }
     if (!activeClase || estudiantes.length === 0) return;
+    if (feriadoDetectado || (activeClase.fecha && obtenerFeriado(activeClase.fecha))) {
+      toast.error(`No es posible asentar asistencias el día ${formatFechaDMY(activeClase.fecha)}: Jornada de Feriado.`);
+      return;
+    }
     triggerHapticFeedback();
     setIsDirty(true);
     setFlashingStudentId('ALL');
@@ -947,6 +984,10 @@ export default function AttendanceTab({
     }
     if (!activeClase) {
       toast.info('Selecciona una clase para registrar o guardar la asistencia.');
+      return;
+    }
+    if (feriadoDetectado || (activeClase.fecha && obtenerFeriado(activeClase.fecha))) {
+      toast.error(`No es posible asentar asistencias el día ${formatFechaDMY(activeClase.fecha)}: Jornada de Feriado.`);
       return;
     }
 
@@ -1377,7 +1418,7 @@ export default function AttendanceTab({
                 size="sm"
                 icon={CheckCheck}
                 onClick={handleMarcarTodosPresentes}
-                disabled={cursadaFinalizada || !activeClase || estudiantes.length === 0}
+                disabled={cursadaFinalizada || Boolean(feriadoDetectado) || !activeClase || estudiantes.length === 0}
                 className="text-xs font-bold shadow-xs px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
                 title="Marcar todos los alumnos como presentes en esta fecha"
               >
@@ -1422,7 +1463,7 @@ export default function AttendanceTab({
                 size="sm"
                 icon={ShieldAlert}
                 type="button"
-                disabled={cursadaFinalizada}
+                disabled={cursadaFinalizada || Boolean(feriadoDetectado)}
                 onClick={() => {
                   setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
                   if (inasistenciaActual) {
@@ -1444,8 +1485,32 @@ export default function AttendanceTab({
               </Button>
             </div>
 
+            {/* Banner de Jornada No Laborable (Feriado Nacional / Provincial) */}
+            {activeClase && feriadoDetectado && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+                    <CalendarOff className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                        {feriadoDetectado.tipo === 'PROVINCIAL' ? '🏛️ Feriado Provincial' : '🇦🇷 Feriado Nacional'}: {feriadoDetectado.nombre}
+                      </span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold">
+                        No computable
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                      Jornada no laborable oficial. Por disposición regulatoria, esta fecha no admite cómputo de asistencias ni registro de faltas, y no altera el porcentaje de regularidad de los estudiantes.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Banner de Licencia Docente si aplica */}
-            {activeClase && inasistenciaActual && (
+            {activeClase && inasistenciaActual && !feriadoDetectado && (
               <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
                 <div className="flex items-center gap-2.5">
                   <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -1624,6 +1689,7 @@ export default function AttendanceTab({
                       asistPct={studentStatsMap.get(est.id) ?? 100}
                       risk={studentRiskMap.get(est.id)}
                       onToggle={handleToggle}
+                      disabled={cursadaFinalizada || Boolean(feriadoDetectado)}
                     />
                   ))}
                 </div>
@@ -1652,6 +1718,7 @@ export default function AttendanceTab({
                             isFlashing={flashingStudentId === est.id || flashingStudentId === 'ALL'}
                             risk={studentRiskMap.get(est.id)}
                             onToggle={handleToggle}
+                            disabled={cursadaFinalizada || Boolean(feriadoDetectado)}
                           />
                         ))}
                       </tbody>
@@ -2263,8 +2330,8 @@ export default function AttendanceTab({
         loading={savingQuickAttendance}
         isDirty={isDirty}
         hasChanges={isDirty}
-        visible={isDirty}
-        disabled={!activeClase || cursadaFinalizada}
+        visible={isDirty && !feriadoDetectado}
+        disabled={!activeClase || cursadaFinalizada || Boolean(feriadoDetectado)}
         tooltipText="Guardado rápido (Ctrl + S)"
         ariaLabel="Guardar asistencia de la clase actual"
       />

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Button from './Button';
 import { formatFechaDMY } from '../../lib/dateUtils';
+import { obtenerFeriado } from '../../utils/feriadosAcademicos';
 
 /**
  * Convierte una nota numérica a su representación reglamentaria en letras.
@@ -261,7 +262,8 @@ function LibroTemasTemplate({ data }) {
   } = data;
 
   const sortedClases = [...clases].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  const totalHorasDictadas = sortedClases.reduce((acc, c) => acc + Number(c.horas_catedra || 2), 0);
+  const computableClases = sortedClases.filter(c => !c.es_feriado && !obtenerFeriado(c.fecha) && c.es_computable !== false);
+  const totalHorasDictadas = computableClases.reduce((acc, c) => acc + Number(c.horas_catedra || 2), 0);
 
   return (
     <div className="space-y-6">
@@ -308,7 +310,7 @@ function LibroTemasTemplate({ data }) {
 
         {/* Cómputo de horas */}
         <div className="flex justify-between items-center p-2.5 bg-slate-100 rounded-lg border border-slate-300 text-xs font-mono font-bold">
-          <span>Clases Dictadas Registradas: <b>{sortedClases.length}</b></span>
+          <span>Clases Dictadas Computables: <b>{computableClases.length}</b></span>
           <span>Carga Horaria Total Dictada: <b>{totalHorasDictadas} hs cátedra</b></span>
         </div>
       </div>
@@ -335,44 +337,61 @@ function LibroTemasTemplate({ data }) {
                 </td>
               </tr>
             ) : (
-              sortedClases.map((clase, idx) => (
-                <tr key={clase.id || idx} className="print-row hover:bg-slate-50">
-                  <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-slate-700">
-                    {idx + 1}
-                  </td>
-                  <td className="p-2 border-r border-slate-300 font-mono text-slate-800 whitespace-nowrap">
-                    {formatFechaDMY(clase.fecha)}
-                  </td>
-                  <td className="p-2 border-r border-slate-300 text-center font-mono font-bold">
-                    {clase.horas_catedra || 2}
-                  </td>
-                  <td className="p-2 border-r border-slate-300 text-[10px] uppercase font-semibold text-slate-700">
-                    {clase.caracter || 'TEÓRICA'}
-                  </td>
-                  <td className="p-2 border-r border-slate-300 text-slate-900 font-medium leading-relaxed">
-                    {(() => {
-                      const matchedUnit = unidades.find(u => u.id === clase.unidad_id) || clase.unidades_tematicas;
-                      const unitNum = matchedUnit ? matchedUnit.numero : clase.unidad_numero;
-                      return (
-                        <>
-                          {unitNum && (
-                            <strong className="font-bold text-slate-900">
-                              [Unidad {unitNum}]{' '}
-                            </strong>
-                          )}
-                          {clase.tema || 'Sin tema especificado'}
-                        </>
-                      );
-                    })()}
-                  </td>
-                  <td className="p-2 border-r border-slate-300 text-slate-600 text-[11px] italic">
-                    {clase.observaciones || '—'}
-                  </td>
-                  <td className="p-2 border-slate-300 text-center">
-                    <div className="h-6 border-b border-dotted border-slate-300"></div>
-                  </td>
-                </tr>
-              ))
+              sortedClases.map((clase, idx) => {
+                const isFeriado = Boolean(clase.es_feriado || obtenerFeriado(clase.fecha) || clase.es_computable === false);
+                const classNum = isFeriado ? '—' : (clase.classNumber ?? idx + 1);
+                return (
+                  <tr key={clase.id || idx} className={`print-row ${isFeriado ? 'bg-amber-50/60' : 'hover:bg-slate-50'}`}>
+                    <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-slate-700">
+                      {classNum}
+                    </td>
+                    <td className="p-2 border-r border-slate-300 font-mono text-slate-800 whitespace-nowrap">
+                      {formatFechaDMY(clase.fecha)}
+                    </td>
+                    <td className="p-2 border-r border-slate-300 text-center font-mono font-bold">
+                      {isFeriado ? 0 : (clase.horas_catedra || 2)}
+                    </td>
+                    <td className="p-2 border-r border-slate-300 text-[10px] uppercase font-semibold text-slate-700">
+                      {isFeriado ? 'NO COMPUTABLE' : (clase.caracter || 'TEÓRICA')}
+                    </td>
+                    <td className="p-2 border-r border-slate-300 text-slate-900 font-medium leading-relaxed">
+                      {isFeriado ? (
+                        <div className="font-semibold text-amber-950">
+                          <span className="font-mono text-[9px] uppercase bg-amber-200/80 px-1.5 py-0.5 rounded mr-1.5 border border-amber-300">
+                            Feriado
+                          </span>
+                          {clase.tema}
+                        </div>
+                      ) : (
+                        (() => {
+                          const matchedUnit = unidades.find(u => u.id === clase.unidad_id) || clase.unidades_tematicas;
+                          const unitNum = matchedUnit ? matchedUnit.numero : clase.unidad_numero;
+                          return (
+                            <>
+                              {unitNum && (
+                                <strong className="font-bold text-slate-900">
+                                  [Unidad {unitNum}]{' '}
+                                </strong>
+                              )}
+                              {clase.tema || 'Sin tema especificado'}
+                            </>
+                          );
+                        })()
+                      )}
+                    </td>
+                    <td className="p-2 border-r border-slate-300 text-slate-600 text-[11px] italic">
+                      {clase.observaciones || (isFeriado ? 'Cumplimiento de calendario oficial.' : '—')}
+                    </td>
+                    <td className="p-2 border-slate-300 text-center">
+                      {isFeriado ? (
+                        <span className="text-[10px] font-mono text-slate-400">—</span>
+                      ) : (
+                        <div className="h-6 border-b border-dotted border-slate-300"></div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -866,9 +885,10 @@ function AsistenciasTemplate({ data }) {
     docenteNombre = ''
   } = data;
 
-  const totalClases = clases.length;
+  const clasesComputables = clases.filter(c => !c.es_feriado && !obtenerFeriado(c.fecha) && c.es_computable !== false);
+  const totalClases = clasesComputables.length;
   const clasesConLicencia = inasistenciasDocente.filter(
-    i => i.tipo === 'LICENCIA' && clases.some(c => c.fecha === i.fecha)
+    i => i.tipo === 'LICENCIA' && clasesComputables.some(c => c.fecha === i.fecha)
   ).length;
   const clasesEfectivas = totalClases - clasesConLicencia;
 

@@ -17,7 +17,8 @@ import {
   FileText,
   Sparkles,
   ArrowUpDown,
-  Filter
+  Filter,
+  CalendarOff
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -34,6 +35,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { formatFechaDMY, getTodayYMD } from '../../lib/dateUtils';
 import { handleAppError } from '../../utils/handleAppError';
+import { obtenerFeriadosCatedraEnPeriodo, obtenerFeriado } from '../../utils/feriadosAcademicos';
 
 const CARACTER_OPTIONS = [
   { value: 'TEORICA', label: 'Teórica' },
@@ -387,11 +389,75 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     }
   };
 
-  // Orden cronológico estricto para correlatividad (#1, #2...)
+  // Detección automática de feriados que coinciden con los horarios semanales de la cátedra
+  const holidayClasses = useMemo(() => {
+    if (!currentCatedra?.horarios_semanales || currentCatedra.horarios_semanales.length === 0) {
+      return [];
+    }
+
+    let start = '2026-03-01';
+    let end = '2026-11-30';
+    if (clases.length > 0) {
+      const fechas = clases.map(c => c.fecha).filter(Boolean).sort();
+      if (fechas.length > 0) {
+        start = fechas[0];
+        end = fechas[fechas.length - 1];
+        const today = getTodayYMD();
+        if (today > end) end = today;
+      }
+    }
+
+    const feriadosPeriodo = obtenerFeriadosCatedraEnPeriodo(currentCatedra.horarios_semanales, start, end);
+
+    return feriadosPeriodo
+      .filter(f => !clases.some(c => c.fecha === f.fecha))
+      .map(f => ({
+        id: `feriado-auto-${f.fecha}`,
+        catedra_id: catedraId,
+        fecha: f.fecha,
+        tema: `Jornada sin actividad académica presencial — ${f.feriado.nombre}`,
+        horas_catedra: 0,
+        caracter: 'NO_COMPUTABLE',
+        es_feriado: true,
+        es_computable: false,
+        feriadoInfo: f.feriado,
+        observaciones: `Cumplimiento de calendario oficial (${f.feriado.tipo === 'PROVINCIAL' ? 'Feriado Provincial' : 'Feriado Nacional'}).`,
+        archivo_adjunto: ''
+      }));
+  }, [currentCatedra?.horarios_semanales, clases, catedraId]);
+
+  // Orden cronológico estricto para correlatividad (#1, #2...) con inserción de feriados oficiales
   const chronologicallyIndexedClases = useMemo(() => {
-    const sorted = [...clases].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-    return sorted.map((c, idx) => ({ ...c, classNumber: idx + 1 }));
-  }, [clases]);
+    const combined = [
+      ...clases.map(c => {
+        const feriado = obtenerFeriado(c.fecha);
+        if (feriado) {
+          return {
+            ...c,
+            es_feriado: true,
+            es_computable: false,
+            horas_catedra: 0,
+            caracter: 'NO_COMPUTABLE',
+            feriadoInfo: feriado
+          };
+        }
+        return c;
+      }),
+      ...holidayClasses
+    ];
+
+    const sorted = combined.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+    let classCounter = 0;
+    return sorted.map((c) => {
+      const isFeriado = Boolean(c.es_feriado || obtenerFeriado(c.fecha));
+      if (!isFeriado) {
+        classCounter += 1;
+        return { ...c, classNumber: classCounter };
+      }
+      return { ...c, classNumber: '—', es_feriado: true, es_computable: false };
+    });
+  }, [clases, holidayClasses]);
 
   // Filtrado y orden de visualización para la UI
   const displayClases = useMemo(() => {
@@ -421,10 +487,23 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
   }, [chronologicallyIndexedClases, searchQuery, caracterFilter, unidadFilter, sortAsc]);
 
   const totalHoras = useMemo(() => {
-    return clases.reduce((acc, c) => acc + Number(c.horas_catedra || 2), 0);
-  }, [clases]);
+    return chronologicallyIndexedClases
+      .filter(c => !c.es_feriado)
+      .reduce((acc, c) => acc + Number(c.horas_catedra || 2), 0);
+  }, [chronologicallyIndexedClases]);
 
-  const getCaracterBadge = (caracter) => {
+  const totalClasesComputables = useMemo(() => {
+    return chronologicallyIndexedClases.filter(c => !c.es_feriado).length;
+  }, [chronologicallyIndexedClases]);
+
+  const getCaracterBadge = (caracter, esFeriado = false) => {
+    if (esFeriado || caracter === 'NO_COMPUTABLE') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+          No computable
+        </span>
+      );
+    }
     switch (caracter) {
       case 'PRACTICA':
         return <Badge variant="info" className="text-[10px]">Práctica</Badge>;
@@ -455,7 +534,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
                 Libro de Temas Digital
               </h2>
               <Badge variant="primary" className="font-mono text-[11px]">
-                {(clases ?? []).length} {(clases ?? []).length === 1 ? 'clase' : 'clases'}
+                {totalClasesComputables} {totalClasesComputables === 1 ? 'clase' : 'clases'}
               </Badge>
               <Badge variant="default" className="font-mono text-[11px]">
                 {totalHoras ?? 0} hs dictadas
@@ -613,103 +692,152 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
           {displayClases.map((cls) => (
             <div key={cls.id} className="relative group">
               {/* Nodo Circular en la Línea de Tiempo */}
-              <div className="absolute -left-6 sm:-left-8 top-4 w-5 h-5 rounded-full border-2 border-surface bg-primary text-white flex items-center justify-center text-[9px] font-mono font-bold shadow-xs transition-transform group-hover:scale-125">
-                {cls.classNumber}
-              </div>
+              {cls.es_feriado ? (
+                <div 
+                  className="absolute -left-6 sm:-left-8 top-4 w-5 h-5 rounded-full border-2 border-surface bg-amber-500 text-white flex items-center justify-center text-[10px] font-mono font-bold shadow-xs transition-transform group-hover:scale-125"
+                  title="Jornada no laborable oficial"
+                >
+                  —
+                </div>
+              ) : (
+                <div className="absolute -left-6 sm:-left-8 top-4 w-5 h-5 rounded-full border-2 border-surface bg-primary text-white flex items-center justify-center text-[9px] font-mono font-bold shadow-xs transition-transform group-hover:scale-125">
+                  {cls.classNumber}
+                </div>
+              )}
 
               {/* Tarjeta Bento de Clase */}
-              <div className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs hover:shadow-md hover:border-primary/40 transition-all duration-200">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-surface-border">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
-                      Clase #{cls.classNumber}
-                    </span>
-                    <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
-                      <CalendarIcon className="w-3.5 h-3.5 text-text-muted" />
-                      <span>{formatFechaDMY(cls.fecha)}</span>
-                    </span>
-                    <span className="text-xs text-text-muted flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{cls.horas_catedra || 2} hs cátedra</span>
-                    </span>
-                    {getCaracterBadge(cls.caracter)}
-
-                    {/* Badge Semántico de Unidad Temática */}
-                    {(() => {
-                      const matchedUnit = (unidades ?? []).find(u => u?.id === cls?.unidad_id);
-                      const unitTitle = cls?.unidades_tematicas?.titulo ?? cls?.unidad_texto ?? matchedUnit?.titulo;
-                      const unitNum = cls?.unidades_tematicas?.numero ?? matchedUnit?.numero ?? cls?.unidad_numero;
-                      if (!unitTitle && !unitNum && !cls?.unidad_id) return null;
-                      return (
-                        <span className="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold text-xs px-2 py-0.5 rounded-md border border-indigo-200/50 dark:border-indigo-800/40 inline-flex items-center gap-1">
-                          <Layers className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                          <span>{unitNum ? `Unidad ${unitNum}: ` : ''}{unitTitle ?? 'Sin Unidad'}</span>
-                        </span>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Acciones Rápidas */}
-                  <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenAttach(cls)}
-                      className="p-1.5 text-text-muted hover:text-primary rounded-xl hover:bg-surface-hover transition-colors"
-                      title={cls.archivo_adjunto ? 'Ver o editar material adjunto' : 'Adjuntar material o enlace Drive'}
-                    >
-                      <Paperclip className={`w-4 h-4 ${cls.archivo_adjunto ? 'text-primary font-bold' : ''}`} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEdit(cls)}
-                      className="p-1.5 text-text-muted hover:text-primary rounded-xl hover:bg-surface-hover transition-colors"
-                      title="Editar contenido de la clase"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setClassToDelete(cls); setIsDeleteModalOpen(true); }}
-                      className="p-1.5 text-text-muted hover:text-danger rounded-xl hover:bg-danger/10 transition-colors"
-                      title="Eliminar registro de clase"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Contenido / Tema Desarrollado */}
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-text-primary leading-relaxed">
-                    {cls.tema || 'Sin contenidos detallados.'}
-                  </p>
-
-                  {/* Observaciones Pedagógicas */}
-                  {cls.observaciones && (
-                    <div className="p-3 rounded-2xl bg-surface-hover/50 border border-surface-border text-xs text-text-secondary leading-relaxed">
-                      <span className="font-bold text-text-primary block text-[11px] uppercase tracking-wider mb-0.5">
-                        Observaciones Pedagógicas:
+              {cls.es_feriado ? (
+                <div className="backdrop-blur-xl bg-slate-50/70 dark:bg-slate-900/40 rounded-3xl border-l-4 border-l-amber-500/80 border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-surface-border">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                        {cls.feriadoInfo?.tipo === 'PROVINCIAL' ? '🏛️ Feriado Provincial' : '🇦🇷 Feriado'}
                       </span>
-                      {cls.observaciones}
+                      <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                        <CalendarIcon className="w-3.5 h-3.5 text-text-muted" />
+                        <span>{formatFechaDMY(cls.fecha)}</span>
+                      </span>
+                      <span className="text-xs text-text-muted flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>0 hs cátedra</span>
+                      </span>
+                      {getCaracterBadge('NO_COMPUTABLE', true)}
                     </div>
-                  )}
 
-                  {/* Enlace de Material Adjunto */}
-                  {cls.archivo_adjunto && (
-                    <div className="pt-1">
-                      <a
-                        href={cls.archivo_adjunto}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline bg-primary/10 px-3 py-1 rounded-xl border border-primary/20"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span className="truncate max-w-xs sm:max-w-md">Material Adjunto: {cls.archivo_adjunto}</span>
-                      </a>
-                    </div>
-                  )}
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 self-start sm:self-auto">
+                      Calendario Oficial
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-amber-950 dark:text-amber-200 leading-relaxed">
+                      {cls.tema}
+                    </p>
+
+                    {cls.observaciones && (
+                      <div className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-900/90 dark:text-amber-300/90 leading-relaxed">
+                        <span className="font-bold text-amber-950 dark:text-amber-200 block text-[11px] uppercase tracking-wider mb-0.5">
+                          Disposición Normativa:
+                        </span>
+                        {cls.observaciones}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs hover:shadow-md hover:border-primary/40 transition-all duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-surface-border">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                        Clase #{cls.classNumber}
+                      </span>
+                      <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                        <CalendarIcon className="w-3.5 h-3.5 text-text-muted" />
+                        <span>{formatFechaDMY(cls.fecha)}</span>
+                      </span>
+                      <span className="text-xs text-text-muted flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{cls.horas_catedra || 2} hs cátedra</span>
+                      </span>
+                      {getCaracterBadge(cls.caracter)}
+
+                      {/* Badge Semántico de Unidad Temática */}
+                      {(() => {
+                        const matchedUnit = (unidades ?? []).find(u => u?.id === cls?.unidad_id);
+                        const unitTitle = cls?.unidades_tematicas?.titulo ?? cls?.unidad_texto ?? matchedUnit?.titulo;
+                        const unitNum = cls?.unidades_tematicas?.numero ?? matchedUnit?.numero ?? cls?.unidad_numero;
+                        if (!unitTitle && !unitNum && !cls?.unidad_id) return null;
+                        return (
+                          <span className="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold text-xs px-2 py-0.5 rounded-md border border-indigo-200/50 dark:border-indigo-800/40 inline-flex items-center gap-1">
+                            <Layers className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <span>{unitNum ? `Unidad ${unitNum}: ` : ''}{unitTitle ?? 'Sin Unidad'}</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Acciones Rápidas */}
+                    <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAttach(cls)}
+                        className="p-1.5 text-text-muted hover:text-primary rounded-xl hover:bg-surface-hover transition-colors"
+                        title={cls.archivo_adjunto ? 'Ver o editar material adjunto' : 'Adjuntar material o enlace Drive'}
+                      >
+                        <Paperclip className={`w-4 h-4 ${cls.archivo_adjunto ? 'text-primary font-bold' : ''}`} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(cls)}
+                        className="p-1.5 text-text-muted hover:text-primary rounded-xl hover:bg-surface-hover transition-colors"
+                        title="Editar contenido de la clase"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setClassToDelete(cls); setIsDeleteModalOpen(true); }}
+                        className="p-1.5 text-text-muted hover:text-danger rounded-xl hover:bg-danger/10 transition-colors"
+                        title="Eliminar registro de clase"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Contenido / Tema Desarrollado */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-text-primary leading-relaxed">
+                      {cls.tema || 'Sin contenidos detallados.'}
+                    </p>
+
+                    {/* Observaciones Pedagógicas */}
+                    {cls.observaciones && (
+                      <div className="p-3 rounded-2xl bg-surface-hover/50 border border-surface-border text-xs text-text-secondary leading-relaxed">
+                        <span className="font-bold text-text-primary block text-[11px] uppercase tracking-wider mb-0.5">
+                          Observaciones Pedagógicas:
+                        </span>
+                        {cls.observaciones}
+                      </div>
+                    )}
+
+                    {/* Enlace de Material Adjunto */}
+                    {cls.archivo_adjunto && (
+                      <div className="pt-1">
+                        <a
+                          href={cls.archivo_adjunto}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline bg-primary/10 px-3 py-1 rounded-xl border border-primary/20"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span className="truncate max-w-xs sm:max-w-md">Material Adjunto: {cls.archivo_adjunto}</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1021,7 +1149,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
         defaultOrientation="portrait"
         data={{
           catedra: currentCatedra,
-          clases: clases,
+          clases: chronologicallyIndexedClases,
           unidades: unidades,
           docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular',
           institucionNombre: currentCatedra.instituciones?.nombre || currentCatedra.institucion_nombre || 'INSTITUTO DE EDUCACIÓN SUPERIOR',

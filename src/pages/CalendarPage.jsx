@@ -50,6 +50,7 @@ import { handleAppError } from '../utils/handleAppError';
 import { generateIcsContent, downloadIcsFile } from '../lib/calendarSync';
 import { formatFechaDMY, parseDMYtoYMD, formatFechaLegible, getRelativeDateLabel, getTodayYMD, getTodayDMY } from '../lib/dateUtils';
 import { FERIADOS_ARGENTINA } from '../data/feriadosArgentina';
+import { obtenerFeriado } from '../utils/feriadosAcademicos';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const SHORT_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -812,37 +813,55 @@ export default function CalendarPage() {
                   📍 {nextUpcomingItem.institucion}
                 </div>
 
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (nextUpcomingItem.catedra_id) {
-                        navigate(`/catedra/${nextUpcomingItem.catedra_id}?tab=asistencias`);
-                      } else {
-                        navigate('/asistencia');
-                      }
-                    }}
-                    className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Iniciar Asistencia</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
+                {(() => {
+                  const nextItemDateStr = nextUpcomingItem.date ? nextUpcomingItem.date.toISOString().split('T')[0] : null;
+                  const nextItemFeriado = nextItemDateStr ? (feriadosMap.get(nextItemDateStr) || obtenerFeriado(nextItemDateStr)) : null;
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (nextUpcomingItem.catedra_id) {
-                        navigate(`/catedra/${nextUpcomingItem.catedra_id}?tab=unidades`);
-                      } else {
-                        navigate('/libro-temas');
-                      }
-                    }}
-                    className="px-2.5 py-1.5 rounded-xl border border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-semibold transition-colors cursor-pointer"
-                    title="Ver Planificación y Temas"
-                  >
-                    Planificación
-                  </button>
-                </div>
+                  return (
+                    <div className="flex items-center gap-2 pt-1">
+                      {nextItemFeriado ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold opacity-75 cursor-not-allowed border border-slate-300 dark:border-slate-700"
+                          title={`Sin clases presenciales: ${nextItemFeriado.nombre}`}
+                        >
+                          <span>🔒 Sin Clases (Feriado)</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (nextUpcomingItem.catedra_id) {
+                              navigate(`/catedra/${nextUpcomingItem.catedra_id}?tab=asistencias`);
+                            } else {
+                              navigate('/asistencia');
+                            }
+                          }}
+                          className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                        >
+                          <span>Iniciar Asistencia</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (nextUpcomingItem.catedra_id) {
+                            navigate(`/catedra/${nextUpcomingItem.catedra_id}?tab=unidades`);
+                          } else {
+                            navigate('/libro-temas');
+                          }
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl border border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-semibold transition-colors cursor-pointer"
+                        title="Ver Planificación y Temas"
+                      >
+                        Planificación
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <p className="text-xs text-slate-400 italic">
@@ -1390,14 +1409,15 @@ export default function CalendarPage() {
                       </p>
                       {(() => {
                         const diaStr = currentDate.toISOString().split('T')[0];
-                        const feriadoDia = feriadosMap.get(diaStr);
+                        const feriadoDia = feriadosMap.get(diaStr) || obtenerFeriado(diaStr);
                         if (!feriadoDia) return null;
+                        const esProv = (feriadoDia.tipo || '').toLowerCase() === 'provincial';
                         return (
-                          <div className="mt-2 inline-flex items-center gap-1.5 bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20 text-xs font-mono px-2.5 py-1 rounded-xl">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                            <span className="font-semibold">{feriadoDia.nombre}</span>
-                            <span className="text-[10px] opacity-75">
-                              ({feriadoDia.tipo === 'provincial' ? 'Feriado Provincial Catamarca' : 'Feriado Nacional'})
+                          <div className="mt-2 inline-flex items-center gap-2 bg-amber-500/10 text-amber-900 dark:text-amber-200 border border-amber-500/25 text-xs px-3 py-1.5 rounded-xl shadow-2xs">
+                            <span className="text-sm">{esProv ? '🏛️' : '🇦🇷'}</span>
+                            <span className="font-bold">{feriadoDia.nombre}</span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold">
+                              {esProv ? 'Feriado Provincial Catamarca' : 'Feriado Nacional'} • No computable
                             </span>
                           </div>
                         );
@@ -1485,21 +1505,41 @@ export default function CalendarPage() {
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (item.catedra_id) {
-                                    navigate(`/catedra/${item.catedra_id}?tab=asistencias`);
-                                  } else {
-                                    navigate('/asistencia');
-                                  }
-                                }}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer"
-                              >
-                                <span>Asistencia</span>
-                                <ArrowRight className="w-3 h-3" />
-                              </button>
+                              {(() => {
+                                const diaStr = currentDate.toISOString().split('T')[0];
+                                const feriadoDia = feriadosMap.get(diaStr) || obtenerFeriado(diaStr);
+
+                                if (feriadoDia) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold opacity-75 cursor-not-allowed border border-slate-300 dark:border-slate-700"
+                                      title={`Sin clases presenciales: ${feriadoDia.nombre}`}
+                                    >
+                                      <span>🔒 Sin Clases (Feriado)</span>
+                                    </button>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (item.catedra_id) {
+                                        navigate(`/catedra/${item.catedra_id}?tab=asistencias`);
+                                      } else {
+                                        navigate('/asistencia');
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer"
+                                  >
+                                    <span>Asistencia</span>
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </div>
                         );
@@ -1652,20 +1692,42 @@ export default function CalendarPage() {
               )}
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedEventForDetail.catedra_id) {
-                      navigate(`/catedra/${selectedEventForDetail.catedra_id}?tab=asistencias`);
-                    } else {
-                      navigate('/asistencia');
-                    }
-                    setSelectedEventForDetail(null);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-                >
-                  <span>⚡ Iniciar Registro de Asistencia</span>
-                </button>
+                {(() => {
+                  const eventDateStr = selectedEventForDetail.fecha || 
+                    (selectedEventForDetail.fecha_inicio ? selectedEventForDetail.fecha_inicio.substring(0, 10) : null) || 
+                    (selectedEventForDetail.date ? selectedEventForDetail.date.toISOString().split('T')[0] : null);
+                  const eventFeriado = eventDateStr ? (feriadosMap.get(eventDateStr) || obtenerFeriado(eventDateStr)) : null;
+
+                  if (eventFeriado) {
+                    return (
+                      <button
+                        type="button"
+                        disabled
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold opacity-75 cursor-not-allowed border border-slate-300 dark:border-slate-700"
+                        title={`Jornada no laborable oficial: ${eventFeriado.nombre}`}
+                      >
+                        <span>🔒 Sin Clases (Feriado)</span>
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedEventForDetail.catedra_id) {
+                          navigate(`/catedra/${selectedEventForDetail.catedra_id}?tab=asistencias`);
+                        } else {
+                          navigate('/asistencia');
+                        }
+                        setSelectedEventForDetail(null);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                    >
+                      <span>⚡ Iniciar Registro de Asistencia</span>
+                    </button>
+                  );
+                })()}
 
                 <Button
                   variant="secondary"
