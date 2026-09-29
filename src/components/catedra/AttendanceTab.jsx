@@ -21,7 +21,8 @@ import {
   Layers,
   Lock,
   FileSpreadsheet,
-  CalendarOff
+  CalendarOff,
+  CalendarCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -39,6 +40,9 @@ import QuickSaveFAB from '../common/QuickSaveFAB';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { formatFechaDMY, parseDMYtoYMD, getTodayYMD } from '../../lib/dateUtils';
+
+// Alias de compatibilidad para formateo de fechas
+const formatearFecha = formatFechaDMY;
 import { calcularPorcentajeAsistencia } from '../../lib/academicLogic';
 import { obtenerFeriado } from '../../utils/feriadosAcademicos';
 import { DECRETO_1092_CATAMARCA } from '../../data/decreto1092Catamarca';
@@ -332,14 +336,38 @@ export default function AttendanceTab({
     }
   };
 
-  const [selectedClaseId, setSelectedClaseId] = useState('');
+  const [selectedClaseId, setSelectedClaseId] = useState(null);
+
+  // 1. Detener la sobreescritura de estado: SOLO asignar la última clase si el usuario AÚN NO ha seleccionado ninguna
+  useEffect(() => {
+    if (clases && clases.length > 0) {
+      // Asegurar que estén ordenadas de la más reciente a la más antigua
+      const clasesOrdenadas = [...clases].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      
+      // SOLO establecer por defecto si está vacío o si la clase seleccionada ya no existe en la lista
+      if (!selectedClaseId || !clases.some(c => c.id === selectedClaseId)) {
+        setSelectedClaseId(clasesOrdenadas[0].id);
+      }
+    } else if (clases && clases.length === 0) {
+      setSelectedClaseId(null);
+    }
+  }, [clases, selectedClaseId]); // Dependencias correctas
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [nuevaFecha, setNuevaFecha] = useState(new Date().toISOString().split('T')[0]);
   const [nuevoTema, setNuevoTema] = useState('');
   const [savingClase, setSavingClase] = useState(false);
 
   // Clase actualmente seleccionada (declarada antes de cualquier hook o cálculo derivado)
-  const activeClase = (clases ?? []).find(c => c.id === selectedClaseId) || (clases ?? [])[0];
+  const activeClase = React.useMemo(() => {
+    if (!clases || clases.length === 0) return null;
+    if (selectedClaseId) {
+      const found = clases.find(c => c.id === selectedClaseId);
+      if (found) return found;
+    }
+    const clasesOrdenadas = [...clases].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    return clasesOrdenadas[0];
+  }, [clases, selectedClaseId]);
 
   // Detección normativa de jornada no laborable (Feriado Nacional / Provincial)
   const feriadoDetectado = activeClase?.fecha ? obtenerFeriado(activeClase.fecha) : null;
@@ -483,8 +511,50 @@ export default function AttendanceTab({
   ], []);
 
   useEffect(() => {
+    setSelectedClaseId(null);
     fetchData();
   }, [catedraId]);
+
+  // 2. Reactividad en la Carga de Asistencias: dependencias [selectedClaseId]
+  useEffect(() => {
+    if (!selectedClaseId) return;
+
+    // Reiniciar indicador de cambios sin guardar al cambiar de clase
+    setIsDirty(false);
+
+    let isCancelled = false;
+
+    async function fetchAsistenciasClase() {
+      if (isSupabaseConfigured && !isDemo) {
+        try {
+          const { data, error } = await supabase
+            .from('asistencias')
+            .select('*')
+            .eq('clase_id', selectedClaseId);
+
+          if (!error && data && !isCancelled) {
+            setAsistencias(prev => {
+              const others = (prev || []).filter(a => a.clase_id !== selectedClaseId);
+              return [...others, ...data];
+            });
+          }
+        } catch (err) {
+          console.warn('Error al actualizar asistencias de clase seleccionada:', err);
+        }
+      } else {
+        const storedAsist = localStorage.getItem(`asistencias_${catedraId}`);
+        if (storedAsist && !isCancelled) {
+          setAsistencias(JSON.parse(storedAsist));
+        }
+      }
+    }
+
+    fetchAsistenciasClase();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedClaseId, isDemo, catedraId]);
 
   async function fetchData() {
     setLoading(true);
@@ -599,9 +669,6 @@ export default function AttendanceTab({
         setEstudiantes(estList);
         setAsistencias(aData || []);
         setInasistenciasDocente(inasistData || []);
-        if (cls.length > 0 && !selectedClaseId) {
-          setSelectedClaseId(cls[0].id);
-        }
       } else {
         // Demo mode fallback
         const storedClases = localStorage.getItem(`clases_${catedraId}`);
@@ -614,6 +681,8 @@ export default function AttendanceTab({
           { id: 'clase-1', catedra_id: catedraId, fecha: '2026-03-02', tema: 'Presentación de la Cátedra y Pautas', unidad_id: 'unit-1' },
           { id: 'clase-2', catedra_id: catedraId, fecha: '2026-03-09', tema: 'Fundamentos y Arquitectura de Datos', unidad_id: 'unit-1' }
         ];
+        // Asegurar que estén ordenadas de la más reciente a la más antigua
+        cls.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
         let uList = storedUnidades ? JSON.parse(storedUnidades) : [
           { id: 'unit-1', catedra_id: catedraId, numero: 1, titulo: 'Fundamentos y Arquitectura de Datos' },
@@ -648,7 +717,6 @@ export default function AttendanceTab({
         setEstudiantes(estList);
         setAsistencias(asist);
         setInasistenciasDocente(inasist);
-        if (cls.length > 0) setSelectedClaseId(cls[0].id);
 
         localStorage.setItem(`clases_${catedraId}`, JSON.stringify(cls));
         localStorage.setItem(`unidades_tematicas_${catedraId}`, JSON.stringify(uList));
@@ -1334,79 +1402,58 @@ export default function AttendanceTab({
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-5">
-            {/* 1. Cabecera de la Sesión de Asistencia Actual */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                      Sesión de Asistencia Actual
-                    </h2>
+            {/* Cabecera de la Tarjeta Bento de Asistencia */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                  <CalendarCheck className="w-4 h-4 text-emerald-500"/>
+                  Sesión de Asistencia
+                </h3>
+                
+                {/* Selector Histórico Funcional */}
+                {clases && clases.length > 0 ? (
+                  <div className="relative">
+                    <select 
+                      value={selectedClaseId || ''} 
+                      onChange={(e) => setSelectedClaseId(e.target.value)}
+                      className="appearance-none w-full sm:w-auto bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-sm font-semibold rounded-xl pl-3 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer transition-all"
+                    >
+                      {[...clases].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map((clase) => (
+                        <option key={clase.id} value={clase.id}>
+                          {formatearFecha(clase.fecha)} — {clase.tema || 'Sin tema registrado'}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                      <ChevronDown className="w-4 h-4"/>
+                    </div>
                   </div>
-                  {activeClase ? (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                      {formatFechaDMY(activeClase.fecha)} — {activeClase.tema || 'Clase ordinaria'}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic mt-0.5">
-                      No hay clases registradas
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Badge activo de estado de edición */}
-              {activeClase && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 text-xs font-bold font-mono shrink-0 self-start sm:self-center">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Modificando asistencia del {formatFechaDMY(activeClase.fecha)}</span>
-                </div>
-              )}
-            </div>
-
-            {/* 2. Selector de clase y Botón Editar Tema */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="flex-1 min-w-0">
-                {clases.length === 0 ? (
+                ) : (
                   <span className="text-xs font-medium text-slate-400">
                     No hay clases registradas aún. Pulsa [+ Clase] para iniciar.
                   </span>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <CustomSelect
-                      value={activeClase?.id || ''}
-                      onChange={(val) => setSelectedClaseId(typeof val === 'object' ? val.target.value : val)}
-                      options={(clases ?? []).map(c => {
-                        const hasAbsence = (inasistenciasDocente ?? []).some(i => i?.fecha === c?.fecha);
-                        const matchedUnit = (unidades ?? []).find(u => u?.id === c?.unidad_id);
-                        const unitNum = c?.unidades_tematicas?.numero ?? matchedUnit?.numero ?? c?.unidad_numero ?? null;
-                        const unitPrefix = unitNum ? `[U${unitNum}] ` : '';
-                        return {
-                          value: c.id,
-                          label: `${formatFechaDMY(c.fecha)} — ${unitPrefix}${c.tema || 'Sin tema especificado'}`,
-                          badge: hasAbsence ? 'Licencia' : unitNum ? `U${unitNum}` : undefined
-                        };
-                      })}
-                      placeholder="Seleccionar clase..."
-                      buttonClassName="py-2 px-3 text-xs sm:text-sm font-semibold border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl flex-1 shadow-2xs"
-                    />
-                    {activeClase && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        icon={Pencil}
-                        onClick={handleOpenEditClass}
-                        disabled={cursadaFinalizada}
-                        title="Editar fecha, tema y detalles de la clase"
-                        className="shrink-0 text-xs px-3 py-2 rounded-xl"
-                      >
-                        <span className="hidden sm:inline">Editar Tema</span>
-                      </Button>
-                    )}
-                  </div>
+                )}
+              </div>
+
+              {/* Indicador de Estado */}
+              <div className="flex items-center gap-2">
+                {isDirty && (
+                  <span className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-mono font-bold uppercase tracking-wider animate-pulse">
+                    Cambios sin guardar
+                  </span>
+                )}
+                {activeClase && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={Pencil}
+                    onClick={handleOpenEditClass}
+                    disabled={cursadaFinalizada}
+                    title="Editar fecha, tema y detalles de la clase"
+                    className="shrink-0 text-xs px-3 py-2 rounded-xl"
+                  >
+                    <span className="hidden sm:inline">Editar Tema</span>
+                  </Button>
                 )}
               </div>
             </div>
