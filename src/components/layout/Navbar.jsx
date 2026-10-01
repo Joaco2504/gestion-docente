@@ -293,7 +293,7 @@ export default function Navbar({ onToggleSidebar }) {
             aria-label="Abrir menú"
           >
             <img
-              src="/dashboard.ico"
+              src="/dashboard-logo.png"
               alt="Korum"
               className="w-8 h-8 object-contain rounded-xl drop-shadow-xs group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.3)] transition-all"
             />
@@ -398,7 +398,7 @@ export default function Navbar({ onToggleSidebar }) {
             MÓDULO 4: PILL DE PERFIL DOCENTE CON ROL + TEMA Y NOTIFICACIONES
            ========================================================================= */}
         <div className="flex items-center gap-2 sm:gap-3 ml-auto">
-          {/* MÓDULO 4: Pill de Perfil Docente con Rol */}
+          {/* MÓDULO 4: Pill de Perfil Docente con Rol (Desktop) */}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
             <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate max-w-[120px] lg:max-w-[180px] select-none">
               {teacherName}
@@ -408,15 +408,32 @@ export default function Navbar({ onToggleSidebar }) {
             </span>
           </div>
 
-          {/* Botón de Tema (Sol / Luna con máscara SVG) */}
-          <SunMoonThemeToggle isDark={isDark} onToggle={toggleTheme} />
+          {/* Botón de Perfil Móvil (44x44 px) */}
+          <div className="flex sm:hidden items-center justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="min-w-[44px] min-h-[44px] p-1 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 flex items-center justify-center cursor-pointer transition-colors"
+              title={`Perfil de ${teacherName}`}
+              aria-label="Perfil Docente"
+            >
+              <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center border border-emerald-500/20">
+                {teacherName?.charAt(0)?.toUpperCase() || 'D'}
+              </div>
+            </button>
+          </div>
 
-          {/* Notificaciones con Campana */}
+          {/* Botón de Tema (Sol / Luna con máscara SVG en contenedor 44x44 px) */}
+          <div className="min-w-[44px] min-h-[44px] flex items-center justify-center">
+            <SunMoonThemeToggle isDark={isDark} onToggle={toggleTheme} />
+          </div>
+
+          {/* Notificaciones con Campana (44x44 px) */}
           <div className="relative" ref={notifRef}>
             <button
               type="button"
               onClick={toggleNotifications}
-              className={`relative p-2.5 rounded-xl border transition-all cursor-pointer touch-target-44 flex items-center justify-center ${
+              className={`relative p-2.5 min-w-[44px] min-h-[44px] rounded-xl border transition-all cursor-pointer touch-target-44 flex items-center justify-center ${
                 showNotifications
                   ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
                   : 'border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -434,7 +451,7 @@ export default function Navbar({ onToggleSidebar }) {
 
             {/* Popover Desplegable de Notificaciones */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-[92vw] sm:w-[420px] rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden z-50 animate-scaleIn">
+              <div className="fixed left-4 right-4 top-16 sm:absolute sm:right-0 sm:left-auto sm:top-auto sm:mt-2 sm:w-[420px] max-h-app overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-2xl z-50 animate-scaleIn">
                 <div className="p-3.5 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-slate-800/50 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-primary" />
@@ -668,7 +685,7 @@ export default function Navbar({ onToggleSidebar }) {
                 }}
                 placeholder="Buscar estudiante, DNI, cátedra o acción..."
                 autoFocus
-                className="flex-1 bg-transparent border-none outline-none text-sm text-slate-900 dark:text-white placeholder:text-slate-400"
+                className="flex-1 bg-transparent border-none outline-none text-base text-slate-900 dark:text-white placeholder:text-slate-400"
               />
               {searchingStudents && (
                 <span className="w-4 h-4 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin shrink-0" />
@@ -682,7 +699,7 @@ export default function Navbar({ onToggleSidebar }) {
                   <X className="w-4 h-4" />
                 </button>
               )}
-              <kbd className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-slate-500 select-none">
+              <kbd className="hidden sm:inline-block font-mono text-[10px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-slate-500 select-none">
                 ESC
               </kbd>
             </div>
@@ -711,7 +728,7 @@ export default function Navbar({ onToggleSidebar }) {
                           else navigate('/dashboard');
                           setIsCommandPaletteOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
+                        className={`w-full min-h-[44px] flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
                           isSelected 
                             ? 'bg-emerald-500/15 dark:bg-emerald-950/60 ring-1 ring-emerald-500/30' 
                             : 'hover:bg-slate-100 dark:hover:bg-slate-800/80'
@@ -757,7 +774,7 @@ export default function Navbar({ onToggleSidebar }) {
                           navigate(`/catedra/${cat.id}`);
                           setIsCommandPaletteOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
+                        className={`w-full min-h-[44px] flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
                           isSelected 
                             ? 'bg-emerald-500/15 dark:bg-emerald-950/60 ring-1 ring-emerald-500/30' 
                             : 'hover:bg-slate-100 dark:hover:bg-slate-800/80'
@@ -800,7 +817,7 @@ export default function Navbar({ onToggleSidebar }) {
                           action.action();
                           setIsCommandPaletteOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
+                        className={`w-full min-h-[44px] flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
                           isSelected 
                             ? 'bg-emerald-500/15 dark:bg-emerald-950/60 ring-1 ring-emerald-500/30' 
                             : 'hover:bg-slate-100 dark:hover:bg-slate-800/80'
@@ -836,8 +853,8 @@ export default function Navbar({ onToggleSidebar }) {
               )}
             </div>
 
-            {/* Footer con atajos de ayuda */}
-            <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between font-mono">
+            {/* Footer con atajos de ayuda (Oculto en móvil) */}
+            <div className="hidden sm:flex px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 items-center justify-between font-mono">
               <span>Navegar con teclado</span>
               <div className="flex items-center gap-2">
                 <span>↵ Seleccionar</span>

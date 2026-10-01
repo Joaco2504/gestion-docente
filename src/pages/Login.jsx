@@ -41,7 +41,7 @@ const getFriendlyAuthError = (err) => {
 
 export default function Login() {
   const navigate = useNavigate();
-  const { user, signIn, signUp, enterDemoMode } = useAuth();
+  const { user, signIn, signUp, loginDemo } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -150,7 +150,7 @@ export default function Login() {
   };
 
   const handleDemoAccess = () => {
-    enterDemoMode();
+    loginDemo();
     toast.success('Accediendo en Modo Demostración de Korum');
     navigate('/dashboard', { replace: true });
   };
@@ -178,7 +178,7 @@ export default function Login() {
           <div className="mb-8 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start">
               <img 
-                src="/dashboard.ico" 
+                src="/dashboard-logo.png" 
                 alt="Korum" 
                 className="w-12 h-12 object-contain rounded-2xl mb-3 shadow-lg shadow-emerald-950/30" 
               />
@@ -312,7 +312,7 @@ export default function Login() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="h-10 px-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="h-11 sm:h-12 px-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -338,7 +338,7 @@ export default function Login() {
             <button
               type="button"
               onClick={handleDemoAccess}
-              className="h-10 px-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              className="h-11 sm:h-12 px-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
               <span>Modo Demostración</span>
@@ -374,7 +374,7 @@ export default function Login() {
         {/* 3. Badge Institucional Superior (Montado sobre z-10) */}
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/60 shadow-lg">
-            <img src="/dashboard.ico" alt="Korum" className="w-5 h-5 rounded-md" />
+            <img src="/dashboard-logo.png" alt="Korum" className="w-5 h-5 rounded-md" />
             <span className="text-xs font-mono font-medium text-slate-200 tracking-wider uppercase">
               Korum Suite Académica
             </span>

@@ -275,7 +275,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       {/* DUAL SIDEBAR CONTAINER */}
       <aside
         className={`
-          fixed md:relative inset-y-0 left-0 z-50 md:z-20 h-screen
+          fixed md:relative inset-y-0 left-0 z-50 md:z-20 h-app
           flex shrink-0 transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
@@ -283,7 +283,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
         {/* ========================================================
             1. RIEL PRINCIPAL DE ÍCONOS (SIN SCROLLBAR VERTICAL)
            ======================================================== */}
-        <div className="w-16 min-w-[4rem] h-screen max-h-screen bg-surface border-r border-slate-200/80 dark:border-white/10 flex flex-col py-2.5 items-center z-20 select-none overflow-y-auto overflow-x-hidden scrollbar-none shrink-0">
+        <div className="w-16 min-w-[4rem] h-app max-h-app bg-surface border-r border-slate-200/80 dark:border-white/10 flex flex-col py-2.5 items-center z-20 select-none overflow-y-auto overflow-x-hidden scrollbar-none shrink-0">
           
           {/* Botón Disparador Directo Limpio y Transparente Menú Korum */}
           <div className="mb-1 shrink-0">

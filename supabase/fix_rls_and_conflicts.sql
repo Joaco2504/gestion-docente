@@ -1,5 +1,5 @@
 -- ==============================================================================
--- DOCENTEPRO — SCRIPT DE CORRECCIÓN DE ERRORES RLS Y CONSTRAINTS
+-- DOCENTEPRO — SCRIPT DE CORRECCIÓN DE ERRORES RLS Y CONSTRAINTS AUDITADO
 -- Para ejecutar en: Supabase Dashboard -> SQL Editor -> New Query -> Run
 -- ==============================================================================
 
@@ -86,10 +86,10 @@ DROP POLICY IF EXISTS "Docentes delete own files" ON storage.objects;
 DROP POLICY IF EXISTS "Docentes delete files" ON storage.objects;
 DROP POLICY IF EXISTS "Allow all deletes in archivos-docentes" ON storage.objects;
 
--- Política 1: Subida de archivos (INSERT)
-CREATE POLICY "Allow all uploads in archivos-docentes"
+-- Política 1: Subida de archivos autenticados (INSERT)
+CREATE POLICY "Docentes upload files in archivos-docentes"
 ON storage.objects FOR INSERT
-TO public
+TO authenticated
 WITH CHECK (bucket_id = 'archivos-docentes');
 
 -- Política 2: Lectura pública (SELECT)
@@ -98,26 +98,114 @@ ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'archivos-docentes');
 
--- Política 3: Actualización (UPDATE)
-CREATE POLICY "Allow all updates in archivos-docentes"
+-- Política 3: Actualización autenticada (UPDATE)
+CREATE POLICY "Docentes update own files in archivos-docentes"
 ON storage.objects FOR UPDATE
-TO public
+TO authenticated
 USING (bucket_id = 'archivos-docentes');
 
--- Política 4: Eliminación (DELETE)
-CREATE POLICY "Allow all deletes in archivos-docentes"
+-- Política 4: Eliminación autenticada (DELETE)
+CREATE POLICY "Docentes delete own files in archivos-docentes"
 ON storage.objects FOR DELETE
-TO public
+TO authenticated
 USING (bucket_id = 'archivos-docentes');
 
 -- ------------------------------------------------------------------------------
--- 3. POLÍTICA DE RECURSOS EN TABLA 'public.recursos'
+-- 3. REPARACIÓN AUDITADA DE RLS: RESTRICCIÓN POR DOCENTE Y SUPERADMIN
 -- ------------------------------------------------------------------------------
-DROP POLICY IF EXISTS "recursos_manage_own" ON public.recursos;
-DROP POLICY IF EXISTS "recursos_allow_all" ON public.recursos;
-CREATE POLICY "recursos_allow_all"
-ON public.recursos FOR ALL
-TO public
-USING (true)
-WITH CHECK (true);
+ALTER TABLE public.evaluaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calificaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recursos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.asistencias ENABLE ROW LEVEL SECURITY;
 
+-- 1. Eliminar políticas inseguras de acceso público
+DROP POLICY IF EXISTS "evaluaciones_allow_all" ON public.evaluaciones;
+DROP POLICY IF EXISTS "evaluaciones_manage_own" ON public.evaluaciones;
+DROP POLICY IF EXISTS "evaluaciones_docente_manage" ON public.evaluaciones;
+
+DROP POLICY IF EXISTS "calificaciones_allow_all" ON public.calificaciones;
+DROP POLICY IF EXISTS "calificaciones_docente_manage" ON public.calificaciones;
+
+DROP POLICY IF EXISTS "recursos_allow_all" ON public.recursos;
+DROP POLICY IF EXISTS "recursos_manage_own" ON public.recursos;
+DROP POLICY IF EXISTS "recursos_docente_manage" ON public.recursos;
+
+DROP POLICY IF EXISTS "asistencias_allow_all" ON public.asistencias;
+DROP POLICY IF EXISTS "asistencias_manage_own" ON public.asistencias;
+DROP POLICY IF EXISTS "asistencias_docente_manage" ON public.asistencias;
+
+-- 2. Restablecer políticas estrictas por propietario (docente_id) y superadmin
+CREATE POLICY "evaluaciones_docente_manage" ON public.evaluaciones
+  FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.catedras c
+      WHERE c.id = evaluaciones.catedra_id
+      AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.catedras c
+      WHERE c.id = evaluaciones.catedra_id
+      AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+    )
+  );
+
+CREATE POLICY "calificaciones_docente_manage" ON public.calificaciones
+  FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.evaluaciones e
+      JOIN public.catedras c ON c.id = e.catedra_id
+      WHERE e.id = calificaciones.evaluacion_id
+      AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.evaluaciones e
+      JOIN public.catedras c ON c.id = e.catedra_id
+      WHERE e.id = calificaciones.evaluacion_id
+      AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+    )
+  );
+
+CREATE POLICY "recursos_docente_manage" ON public.recursos
+  FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.catedras c
+      WHERE c.id = recursos.catedra_id
+      AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.catedras c
+      WHERE c.id = recursos.catedra_id
+      AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+    )
+  );
+
+CREATE POLICY "asistencias_docente_manage" ON public.asistencias
+  FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.clases cl
+      JOIN public.catedras c ON c.id = cl.catedra_id
+      WHERE cl.id = asistencias.clase_id
+      AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.clases cl
+      JOIN public.catedras c ON c.id = cl.catedra_id
+      WHERE cl.id = asistencias.clase_id
+      AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+    )
+  );
+
+-- 3. Recargar PostgREST
+NOTIFY pgrst, 'reload schema';

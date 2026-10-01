@@ -117,7 +117,7 @@ export default function KorumGlobalMenu({ onToggleSidebar, className = '' }) {
         aria-label="Menú principal Korum"
       >
         <img
-          src="/dashboard.ico"
+          src="/dashboard-logo.png"
           alt="Korum"
           className="w-full h-full object-contain rounded-2xl drop-shadow-md group-hover:drop-shadow-[0_0_12px_rgba(16,185,129,0.3)] transition-all"
         />

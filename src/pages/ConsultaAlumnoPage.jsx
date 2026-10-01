@@ -36,6 +36,7 @@ import {
 } from '../services/studentPortalService';
 import { handleAppError } from '../utils/handleAppError';
 import { WaveDniInput } from '../components/portal/WaveDniInput';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 /**
  * Composición gráfica vectorial de estudiante con credencial y escudo de seguridad
@@ -79,6 +80,7 @@ function StudentCredentialGraphic() {
  * Ruta: /consulta/:catedraId
  */
 export default function ConsultaAlumnoPage() {
+  useDocumentTitle('Consulta de Estudiante');
   const { catedraId } = useParams();
 
   // Estados de carga e interacción
@@ -90,6 +92,11 @@ export default function ConsultaAlumnoPage() {
   const [resultado, setResultado] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [consultaTimestamp, setConsultaTimestamp] = useState('');
+
+  // Estados de control de tasa y throttle defensivo
+  const [intentosFallidos, setIntentosFallidos] = useState(0);
+  const [bloqueadoHasta, setBloqueadoHasta] = useState(null);
+  const [ultimaConsulta, setUltimaConsulta] = useState(0);
 
   const cajaDifusionUrl = typeof window !== 'undefined' ? window.location.href : '';
 
@@ -160,12 +167,29 @@ export default function ConsultaAlumnoPage() {
 
   const handleConsultarDni = async (e) => {
     if (e) e.preventDefault();
+    const ahora = Date.now();
+
+    // 1. Throttle por intentos fallidos acumulados (bloqueo temporal)
+    if (bloqueadoHasta && ahora < bloqueadoHasta) {
+      const segundosRestantes = Math.ceil((bloqueadoHasta - ahora) / 1000);
+      toast.error(`Demasiadas consultas fallidas. Esperá ${segundosRestantes}s para reintentar.`);
+      return;
+    }
+
+    // 2. Cooldown mínimo entre consultas (2.5 segundos)
+    if (ahora - ultimaConsulta < 2500) {
+      const segundosRestantes = Math.ceil((2500 - (ahora - ultimaConsulta)) / 1000);
+      toast.error(`Consultas muy rápidas. Esperá ${segundosRestantes}s para volver a consultar.`);
+      return;
+    }
+
     const cleanDni = normalizeDni(formattedDni);
     if (!cleanDni || cleanDni.length < 6) {
       setSearchError('Por favor ingresá un número de DNI válido (mínimo 6 dígitos).');
       return;
     }
 
+    setUltimaConsulta(ahora);
     setLoading(true);
     setSearchError('');
 
@@ -173,13 +197,28 @@ export default function ConsultaAlumnoPage() {
       const targetCatedraId = catedra?.id || catedraId;
       const res = await consultarEstadoAlumno(targetCatedraId, cleanDni);
       if (!res.success) {
+        const nuevosIntentos = intentosFallidos + 1;
+        setIntentosFallidos(nuevosIntentos);
+        if (nuevosIntentos >= 5) {
+          setBloqueadoHasta(Date.now() + 30000); // 30s de enfriamiento defensivo
+          toast.error('Límite de intentos alcanzado. Acceso pausado por 30 segundos.');
+        }
         setSearchError(res.message || 'No se encontró registro para el DNI ingresado.');
         setResultado(null);
       } else {
+        // Consulta exitosa: resetear contadores de bloqueo
+        setIntentosFallidos(0);
+        setBloqueadoHasta(null);
         setResultado(res);
         setConsultaTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
     } catch (err) {
+      const nuevosIntentos = intentosFallidos + 1;
+      setIntentosFallidos(nuevosIntentos);
+      if (nuevosIntentos >= 5) {
+        setBloqueadoHasta(Date.now() + 30000);
+        toast.error('Límite de intentos alcanzado. Acceso pausado por 30 segundos.');
+      }
       handleAppError(err, 'ConsultaAlumnoPage / handleConsultarDni');
       setSearchError('Ocurrió un error al verificar la situación académica. Reintenta en unos instantes.');
     } finally {
@@ -201,7 +240,7 @@ export default function ConsultaAlumnoPage() {
           <div className="relative">
             <div className="w-14 h-14 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <img src="/dashboard.ico" alt="Korum" className="w-7 h-7 object-contain rounded-xl" />
+              <img src="/dashboard-logo.png" alt="Korum" className="w-7 h-7 object-contain rounded-xl" />
             </div>
           </div>
           <div>
@@ -267,7 +306,7 @@ export default function ConsultaAlumnoPage() {
         {/* Extremo Izquierdo */}
         <div className="flex items-center gap-3">
           <img 
-            src="/dashboard.ico" 
+            src="/dashboard-logo.png" 
             alt="Korum" 
             className="w-8 h-8 rounded-xl object-contain drop-shadow-xs" 
           />

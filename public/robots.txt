@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /consulta/
+Disallow: /admin/
+Disallow: /configuracion/
+
+Sitemap: https://korum-wine.vercel.app/sitemap.xml

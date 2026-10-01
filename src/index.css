@@ -462,3 +462,94 @@
   }
 }
 
+/* ===================================================================
+   SISTEMA DE RESPONSIVIDAD MÓVIL AVANZADA (KORUM MOBILE-CORE)
+   =================================================================== */
+
+/* 1. Alturas dinámicas adaptables a la barra de navegación del navegador */
+.h-app {
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+}
+.min-h-app {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+}
+.max-h-app {
+  max-height: 92vh;
+  max-height: 92svh;
+  max-height: 92dvh;
+}
+
+/* 2. Utilidades de Safe Areas (iPhone Notch / Barra de gestos Home) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* 3. Regla Defensiva contra Auto-Zoom en iOS (Safari fuerza zoom si font-size < 16px) */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  .wave-input,
+  .wave-dni-field {
+    font-size: 16px !important;
+  }
+}
+
+/* 4. Touch target mínimo de 44x44 px bajo la pauta WCAG 2.5.5 */
+@media (max-width: 767px) {
+  .touch-44 {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* 5. Pista visual sutil para tablas con scroll horizontal en móvil */
+.tbl-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+.tbl-hint::after {
+  content: "Deslizá horizontalmente para ver más →";
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  font-family: monospace;
+  color: #64748B;
+  padding: 8px 0 4px;
+}
+@media (min-width: 768px) {
+  .tbl-hint::after {
+    display: none;
+  }
+}
+
+/* 6. Optimización en orientación horizontal de baja altura (Landscape <= 500px) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .bottomnav-label {
+    display: none !important;
+  }
+  .modal-shell {
+    max-height: 92dvh !important;
+  }
+  .h-nav-landscape {
+    height: 48px !important;
+  }
+}
+

@@ -147,7 +147,7 @@ export default function OnboardingModal({ forceOpen = false, onClose = null }) {
         {/* Barra superior con Isotipo Korum y botón cerrar */}
         <div className="flex items-center justify-between relative z-10 mb-4">
           <div className="flex items-center gap-2.5">
-            <img src="/dashboard.ico" alt="Korum" className="w-7 h-7 object-contain rounded-xl drop-shadow-xs" />
+            <img src="/dashboard-logo.png" alt="Korum" className="w-7 h-7 object-contain rounded-xl drop-shadow-xs" />
             <span className="text-xs font-bold font-mono uppercase tracking-widest text-emerald-400">
               Korum Onboarding
             </span>

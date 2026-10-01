@@ -40,6 +40,7 @@ import {
   DEFAULT_CRITERIOS_EVALUACION
 } from '../types/catedra';
 import { isValidCatedraTab } from '../utils/catedraUtils';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 // Importaciones dinámicas lazy de pestañas y modales pesados
 const AttendanceTab = lazy(() => import('../components/catedra/AttendanceTab'));
@@ -83,6 +84,7 @@ export default function CatedraDetailPage() {
   });
 
   const [catedra, setCatedra] = useState(null);
+  useDocumentTitle(catedra?.nombre || 'Cátedra');
   const [criterios, setCriterios] = useState(DEFAULT_CRITERIOS_EVALUACION);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -91,9 +93,16 @@ export default function CatedraDetailPage() {
   // 1. FUNCIONES AUXILIARES DECLARADAS Y HOISTEADAS ANTES DE LOS EFECTOS
   // =========================================================================
 
-  function handleTabChange(newTab) {
+  function handleTabChange(newTab, event) {
     setActiveTab(newTab);
     setSearchParams({ tab: newTab });
+    if (event?.currentTarget) {
+      event.currentTarget.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    }
   }
 
   function handleCatedraUpdated(updated) {
@@ -478,7 +487,7 @@ export default function CatedraDetailPage() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => handleTabChange(tab.id)}
+                onClick={(e) => handleTabChange(tab.id, e)}
                 className={`min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'

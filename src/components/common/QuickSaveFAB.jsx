@@ -48,7 +48,10 @@ export function QuickSaveFab({
 
   const fabContent = (
     <div
-      className={`fixed bottom-24 md:bottom-6 right-6 z-50 group select-none transition-all duration-300 ease-out origin-bottom-right ${
+      style={{
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)'
+      }}
+      className={`fixed right-6 z-50 group select-none transition-all duration-300 ease-out origin-bottom-right md:!bottom-6 ${
         isDirtyState
           ? 'scale-100 opacity-100 pointer-events-auto'
           : 'scale-0 opacity-0 pointer-events-none'

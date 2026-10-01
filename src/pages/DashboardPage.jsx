@@ -41,6 +41,7 @@ import AnimatedSearchBar from '../components/common/AnimatedSearchBar';
 import { EmptyStateIllustration } from '../components/illustrations';
 import { SkeletonCatedraCard, SkeletonBentoGrid } from '../components/common/SkeletonLoader';
 import { useCountUp } from '../hooks/useCountUp';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 const EditarCatedraModal = lazy(() => import('../components/catedra/EditarCatedraModal'));
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -55,6 +56,7 @@ import {
 } from '../lib/dateUtils';
 
 export default function DashboardPage() {
+  useDocumentTitle('Panel Principal');
   const navigate = useNavigate();
   const { user, isDemo } = useAuth();
   const { instituciones, activeInstitucion, activeCiclo, ciclosLectivos, refreshData } = useApp();
@@ -176,7 +178,7 @@ export default function DashboardPage() {
           const [inscRes, clasesRes] = await Promise.all([
             supabase
               .from('inscripciones')
-              .select('catedra_id, estudiante_id')
+              .select('id, catedra_id, estudiante_id, estado_ram')
               .in('catedra_id', catedraIds),
 
             supabase
@@ -193,7 +195,6 @@ export default function DashboardPage() {
 
           // Obtener la clase más reciente de cada cátedra y conteo total de clases por cátedra
           const allClases = clasesRes.data || [];
-          const latestClaseIds = [];
           
           clasesCountByCat = (allClases || []).reduce((acc, c) => {
             const catId = c.catedra_id;
@@ -204,25 +205,41 @@ export default function DashboardPage() {
           allClases.forEach(c => {
             if (!latestClaseByCat[c.catedra_id]) {
               latestClaseByCat[c.catedra_id] = { ...c };
-              latestClaseIds.push(c.id);
             }
           });
 
-          // 3. Asistencias de la última clase y cálculo de asistencia global
-          if (latestClaseIds.length > 0) {
-            const { data: asistData } = await supabase
+          // 3. Consulta unificada y atómica de asistencias para todas las clases de las cátedras
+          const allClaseIds = allClases.map(c => c.id);
+          if (allClaseIds.length > 0) {
+            const { data: allAsistData } = await supabase
               .from('asistencias')
-              .select('clase_id, estudiante_id, estado')
-              .in('clase_id', latestClaseIds);
+              .select('id, clase_id, estudiante_id, estado')
+              .in('clase_id', allClaseIds);
 
             const asistMap = {};
-            (asistData || []).forEach(a => {
+            const claseToCat = {};
+            allClases.forEach(c => { claseToCat[c.id] = c.catedra_id; });
+
+            const totalByCat = {};
+            const presentesByCat = {};
+
+            (allAsistData || []).forEach(a => {
+              // Asistencias para la última clase
               if (!asistMap[a.clase_id]) {
                 asistMap[a.clase_id] = { presentes: 0, total: 0 };
               }
               asistMap[a.clase_id].total += 1;
               if (a.estado === 'PRESENTE') {
                 asistMap[a.clase_id].presentes += 1;
+              }
+
+              // Asistencias agrupadas por cátedra para porcentaje global
+              const catId = claseToCat[a.clase_id];
+              if (catId) {
+                totalByCat[catId] = (totalByCat[catId] || 0) + 1;
+                if (a.estado === 'PRESENTE') {
+                  presentesByCat[catId] = (presentesByCat[catId] || 0) + 1;
+                }
               }
             });
 
@@ -234,32 +251,8 @@ export default function DashboardPage() {
                 cls.totalAsist = asistMap[cls.id].total;
               }
             });
-          }
 
-          // Calcular porcentaje promedio de asistencia por cátedra
-          const allClaseIds = allClases.map(c => c.id);
-          if (allClaseIds.length > 0) {
-            const { data: allAsistData } = await supabase
-              .from('asistencias')
-              .select('clase_id, estado')
-              .in('clase_id', allClaseIds);
-
-            const claseToCat = {};
-            allClases.forEach(c => { claseToCat[c.id] = c.catedra_id; });
-
-            const totalByCat = {};
-            const presentesByCat = {};
-
-            (allAsistData || []).forEach(a => {
-              const catId = claseToCat[a.clase_id];
-              if (catId) {
-                totalByCat[catId] = (totalByCat[catId] || 0) + 1;
-                if (a.estado === 'PRESENTE') {
-                  presentesByCat[catId] = (presentesByCat[catId] || 0) + 1;
-                }
-              }
-            });
-
+            // Calcular porcentaje promedio de asistencia por cátedra
             catedraIds.forEach(catId => {
               const tot = totalByCat[catId] || 0;
               const pres = presentesByCat[catId] || 0;

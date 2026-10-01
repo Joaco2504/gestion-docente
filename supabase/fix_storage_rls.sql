@@ -71,10 +71,24 @@ BEGIN
         ALTER TABLE public.recursos ENABLE ROW LEVEL SECURITY;
         DROP POLICY IF EXISTS "recursos_manage_own" ON public.recursos;
         DROP POLICY IF EXISTS "recursos_allow_all" ON public.recursos;
-        CREATE POLICY "recursos_allow_all"
+        DROP POLICY IF EXISTS "recursos_docente_manage" ON public.recursos;
+        CREATE POLICY "recursos_docente_manage"
         ON public.recursos FOR ALL
-        TO public
-        USING (true)
-        WITH CHECK (true);
+        TO authenticated
+        USING (
+            EXISTS (
+                SELECT 1 FROM public.catedras c
+                WHERE c.id = recursos.catedra_id
+                AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+            )
+        )
+        WITH CHECK (
+            EXISTS (
+                SELECT 1 FROM public.catedras c
+                WHERE c.id = recursos.catedra_id
+                AND (c.docente_id = auth.uid() OR (auth.jwt() ->> 'email') = 'jooako7@gmail.com')
+            )
+        );
     END IF;
 END $$;
+

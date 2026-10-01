@@ -61,13 +61,13 @@ function AuthenticatedDocenteShell() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B0F19] relative overflow-hidden">
+      <div className="min-h-app flex items-center justify-center bg-[#0B0F19] relative overflow-hidden">
         <div className="absolute w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none animate-pulseGlow" />
         <div className="flex flex-col items-center gap-4 relative z-10">
           <div className="relative">
             <div className="w-16 h-16 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <img src="/dashboard.ico" alt="Korum" className="w-8 h-8 object-contain rounded-xl" />
+              <img src="/dashboard-logo.png" alt="Korum" className="w-8 h-8 object-contain rounded-xl" />
             </div>
           </div>
           <div className="text-center">
@@ -87,7 +87,7 @@ function AuthenticatedDocenteShell() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary">
+    <div className="flex h-app min-h-app w-full overflow-hidden bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary">
       {/* 1. Barra Lateral Anclada a Altura Completa */}
       <DualSidebar 
         isOpen={sidebarOpen} 
@@ -95,7 +95,7 @@ function AuthenticatedDocenteShell() {
       />
 
       {/* 2. Área de Trabajo Principal (Header pegado arriba + Scroll interno) */}
-      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 h-app overflow-hidden">
         {/* Header adosado de forma continua al Sidebar, sin huecos */}
         <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 

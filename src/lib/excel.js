@@ -1,5 +1,12 @@
-import * as XLSX from 'xlsx';
 import { formatFechaDMY } from './dateUtils';
+
+/**
+ * Carga diferida de XLSX solo al momento de procesar un archivo
+ */
+async function getXLSX() {
+  const XLSX = await import('xlsx');
+  return XLSX;
+}
 
 /**
  * Procesa un archivo Excel (.xlsx, .xls) o CSV en el navegador usando SheetJS.
@@ -7,6 +14,7 @@ import { formatFechaDMY } from './dateUtils';
  * @returns {Promise<{ rows: Array, headers: Array }>}
  */
 export async function parseExcelOrCsv(file) {
+  const XLSX = await getXLSX();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -37,6 +45,40 @@ export async function parseExcelOrCsv(file) {
     reader.onerror = (err) => reject(err);
     reader.readAsArrayBuffer(file);
   });
+}
+
+/**
+ * Función genérica de parseo de Excel
+ */
+export async function parseExcelFile(file) {
+  const XLSX = await getXLSX();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        resolve(json);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/**
+ * Exportación genérica a Excel
+ */
+export async function exportToExcel(data, fileName = 'exportacion.xlsx') {
+  const XLSX = await getXLSX();
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Datos');
+  XLSX.writeFile(workbook, fileName);
 }
 
 /**
@@ -113,19 +155,21 @@ export function sanitizeStudentRows(rows = [], mapping = {}) {
 /**
  * Exporta la sábana de calificaciones y asistencia completa a un archivo Excel (.xlsx).
  */
-export function exportGradesToExcel(arg1, arg2, arg3, arg4, arg5) {
-  exportGradesToFile('xlsx', arg1, arg2, arg3, arg4, arg5);
+export async function exportGradesToExcel(arg1, arg2, arg3, arg4, arg5) {
+  return exportGradesToFile('xlsx', arg1, arg2, arg3, arg4, arg5);
 }
 
-export function exportGradesToCsv(arg1, arg2, arg3, arg4, arg5) {
-  exportGradesToFile('csv', arg1, arg2, arg3, arg4, arg5);
+export async function exportGradesToCsv(arg1, arg2, arg3, arg4, arg5) {
+  return exportGradesToFile('csv', arg1, arg2, arg3, arg4, arg5);
 }
 
 /**
  * Exporta la sábana de calificaciones en formato Excel (.xlsx) o CSV (.csv).
  * @param {'xlsx'|'csv'} format 
  */
-export function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4, arg5) {
+export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4, arg5) {
+  const XLSX = await getXLSX();
+
   let catedraInfo = { nombre: 'Catedra' };
   let estudiantes = [];
   let evaluaciones = [];
@@ -229,7 +273,9 @@ export function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4, arg5
  * @param {Array} actasAlumnos - Lista de alumnos inscriptos con sus notas y dictámenes
  * @param {string} catedraNombre - Nombre de la cátedra
  */
-export function exportMesaExamenToExcel(mesa = {}, actasAlumnos = [], catedraNombre = '') {
+export async function exportMesaExamenToExcel(mesa = {}, actasAlumnos = [], catedraNombre = '') {
+  const XLSX = await getXLSX();
+
   const cleanCatedra = (catedraNombre || mesa.catedras?.nombre || 'Catedra').replace(/[^a-zA-Z0-9_-]/g, '_');
   const safeTurno = (mesa.turno_llamado || 'Examen').replace(/[^a-zA-Z0-9_-]/g, '_');
   const dateStr = mesa.fecha ? formatFechaDMY(mesa.fecha) : new Date().toISOString().split('T')[0];
@@ -291,7 +337,7 @@ export function exportMesaExamenToExcel(mesa = {}, actasAlumnos = [], catedraNom
  * @param {Array} inasistenciasDocente - Licencias / ausencias del docente
  * @param {Map} studentStatsMap - Mapa id -> porcentaje acumulado
  */
-export function exportAttendanceToExcel(
+export async function exportAttendanceToExcel(
   catedraInfo = {},
   estudiantes = [],
   clases = [],
@@ -299,6 +345,8 @@ export function exportAttendanceToExcel(
   inasistenciasDocente = [],
   studentStatsMap = new Map()
 ) {
+  const XLSX = await getXLSX();
+
   const cleanCatedra = (catedraInfo.nombre || 'Catedra').replace(/[^a-zA-Z0-9_-]/g, '_');
   const dateStr = new Date().toISOString().split('T')[0];
 

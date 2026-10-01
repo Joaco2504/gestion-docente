@@ -1779,31 +1779,31 @@ export default function GradesTab({
                           {ev.fecha_entrega ? `Entrega: ${formatFechaDMY(ev.fecha_entrega)}` : 'Sin fecha'}
                         </div>
 
-                        {/* Botones de acción inferiores: Editar, Calificar, Borrar */}
-                        <div className="flex items-center justify-center gap-1.5 mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
+                        {/* Botones de acción inferiores: Editar, Calificar, Borrar (Touch Target 44x44px) */}
+                        <div className="flex items-center justify-center gap-1 mt-1 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
                           <button
                             type="button"
                             onClick={() => handleOpenEditEvaluacion(ev)}
                             title={`Editar datos de "${ev.titulo}"`}
-                            className="p-2 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-text-muted hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                            className="p-2 touch-44 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleOpenBatchGrade(ev)}
                             title={`Calificar a todo el curso en "${ev.titulo}"`}
-                            className="p-2 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                            className="p-2 touch-44 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
                           >
-                            <ListChecks className="w-3.5 h-3.5" />
+                            <ListChecks className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteEvaluacion(ev.id, ev.titulo)}
                             title={`Eliminar "${ev.titulo}" y todas sus notas`}
-                            className="p-2 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            className="p-2 touch-44 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </th>

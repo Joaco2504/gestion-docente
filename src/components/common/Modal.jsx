@@ -60,7 +60,7 @@ export default function Modal({
       <div
         className={`relative w-full sm:w-auto ${maxWidth} max-w-[92vw] sm:max-w-xl md:max-w-2xl backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden z-10 ${
           isClosing ? 'animate-modalOut' : 'animate-scaleIn'
-        } max-h-[90vh] sm:max-h-[85vh] flex flex-col`}
+        } max-h-app max-h-[90vh] sm:max-h-[85vh] flex flex-col pb-safe modal-shell`}
         role="dialog"
         aria-modal="true"
       >
@@ -71,8 +71,8 @@ export default function Modal({
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/30">
-          <div>
-            <h3 className="text-base font-bold text-text-primary">{title}</h3>
+          <div className="pr-10 min-w-0">
+            <h3 className="text-base font-bold text-text-primary truncate">{title}</h3>
             {subtitle && (
               <p className="text-xs text-text-muted mt-0.5 leading-snug">{subtitle}</p>
             )}
@@ -80,7 +80,7 @@ export default function Modal({
           <button
             type="button"
             onClick={handleClose}
-            className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors touch-target-44 flex items-center justify-center cursor-pointer"
+            className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors touch-target-44 flex items-center justify-center cursor-pointer shrink-0"
             title="Cerrar ventana"
             aria-label="Cerrar"
           >
@@ -89,7 +89,7 @@ export default function Modal({
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1">
+        <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1 max-h-app pb-safe">
           {children}
         </div>
       </div>
