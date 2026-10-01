@@ -73,6 +73,8 @@ export default function StudentsTab({
   // Sorting state: 'apellido' | 'nombre' | 'dni' | 'condicion', 'asc' (A-Z) | 'desc' (Z-A)
   const [sortField, setSortField] = useState('apellido');
   const [sortDirection, setSortDirection] = useState('asc'); // 'asc' = A-Z, 'desc' = Z-A
+  const sortKey = sortField;
+  const sortDir = sortDirection;
 
   // Academic data for condition calculation
   const [evaluaciones, setEvaluaciones] = useState([]);
