@@ -57,18 +57,22 @@
   letter-spacing: 0.05em;
 }
 
-/* Efecto de resplandor de la barra inferior */
+/* Efecto de resplandor de la barra inferior (Acelerado por GPU) */
+.wave-dni-bar,
 .wave-dni-glow-line {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 0;
+  width: 100%;
   height: 2px;
   background: #10B981;
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
-  transition: width 0.35s ease-in-out;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.wave-dni-input:focus ~ .wave-dni-bar,
 .wave-dni-field:focus ~ .wave-dni-glow-line {
-  width: 100%;
+  transform: scaleX(1);
 }

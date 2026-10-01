@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useCountUp } from '../../hooks/useCountUp';
 
 /**
  * InteractiveDonutChart - Gráfico interactivo tipo Donut / Torta nativo SVG.
@@ -22,6 +23,7 @@ export default function InteractiveDonutChart({
   const [activeIndex, setActiveIndex] = useState(null);
 
   const total = data.reduce((acc, item) => acc + (item.value || 0), 0);
+  const animatedTotal = useCountUp(total, 600);
   const radius = 38;
   const strokeWidth = 14;
   const circumference = 2 * Math.PI * radius;
@@ -102,7 +104,7 @@ export default function InteractiveDonutChart({
             {activeItem ? activeItem.label : title}
           </span>
           <span className="text-2xl sm:text-3xl font-mono font-extrabold text-text-primary tracking-tight mt-0.5">
-            {activeItem ? `${activeItem.rawPercent.toFixed(1)}%` : total}
+            {activeItem ? `${activeItem.rawPercent.toFixed(1)}%` : animatedTotal}
           </span>
           <span className="text-[11px] text-text-secondary font-medium mt-0.5">
             {activeItem ? `${activeItem.value} ${valueSuffix}` : subtitle}

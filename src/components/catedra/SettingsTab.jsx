@@ -460,7 +460,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         </div>
 
         {isInfoOpen && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in duration-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-text-secondary mb-1">
                 Nombre de la Asignatura / Cátedra *
@@ -557,7 +557,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         </div>
 
         {isHorariosOpen && (
-          <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-fadeIn">
             <div className="flex sm:hidden justify-end">
               <Button
                 type="button"
@@ -705,7 +705,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         </div>
 
         {isPeriodosOpen && (
-          <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-fadeIn">
             <div className="flex sm:hidden justify-end">
               <Button
                 type="button"
@@ -850,7 +850,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         </div>
 
         {isCriteriosOpen && (
-          <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-fadeIn">
             <p className="text-xs text-text-muted">
               Parámetros para el cálculo automático de regularidad, promoción y aprobación según el nivel {nivel}.
             </p>
@@ -993,7 +993,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
         </div>
 
         {isLicenciasOpen && (
-          <div className="pt-2 animate-in fade-in duration-200">
+          <div className="pt-2 animate-fadeIn">
             <LicenciasDecreto1092Table compact={false} />
           </div>
         )}

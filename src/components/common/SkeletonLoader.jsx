@@ -3,7 +3,7 @@ import React from 'react';
 export function SkeletonItem({ className = '' }) {
   return (
     <div className={`relative overflow-hidden bg-surface-hover/80 rounded-lg ${className}`}>
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-surface-border/50 to-transparent animate-shimmer" />
+      <div className="absolute inset-0 skeleton-shine animate-shimmer pointer-events-none" />
     </div>
   );
 }
@@ -13,7 +13,7 @@ export function SkeletonCatedraCard({ count = 1 }) {
     <>
       {Array.from({ length: count }).map((_, idx) => (
         <div key={idx} className="relative overflow-hidden bg-white/70 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 space-y-4 shadow-xs">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-200/40 dark:via-white/5 to-transparent animate-shimmer pointer-events-none" />
+          <div className="absolute inset-0 skeleton-shine animate-shimmer pointer-events-none" />
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
               <div className="w-16 h-5 bg-slate-200/70 dark:bg-slate-800 rounded-full" />
@@ -52,7 +52,7 @@ export function SkeletonBentoGrid() {
 export function SkeletonTable({ rows = 5, cols = 4 }) {
   return (
     <div className="relative overflow-hidden bg-surface rounded-2xl border border-surface-border p-4 space-y-3 shadow-xs">
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-surface-hover/50 to-transparent animate-shimmer pointer-events-none" />
+      <div className="absolute inset-0 skeleton-shine animate-shimmer pointer-events-none" />
       <div className="flex justify-between items-center pb-2 border-b border-surface-border">
         <div className="w-1/3 h-5 bg-surface-hover rounded" />
         <div className="w-24 h-8 bg-surface-hover rounded-lg" />
@@ -77,7 +77,7 @@ export function CatedraDetailSkeleton() {
 
       {/* Bento Header Skeleton */}
       <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 space-y-6 shadow-xs relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-200/30 dark:via-white/5 to-transparent animate-shimmer pointer-events-none" />
+        <div className="absolute inset-0 skeleton-shine animate-shimmer pointer-events-none" />
         
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
           <div className="space-y-3 w-full max-w-xl">

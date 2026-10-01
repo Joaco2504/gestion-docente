@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -1100,15 +1099,10 @@ export default function CalendarPage() {
           </div>
 
           {/* 2. VISTA DINÁMICA: SEMANA / MES / DÍA */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${viewMode}-${currentDate.toISOString().slice(0, 10)}`}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="w-full overflow-hidden"
-            >
+          <div
+            key={`${viewMode}-${currentDate.toISOString().slice(0, 10)}`}
+            className="w-full overflow-hidden cal-view-transition"
+          >
 
               {/* ========================================================
                   VISTA SEMANAL: FRANJA DE DÍAS Y MATRIZ 24 HS
@@ -1549,8 +1543,7 @@ export default function CalendarPage() {
                 </div>
               )}
 
-            </motion.div>
-          </AnimatePresence>
+          </div>
 
         </div>
       </main>

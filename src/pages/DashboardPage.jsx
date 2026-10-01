@@ -40,6 +40,7 @@ import ExpandableSearch from '../components/common/ExpandableSearch';
 import AnimatedSearchBar from '../components/common/AnimatedSearchBar';
 import { EmptyStateIllustration } from '../components/illustrations';
 import { SkeletonCatedraCard, SkeletonBentoGrid } from '../components/common/SkeletonLoader';
+import { useCountUp } from '../hooks/useCountUp';
 const EditarCatedraModal = lazy(() => import('../components/catedra/EditarCatedraModal'));
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -679,6 +680,10 @@ const normalizeSearchText = (str) => {
   }, [selectedMetricsCatedraId, catedrasList]);
 
   const globalMetrics = displayedMetrics;
+  const animatedAttendance = useCountUp(displayedMetrics.averageAttendance, 700);
+  const animatedStudents = useCountUp(displayedMetrics.totalStudents, 600);
+  const animatedClasses = useCountUp(displayedMetrics.totalClasses, 600);
+  const animatedCatedras = useCountUp(displayedMetrics.activeCatedras, 600);
 
   /**
    * Crear Cátedra
@@ -1150,7 +1155,7 @@ const normalizeSearchText = (str) => {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
                   <span className="text-xl font-bold font-mono text-slate-900 dark:text-white leading-tight">
-                    {displayedMetrics.averageAttendance}%
+                    {animatedAttendance}%
                   </span>
                   <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5 leading-none">
                     ASISTENCIA
@@ -1166,7 +1171,7 @@ const normalizeSearchText = (str) => {
                     <span>Alumnos Activos:</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
-                    {displayedMetrics.totalStudents}
+                    {animatedStudents}
                   </span>
                 </div>
                 <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
@@ -1175,7 +1180,7 @@ const normalizeSearchText = (str) => {
                     <span>{displayedMetrics.isFiltered ? 'Materia:' : 'Cátedras:'}</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
-                    {displayedMetrics.isFiltered ? '1 Activa' : displayedMetrics.activeCatedras}
+                    {displayedMetrics.isFiltered ? '1 Activa' : animatedCatedras}
                   </span>
                 </div>
                 <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
@@ -1184,7 +1189,7 @@ const normalizeSearchText = (str) => {
                     <span>Clases Totales:</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
-                    {displayedMetrics.totalClasses}
+                    {animatedClasses}
                   </span>
                 </div>
               </div>

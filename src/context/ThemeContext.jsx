@@ -152,7 +152,17 @@ export function ThemeProvider({ children }) {
     root.style.setProperty('--color-primary-muted', pal.primaryMuted);
   }, [colorPalette]);
 
+  const triggerThemeTransition = () => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('theme-transitioning');
+      setTimeout(() => {
+        document.documentElement.classList.remove('theme-transitioning');
+      }, 250);
+    }
+  };
+
   const setTheme = (newTheme) => {
+    triggerThemeTransition();
     setThemeState(newTheme);
     try {
       localStorage.setItem('docentepro_theme', newTheme);
@@ -173,6 +183,7 @@ export function ThemeProvider({ children }) {
   };
 
   const toggleTheme = () => {
+    triggerThemeTransition();
     if (theme === 'system') {
       setTheme(isDark ? 'light' : 'dark');
     } else if (theme === 'dark') {

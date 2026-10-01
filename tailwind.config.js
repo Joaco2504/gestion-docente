@@ -110,10 +110,15 @@ export default {
         uploadPulse: {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-4px)' },
+        },
+        modalOut: {
+          '0%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+          '100%': { opacity: '0', transform: 'scale(0.97) translateY(6px)' },
         }
       },
       animation: {
         scaleIn: 'scaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        modalOut: 'modalOut 0.15s cubic-bezier(0.4, 0, 1, 1) forwards',
         fadeIn: 'fadeIn 0.2s ease-out forwards',
         fadeInUp: 'fadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         slideUp: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',

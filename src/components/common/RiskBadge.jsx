@@ -57,7 +57,7 @@ export default function RiskBadge({ risk, compact = false, className = '' }) {
         >
           {/* Pulsing Beacon */}
           {(isCritical || isWarning) && (
-            <span className="absolute inset-0.5 rounded-full animate-ping opacity-75 inline-flex"
+            <span className="absolute inset-0.5 rounded-full animate-ping-subtle opacity-75 inline-flex"
               style={{ backgroundColor: isCritical ? '#f43f5e' : '#f59e0b' }}
             />
           )}
@@ -70,7 +70,7 @@ export default function RiskBadge({ risk, compact = false, className = '' }) {
           {/* Pulsing Beacon dot */}
           <span className="relative flex h-2 w-2 shrink-0">
             {(isCritical || isWarning) && (
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${config.pingBg}`} />
+              <span className={`animate-ping-subtle absolute inline-flex h-full w-full rounded-full opacity-75 ${config.pingBg}`} />
             )}
             <span className={`relative inline-flex rounded-full h-2 w-2 ${config.dotBg}`} />
           </span>

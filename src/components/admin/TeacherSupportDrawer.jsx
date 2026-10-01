@@ -310,7 +310,7 @@ export default function TeacherSupportDrawer({
       />
 
       {/* Slide-over Drawer Panel */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-canvas border-l border-surface-border shadow-2xl flex flex-col animate-slideLeft">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-canvas border-l border-surface-border shadow-2xl flex flex-col animate-fadeIn">
         
         {/* Header Drawer */}
         <div className="p-5 border-b border-surface-border bg-surface/70 backdrop-blur-md flex items-center justify-between gap-4">

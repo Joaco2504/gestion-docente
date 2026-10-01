@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -11,9 +11,27 @@ export default function Modal({
   maxWidth = 'max-w-lg',
   zIndex = 'z-[110]'
 }) {
+  const [isClosing, setIsClosing] = useState(false);
+  const timerRef = useRef(null);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    timerRef.current = setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 150);
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -23,22 +41,26 @@ export default function Modal({
       document.body.style.overflow = 'unset';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, handleClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !isClosing) return null;
 
   const modalContent = (
-    <div className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6`}>
+    <div className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 ${isClosing ? 'modal-closing pointer-events-none' : ''}`}>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200"
-        onClick={onClose}
+        className={`fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-150 ${
+          isClosing ? 'opacity-0' : 'opacity-100'
+        }`}
+        onClick={handleClose}
         aria-hidden="true"
       />
 
       {/* Modal Dialog (Bottom Sheet on Mobile, Centered Modal on Tablet/Desktop) */}
       <div
-        className={`relative w-full sm:w-auto ${maxWidth} max-w-[92vw] sm:max-w-xl md:max-w-2xl backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden z-10 animate-slideUp sm:animate-fadeIn max-h-[90vh] sm:max-h-[85vh] flex flex-col`}
+        className={`relative w-full sm:w-auto ${maxWidth} max-w-[92vw] sm:max-w-xl md:max-w-2xl backdrop-blur-2xl bg-white/95 dark:bg-slate-900/95 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden z-10 ${
+          isClosing ? 'animate-modalOut' : 'animate-scaleIn'
+        } max-h-[90vh] sm:max-h-[85vh] flex flex-col`}
         role="dialog"
         aria-modal="true"
       >
@@ -57,7 +79,7 @@ export default function Modal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors touch-target-44 flex items-center justify-center cursor-pointer"
             title="Cerrar ventana"
             aria-label="Cerrar"
