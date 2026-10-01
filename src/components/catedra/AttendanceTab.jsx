@@ -51,6 +51,7 @@ import RiskBadge from '../common/RiskBadge';
 import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 import { handleAppError } from '../../utils/handleAppError';
 import { exportAttendanceToExcel } from '../../lib/excel';
+import { catedraCache } from '../../services/catedraCache';
 
 // Comparador memoizado para tarjeta táctil mobile
 function areAttendanceCardPropsEqual(prev, next) {
@@ -529,7 +530,7 @@ export default function AttendanceTab({
         try {
           const { data, error } = await supabase
             .from('asistencias')
-            .select('*')
+            .select('id, clase_id, estudiante_id, estado')
             .eq('clase_id', selectedClaseId);
 
           if (!error && data && !isCancelled) {
@@ -556,39 +557,84 @@ export default function AttendanceTab({
     };
   }, [selectedClaseId, isDemo, catedraId]);
 
-  async function fetchData() {
+  async function fetchData(forceRefresh = false) {
+    // 1. Verificación instantánea de caché en memoria de sesión
+    if (!forceRefresh) {
+      const cached = catedraCache.get(catedraId);
+      if (cached && cached.clases && cached.estudiantes) {
+        setClases(cached.clases);
+        setEstudiantes(cached.estudiantes);
+        if (cached.asistencias) setAsistencias(cached.asistencias);
+        if (cached.inasistenciasDocente) setInasistenciasDocente(cached.inasistenciasDocente);
+        if (cached.evaluaciones) setEvaluaciones(cached.evaluaciones);
+        if (cached.notas) setNotas(cached.notas);
+        if (cached.criterios) setCriterios(cached.criterios);
+        if (cached.unidades) setUnidades(cached.unidades);
+        setLoading(false);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
-        // 1. Clases
-        const { data: cData } = await supabase
-          .from('clases')
-          .select('*')
-          .eq('catedra_id', catedraId)
-          .order('fecha', { ascending: false });
-
-        // 2. Estudiantes inscriptos (consulta normalizada y defensiva)
-        const { data: inscData } = await supabase
-          .from('inscripciones')
-          .select(`
-            id,
-            estudiante_id,
-            catedra_id,
-            ciclo_id,
-            estado_academico,
-            condicion,
-            nota_final,
-            nota_final_acreditacion,
-            estudiantes (
+        // Round 1: Carga paralela de clases, inscripciones, inasistencias, evaluaciones, criterios y unidades
+        const [
+          clsRes,
+          inscRes,
+          inasistRes,
+          evalRes,
+          critRes,
+          unidadesRes
+        ] = await Promise.all([
+          supabase
+            .from('clases')
+            .select('id, catedra_id, fecha, tema, unidad_id')
+            .eq('catedra_id', catedraId)
+            .order('fecha', { ascending: false }),
+          supabase
+            .from('inscripciones')
+            .select(`
               id,
-              dni,
-              apellido,
-              nombre
-            )
-          `)
-          .eq('catedra_id', catedraId);
+              estudiante_id,
+              catedra_id,
+              ciclo_id,
+              estado_academico,
+              condicion,
+              nota_final,
+              nota_final_acreditacion,
+              estudiantes (
+                id,
+                dni,
+                apellido,
+                nombre
+              )
+            `)
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('inasistencias_docente')
+            .select('id, catedra_id, fecha, motivo, articulo')
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('evaluaciones')
+            .select('id, catedra_id, titulo, tipo, evaluacion_origen_id')
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('criterios_evaluacion')
+            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg, nota_min_sec')
+            .eq('catedra_id', catedraId)
+            .maybeSingle(),
+          supabase
+            .from('unidades_tematicas')
+            .select('id, catedra_id, numero, titulo')
+            .eq('catedra_id', catedraId)
+            .order('numero', { ascending: true })
+            .then(res => res)
+            .catch(() => ({ data: null, error: true }))
+        ]);
 
-        const estList = (inscData || [])
+        const cls = clsRes.data || [];
+        const estList = (inscRes.data || [])
           .map(ins => {
             const est = ins.estudiantes || {};
             const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
@@ -607,68 +653,66 @@ export default function AttendanceTab({
           .filter(s => s && s.id);
         estList.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
 
-        // 3. Asistencias
-        const { data: aData } = await supabase
-          .from('asistencias')
-          .select('*')
-          .in('clase_id', (cData || []).map(c => c.id));
+        const inasistList = inasistRes.data || [];
+        const evList = evalRes.data || [];
 
-        // 4. Inasistencias Docente
-        const { data: inasistData } = await supabase
-          .from('inasistencias_docente')
-          .select('*')
-          .eq('catedra_id', catedraId);
+        let critObj = null;
+        if (critRes.data) {
+          critObj = {
+            min_asist_promo: Number(critRes.data.min_asist_promo) || 80,
+            min_asist_reg: Number(critRes.data.min_asist_reg) || 70,
+            nota_min_promo: Number(critRes.data.nota_min_promo) || 7,
+            nota_min_reg: Number(critRes.data.nota_min_reg) || 4,
+            nota_min_sec: Number(critRes.data.nota_min_sec) || 6
+          };
+          setCriterios(critObj);
+        }
 
-        // 5. Evaluaciones, Notas y Criterios (para Semáforo de Riesgo)
-        const { data: evData } = await supabase
-          .from('evaluaciones')
-          .select('*')
-          .eq('catedra_id', catedraId);
-        setEvaluaciones(evData || []);
-
-        const evIds = (evData || []).map(e => e.id);
-        if (evIds.length > 0) {
-          const { data: nData } = await supabase
-            .from('notas')
-            .select('*')
-            .in('evaluacion_id', evIds);
-          setNotas(nData || []);
+        let unidadesList = [];
+        if (!unidadesRes.error && unidadesRes.data) {
+          unidadesList = unidadesRes.data;
         } else {
-          setNotas([]);
-        }
-
-        try {
-          const { data: critData } = await supabase
-            .from('criterios_evaluacion')
-            .select('*')
-            .eq('catedra_id', catedraId)
-            .maybeSingle();
-          if (critData) setCriterios(critData);
-        } catch (_) {}
-
-        // 6. Unidades Temáticas del Programa
-        try {
-          const { data: uData, error: uErr } = await supabase
-            .from('unidades_tematicas')
-            .select('*')
-            .eq('catedra_id', catedraId)
-            .order('numero', { ascending: true });
-          if (!uErr && uData) {
-            setUnidades(uData);
-          } else {
+          try {
             const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
-            if (storedU) setUnidades(JSON.parse(storedU));
-          }
-        } catch (_) {
-          const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
-          if (storedU) setUnidades(JSON.parse(storedU));
+            if (storedU) unidadesList = JSON.parse(storedU);
+          } catch (_) {}
         }
+        setUnidades(unidadesList);
 
-        const cls = cData || [];
+        // Round 2: Carga en paralelo de Asistencias y Notas sin select(*)
+        const validClaseIds = cls.map(c => c.id);
+        const validEvalIds = evList.map(e => e.id);
+
+        const [asistRes, notasRes] = await Promise.all([
+          validClaseIds.length > 0
+            ? supabase.from('asistencias').select('id, clase_id, estudiante_id, estado').in('clase_id', validClaseIds)
+            : Promise.resolve({ data: [] }),
+          validEvalIds.length > 0
+            ? supabase.from('notas').select('id, evaluacion_id, estudiante_id, valor').in('evaluacion_id', validEvalIds)
+            : Promise.resolve({ data: [] })
+        ]);
+
+        const aList = asistRes.data || [];
+        const nList = notasRes.data || [];
+
         setClases(cls);
         setEstudiantes(estList);
-        setAsistencias(aData || []);
-        setInasistenciasDocente(inasistData || []);
+        setAsistencias(aList);
+        setInasistenciasDocente(inasistList);
+        setEvaluaciones(evList);
+        setNotas(nList);
+
+        // Sincronizar en memoria caché de sesión
+        catedraCache.set(catedraId, {
+          clases: cls,
+          estudiantes: estList,
+          asistencias: aList,
+          inasistenciasDocente: inasistList,
+          evaluaciones: evList,
+          notas: nList,
+          criterios: critObj,
+          unidades: unidadesList
+        });
       } else {
         // Demo mode fallback
         const storedClases = localStorage.getItem(`clases_${catedraId}`);
@@ -836,6 +880,7 @@ export default function AttendanceTab({
         setClases(updated);
         setSelectedClaseId(data.id);
         localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updated));
+        catedraCache.update(catedraId, { clases: updated });
       } else {
         const created = { ...newClaseObj, id: 'clase-' + Date.now() };
         claseId = created.id;
@@ -843,6 +888,7 @@ export default function AttendanceTab({
         setClases(updated);
         setSelectedClaseId(created.id);
         localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updated));
+        catedraCache.update(catedraId, { clases: updated });
       }
 
       // Automatically mark all currently enrolled students as PRESENTE
@@ -861,15 +907,20 @@ export default function AttendanceTab({
             .select();
 
           if (asistError) console.warn('Aviso al autocompletar asistencias:', asistError);
-          if (data && Array.isArray(data)) {
-            setAsistencias(prev => [...prev, ...data]);
-          } else {
-            setAsistencias(prev => [...prev, ...defaultAttendance]);
-          }
+          const createdAsist = (data && Array.isArray(data)) ? data : defaultAttendance;
+          setAsistencias(prev => {
+            const nextAsist = [...prev, ...createdAsist];
+            catedraCache.update(catedraId, { asistencias: nextAsist });
+            return nextAsist;
+          });
         } else {
           const prevStored = JSON.parse(localStorage.getItem(`asistencias_${catedraId}`) || '[]');
           localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify([...prevStored, ...defaultAttendance]));
-          setAsistencias(prev => [...prev, ...defaultAttendance]);
+          setAsistencias(prev => {
+            const nextAsist = [...prev, ...defaultAttendance];
+            catedraCache.update(catedraId, { asistencias: nextAsist });
+            return nextAsist;
+          });
         }
       }
 
@@ -949,13 +1000,18 @@ export default function AttendanceTab({
         }
 
         if (data?.id) {
-          setAsistencias(prev => prev.map(a => 
-            (a.clase_id === activeClase.id && a.estudiante_id === estudianteId) ? data : a
-          ));
+          setAsistencias(prev => {
+            const nextAsist = prev.map(a => 
+              (a.clase_id === activeClase.id && a.estudiante_id === estudianteId) ? data : a
+            );
+            catedraCache.update(catedraId, { asistencias: nextAsist });
+            return nextAsist;
+          });
         }
       } else {
         setAsistencias(curr => {
           localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(curr));
+          catedraCache.update(catedraId, { asistencias: curr });
           return curr;
         });
       }
@@ -1030,11 +1086,14 @@ export default function AttendanceTab({
         if (data && Array.isArray(data)) {
           setAsistencias(prev => {
             const others = (prev ?? []).filter(a => a.clase_id !== activeClase.id);
-            return [...others, ...data];
+            const nextAsist = [...others, ...data];
+            catedraCache.update(catedraId, { asistencias: nextAsist });
+            return nextAsist;
           });
         }
       } else {
         localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(updated));
+        catedraCache.update(catedraId, { asistencias: updated });
       }
 
       toast.success('Todos los estudiantes marcados como presentes.');
@@ -1111,6 +1170,7 @@ export default function AttendanceTab({
       }
 
       localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(asistencias));
+      catedraCache.update(catedraId, { asistencias });
       setIsDirty(false);
       toast.success(`Asistencia de la clase del ${formatFechaDMY(activeClase.fecha)} guardada correctamente.`);
     } catch (err) {
@@ -1271,6 +1331,7 @@ export default function AttendanceTab({
       updatedClases.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
       setClases(updatedClases);
       localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updatedClases));
+      catedraCache.update(catedraId, { clases: updatedClases });
 
       toast.success('Detalles de clase actualizados correctamente');
       setIsEditClassModalOpen(false);
@@ -1288,7 +1349,7 @@ export default function AttendanceTab({
       if (isSupabaseConfigured && !isDemo) {
         const { count, error } = await supabase
           .from('asistencias')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .eq('clase_id', activeClase.id);
         
         setDeleteClassCount(count ?? 0);
@@ -1329,6 +1390,7 @@ export default function AttendanceTab({
 
       localStorage.setItem(`clases_${catedraId}`, JSON.stringify(remainingClases));
       localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(remainingAsist));
+      catedraCache.update(catedraId, { clases: remainingClases, asistencias: remainingAsist });
 
       // Reasignación automática de clase seleccionada
       if (remainingClases.length > 0) {

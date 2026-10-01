@@ -50,6 +50,7 @@ import RiskBadge from '../common/RiskBadge';
 import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 import { handleAppError } from '../../utils/handleAppError';
 import { QuickSaveFab } from '../common/QuickSaveFAB';
+import { catedraCache } from '../../services/catedraCache';
 
 /**
  * DebouncedGradeInput - Input de nota con debounce configurable (default 300ms)
@@ -377,32 +378,81 @@ export default function GradesTab({
     fetchData();
   }, [catedraId]);
 
-  async function fetchData() {
+  async function fetchData(forceRefresh = false) {
+    // 1. Verificación instantánea de caché en memoria de sesión
+    if (!forceRefresh) {
+      const cached = catedraCache.get(catedraId);
+      if (cached && cached.estudiantes) {
+        setEstudiantes(cached.estudiantes);
+        if (cached.evaluaciones) setEvaluaciones(cached.evaluaciones);
+        if (cached.notas) setNotas(cached.notas);
+        if (cached.clases) setClases(cached.clases);
+        if (cached.asistencias) setAsistencias(cached.asistencias);
+        if (cached.inasistenciasDocente) setInasistenciasDocente(cached.inasistenciasDocente);
+        if (cached.criterios) setCriterios(cached.criterios);
+        if (cached.periodos) setPeriodos(cached.periodos);
+        setLoading(false);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
-        // 1. Estudiantes (consulta normalizada y defensiva)
-        const { data: inscData } = await supabase
-          .from('inscripciones')
-          .select(`
-            id,
-            estudiante_id,
-            catedra_id,
-            ciclo_id,
-            estado_academico,
-            condicion,
-            nota_final,
-            nota_final_acreditacion,
-            estudiantes (
+        // Round 1: Carga paralela de inscripciones, evaluaciones, clases, inasistencias, criterios y ciclo
+        const [
+          inscRes,
+          evalRes,
+          clsRes,
+          inasistRes,
+          critRes,
+          catRes
+        ] = await Promise.all([
+          supabase
+            .from('inscripciones')
+            .select(`
               id,
-              dni,
-              apellido,
-              nombre
-            )
-          `)
-          .eq('catedra_id', catedraId);
+              estudiante_id,
+              catedra_id,
+              ciclo_id,
+              estado_academico,
+              condicion,
+              nota_final,
+              nota_final_acreditacion,
+              estudiantes (
+                id,
+                dni,
+                apellido,
+                nombre
+              )
+            `)
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('evaluaciones')
+            .select('id, catedra_id, titulo, tipo, evaluacion_origen_id, fecha_entrega, archivo_url, created_at')
+            .eq('catedra_id', catedraId)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('clases')
+            .select('id, catedra_id, fecha, tema')
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('inasistencias_docente')
+            .select('id, catedra_id, fecha, motivo, articulo')
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('criterios_evaluacion')
+            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg, nota_min_sec')
+            .eq('catedra_id', catedraId)
+            .maybeSingle(),
+          supabase
+            .from('catedras')
+            .select('id, ciclo_id')
+            .eq('id', catedraId)
+            .maybeSingle()
+        ]);
 
-        const estList = (inscData || [])
+        const estList = (inscRes.data || [])
           .map(ins => {
             const est = ins.estudiantes || {};
             const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
@@ -421,13 +471,6 @@ export default function GradesTab({
           .filter(s => s && s.id);
         estList.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
 
-        // 2. Evaluaciones (con fusión resiliente de almacenamiento local)
-        const { data: evalData } = await supabase
-          .from('evaluaciones')
-          .select('*')
-          .eq('catedra_id', catedraId)
-          .order('created_at', { ascending: true });
-
         const localKey = `evaluaciones_${catedraId}`;
         let localEvals = [];
         try {
@@ -437,12 +480,10 @@ export default function GradesTab({
         }
 
         const combinedMap = new Map();
-        // Cargar registros remotos
-        (evalData || []).forEach(e => combinedMap.set(e.id, e));
-        // Preservar registros locales que aún no hayan impactado en la base de datos
+        (evalRes.data || []).forEach(e => combinedMap.set(e.id, e));
         localEvals.forEach(localEv => {
           if (!combinedMap.has(localEv.id)) {
-            const match = (evalData || []).find(e => 
+            const match = (evalRes.data || []).find(e => 
               e.titulo?.trim().toLowerCase() === localEv.titulo?.trim().toLowerCase() &&
               String(e.catedra_id) === String(localEv.catedra_id)
             );
@@ -455,80 +496,61 @@ export default function GradesTab({
         const mergedEvals = Array.from(combinedMap.values());
         localStorage.setItem(localKey, JSON.stringify(mergedEvals));
 
-        // 3. Notas
-        const evalIds = mergedEvals.map(e => e.id);
-        let notasList = [];
-        if (evalIds.length > 0) {
-          const { data: nData } = await supabase
-            .from('notas')
-            .select('*')
-            .in('evaluacion_id', evalIds.filter(id => !String(id).startsWith('eval-')));
-          notasList = nData || [];
-        }
+        const cList = clsRes.data || [];
+        const inasistList = inasistRes.data || [];
 
-        // 4. Clases & Asistencias
-        const { data: cData } = await supabase
-          .from('clases')
-          .select('*')
-          .eq('catedra_id', catedraId);
+        // Round 2: Carga paralela de Notas, Asistencias y Periodos Académicos
+        const validEvalIds = mergedEvals.map(e => e.id).filter(id => !String(id).startsWith('eval-'));
+        const validClaseIds = cList.map(c => c.id);
+        const cicloId = catRes.data?.ciclo_id;
 
-        let asistList = [];
-        if ((cData || []).length > 0) {
-          const { data: aData } = await supabase
-            .from('asistencias')
-            .select('*')
-            .in('clase_id', cData.map(c => c.id));
-          asistList = aData || [];
-        }
+        const [notasRes, asistRes, periodosRes] = await Promise.all([
+          validEvalIds.length > 0
+            ? supabase.from('notas').select('id, evaluacion_id, estudiante_id, valor').in('evaluacion_id', validEvalIds)
+            : Promise.resolve({ data: [] }),
+          validClaseIds.length > 0
+            ? supabase.from('asistencias').select('id, clase_id, estudiante_id, estado').in('clase_id', validClaseIds)
+            : Promise.resolve({ data: [] }),
+          cicloId
+            ? supabase.from('periodos_academicos').select('id, ciclo_id, nombre, numero, fecha_inicio, fecha_fin').eq('ciclo_id', cicloId).order('fecha_inicio', { ascending: true })
+            : Promise.resolve({ data: [] })
+        ]);
 
-        // 5. Inasistencias Docente
-        const { data: inasistData } = await supabase
-          .from('inasistencias_docente')
-          .select('*')
-          .eq('catedra_id', catedraId);
+        const notasList = notasRes.data || [];
+        const asistList = asistRes.data || [];
+        const periodosList = periodosRes.data || [];
 
-        // 6. Criterios
-        const { data: critData } = await supabase
-          .from('criterios_evaluacion')
-          .select('*')
-          .eq('catedra_id', catedraId)
-          .maybeSingle();
-
-        // 7. Períodos Académicos del ciclo de la cátedra
-        try {
-          const { data: catInfo } = await supabase
-            .from('catedras')
-            .select('ciclo_id')
-            .eq('id', catedraId)
-            .maybeSingle();
-
-          if (catInfo?.ciclo_id) {
-            const { data: pData } = await supabase
-              .from('periodos_academicos')
-              .select('*')
-              .eq('ciclo_id', catInfo.ciclo_id)
-              .order('fecha_inicio', { ascending: true });
-            setPeriodos(pData || []);
-          }
-        } catch (perErr) {
-          console.warn('Aviso cargando periodos en calificaciones:', perErr);
+        let critObj = null;
+        if (critRes.data) {
+          critObj = {
+            min_asist_promo: Number(critRes.data.min_asist_promo) || 80,
+            min_asist_reg: Number(critRes.data.min_asist_reg) || 70,
+            nota_min_promo: Number(critRes.data.nota_min_promo) || 7,
+            nota_min_reg: Number(critRes.data.nota_min_reg) || 4,
+            nota_min_sec: Number(critRes.data.nota_min_sec) || 6
+          };
+          setCriterios(critObj);
         }
 
         setEstudiantes(estList);
         setEvaluaciones(mergedEvals);
         setNotas(notasList);
-        setClases(cData || []);
+        setClases(cList);
         setAsistencias(asistList);
-        setInasistenciasDocente(inasistData || []);
-        if (critData) {
-          setCriterios({
-            min_asist_promo: Number(critData.min_asist_promo) || 80,
-            min_asist_reg: Number(critData.min_asist_reg) || 70,
-            nota_min_promo: Number(critData.nota_min_promo) || 7,
-            nota_min_reg: Number(critData.nota_min_reg) || 4,
-            nota_min_sec: Number(critData.nota_min_sec) || 6
-          });
-        }
+        setInasistenciasDocente(inasistList);
+        setPeriodos(periodosList);
+
+        // Actualizar caché de sesión en memoria
+        catedraCache.set(catedraId, {
+          estudiantes: estList,
+          evaluaciones: mergedEvals,
+          notas: notasList,
+          clases: cList,
+          asistencias: asistList,
+          inasistenciasDocente: inasistList,
+          criterios: critObj,
+          periodos: periodosList
+        });
       } else {
         // Demo mode fallback
         const storedEst = localStorage.getItem(`estudiantes_${catedraId}`);
@@ -644,6 +666,7 @@ export default function GradesTab({
       );
       setNotas(updated);
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updated));
+      catedraCache.update(catedraId, { notas: updated });
 
       toast.success(`Calificación eliminada para ${selectedStudentForNota.apellido}.`);
       setIsEditNotaModalOpen(false);
@@ -701,6 +724,7 @@ export default function GradesTab({
       }];
       setNotas(updated);
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updated));
+      catedraCache.update(catedraId, { notas: updated });
 
       toast.success(`Nota de ${selectedStudentForNota.apellido} actualizada a ${valNum}`);
       setIsDirty(false);
@@ -770,6 +794,7 @@ export default function GradesTab({
       const updatedList = [...evaluaciones, newEvalObj];
       setEvaluaciones(updatedList);
       localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedList));
+      catedraCache.update(catedraId, { evaluaciones: updatedList });
 
       // 2. Intentar guardar y sincronizar con Supabase si está disponible
       if (isSupabaseConfigured && !isDemo) {
@@ -817,6 +842,7 @@ export default function GradesTab({
                 const refreshed = updatedList.map(e => e.id === localId ? synced : e);
                 setEvaluaciones(refreshed);
                 localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(refreshed));
+                catedraCache.update(catedraId, { evaluaciones: refreshed });
               }
             } else {
               console.warn('Evaluación guardada localmente. Aviso Supabase:', error.message);
@@ -825,6 +851,7 @@ export default function GradesTab({
             const refreshed = updatedList.map(e => e.id === localId ? data : e);
             setEvaluaciones(refreshed);
             localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(refreshed));
+            catedraCache.update(catedraId, { evaluaciones: refreshed });
           }
         } catch (dbErr) {
           console.warn('Evaluación preservada localmente. Error de red/DB:', dbErr);
@@ -875,6 +902,7 @@ export default function GradesTab({
 
       localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedEvaluaciones));
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updatedNotas));
+      catedraCache.update(catedraId, { evaluaciones: updatedEvaluaciones, notas: updatedNotas });
 
       toast.success(`Evaluación "${evalTitulo}" eliminada correctamente.`);
     } catch (err) {
@@ -944,6 +972,7 @@ export default function GradesTab({
       const updatedList = evaluaciones.map(ev => ev.id === editingEval.id ? updatedObj : ev);
       setEvaluaciones(updatedList);
       localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedList));
+      catedraCache.update(catedraId, { evaluaciones: updatedList });
 
       toast.success(`Evaluación "${updatedObj.titulo}" actualizada correctamente.`);
       setIsEditEvalModalOpen(false);
@@ -1022,6 +1051,7 @@ export default function GradesTab({
 
       setNotas(newNotas);
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(newNotas));
+      catedraCache.update(catedraId, { notas: newNotas });
 
       toast.success(`Calificaciones de "${targetEvalForBatch.titulo}" guardadas con éxito.`);
       setIsDirty(false);
@@ -1071,6 +1101,7 @@ export default function GradesTab({
         }
       }
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(notas));
+      catedraCache.update(catedraId, { notas });
       setIsDirty(false);
       toast.success('Sábana de calificaciones guardada y sincronizada.');
     } catch (err) {
@@ -1101,43 +1132,45 @@ export default function GradesTab({
     return map;
   }, [estudiantes, asistencias, clases, inasistenciasDocente, evaluaciones, notas, criterios, academicLevel, modalidad]);
 
-  const matrixData = estudiantes.map(est => {
-    const studentAsistencias = asistencias.filter(a => a.estudiante_id === est.id);
-    const asistPct = calcularPorcentajeAsistencia(
-      studentAsistencias, 
-      clases.length, 
-      inasistenciasDocente.length
-    );
+  const matrixData = useMemo(() => {
+    return estudiantes.map(est => {
+      const studentAsistencias = asistencias.filter(a => a.estudiante_id === est.id);
+      const asistPct = calcularPorcentajeAsistencia(
+        studentAsistencias, 
+        clases.length, 
+        inasistenciasDocente.length
+      );
 
-    // Collect student notes
-    const studentNotas = [];
-    evaluaciones.forEach(ev => {
-      const v = getNotaValue(est.id, ev.id);
-      if (v !== null) {
-        studentNotas.push({
-          evaluacion_id: ev.id,
-          valor: v,
-          tipo: ev.tipo,
-          evaluacion_origen_id: ev.evaluacion_origen_id
-        });
-      }
+      // Collect student notes
+      const studentNotas = [];
+      evaluaciones.forEach(ev => {
+        const v = getNotaValue(est.id, ev.id);
+        if (v !== null) {
+          studentNotas.push({
+            evaluacion_id: ev.id,
+            valor: v,
+            tipo: ev.tipo,
+            evaluacion_origen_id: ev.evaluacion_origen_id
+          });
+        }
+      });
+
+      const cond = calcularCondicionFinal(
+        academicLevel,
+        modalidad,
+        asistPct,
+        evaluaciones,
+        studentNotas,
+        criterios
+      );
+
+      return {
+        estudiante: est,
+        asistenciaPct: asistPct,
+        condicion: cond
+      };
     });
-
-    const cond = calcularCondicionFinal(
-      academicLevel,
-      modalidad,
-      asistPct,
-      evaluaciones,
-      studentNotas,
-      criterios
-    );
-
-    return {
-      estudiante: est,
-      asistenciaPct: asistPct,
-      condicion: cond
-    };
-  });
+  }, [estudiantes, asistencias, clases.length, inasistenciasDocente.length, evaluaciones, notas, criterios, academicLevel, modalidad]);
 
   const filteredMatrixData = useMemo(() => {
     if (!studentSearchQuery.trim()) return matrixData;

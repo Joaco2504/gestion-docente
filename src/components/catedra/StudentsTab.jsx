@@ -36,6 +36,7 @@ import ErrorBoundary from '../common/ErrorBoundary';
 import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
 import { handleAppError } from '../../utils/handleAppError';
+import { catedraCache } from '../../services/catedraCache';
 
 /**
  * Normalización de texto reactiva:
@@ -49,6 +50,116 @@ const normalizeSearchText = (str) => {
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
 };
+
+/**
+ * StudentRow - Fila de estudiante memoizada para la tabla de alumnos
+ */
+const StudentRow = React.memo(function StudentRow({
+  st,
+  cond,
+  isAcreditado,
+  notaFinal,
+  risk,
+  onOpenStudentDetail,
+  onOpenEdit,
+  onOpenDelete,
+  getCondBadgeVariant
+}) {
+  return (
+    <tr className="hover:bg-surface-hover/40 transition-colors group">
+      {/* 1. DNI */}
+      <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap">
+        {st.dni || '-'}
+      </td>
+
+      {/* 2. Apellido */}
+      <td className="px-4 py-3.5 font-bold text-text-primary whitespace-nowrap">
+        <button
+          type="button"
+          onClick={() => onOpenStudentDetail(st)}
+          className="text-left font-bold text-text-primary hover:text-primary transition-colors cursor-pointer"
+          title="Ver ficha académica e historial de exámenes"
+        >
+          {st.apellido || '-'}
+        </button>
+      </td>
+
+      {/* 3. Nombre */}
+      <td className="px-4 py-3.5 text-text-primary whitespace-nowrap">
+        <button
+          type="button"
+          onClick={() => onOpenStudentDetail(st)}
+          className="text-left text-text-primary hover:text-primary transition-colors cursor-pointer"
+          title="Ver ficha académica e historial de exámenes"
+        >
+          {st.nombre || '-'}
+        </button>
+      </td>
+
+      {/* 4. Condición */}
+      <td className="px-4 py-3.5 text-center whitespace-nowrap">
+        <div className="flex items-center justify-center gap-1.5">
+          {isAcreditado ? (
+            <button
+              type="button"
+              onClick={() => onOpenStudentDetail(st)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs"
+              title={`Materia Acreditada (Calificación Final: ${notaFinal ?? 'Aprobado'}). Clic para ver ficha`}
+            >
+              <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>🎓 Acreditado (Nota: {notaFinal ?? 'Aprobado'})</span>
+            </button>
+          ) : (
+            <>
+              <Badge variant={getCondBadgeVariant(cond)}>
+                {cond}
+              </Badge>
+              <RiskBadge risk={risk} compact />
+            </>
+          )}
+        </div>
+      </td>
+
+      {/* 5. Acciones */}
+      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+        <div className="flex items-center justify-end gap-1">
+          <button
+            onClick={() => onOpenStudentDetail(st)}
+            className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
+            title="Ver ficha del estudiante e historial de exámenes"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onOpenEdit(st)}
+            className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
+            title="Editar datos y condición del alumno"
+          >
+            <Edit3 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onOpenDelete(st)}
+            className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors touch-target-44"
+            title="Dar de baja de la cátedra"
+          >
+            <UserMinus className="w-4 h-4" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}, (prev, next) => {
+  return (
+    prev.st.id === next.st.id &&
+    prev.st.dni === next.st.dni &&
+    prev.st.apellido === next.st.apellido &&
+    prev.st.nombre === next.st.nombre &&
+    prev.cond === next.cond &&
+    prev.isAcreditado === next.isAcreditado &&
+    prev.notaFinal === next.notaFinal &&
+    prev.risk === next.risk
+  );
+});
 
 export default function StudentsTab({ 
   catedraId, 
@@ -125,80 +236,147 @@ export default function StudentsTab({
     fetchStudents();
   }, [catedraId]);
 
-  async function fetchStudents() {
+  async function fetchStudents(forceRefresh = false) {
+    // 1. Verificación instantánea de caché en memoria de sesión
+    if (!forceRefresh) {
+      const cached = catedraCache.get(catedraId);
+      if (cached && cached.estudiantes) {
+        setEstudiantes(cached.estudiantes);
+        if (cached.evaluaciones) setEvaluaciones(cached.evaluaciones);
+        if (cached.clases) setClases(cached.clases);
+        if (cached.inasistenciasDocente) setInasistenciasDocente(cached.inasistenciasDocente);
+        if (cached.criterios) setCriterios(cached.criterios);
+        if (cached.notas) setNotas(cached.notas);
+        if (cached.asistencias) setAsistencias(cached.asistencias);
+        setLoading(false);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      // 1. Obtención de estudiantes mediante servicio limpio y resiliente con mapeo defensivo
-      const rawList = await getEstudiantesCatedra(catedraId, { supabase, isDemo });
-      const list = (rawList || []).map(ins => {
-        const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
-        const notaFinal = ins.nota_final ?? ins.nota_final_acreditacion ?? null;
-        const estado = ins.estado_academico ?? ins.condicion ?? 'CURSANDO';
-        return {
-          ...ins,
-          condicion,
-          nota_final: notaFinal,
-          nota_final_acreditacion: notaFinal,
-          estado_academico: estado
-        };
-      });
-      setEstudiantes(list);
-
-      // 2. Cargar datos académicos para cálculo de condición reglamentaria (no bloqueante)
       if (isSupabaseConfigured && !isDemo) {
-        try {
-          const [evalRes, clsRes, inasistRes, critRes] = await Promise.all([
-            supabase.from('evaluaciones').select('*').eq('catedra_id', catedraId),
-            supabase.from('clases').select('*').eq('catedra_id', catedraId),
-            supabase.from('inasistencias_docente').select('*').eq('catedra_id', catedraId),
-            supabase.from('criterios_evaluacion').select('*').eq('catedra_id', catedraId).maybeSingle()
-          ]);
+        // Round 1: Carga en paralelo de estudiantes, evaluaciones, clases, inasistencias y criterios con columnas proyectadas
+        const [rawList, evalRes, clsRes, inasistRes, critRes] = await Promise.all([
+          getEstudiantesCatedra(catedraId, { supabase, isDemo }),
+          supabase
+            .from('evaluaciones')
+            .select('id, catedra_id, titulo, tipo, fecha, peso_porcentual, criterio_ponderacion, orden, evaluacion_origen_id')
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('clases')
+            .select('id, catedra_id, fecha, tema')
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('inasistencias_docente')
+            .select('id, catedra_id, fecha, motivo, articulo')
+            .eq('catedra_id', catedraId),
+          supabase
+            .from('criterios_evaluacion')
+            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg, nota_min_sec')
+            .eq('catedra_id', catedraId)
+            .maybeSingle()
+        ]);
 
-          const evList = evalRes.data || [];
-          const cList = clsRes.data || [];
-          setEvaluaciones(evList);
-          setClases(cList);
-          setInasistenciasDocente(inasistRes.data || []);
-          if (critRes.data) {
-            setCriterios({
-              min_asist_promo: Number(critRes.data.min_asist_promo) || 80,
-              min_asist_reg: Number(critRes.data.min_asist_reg) || 70,
-              nota_min_promo: Number(critRes.data.nota_min_promo) || 7,
-              nota_min_reg: Number(critRes.data.nota_min_reg) || 4,
-              nota_min_sec: Number(critRes.data.nota_min_sec) || 6
-            });
-          }
+        const list = (rawList || []).map(ins => {
+          const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
+          const notaFinal = ins.nota_final ?? ins.nota_final_acreditacion ?? null;
+          const estado = ins.estado_academico ?? ins.condicion ?? 'CURSANDO';
+          return {
+            ...ins,
+            condicion,
+            nota_final: notaFinal,
+            nota_final_acreditacion: notaFinal,
+            estado_academico: estado
+          };
+        });
 
-          if (evList.length > 0) {
-            const { data: nData } = await supabase
-              .from('notas')
-              .select('*')
-              .in('evaluacion_id', evList.map(e => e.id).filter(id => !String(id).startsWith('eval-')));
-            setNotas(nData || []);
-          }
-
-          if (cList.length > 0) {
-            const { data: aData } = await supabase
-              .from('asistencias')
-              .select('*')
-              .in('clase_id', cList.map(c => c.id));
-            setAsistencias(aData || []);
-          }
-        } catch (acadErr) {
-          console.warn('Aviso cargando datos complementarios de condición:', acadErr);
+        const evList = evalRes.data || [];
+        const cList = clsRes.data || [];
+        const inasistList = inasistRes.data || [];
+        let critData = null;
+        if (critRes.data) {
+          critData = {
+            min_asist_promo: Number(critRes.data.min_asist_promo) || 80,
+            min_asist_reg: Number(critRes.data.min_asist_reg) || 70,
+            nota_min_promo: Number(critRes.data.nota_min_promo) || 7,
+            nota_min_reg: Number(critRes.data.nota_min_reg) || 4,
+            nota_min_sec: Number(critRes.data.nota_min_sec) || 6
+          };
+          setCriterios(critData);
         }
+
+        setEstudiantes(list);
+        setEvaluaciones(evList);
+        setClases(cList);
+        setInasistenciasDocente(inasistList);
+
+        // Round 2: Carga en paralelo de Notas y Asistencias proyectadas sin select(*)
+        const validEvalIds = evList.map(e => e.id).filter(id => !String(id).startsWith('eval-'));
+        const validClaseIds = cList.map(c => c.id);
+
+        const [notasRes, asistRes] = await Promise.all([
+          validEvalIds.length > 0
+            ? supabase.from('notas').select('id, evaluacion_id, estudiante_id, valor').in('evaluacion_id', validEvalIds)
+            : Promise.resolve({ data: [] }),
+          validClaseIds.length > 0
+            ? supabase.from('asistencias').select('id, clase_id, estudiante_id, estado').in('clase_id', validClaseIds)
+            : Promise.resolve({ data: [] })
+        ]);
+
+        const notasList = notasRes.data || [];
+        const asistList = asistRes.data || [];
+
+        setNotas(notasList);
+        setAsistencias(asistList);
+
+        // Sincronizar en memoria caché de sesión
+        catedraCache.set(catedraId, {
+          estudiantes: list,
+          evaluaciones: evList,
+          clases: cList,
+          inasistenciasDocente: inasistList,
+          criterios: critData,
+          notas: notasList,
+          asistencias: asistList
+        });
       } else {
+        const rawList = await getEstudiantesCatedra(catedraId, { supabase, isDemo });
+        const list = (rawList || []).map(ins => ({
+          ...ins,
+          condicion: ins.condicion || ins.estado_academico || 'REGULAR',
+          nota_final: ins.nota_final ?? ins.nota_final_acreditacion ?? null,
+          nota_final_acreditacion: ins.nota_final ?? ins.nota_final_acreditacion ?? null,
+          estado_academico: ins.estado_academico ?? ins.condicion ?? 'CURSANDO'
+        }));
+        setEstudiantes(list);
+
         const storedEval = localStorage.getItem(`evaluaciones_${catedraId}`);
         const storedNotas = localStorage.getItem(`notas_${catedraId}`);
         const storedClases = localStorage.getItem(`clases_${catedraId}`);
         const storedAsist = localStorage.getItem(`asistencias_${catedraId}`);
         const storedInasist = localStorage.getItem(`inasistencias_docente_${catedraId}`);
 
-        if (storedEval) setEvaluaciones(JSON.parse(storedEval));
-        if (storedNotas) setNotas(JSON.parse(storedNotas));
-        if (storedClases) setClases(JSON.parse(storedClases));
-        if (storedAsist) setAsistencias(JSON.parse(storedAsist));
-        if (storedInasist) setInasistenciasDocente(JSON.parse(storedInasist));
+        const evList = storedEval ? JSON.parse(storedEval) : [];
+        const nList = storedNotas ? JSON.parse(storedNotas) : [];
+        const cList = storedClases ? JSON.parse(storedClases) : [];
+        const aList = storedAsist ? JSON.parse(storedAsist) : [];
+        const inList = storedInasist ? JSON.parse(storedInasist) : [];
+
+        if (storedEval) setEvaluaciones(evList);
+        if (storedNotas) setNotas(nList);
+        if (storedClases) setClases(cList);
+        if (storedAsist) setAsistencias(aList);
+        if (storedInasist) setInasistenciasDocente(inList);
+
+        catedraCache.set(catedraId, {
+          estudiantes: list,
+          evaluaciones: evList,
+          clases: cList,
+          inasistenciasDocente: inList,
+          notas: nList,
+          asistencias: aList
+        });
       }
     } catch (err) {
       handleAppError(err, 'StudentsTab / Cargar Estudiantes', user);
@@ -207,50 +385,62 @@ export default function StudentsTab({
     }
   };
 
-  // Obtener condición académica (cálculo automático o ajuste manual del docente)
+  // Mapa reactivo y memoizado de condiciones RAM por estudiante (evita recálculos O(N) en bucles)
+  const studentConditionsMap = useMemo(() => {
+    const map = new Map();
+    (estudiantes || []).forEach(st => {
+      if (!st?.id) return;
+      if (st.estado_academico === 'ACREDITADO') {
+        map.set(st.id, 'ACREDITADO');
+        return;
+      }
+
+      // 1. Override manual
+      const override = localStorage.getItem(`condicion_override_${catedraId}_${st.id}`);
+      if (override && override !== 'AUTO') {
+        map.set(st.id, override);
+        return;
+      }
+
+      // 2. Cálculo dinámico
+      const studentAsistencias = (asistencias || []).filter(a => a.estudiante_id === st.id);
+      const asistPct = calcularPorcentajeAsistencia(
+        studentAsistencias, 
+        clases.length, 
+        inasistenciasDocente.length
+      );
+
+      const studentNotas = [];
+      (evaluaciones || []).forEach(ev => {
+        const record = (notas || []).find(n => n.estudiante_id === st.id && n.evaluacion_id === ev.id);
+        if (record?.valor !== undefined && record?.valor !== null) {
+          studentNotas.push({
+            evaluacion_id: ev.id,
+            valor: Number(record.valor),
+            tipo: ev.tipo,
+            evaluacion_origen_id: ev.evaluacion_origen_id
+          });
+        }
+      });
+
+      const res = calcularCondicionFinal(
+        academicLevel,
+        modalidad,
+        asistPct,
+        evaluaciones,
+        studentNotas,
+        criterios
+      );
+
+      map.set(st.id, res?.condicion || 'REGULAR');
+    });
+    return map;
+  }, [estudiantes, asistencias, clases.length, inasistenciasDocente.length, evaluaciones, notas, criterios, academicLevel, modalidad, catedraId]);
+
+  // Obtener condición académica con acceso O(1)
   const getStudentCondition = (studentId) => {
     if (!studentId) return 'REGULAR';
-
-    const st = (estudiantes || []).find(e => e.id === studentId);
-    if (st?.estado_academico === 'ACREDITADO') {
-      return 'ACREDITADO';
-    }
-
-    // 1. Verificar si el docente fijó una condición manual
-    const override = localStorage.getItem(`condicion_override_${catedraId}_${studentId}`);
-    if (override && override !== 'AUTO') return override;
-
-    // 2. Cálculo dinámico reglamentario
-    const studentAsistencias = (asistencias || []).filter(a => a.estudiante_id === studentId);
-    const asistPct = calcularPorcentajeAsistencia(
-      studentAsistencias, 
-      clases.length, 
-      inasistenciasDocente.length
-    );
-
-    const studentNotas = [];
-    (evaluaciones || []).forEach(ev => {
-      const record = (notas || []).find(n => n.estudiante_id === studentId && n.evaluacion_id === ev.id);
-      if (record?.valor !== undefined && record?.valor !== null) {
-        studentNotas.push({
-          evaluacion_id: ev.id,
-          valor: Number(record.valor),
-          tipo: ev.tipo,
-          evaluacion_origen_id: ev.evaluacion_origen_id
-        });
-      }
-    });
-
-    const res = calcularCondicionFinal(
-      academicLevel,
-      modalidad,
-      asistPct,
-      evaluaciones,
-      studentNotas,
-      criterios
-    );
-
-    return res?.condicion || 'REGULAR';
+    return studentConditionsMap.get(studentId) || 'REGULAR';
   };
 
   // Mapa reactivo del Semáforo de Riesgo por estudiante
@@ -434,7 +624,7 @@ export default function StudentsTab({
           toast.info('El alumno ya se encontraba inscripto en esta cátedra.');
         }
 
-        await fetchStudents();
+        await fetchStudents(true);
       } else {
         // Demo mode
         studentId = 'est-' + Date.now();
@@ -447,6 +637,7 @@ export default function StudentsTab({
         const updated = [...estudiantes, newStudent];
         updated.sort((a, b) => a.apellido.localeCompare(b.apellido, 'es'));
         setEstudiantes(updated);
+        catedraCache.update(catedraId, { estudiantes: updated });
         localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
       }
 
@@ -513,6 +704,7 @@ export default function StudentsTab({
           : st
       );
       setEstudiantes(updated);
+      catedraCache.update(catedraId, { estudiantes: updated });
 
       if (!isSupabaseConfigured || isDemo) {
         localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
@@ -558,6 +750,7 @@ export default function StudentsTab({
 
       const updated = estudiantes.filter(st => st.id !== studentToDelete.id);
       setEstudiantes(updated);
+      catedraCache.update(catedraId, { estudiantes: updated });
 
       if (!isSupabaseConfigured || isDemo) {
         localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
@@ -633,7 +826,7 @@ export default function StudentsTab({
       const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [estudiantes, searchQuery, sortField, sortDirection, asistencias, evaluaciones, notas, clases, inasistenciasDocente, criterios, academicLevel, modalidad]);
+  }, [estudiantes, searchQuery, sortField, sortDirection, studentConditionsMap]);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
@@ -655,7 +848,7 @@ export default function StudentsTab({
             catedraId={catedraId}
             cicloId={cicloId || activeCiclo?.id}
             onStudentsImported={() => {
-              fetchStudents();
+              fetchStudents(true);
               setViewMode('list');
               toast.success('Lista de alumnos actualizada desde archivo Excel.');
             }}
@@ -902,90 +1095,20 @@ export default function StudentsTab({
                         const isAcreditado = st.estado_academico === 'ACREDITADO';
                         const cond = getStudentCondition(st.id);
                         const notaFinal = st.nota_final ?? st.nota_final_acreditacion ?? null;
-                        const notaFinalDefinitiva = notaFinal;
 
                         return (
-                          <tr key={st.id} className="hover:bg-surface-hover/40 transition-colors group">
-                            {/* 1. DNI */}
-                            <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap">
-                              {st.dni || '-'}
-                            </td>
-
-                            {/* 2. Apellido */}
-                            <td className="px-4 py-3.5 font-bold text-text-primary whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenStudentDetail(st)}
-                                className="text-left font-bold text-text-primary hover:text-primary transition-colors cursor-pointer"
-                                title="Ver ficha académica e historial de exámenes"
-                              >
-                                {st.apellido || '-'}
-                              </button>
-                            </td>
-
-                            {/* 3. Nombre */}
-                            <td className="px-4 py-3.5 text-text-primary whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenStudentDetail(st)}
-                                className="text-left text-text-primary hover:text-primary transition-colors cursor-pointer"
-                                title="Ver ficha académica e historial de exámenes"
-                              >
-                                {st.nombre || '-'}
-                              </button>
-                            </td>
-
-                            {/* 4. Condición */}
-                            <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-1.5">
-                                {isAcreditado ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenStudentDetail(st)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs"
-                                    title={`Materia Acreditada (Calificación Final: ${notaFinal ?? 'Aprobado'}). Clic para ver ficha`}
-                                  >
-                                    <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                    <span>🎓 Acreditado (Nota: {notaFinal ?? 'Aprobado'})</span>
-                                  </button>
-                                ) : (
-                                  <>
-                                    <Badge variant={getCondBadgeVariant(cond)}>
-                                      {cond}
-                                    </Badge>
-                                    <RiskBadge risk={studentRiskMap.get(st.id)} compact />
-                                  </>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* 5. Acciones */}
-                            <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => handleOpenStudentDetail(st)}
-                                  className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
-                                  title="Ver ficha del estudiante e historial de exámenes"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleOpenEdit(st)}
-                                  className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
-                                  title="Editar datos y condición del alumno"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleOpenDelete(st)}
-                                  className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors touch-target-44"
-                                  title="Dar de baja de la cátedra"
-                                >
-                                  <UserMinus className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
+                          <StudentRow
+                            key={st.id}
+                            st={st}
+                            cond={cond}
+                            isAcreditado={isAcreditado}
+                            notaFinal={notaFinal}
+                            risk={studentRiskMap.get(st.id)}
+                            onOpenStudentDetail={handleOpenStudentDetail}
+                            onOpenEdit={handleOpenEdit}
+                            onOpenDelete={handleOpenDelete}
+                            getCondBadgeVariant={getCondBadgeVariant}
+                          />
                         );
                       })}
                     </tbody>
