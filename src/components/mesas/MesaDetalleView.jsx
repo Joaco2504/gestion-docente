@@ -619,24 +619,25 @@ export default function MesaDetalleView({
           PLANILLA DE CALIFICACIONES INTERACTIVA
       ========================================================================= */}
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin max-h-[75vh]">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto touch-pan-x scrollbar-thin max-h-[75vh]">
+          <table className="w-full text-left border-collapse text-xs table-fixed" aria-label="Planilla de Calificaciones de Mesa de Examen">
+            <caption className="sr-only">Planilla de calificaciones de examen de la mesa</caption>
             <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20">
               <tr className="border-b border-slate-200 dark:border-white/10 text-text-muted font-bold text-[11px] uppercase tracking-wider">
-                <th className="py-3 px-3 sticky left-0 top-0 z-30 bg-slate-50 dark:bg-slate-800/90 backdrop-blur border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] min-w-[200px] sm:min-w-[240px]">
+                <th scope="col" className="py-3 px-3 sticky left-0 top-0 z-30 bg-slate-50 dark:bg-slate-800/90 backdrop-blur border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-64 sm:w-72">
                   Estudiante (Nombre y DNI)
                 </th>
-                <th className="py-3 px-3 text-center w-28">Condición</th>
+                <th scope="col" className="py-3 px-3 text-center w-28">Condición</th>
                 {!isPromocional && (
                   <>
-                    <th className="py-3 px-3 text-center w-24">Escrito (1-10)</th>
-                    <th className="py-3 px-3 text-center w-24">Oral (1-10)</th>
+                    <th scope="col" className="py-3 px-3 text-center w-24">Escrito (1-10)</th>
+                    <th scope="col" className="py-3 px-3 text-center w-24">Oral (1-10)</th>
                   </>
                 )}
-                <th className="py-3 px-3 text-center w-28">Definitiva</th>
-                <th className="py-3 px-3 text-center w-36">Dictamen</th>
-                <th className="py-3 px-3">Observaciones</th>
-                <th className="py-3 px-3 text-center w-12"></th>
+                <th scope="col" className="py-3 px-3 text-center w-28">Definitiva</th>
+                <th scope="col" className="py-3 px-3 text-center w-36">Dictamen</th>
+                <th scope="col" className="py-3 px-3">Observaciones</th>
+                <th scope="col" className="py-3 px-3 text-center w-12"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/70 dark:divide-white/5">
@@ -676,18 +677,18 @@ export default function MesaDetalleView({
                   const isDesaprobado = alumno.dictamen === 'DESAPROBADO';
 
                   return (
-                    <tr key={alumno.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                    <tr key={alumno.id || idx} className="group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
                       {/* Estudiante (Nombre y DNI) Congelado */}
-                      <td className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] min-w-[200px] sm:min-w-[240px]">
+                      <td scope="row" className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-64 sm:w-72">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-[11px] text-text-muted select-none w-5 shrink-0 text-right">
+                          <span className="font-mono tabular-nums text-[11px] text-text-muted select-none w-5 shrink-0 text-right">
                             {idx + 1}.
                           </span>
-                          <span className="font-bold text-text-primary text-xs truncate">
+                          <span className="font-bold text-text-primary text-xs break-words">
                             {alumno.alumno_nombre_completo}
                           </span>
                         </div>
-                        <div className="font-mono text-[11px] text-text-muted pl-7">
+                        <div className="font-mono tabular-nums text-[11px] text-text-muted pl-7">
                           DNI: {alumno.alumno_dni || 'S/D'}
                         </div>
                       </td>
@@ -714,10 +715,11 @@ export default function MesaDetalleView({
                               min="1"
                               max="10"
                               step="1"
+                              inputMode="numeric"
                               value={alumno.nota_escrito ?? ''}
                               placeholder="—"
                               onChange={(e) => handleGradeChange(idx, 'nota_escrito', e.target.value)}
-                              className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                              className="tbl-input w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px]"
                             />
                           </td>
 
@@ -727,10 +729,11 @@ export default function MesaDetalleView({
                               min="1"
                               max="10"
                               step="1"
+                              inputMode="numeric"
                               value={alumno.nota_oral ?? ''}
                               placeholder="—"
                               onChange={(e) => handleGradeChange(idx, 'nota_oral', e.target.value)}
-                              className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                              className="tbl-input w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px]"
                             />
                           </td>
                         </>
@@ -742,10 +745,11 @@ export default function MesaDetalleView({
                           type="number"
                           min="1"
                           max="10"
+                          inputMode="numeric"
                           value={alumno.nota_definitiva ?? ''}
                           placeholder="—"
                           onChange={(e) => handleGradeChange(idx, 'nota_definitiva', e.target.value)}
-                          className={`w-16 text-center py-1.5 px-2 rounded-xl border font-mono font-black text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                          className={`tbl-input w-16 text-center py-1.5 px-2 rounded-xl border font-mono font-black text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px] ${
                             isAcreditado
                               ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                               : isDesaprobado

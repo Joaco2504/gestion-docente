@@ -886,18 +886,19 @@ export default function MesasExamenTab({
 
           {/* Tabla Interactiva de Calificaciones */}
           <Card className="overflow-hidden p-0">
-            <div className="overflow-x-auto select-none touch-pan-x scrollbar-thin">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50/75 dark:bg-white/[0.02] text-text-muted font-bold text-[11px] uppercase tracking-wider">
-                    <th className="py-3 px-3 w-10 text-center">N°</th>
-                    <th className="py-3 px-3 sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Estudiante (Nombre y DNI)</th>
-                    <th className="py-3 px-3 text-center w-28">Condición</th>
-                    <th className="py-3 px-3 text-center w-24">Escrito (1-10)</th>
-                    <th className="py-3 px-3 text-center w-24">Oral (1-10)</th>
-                    <th className="py-3 px-3 text-center w-28">Definitiva</th>
-                    <th className="py-3 px-3 text-center w-36">Dictamen</th>
-                    <th className="py-3 px-3 text-center w-12"></th>
+            <div className="overflow-x-auto touch-pan-x scrollbar-thin">
+              <table className="w-full text-left border-collapse text-xs table-fixed" aria-label="Acta de Mesa de Examen">
+                <caption className="sr-only">Acta de calificaciones y dictámenes de la mesa de examen</caption>
+                <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-white/10 text-text-muted font-bold text-[11px] uppercase tracking-wider">
+                  <tr>
+                    <th scope="col" className="py-3 px-3 w-10 text-center">N°</th>
+                    <th scope="col" className="py-3 px-3 sticky left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] w-64 sm:w-72">Estudiante (Nombre y DNI)</th>
+                    <th scope="col" className="py-3 px-3 text-center w-28">Condición</th>
+                    <th scope="col" className="py-3 px-3 text-center w-24">Escrito (1-10)</th>
+                    <th scope="col" className="py-3 px-3 text-center w-24">Oral (1-10)</th>
+                    <th scope="col" className="py-3 px-3 text-center w-28">Definitiva</th>
+                    <th scope="col" className="py-3 px-3 text-center w-36">Dictamen</th>
+                    <th scope="col" className="py-3 px-3 text-center w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/70 dark:divide-white/5">
@@ -931,21 +932,21 @@ export default function MesasExamenTab({
                       const isPromocional = alumno.condicion_previa === 'PROMOCIONAL';
 
                       return (
-                        <tr key={alumno.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
-                          <td className="py-2.5 px-3 text-center font-mono font-bold text-text-muted">
+                        <tr key={alumno.id || idx} className="group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
+                          <td className="py-2.5 px-3 text-center font-mono font-bold tabular-nums text-text-muted">
                             {idx + 1}
                           </td>
 
-                          <td className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                          <td scope="row" className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] w-64 sm:w-72">
                             <div className="font-bold text-text-primary text-xs flex items-center gap-1.5">
-                              <span>{alumno.alumno_nombre_completo}</span>
+                              <span className="break-words">{alumno.alumno_nombre_completo}</span>
                               {isPromocional && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">
                                   Promoción
                                 </span>
                               )}
                             </div>
-                            <div className="font-mono text-[11px] text-text-muted">
+                            <div className="font-mono tabular-nums text-[11px] text-text-muted">
                               DNI: {alumno.alumno_dni || 'S/D'}
                             </div>
                           </td>
@@ -972,10 +973,11 @@ export default function MesasExamenTab({
                                 min="1"
                                 max="10"
                                 step="1"
+                                inputMode="numeric"
                                 value={alumno.nota_escrito ?? ''}
                                 placeholder="—"
                                 onChange={(e) => handleGradeChange(idx, 'nota_escrito', e.target.value)}
-                                className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                className="tbl-input w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px]"
                               />
                             )}
                           </td>
@@ -990,10 +992,11 @@ export default function MesasExamenTab({
                                 min="1"
                                 max="10"
                                 step="1"
+                                inputMode="numeric"
                                 value={alumno.nota_oral ?? ''}
                                 placeholder="—"
                                 onChange={(e) => handleGradeChange(idx, 'nota_oral', e.target.value)}
-                                className="w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                className="tbl-input w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px]"
                               />
                             )}
                           </td>
@@ -1004,10 +1007,11 @@ export default function MesasExamenTab({
                               type="number"
                               min="1"
                               max="10"
+                              inputMode="numeric"
                               value={alumno.nota_definitiva ?? ''}
                               placeholder="—"
                               onChange={(e) => handleGradeChange(idx, 'nota_definitiva', e.target.value)}
-                              className={`w-16 text-center py-1.5 px-2 rounded-xl border font-mono font-black text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                              className={`tbl-input w-16 text-center py-1.5 px-2 rounded-xl border font-mono font-black text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px] ${
                                 isPromocional 
                                   ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400' 
                                   : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-text-primary'
@@ -1040,7 +1044,7 @@ export default function MesasExamenTab({
                           <td className="py-2.5 px-3 text-center">
                             <button
                               onClick={() => handleRemoveAlumnoFromActa(idx)}
-                              className="p-1.5 text-text-muted hover:text-danger rounded-lg hover:bg-danger/10 transition-colors"
+                              className="p-1.5 text-text-muted hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-500/10 dark:hover:bg-rose-500/20 transition-colors"
                               title="Remover alumno del acta"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1202,7 +1206,7 @@ export default function MesasExamenTab({
 
                     <button
                       onClick={(e) => handleDeleteMesa(mesa, e)}
-                      className="p-2 text-text-muted hover:text-danger rounded-xl hover:bg-danger/10 transition-colors"
+                      className="p-2 text-text-muted hover:text-rose-600 dark:hover:text-rose-400 rounded-xl hover:bg-rose-500/10 dark:hover:bg-rose-500/20 transition-colors"
                       title="Eliminar Mesa"
                     >
                       <Trash2 className="w-4 h-4" />

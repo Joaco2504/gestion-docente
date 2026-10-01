@@ -241,14 +241,15 @@ export default function TeachersDirectory({ isDemo = false }) {
 
       {/* Teachers List / Bento Table */}
       <div className="overflow-x-auto rounded-2xl border border-surface-border">
-        <table className="w-full text-left border-collapse text-xs">
+        <table className="w-full text-left border-collapse text-xs" aria-label="Directorio de Docentes">
+          <caption className="sr-only">Directorio de docentes y administración de cuentas de usuario</caption>
           <thead>
-            <tr className="bg-surface-hover/60 border-b border-surface-border text-text-secondary uppercase font-bold text-[11px] tracking-wider">
-              <th className="py-2.5 px-3 sm:py-3 sm:px-4">Docente</th>
-              <th className="py-2.5 px-3 sm:py-3 sm:px-4">Correo Electrónico</th>
-              <th className="py-2.5 px-3 sm:py-3 sm:px-4">Fecha de Alta</th>
-              <th className="py-2.5 px-3 sm:py-3 sm:px-4 text-center">Rol Activo</th>
-              <th className="py-2.5 px-3 sm:py-3 sm:px-4 text-right">Acciones de Soporte</th>
+            <tr className="bg-slate-100 dark:bg-slate-800 border-b border-surface-border text-text-secondary uppercase font-bold text-[11px] tracking-wider">
+              <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4">Docente</th>
+              <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4">Correo Electrónico</th>
+              <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4">Fecha de Alta</th>
+              <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4 text-center">Rol Activo</th>
+              <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4 text-right">Acciones de Soporte</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border">
@@ -271,10 +272,10 @@ export default function TeachersDirectory({ isDemo = false }) {
                 return (
                   <tr 
                     key={teacher.id} 
-                    className="hover:bg-surface-hover/50 transition-colors group"
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group"
                   >
                     {/* Docente */}
-                    <td className="py-2.5 px-3 sm:py-3.5 sm:px-4 font-semibold text-text-primary">
+                    <td scope="row" className="py-2.5 px-3 sm:py-3.5 sm:px-4 font-semibold text-text-primary">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-blue-500/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                           {teacher.nombre ? teacher.nombre.charAt(0).toUpperCase() : 'D'}

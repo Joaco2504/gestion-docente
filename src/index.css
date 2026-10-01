@@ -38,6 +38,15 @@
     --color-primary-hover-rgb: 6 95 70;
     --color-primary-light: #ecfdf5;
     --color-primary-muted: #a7f3d0;
+
+    /* Tokens del Sistema Unificado de Tablas Académicas */
+    --table-header-bg: #f8fafc;            /* slate-50 */
+    --table-header-bg-rgb: 248 250 252;
+    --table-header-text: #475569;          /* slate-600 */
+    --table-row-alt: #f8fafc;              /* zebra */
+    --table-row-hover: #f1f5f9;            /* slate-100 */
+    --table-border: #e2e8f0;               /* slate-200 */
+    --table-sticky-shadow: 2px 0 5px -2px rgb(0 0 0 / 0.08);
   }
 
   .dark {
@@ -74,6 +83,15 @@
     --color-primary-hover-rgb: 5 150 105;
     --color-primary-light: #064e3b;
     --color-primary-muted: #065f46;
+
+    /* Tokens del Sistema Unificado de Tablas Académicas (Dark Mode) */
+    --table-header-bg: #1e293b;            /* slate-800 sólido */
+    --table-header-bg-rgb: 30 41 59;
+    --table-header-text: #cbd5e1;          /* slate-300 */
+    --table-row-alt: #0f172a;
+    --table-row-hover: #1e293b;
+    --table-border: #334155;               /* slate-700 */
+    --table-sticky-shadow: 3px 0 8px -2px rgb(0 0 0 / 0.45);
   }
 
   body {
@@ -91,6 +109,87 @@
   .font-mono-numeric {
     font-family: 'JetBrains Mono', monospace;
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Envoltorio responsivo universal */
+  .tbl-wrap {
+    overflow-x: auto;
+    border-radius: 1rem;
+    border: 1px solid var(--table-border);
+    touch-action: pan-x;
+  }
+
+  /* Tabla base */
+  .tbl {
+    width: 100%;
+    text-align: left;
+    font-size: 0.8125rem; /* 13px */
+    border-collapse: collapse;
+  }
+
+  .tbl thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--table-header-bg);
+  }
+
+  .tbl thead th {
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--table-header-text);
+    border-bottom: 1px solid var(--table-border);
+    white-space: nowrap;
+  }
+
+  .tbl tbody tr {
+    border-top: 1px solid var(--table-border);
+    transition: background-color 0.15s ease;
+  }
+
+  .tbl tbody tr:hover {
+    background: var(--table-row-hover);
+  }
+
+  .tbl tbody td {
+    padding: 0.75rem 1rem;
+    overflow-wrap: break-word;
+  }
+
+  /* Columna sticky unificada */
+  .tbl .sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background: var(--table-header-bg);
+    box-shadow: var(--table-sticky-shadow);
+  }
+
+  thead .sticky-col {
+    z-index: 30;
+  }
+
+  /* Alineación numérica estricta */
+  .tbl .num-col {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Inputs numéricos de actas sin spinners y touch target accesible */
+  input[type="number"].tbl-input::-webkit-outer-spin-button,
+  input[type="number"].tbl-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"].tbl-input {
+    -moz-appearance: textfield;
+    appearance: textfield;
+    min-height: 44px;
   }
 }
 
@@ -313,6 +412,10 @@
   table {
     width: 100% !important;
     border-collapse: collapse !important;
+  }
+
+  thead {
+    display: table-header-group !important;
   }
 
   th, td {

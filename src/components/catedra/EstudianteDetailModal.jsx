@@ -217,16 +217,17 @@ export default function EstudianteDetailModal({
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10 scrollbar-thin">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
-                    <th className="p-3">Fecha & Turno</th>
-                    <th className="p-3">Tipo</th>
-                    <th className="p-3 text-center">Condición</th>
-                    <th className="p-3 text-center">Escrito</th>
-                    <th className="p-3 text-center">Oral</th>
-                    <th className="p-3 text-center">Definitiva</th>
-                    <th className="p-3 text-center">Dictamen</th>
+              <table className="w-full text-left text-xs border-collapse" aria-label="Historial de Exámenes del Estudiante">
+                <caption className="sr-only">Historial de exámenes y actas volantes del estudiante</caption>
+                <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
+                  <tr className="border-b border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 font-bold uppercase text-[11px] tracking-wider">
+                    <th scope="col" className="p-3">Fecha & Turno</th>
+                    <th scope="col" className="p-3">Tipo</th>
+                    <th scope="col" className="p-3 text-center">Condición</th>
+                    <th scope="col" className="p-3 text-center">Escrito</th>
+                    <th scope="col" className="p-3 text-center">Oral</th>
+                    <th scope="col" className="p-3 text-center">Definitiva</th>
+                    <th scope="col" className="p-3 text-center">Dictamen</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-white/5">
@@ -238,11 +239,11 @@ export default function EstudianteDetailModal({
 
                     return (
                       <tr key={h.id || i} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
-                        <td className="p-3 font-medium">
+                        <td scope="row" className="p-3 font-medium">
                           <div className="font-bold text-slate-900 dark:text-white">
                             {h.mesas_examen?.turno_llamado || 'Turno Regular'}
                           </div>
-                          <div className="text-[11px] font-mono text-slate-500">
+                          <div className="text-[11px] font-mono tabular-nums text-slate-500">
                             {formatFechaDMY(h.mesas_examen?.fecha || h.created_at)}
                           </div>
                         </td>
@@ -257,15 +258,15 @@ export default function EstudianteDetailModal({
                           {h.condicion_previa || 'REGULAR'}
                         </td>
 
-                        <td className="p-3 text-center font-mono">
+                        <td className="p-3 text-center font-mono tabular-nums">
                           {h.nota_escrito !== null && h.nota_escrito !== undefined ? h.nota_escrito : '-'}
                         </td>
 
-                        <td className="p-3 text-center font-mono">
+                        <td className="p-3 text-center font-mono tabular-nums">
                           {h.nota_oral !== null && h.nota_oral !== undefined ? h.nota_oral : '-'}
                         </td>
 
-                        <td className="p-3 text-center font-mono font-bold text-slate-900 dark:text-white">
+                        <td className="p-3 text-center font-mono tabular-nums font-bold text-slate-900 dark:text-white">
                           {h.nota_definitiva !== null && h.nota_definitiva !== undefined ? h.nota_definitiva : '-'}
                         </td>
 

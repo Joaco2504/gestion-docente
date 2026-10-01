@@ -815,60 +815,81 @@ export default function StudentsTab({
               )}
             >
               <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-                <div className="overflow-x-auto touch-pan-x select-none">
-                  <table className="w-full text-left text-xs sm:text-sm border-collapse">
-                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary font-semibold border-b border-surface-border select-none">
+                <div className="overflow-x-auto touch-pan-x">
+                  <table className="w-full text-left text-xs sm:text-sm border-collapse" aria-label="Nómina Oficial de Estudiantes">
+                    <caption className="sr-only">Nómina oficial de estudiantes inscriptos en la cátedra</caption>
+                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary font-semibold border-b border-surface-border">
                       <tr>
                         {/* 1. DNI */}
                         <th 
-                          onClick={() => handleSort('dni')}
-                          className="px-4 py-3 font-mono cursor-pointer hover:text-text-primary transition-colors w-32 sm:w-36"
-                          title="Ordenar por DNI"
+                          scope="col"
+                          aria-sort={sortKey === 'dni' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                          className="p-0 w-32 sm:w-36"
                         >
-                          <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('dni')}
+                            className="w-full flex items-center justify-between gap-2 px-4 py-3 min-h-[44px] font-bold text-[11px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
+                            title="Ordenar por DNI"
+                          >
                             <span>DNI</span>
                             {renderSortIcon('dni')}
-                          </div>
+                          </button>
                         </th>
 
                         {/* 2. Apellido */}
                         <th 
-                          onClick={() => handleSort('apellido')}
-                          className="px-4 py-3 cursor-pointer hover:text-text-primary transition-colors"
-                          title="Ordenar por Apellido (A-Z / Z-A)"
+                          scope="col"
+                          aria-sort={sortKey === 'apellido' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                          className="p-0"
                         >
-                          <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('apellido')}
+                            className="w-full flex items-center justify-between gap-2 px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
+                            title="Ordenar por Apellido (A-Z / Z-A)"
+                          >
                             <span>Apellido</span>
                             {renderSortIcon('apellido')}
-                          </div>
+                          </button>
                         </th>
 
                         {/* 3. Nombre */}
                         <th 
-                          onClick={() => handleSort('nombre')}
-                          className="px-4 py-3 cursor-pointer hover:text-text-primary transition-colors"
-                          title="Ordenar por Nombre (A-Z / Z-A)"
+                          scope="col"
+                          aria-sort={sortKey === 'nombre' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                          className="p-0"
                         >
-                          <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('nombre')}
+                            className="w-full flex items-center justify-between gap-2 px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
+                            title="Ordenar por Nombre (A-Z / Z-A)"
+                          >
                             <span>Nombre</span>
                             {renderSortIcon('nombre')}
-                          </div>
+                          </button>
                         </th>
 
                         {/* 4. Condición */}
                         <th 
-                          onClick={() => handleSort('condicion')}
-                          className="px-4 py-3 text-center cursor-pointer hover:text-text-primary transition-colors w-36 sm:w-44"
-                          title="Ordenar por Condición Académica"
+                          scope="col"
+                          aria-sort={sortKey === 'condicion' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                          className="p-0 w-36 sm:w-44"
                         >
-                          <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('condicion')}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
+                            title="Ordenar por Condición Académica"
+                          >
                             <span>Condición</span>
                             {renderSortIcon('condicion')}
-                          </div>
+                          </button>
                         </th>
 
                         {/* 5. Acciones */}
-                        <th className="px-4 py-3 text-right w-28 sm:w-32">
+                        <th scope="col" className="px-4 py-3 text-right w-28 sm:w-32 font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300">
                           Acciones
                         </th>
                       </tr>
@@ -884,7 +905,7 @@ export default function StudentsTab({
                         return (
                           <tr key={st.id} className="hover:bg-surface-hover/40 transition-colors group">
                             {/* 1. DNI */}
-                            <td className="px-4 py-3.5 font-mono font-medium text-text-secondary whitespace-nowrap">
+                            <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap">
                               {st.dni || '-'}
                             </td>
 

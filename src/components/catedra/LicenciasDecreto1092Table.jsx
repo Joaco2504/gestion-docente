@@ -97,20 +97,21 @@ export default function LicenciasDecreto1092Table({
 
       {/* Tabla Resumen Oficial: N° de Art | Título | Descripción */}
       <div className="overflow-x-auto rounded-xl border border-surface-border bg-surface shadow-xs">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse" aria-label="Tabla de Licencias Decreto 1092">
+          <caption className="sr-only">Régimen y artículos de licencias docentes según Decreto 1092</caption>
           <thead>
-            <tr className="bg-surface-hover/60 border-b border-surface-border text-[11px] uppercase tracking-wider text-text-muted font-bold">
-              <th className="py-3 px-3 sm:px-4 w-28 sm:w-36">
+            <tr className="bg-slate-100 dark:bg-slate-800 border-b border-surface-border text-[11px] uppercase tracking-wider text-text-muted font-bold">
+              <th scope="col" className="py-3 px-3 sm:px-4 w-28 sm:w-36">
                 N° de Art
               </th>
-              <th className="py-3 px-3 sm:px-4 w-48 sm:w-64">
+              <th scope="col" className="py-3 px-3 sm:px-4 w-48 sm:w-64">
                 Título
               </th>
-              <th className="py-3 px-3 sm:px-4">
+              <th scope="col" className="py-3 px-3 sm:px-4">
                 Descripción
               </th>
               {onSelectArticle && (
-                <th className="py-3 px-3 sm:px-4 text-center w-28">
+                <th scope="col" className="py-3 px-3 sm:px-4 text-center w-28">
                   Acción
                 </th>
               )}
@@ -141,11 +142,11 @@ export default function LicenciasDecreto1092Table({
                     className={`group transition-colors ${
                       isSelected 
                         ? 'bg-primary/5 dark:bg-primary/10 border-l-4 border-l-primary' 
-                        : 'hover:bg-surface-hover/50'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
                     }`}
                   >
                     {/* 1. Columna: N° de Art */}
-                    <td className="py-3.5 px-3 sm:px-4 align-top">
+                    <td scope="row" className="py-3.5 px-3 sm:px-4 align-top">
                       <div className="flex flex-col gap-1 items-start">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-primary/10 text-primary border border-primary/20 shadow-2xs">
                           {art.numero}

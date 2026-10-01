@@ -317,16 +317,17 @@ function LibroTemasTemplate({ data }) {
 
       {/* 2. Tabla Membretada de Clases */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs border border-slate-400">
+        <table className="w-full text-left border-collapse text-xs border border-slate-400" aria-label="Libro de Temas Oficial">
+          <caption className="sr-only">Libro de temas oficial imprimible con clases y contenidos</caption>
           <thead>
             <tr className="bg-slate-200 border-b border-slate-400 text-slate-900 text-[11px] uppercase font-bold">
-              <th className="p-2 border-r border-slate-400 text-center w-10">N°</th>
-              <th className="p-2 border-r border-slate-400 w-24">Fecha</th>
-              <th className="p-2 border-r border-slate-400 text-center w-14">Hs.</th>
-              <th className="p-2 border-r border-slate-400 w-28">Carácter</th>
-              <th className="p-2 border-r border-slate-400">Contenido / Tema Desarrollado</th>
-              <th className="p-2 border-r border-slate-400 w-44">Observaciones</th>
-              <th className="p-2 text-center w-28">Firma Docente</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-10">N°</th>
+              <th scope="col" className="p-2 border-r border-slate-400 w-24">Fecha</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-14">Hs.</th>
+              <th scope="col" className="p-2 border-r border-slate-400 w-28">Carácter</th>
+              <th scope="col" className="p-2 border-r border-slate-400">Contenido / Tema Desarrollado</th>
+              <th scope="col" className="p-2 border-r border-slate-400 w-44">Observaciones</th>
+              <th scope="col" className="p-2 text-center w-28">Firma Docente</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-300">
@@ -342,13 +343,13 @@ function LibroTemasTemplate({ data }) {
                 const classNum = isFeriado ? '—' : (clase.classNumber ?? idx + 1);
                 return (
                   <tr key={clase.id || idx} className={`print-row ${isFeriado ? 'bg-amber-50/60' : 'hover:bg-slate-50'}`}>
-                    <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-slate-700">
+                    <td scope="row" className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-bold text-slate-700">
                       {classNum}
                     </td>
-                    <td className="p-2 border-r border-slate-300 font-mono text-slate-800 whitespace-nowrap">
+                    <td className="p-2 border-r border-slate-300 font-mono tabular-nums text-slate-800 whitespace-nowrap">
                       {formatFechaDMY(clase.fecha)}
                     </td>
-                    <td className="p-2 border-r border-slate-300 text-center font-mono font-bold">
+                    <td className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-bold">
                       {isFeriado ? 0 : (clase.horas_catedra || 2)}
                     </td>
                     <td className="p-2 border-r border-slate-300 text-[10px] uppercase font-semibold text-slate-700">
@@ -512,17 +513,18 @@ function ActaVolanteTemplate({ data }) {
 
       {/* 2. Nómina de Alumnos y Calificaciones */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs border border-slate-400">
+        <table className="w-full text-left border-collapse text-xs border border-slate-400" aria-label="Acta Volante de Exámenes Imprimible">
+          <caption className="sr-only">Nómina reglamentaria de alumnos y calificaciones de examen</caption>
           <thead>
             <tr className="bg-slate-200 border-b border-slate-400 text-slate-900 text-[11px] uppercase font-bold">
-              <th className="p-2 border-r border-slate-400 text-center w-10">N°</th>
-              <th className="p-2 border-r border-slate-400 w-24">D.N.I.</th>
-              <th className="p-2 border-r border-slate-400">Apellido y Nombres</th>
-              <th className="p-2 border-r border-slate-400 text-center w-20">Condición</th>
-              <th className="p-2 border-r border-slate-400 text-center w-14">Escrito</th>
-              <th className="p-2 border-r border-slate-400 text-center w-14">Oral</th>
-              <th className="p-2 border-r border-slate-400 text-center w-36">Nota Definitiva</th>
-              <th className="p-2 text-center w-28">Dictamen</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-10">N°</th>
+              <th scope="col" className="p-2 border-r border-slate-400 w-24">D.N.I.</th>
+              <th scope="col" className="p-2 border-r border-slate-400">Apellido y Nombres</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-20">Condición</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-14">Escrito</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-14">Oral</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-36">Nota Definitiva</th>
+              <th scope="col" className="p-2 text-center w-28">Dictamen</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-300">
@@ -540,13 +542,13 @@ function ActaVolanteTemplate({ data }) {
 
                 return (
                   <tr key={alumno.id || idx} className="print-row hover:bg-slate-50">
-                    <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-slate-700">
+                    <td scope="row" className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-bold text-slate-700">
                       {idx + 1}
                     </td>
-                    <td className="p-2 border-r border-slate-300 font-mono text-slate-800">
+                    <td className="p-2 border-r border-slate-300 font-mono tabular-nums text-slate-800">
                       {alumno.alumno_dni || '—'}
                     </td>
-                    <td className="p-2 border-r border-slate-300 font-bold text-slate-900 uppercase">
+                    <td className="p-2 border-r border-slate-300 font-bold text-slate-900 uppercase break-words">
                       {alumno.alumno_nombre_completo || 'Sin nombre'}
                     </td>
                     <td className="p-2 border-r border-slate-300 text-center font-semibold text-[10px] uppercase">
@@ -712,26 +714,27 @@ function CalificacionesTemplate({ data }) {
 
       {/* 2. Sábana de Notas */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs border border-slate-400">
+        <table className="w-full text-left border-collapse text-xs border border-slate-400" aria-label="Sábana Oficial de Calificaciones">
+          <caption className="sr-only">Planilla oficial de calificaciones y condiciones finales de cursado</caption>
           <thead>
             <tr className="bg-slate-200 border-b border-slate-400 text-slate-900 text-[10px] uppercase font-bold">
-              <th className="p-1.5 border-r border-slate-400 text-center w-8">#</th>
-              <th className="p-1.5 border-r border-slate-400 w-24">D.N.I.</th>
-              <th className="p-1.5 border-r border-slate-400 min-w-[160px]">Apellido y Nombres</th>
+              <th scope="col" className="p-1.5 border-r border-slate-400 text-center w-8">#</th>
+              <th scope="col" className="p-1.5 border-r border-slate-400 w-24">D.N.I.</th>
+              <th scope="col" className="p-1.5 border-r border-slate-400 min-w-[160px]">Apellido y Nombres</th>
               {includeAsistencia && (
-                <th className="p-1.5 border-r border-slate-400 text-center w-16">% Asist.</th>
+                <th scope="col" className="p-1.5 border-r border-slate-400 text-center w-16">% Asist.</th>
               )}
               {mainEvaluations.map(ev => (
-                <th key={ev.id} className="p-1.5 border-r border-slate-400 text-center min-w-[70px]">
+                <th scope="col" key={ev.id} className="p-1.5 border-r border-slate-400 text-center min-w-[70px]">
                   <span className="block truncate max-w-[100px]">{ev.titulo}</span>
                   <span className="text-[8px] text-slate-600 block">{ev.tipo}</span>
                 </th>
               ))}
               {includeNotaFinal && (
-                <th className="p-1.5 border-r border-slate-400 text-center w-16">Nota Final</th>
+                <th scope="col" className="p-1.5 border-r border-slate-400 text-center w-16">Nota Final</th>
               )}
               {includeCondicion && (
-                <th className="p-1.5 text-center w-28">Condición Final</th>
+                <th scope="col" className="p-1.5 text-center w-28">Condición Final</th>
               )}
             </tr>
           </thead>
@@ -776,17 +779,17 @@ function CalificacionesTemplate({ data }) {
 
                 return (
                   <tr key={est.id || idx} className="print-row hover:bg-slate-50 text-[11px]">
-                    <td className="p-1.5 border-r border-slate-300 text-center font-mono font-bold text-slate-600">
+                    <td scope="row" className="p-1.5 border-r border-slate-300 text-center font-mono tabular-nums font-bold text-slate-600">
                       {idx + 1}
                     </td>
-                    <td className="p-1.5 border-r border-slate-300 font-mono text-slate-800">
+                    <td className="p-1.5 border-r border-slate-300 font-mono tabular-nums text-slate-800">
                       {est.dni || '—'}
                     </td>
-                    <td className="p-1.5 border-r border-slate-300 font-bold text-slate-900 uppercase">
+                    <td className="p-1.5 border-r border-slate-300 font-bold text-slate-900 uppercase break-words">
                       {est.apellido}, {est.nombre}
                     </td>
                     {includeAsistencia && (
-                      <td className="p-1.5 border-r border-slate-300 text-center font-mono font-bold">
+                      <td className="p-1.5 border-r border-slate-300 text-center font-mono tabular-nums font-bold">
                         {item.asistenciaPct}%
                       </td>
                     )}
@@ -797,7 +800,7 @@ function CalificacionesTemplate({ data }) {
                       const recupRecord = (recup && isRecupAllowed) ? notas.find(n => n.estudiante_id === est.id && n.evaluacion_id === recup.id) : null;
                       
                       return (
-                        <td key={ev.id} className="p-1.5 border-r border-slate-300 text-center font-mono font-bold">
+                        <td key={ev.id} className="p-1.5 border-r border-slate-300 text-center font-mono tabular-nums font-bold">
                           {notaRecord?.valor !== undefined && notaRecord.valor !== null ? notaRecord.valor : '—'}
                           {recupRecord?.valor !== undefined && recupRecord.valor !== null && (
                             <span className="block text-[9px] text-purple-700">R: {recupRecord.valor}</span>
@@ -940,17 +943,18 @@ function AsistenciasTemplate({ data }) {
 
       {/* 2. Tabla de Asistencias */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs border border-slate-400">
+        <table className="w-full text-left border-collapse text-xs border border-slate-400" aria-label="Planilla Oficial de Asistencia">
+          <caption className="sr-only">Planilla oficial de cómputo y porcentaje de asistencia de estudiantes</caption>
           <thead>
             <tr className="bg-slate-200 border-b border-slate-400 text-slate-900 text-[11px] uppercase font-bold">
-              <th className="p-2 border-r border-slate-400 text-center w-10">N°</th>
-              <th className="p-2 border-r border-slate-400 w-28">D.N.I.</th>
-              <th className="p-2 border-r border-slate-400">Apellido y Nombres</th>
-              <th className="p-2 border-r border-slate-400 text-center w-20">Clases</th>
-              <th className="p-2 border-r border-slate-400 text-center w-20 text-emerald-800">Presentes</th>
-              <th className="p-2 border-r border-slate-400 text-center w-20 text-rose-800">Ausentes</th>
-              <th className="p-2 border-r border-slate-400 text-center w-24">% Asist. Final</th>
-              <th className="p-2 text-center w-36">Estado de Regularidad</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-10">N°</th>
+              <th scope="col" className="p-2 border-r border-slate-400 w-28">D.N.I.</th>
+              <th scope="col" className="p-2 border-r border-slate-400">Apellido y Nombres</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-20">Clases</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-20 text-emerald-800">Presentes</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-20 text-rose-800">Ausentes</th>
+              <th scope="col" className="p-2 border-r border-slate-400 text-center w-24">% Asist. Final</th>
+              <th scope="col" className="p-2 text-center w-36">Estado de Regularidad</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-300">
@@ -971,25 +975,25 @@ function AsistenciasTemplate({ data }) {
 
                 return (
                   <tr key={est.id || idx} className="print-row hover:bg-slate-50 text-[11px]">
-                    <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-slate-700">
+                    <td scope="row" className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-bold text-slate-700">
                       {idx + 1}
                     </td>
-                    <td className="p-2 border-r border-slate-300 font-mono text-slate-800">
+                    <td className="p-2 border-r border-slate-300 font-mono tabular-nums text-slate-800">
                       {est.dni || '—'}
                     </td>
-                    <td className="p-2 border-r border-slate-300 font-bold text-slate-900 uppercase">
+                    <td className="p-2 border-r border-slate-300 font-bold text-slate-900 uppercase break-words">
                       {est.apellido}, {est.nombre}
                     </td>
-                    <td className="p-2 border-r border-slate-300 text-center font-mono">
+                    <td className="p-2 border-r border-slate-300 text-center font-mono tabular-nums">
                       {clasesEfectivas}
                     </td>
-                    <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-emerald-700">
+                    <td className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-bold text-emerald-700">
                       {presentes}
                     </td>
-                    <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-rose-700">
+                    <td className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-bold text-rose-700">
                       {ausentes}
                     </td>
-                    <td className="p-2 border-r border-slate-300 text-center font-mono font-black text-slate-900">
+                    <td className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-black text-slate-900">
                       {pct}%
                     </td>
                     <td className="p-2 text-center font-bold text-[10px] uppercase">

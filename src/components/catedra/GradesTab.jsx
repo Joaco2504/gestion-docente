@@ -122,10 +122,10 @@ const GradeCell = React.memo(function GradeCell({
           } ${
             notaOriginal !== null
               ? notaOriginal >= 7
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 dark:hover:text-emerald-200'
                 : notaOriginal >= 4
-                ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100'
-                : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100'
+                ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/70 dark:hover:text-amber-200'
+                : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/70 dark:hover:text-rose-200'
               : 'bg-surface hover:bg-surface-hover text-text-muted border-dashed border-surface-border'
           }`}
         >
@@ -142,9 +142,9 @@ const GradeCell = React.memo(function GradeCell({
             } ${
               notaRecup !== null
                 ? notaRecup >= 4
-                  ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-100'
-                  : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100'
-                : 'bg-purple-50/50 hover:bg-purple-100 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
+                  ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-950/70 dark:hover:text-purple-200'
+                  : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/70 dark:hover:text-rose-200'
+                : 'bg-purple-50/50 hover:bg-purple-100 dark:hover:bg-purple-950/70 dark:hover:text-purple-200 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
             }`}
           >
             {notaRecup !== null ? `R:${notaRecup}` : 'R:—'}
@@ -181,27 +181,27 @@ const GradeRow = React.memo(function GradeRow({
   const est = item.estudiante;
 
   return (
-    <tr className="hover:bg-surface-hover/40 transition-colors">
-      <td className="sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-surface-border min-w-[200px] sm:min-w-[240px]">
+    <tr className="group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
+      <td scope="row" className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-surface-border w-64 sm:w-72">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[11px] font-mono text-text-muted select-none w-5 shrink-0 text-right">
+            <span className="text-[11px] font-mono tabular-nums text-text-muted select-none w-5 shrink-0 text-right">
               {idx + 1}.
             </span>
-            <span className="font-semibold text-text-primary truncate">
+            <span className="font-semibold text-text-primary break-words">
               {est.apellido}, {est.nombre}
             </span>
           </div>
           <RiskBadge risk={studentRisk} compact />
         </div>
-        <div className="text-[11px] font-mono text-text-muted pl-7">
+        <div className="text-[11px] font-mono tabular-nums text-text-muted pl-7">
           DNI: {est.dni || 'S/D'}
         </div>
       </td>
 
       {/* Attendance % */}
-      <td className="px-3 py-3 text-center font-mono">
-        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+      <td className="px-3 py-3 text-center font-mono tabular-nums w-24 sm:w-28">
+        <span className={`px-2 py-0.5 rounded text-xs font-bold tabular-nums ${
           item.asistenciaPct < 70 
             ? 'bg-red-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300' 
             : 'bg-green-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -1755,19 +1755,20 @@ export default function GradesTab({
       ) : (
         /* High-Density Panoramic Table View with sticky student column */
         <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-          <div className="overflow-x-auto touch-pan-x select-none scrollbar-thin max-h-[75vh]">
-            <table className="w-full text-left text-xs sm:text-sm border-collapse">
+          <div className="overflow-x-auto touch-pan-x scrollbar-thin max-h-[75vh]">
+            <table className="w-full text-left text-xs sm:text-sm border-collapse table-fixed" aria-label="Sábana de Calificaciones">
+              <caption className="sr-only">Sábana general de calificaciones y condición final de estudiantes</caption>
               <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary border-b border-surface-border">
                 <tr>
-                  <th className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 min-w-[200px] sm:min-w-[240px] border-r border-surface-border font-bold text-text-primary">
+                  <th scope="col" className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 w-64 sm:w-72 border-r border-surface-border font-bold text-text-primary">
                     Estudiante / DNI
                   </th>
-                  <th className="px-3 py-3 text-center w-24 font-mono">% Asist.</th>
+                  <th scope="col" className="px-3 py-3 text-center w-24 sm:w-28 font-mono tabular-nums">% Asist.</th>
 
                   {/* Main Evaluation Columns - Encabezados compactos y limpios */}
                   {mainEvaluations.map(ev => {
                     return (
-                      <th key={ev.id} className="px-3 sm:px-4 py-2.5 text-center border-l border-surface-border min-w-[145px] align-top">
+                      <th scope="col" key={ev.id} className="px-3 sm:px-4 py-2.5 text-center border-l border-surface-border w-28 sm:w-36 min-w-[145px] align-top">
                         {/* Línea 1: Nombre de la evaluación */}
                         <div className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate" title={ev.titulo}>
                           {ev.titulo}
@@ -1779,12 +1780,12 @@ export default function GradesTab({
                         </div>
 
                         {/* Botones de acción inferiores: Editar, Calificar, Borrar */}
-                        <div className="flex items-center justify-center gap-1 mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
+                        <div className="flex items-center justify-center gap-1.5 mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
                           <button
                             type="button"
                             onClick={() => handleOpenEditEvaluacion(ev)}
                             title={`Editar datos de "${ev.titulo}"`}
-                            className="p-1 rounded-md text-text-muted hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                            className="p-2 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-text-muted hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
@@ -1792,7 +1793,7 @@ export default function GradesTab({
                             type="button"
                             onClick={() => handleOpenBatchGrade(ev)}
                             title={`Calificar a todo el curso en "${ev.titulo}"`}
-                            className="p-1 rounded-md text-text-muted hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                            className="p-2 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
                           >
                             <ListChecks className="w-3.5 h-3.5" />
                           </button>
@@ -1800,7 +1801,7 @@ export default function GradesTab({
                             type="button"
                             onClick={() => handleDeleteEvaluacion(ev.id, ev.titulo)}
                             title={`Eliminar "${ev.titulo}" y todas sus notas`}
-                            className="p-1 rounded-md text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            className="p-2 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1809,7 +1810,7 @@ export default function GradesTab({
                     );
                   })}
 
-                  <th className="px-4 py-3 text-center border-l border-surface-border min-w-[150px] bg-surface-hover/90 font-bold">
+                  <th scope="col" className="px-4 py-3 text-center border-l border-surface-border w-32 sm:w-36 min-w-[150px] bg-slate-100 dark:bg-slate-800 font-bold">
                     Condición Final
                   </th>
                 </tr>

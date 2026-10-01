@@ -114,16 +114,17 @@ export default function LibroTemasPrintModal({
 
           {/* 2. TABLA ESTANDARIZADA DEL LIBRO DE TEMAS */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse border border-slate-400">
+            <table className="w-full text-left text-xs border-collapse border border-slate-400" aria-label="Libro de Temas Oficial">
+              <caption className="sr-only">Libro de temas oficial con registro de clases dictadas, contenidos y firmas</caption>
               <thead>
-                <tr className="bg-slate-100 text-slate-900 uppercase font-bold text-[10px] tracking-wider border-b border-slate-400">
-                  <th className="p-2 border border-slate-400 w-12 text-center">N°</th>
-                  <th className="p-2 border border-slate-400 w-24">Fecha</th>
-                  <th className="p-2 border border-slate-400 w-16 text-center">Hs. Cát.</th>
-                  <th className="p-2 border border-slate-400 w-24">Carácter</th>
-                  <th className="p-2 border border-slate-400">Tema y Contenidos Desarrollados</th>
-                  <th className="p-2 border border-slate-400 w-28">Observaciones</th>
-                  <th className="p-2 border border-slate-400 w-28 text-center">Firma Docente</th>
+                <tr className="bg-slate-100 text-slate-900 uppercase font-bold text-[11px] tracking-wider border-b border-slate-400">
+                  <th scope="col" className="p-2 border border-slate-400 w-12 text-center">N°</th>
+                  <th scope="col" className="p-2 border border-slate-400 w-24">Fecha</th>
+                  <th scope="col" className="p-2 border border-slate-400 w-16 text-center">Hs. Cát.</th>
+                  <th scope="col" className="p-2 border border-slate-400 w-24">Carácter</th>
+                  <th scope="col" className="p-2 border border-slate-400">Tema y Contenidos Desarrollados</th>
+                  <th scope="col" className="p-2 border border-slate-400 w-28">Observaciones</th>
+                  <th scope="col" className="p-2 border border-slate-400 w-28 text-center">Firma Docente</th>
                 </tr>
               </thead>
               <tbody>
@@ -136,13 +137,13 @@ export default function LibroTemasPrintModal({
                 ) : (
                   sortedClases.map((clase, idx) => (
                     <tr key={clase.id || idx} className="border-b border-slate-300 page-break-inside-avoid">
-                      <td className="p-2 border border-slate-400 text-center font-bold font-mono">
+                      <td scope="row" className="p-2 border border-slate-400 text-center font-bold font-mono tabular-nums">
                         #{idx + 1}
                       </td>
-                      <td className="p-2 border border-slate-400 font-mono text-[11px] whitespace-nowrap">
+                      <td className="p-2 border border-slate-400 font-mono tabular-nums text-[11px] whitespace-nowrap">
                         {formatFechaDMY(clase.fecha)}
                       </td>
-                      <td className="p-2 border border-slate-400 text-center font-mono">
+                      <td className="p-2 border border-slate-400 text-center font-mono tabular-nums">
                         {clase.horas_catedra || 2} hs
                       </td>
                       <td className="p-2 border border-slate-400 text-[11px] font-semibold uppercase">

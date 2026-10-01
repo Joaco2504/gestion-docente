@@ -160,17 +160,18 @@ export default function ActaVolantePrintModal({
 
           {/* 2. TABLA OFICIAL REGLAMENTARIA DE ALUMNOS */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs border border-slate-400">
+            <table className="w-full text-left border-collapse text-xs border border-slate-400" aria-label="Acta Volante de Exámenes">
+              <caption className="sr-only">Acta volante reglamentaria de exámenes finales</caption>
               <thead>
                 <tr className="bg-slate-200 border-b border-slate-400 text-slate-900 text-[11px] uppercase font-bold">
-                  <th className="p-2 border-r border-slate-400 text-center w-10">N°</th>
-                  <th className="p-2 border-r border-slate-400 w-24">D.N.I.</th>
-                  <th className="p-2 border-r border-slate-400">Apellido y Nombres</th>
-                  <th className="p-2 border-r border-slate-400 text-center w-20">Condición</th>
-                  <th className="p-2 border-r border-slate-400 text-center w-14">Escrito</th>
-                  <th className="p-2 border-r border-slate-400 text-center w-14">Oral</th>
-                  <th className="p-2 border-r border-slate-400 text-center w-36">Nota Definitiva</th>
-                  <th className="p-2 text-center w-28">Dictamen</th>
+                  <th scope="col" className="p-2 border-r border-slate-400 text-center w-10">N°</th>
+                  <th scope="col" className="p-2 border-r border-slate-400 w-24">D.N.I.</th>
+                  <th scope="col" className="p-2 border-r border-slate-400">Apellido y Nombres</th>
+                  <th scope="col" className="p-2 border-r border-slate-400 text-center w-20">Condición</th>
+                  <th scope="col" className="p-2 border-r border-slate-400 text-center w-14">Escrito</th>
+                  <th scope="col" className="p-2 border-r border-slate-400 text-center w-14">Oral</th>
+                  <th scope="col" className="p-2 border-r border-slate-400 text-center w-36">Nota Definitiva</th>
+                  <th scope="col" className="p-2 text-center w-28">Dictamen</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-300">
@@ -192,25 +193,25 @@ export default function ActaVolantePrintModal({
 
                     return (
                       <tr key={alumno.id || idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-slate-700">
+                        <td scope="row" className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-bold text-slate-700">
                           {idx + 1}
                         </td>
-                        <td className="p-2 border-r border-slate-300 font-mono text-slate-800">
+                        <td className="p-2 border-r border-slate-300 font-mono tabular-nums text-slate-800">
                           {alumno.alumno_dni || '—'}
                         </td>
-                        <td className="p-2 border-r border-slate-300 font-bold text-slate-900 uppercase">
+                        <td className="p-2 border-r border-slate-300 font-bold text-slate-900 uppercase break-words">
                           {alumno.alumno_nombre_completo || 'Sin nombre'}
                         </td>
                         <td className="p-2 border-r border-slate-300 text-center font-semibold text-[10px] uppercase">
                           {alumno.condicion_previa || 'REGULAR'}
                         </td>
-                        <td className="p-2 border-r border-slate-300 text-center font-mono font-semibold">
+                        <td className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-semibold">
                           {alumno.nota_escrito !== null && alumno.nota_escrito !== undefined ? alumno.nota_escrito : '—'}
                         </td>
-                        <td className="p-2 border-r border-slate-300 text-center font-mono font-semibold">
+                        <td className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-semibold">
                           {alumno.nota_oral !== null && alumno.nota_oral !== undefined ? alumno.nota_oral : '—'}
                         </td>
-                        <td className="p-2 border-r border-slate-300 text-center font-mono font-bold text-slate-900 text-[11px]">
+                        <td className="p-2 border-r border-slate-300 text-center font-mono tabular-nums font-bold text-slate-900 text-[11px]">
                           {notaLetras}
                         </td>
                         <td className="p-2 text-center font-bold text-[11px] uppercase">

@@ -406,21 +406,22 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
               </span>
             </div>
             <div className="border border-surface-border rounded-xl overflow-hidden max-h-64 overflow-y-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface-hover text-text-secondary font-semibold border-b border-surface-border sticky top-0">
+              <table className="w-full text-left text-xs" aria-label="Vista Previa de Alumnos Válidos">
+                <caption className="sr-only">Previsualización de alumnos extraídos de la planilla Excel</caption>
+                <thead className="bg-slate-100 dark:bg-slate-800 text-text-secondary font-semibold border-b border-surface-border sticky top-0 z-10">
                   <tr>
-                    <th className="px-4 py-2.5 w-12 text-center font-mono">#</th>
-                    <th className="px-4 py-2.5 font-mono">DNI</th>
-                    <th className="px-4 py-2.5">Apellido</th>
-                    <th className="px-4 py-2.5">Nombre</th>
-                    <th className="px-4 py-2.5 text-center">Estado</th>
+                    <th scope="col" className="px-4 py-2.5 w-12 text-center font-mono">#</th>
+                    <th scope="col" className="px-4 py-2.5 font-mono">DNI</th>
+                    <th scope="col" className="px-4 py-2.5">Apellido</th>
+                    <th scope="col" className="px-4 py-2.5">Nombre</th>
+                    <th scope="col" className="px-4 py-2.5 text-center">Estado</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border">
                   {sanitizedData.slice(0, 50).map((row, idx) => (
-                    <tr key={idx} className="hover:bg-surface-hover/50">
-                      <td className="px-4 py-2 text-center text-text-muted font-mono">{idx + 1}</td>
-                      <td className="px-4 py-2 font-mono font-medium text-text-secondary">{row.dni}</td>
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                      <td scope="row" className="px-4 py-2 text-center text-text-muted font-mono tabular-nums">{idx + 1}</td>
+                      <td className="px-4 py-2 font-mono tabular-nums font-medium text-text-secondary">{row.dni}</td>
                       <td className="px-4 py-2 font-semibold text-text-primary">{row.apellido}</td>
                       <td className="px-4 py-2 text-text-secondary">{row.nombre}</td>
                       <td className="px-4 py-2 text-center">

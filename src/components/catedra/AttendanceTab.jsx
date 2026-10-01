@@ -177,23 +177,23 @@ const AttendanceRow = React.memo(function AttendanceRow({
 
   return (
     <tr
-      className={`hover:bg-slate-100/40 dark:hover:bg-white/[0.03] transition-colors ${
+      className={`group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors ${
         isFlashing ? 'animate-flash-success' : ''
       }`}
     >
-      <td className="sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-slate-200/80 dark:border-white/10 min-w-[200px] sm:min-w-[240px]">
+      <td scope="row" className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-slate-200/80 dark:border-white/10 min-w-[200px] sm:min-w-[240px]">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[11px] font-mono text-text-muted select-none w-5 shrink-0 text-right">
+            <span className="text-[11px] font-mono tabular-nums text-text-muted select-none w-5 shrink-0 text-right">
               {index + 1}.
             </span>
-            <span className="font-semibold text-text-primary truncate">
+            <span className="font-semibold text-text-primary break-words">
               {est.apellido}, {est.nombre}
             </span>
           </div>
           <RiskBadge risk={risk} compact />
         </div>
-        <div className="text-[11px] font-mono text-text-muted pl-7">
+        <div className="text-[11px] font-mono tabular-nums text-text-muted pl-7">
           DNI: {est.dni || 'S/D'}
         </div>
       </td>
@@ -1743,14 +1743,15 @@ export default function AttendanceTab({
 
                 {/* Vista Desktop / Tablet (>= 768px): Tabla con Controles Binarios */}
                 <div className="hidden md:block rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-2xs">
-                  <div className="overflow-x-auto touch-pan-x select-none scrollbar-thin max-h-[60vh]">
-                    <table className="w-full text-left text-xs sm:text-sm">
+                  <div className="overflow-x-auto touch-pan-x scrollbar-thin max-h-[60vh]">
+                    <table className="w-full text-left text-xs sm:text-sm" aria-label="Registro de Asistencia del Curso">
+                      <caption className="sr-only">Planilla de asistencia por estudiante</caption>
                       <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200/80 dark:border-slate-800">
                         <tr>
-                          <th className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 px-4 py-3 border-r border-slate-200/80 dark:border-slate-800 min-w-[220px]">
+                          <th scope="col" className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 px-4 py-3 border-r border-slate-200/80 dark:border-slate-800 min-w-[220px]">
                             Estudiante / DNI
                           </th>
-                          <th className="px-4 py-3 text-center min-w-[200px]">
+                          <th scope="col" className="px-4 py-3 text-center min-w-[200px]">
                             Asistencia
                           </th>
                         </tr>
