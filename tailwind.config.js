@@ -14,25 +14,26 @@ export default {
           700: '#047857',
           glow: '#34D399'
         },
-        primary: {
-          DEFAULT: 'rgb(var(--color-primary-rgb, 16 185 129) / <alpha-value>)',
-          hover: 'rgb(var(--color-primary-hover-rgb, 5 150 105) / <alpha-value>)',
-          light: 'var(--color-primary-light, #ecfdf5)',
-          muted: 'var(--color-primary-muted, #a7f3d0)',
-          dark: 'rgb(var(--color-primary-rgb, 16 185 129) / <alpha-value>)',
-        },
+        canvas: 'rgb(var(--canvas-rgb) / <alpha-value>)',
         surface: {
-          DEFAULT: 'var(--surface)',
-          hover: 'var(--surface-hover)',
-          border: 'var(--surface-border)',
+          DEFAULT: 'rgb(var(--surface-rgb) / <alpha-value>)',
+          hover: 'rgb(var(--surface-hover-rgb) / <alpha-value>)',
+          border: 'rgb(var(--surface-border-rgb) / <alpha-value>)',
           canvas: 'var(--background)',
           card: 'var(--card)',
           muted: 'var(--muted)',
         },
-        canvas: {
-          DEFAULT: 'var(--canvas)',
-          light: '#f8fafc',
-          dark: '#080c14',
+        text: {
+          primary: 'rgb(var(--text-primary-rgb) / <alpha-value>)',
+          secondary: 'rgb(var(--text-secondary-rgb) / <alpha-value>)',
+          muted: 'rgb(var(--text-muted-rgb) / <alpha-value>)',
+        },
+        primary: {
+          DEFAULT: 'rgb(var(--primary-rgb) / <alpha-value>)',
+          hover: 'rgb(var(--primary-hover-rgb) / <alpha-value>)',
+          light: 'var(--color-primary-light, #ecfdf5)',
+          muted: 'var(--color-primary-muted, #a7f3d0)',
+          dark: 'rgb(var(--primary-rgb) / <alpha-value>)',
         },
         academic: {
           promo: '#059669', // Emerald
@@ -43,11 +44,6 @@ export default {
         success: '#10b981',
         warning: '#f59e0b',
         danger: '#ef4444',
-        text: {
-          primary: 'var(--text-primary)',
-          secondary: 'var(--text-secondary)',
-          muted: 'var(--text-muted)',
-        }
       },
       fontFamily: {
         sans: ['Inter', 'Geist Sans', 'system-ui', 'sans-serif'],
@@ -59,6 +55,7 @@ export default {
         '3xl': '1.5rem',
       },
       boxShadow: {
+        xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
         'subtle': '0 1px 3px 0 rgba(18, 9, 255, 0.04), 0 1px 2px -1px rgba(18, 9, 255, 0.04)',
         'elevated': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
         'elevated-dark': '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
@@ -67,6 +64,10 @@ export default {
         'radial-gradient': 'radial-gradient(var(--tw-gradient-stops))',
       },
       keyframes: {
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.96) translateY(4px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
         fadeIn: {
           '0%': { opacity: '0', transform: 'translateY(4px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
@@ -112,6 +113,7 @@ export default {
         }
       },
       animation: {
+        scaleIn: 'scaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         fadeIn: 'fadeIn 0.2s ease-out forwards',
         fadeInUp: 'fadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         slideUp: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',

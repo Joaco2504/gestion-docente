@@ -212,7 +212,7 @@ export default function PortalSettingsModal({
         }}
       >
         <div 
-          className="relative w-full max-w-5xl xl:max-w-6xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto"
+          className="relative w-full max-w-5xl xl:max-w-6xl bg-surface border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* ========================================================================= */}
@@ -667,7 +667,7 @@ export default function PortalSettingsModal({
           {/* ========================================================================= */}
           {/* PARTE 4: PIE DE RECOMENDACIONES Y ACCIONES DEL MODAL                       */}
           {/* ========================================================================= */}
-          <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0F172A] shrink-0 space-y-3">
+          <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-surface shrink-0 space-y-3">
             
             {/* 1. Banner de Recomendaciones */}
             <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-800/40 flex items-center justify-between gap-3 text-xs">

@@ -277,7 +277,7 @@ export default function Navbar({ onToggleSidebar }) {
   );
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0c1222]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-surface/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs">
       {/* Animated top shimmer beam */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-80 animate-pulseGlow" />
 
@@ -288,7 +288,7 @@ export default function Navbar({ onToggleSidebar }) {
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="p-1 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-transform duration-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center group"
+            className="min-w-[44px] min-h-[44px] p-1 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-transform duration-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center group"
             title="Abrir menú de navegación"
             aria-label="Abrir menú"
           >
@@ -303,7 +303,7 @@ export default function Navbar({ onToggleSidebar }) {
             <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white">
               Korum
             </span>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono">
+            <span className="text-[11px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono">
               v2.0
             </span>
           </div>
@@ -321,7 +321,7 @@ export default function Navbar({ onToggleSidebar }) {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:border-emerald-500/40 transition-all cursor-pointer max-w-[210px] lg:max-w-[260px] truncate"
               title="Conmutar cátedra activa"
             >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <BookOpen className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
               <span className="truncate flex-1 text-left">
                 {activeCatedra?.nombre 
                   ? `${activeCatedra.nombre}${activeCatedra.anio ? ` (${activeCatedra.anio}° año)` : ''}${activeCatedra.regimen ? ` · ${activeCatedra.regimen}` : (activeCatedra.comision ? ` · ${activeCatedra.comision}` : '')}`
@@ -336,7 +336,7 @@ export default function Navbar({ onToggleSidebar }) {
               <div className="absolute left-0 mt-2 w-80 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl py-1 z-50 animate-fadeIn">
                 <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
                   <span>Cátedras Asignadas ({catedras.length})</span>
-                  <span className="text-[9px] font-mono text-emerald-500">Cambio Inmediato</span>
+                  <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400">Cambio Inmediato</span>
                 </div>
                 <div className="max-h-64 overflow-y-auto py-1 divide-y divide-slate-100 dark:divide-slate-800/40">
                   {catedras.length === 0 ? (
@@ -353,12 +353,12 @@ export default function Navbar({ onToggleSidebar }) {
                             setIsCatedraDropdownOpen(false);
                           }}
                           className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer ${
-                            isCurrent ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-700 dark:text-slate-200'
+                            isCurrent ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold' : 'text-slate-700 dark:text-slate-200'
                           }`}
                         >
                           <div className="truncate flex-1">
                             <p className="truncate font-semibold">{c.nombre}</p>
-                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                            <p className="text-[11px] text-slate-400 font-mono mt-0.5">
                               {c.institucion_nombre ? `${c.institucion_nombre} · ` : ''}{c.anio ? `${c.anio}° año` : ''} {c.regimen ? `· ${c.regimen}` : ''}
                             </p>
                           </div>
@@ -418,7 +418,7 @@ export default function Navbar({ onToggleSidebar }) {
               onClick={toggleNotifications}
               className={`relative p-2.5 rounded-xl border transition-all cursor-pointer touch-target-44 flex items-center justify-center ${
                 showNotifications
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
                   : 'border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="Notificaciones y alertas"
@@ -426,7 +426,7 @@ export default function Navbar({ onToggleSidebar }) {
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white font-mono text-[10px] font-black rounded-full flex items-center justify-center shadow-xs animate-scaleIn">
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white font-mono text-[11px] font-black rounded-full flex items-center justify-center shadow-xs animate-scaleIn">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -440,7 +440,7 @@ export default function Navbar({ onToggleSidebar }) {
                     <Bell className="w-4 h-4 text-primary" />
                     <span className="font-bold text-xs text-text-primary">Notificaciones</span>
                     {notificaciones.length > 0 && (
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary">
+                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
                         {notificaciones.length}
                       </span>
                     )}
@@ -526,7 +526,7 @@ export default function Navbar({ onToggleSidebar }) {
                                   <BookMarked className="w-4 h-4" />
                                 </div>
                               ) : isClase ? (
-                                <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
                                   <GraduationCap className="w-4 h-4" />
                                 </div>
                               ) : isAsist ? (
@@ -536,7 +536,7 @@ export default function Navbar({ onToggleSidebar }) {
                               ) : isError ? (
                                 <AlertCircle className="w-4 h-4 text-rose-500" />
                               ) : isSuccess ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                               ) : isWarning ? (
                                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                               ) : (
@@ -557,7 +557,7 @@ export default function Navbar({ onToggleSidebar }) {
 
                                 <div className="flex items-center gap-1 shrink-0">
                                   {n.codigo && (
-                                    <span className={`font-mono text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                                    <span className={`font-mono text-[11px] px-2 py-0.5 rounded font-bold ${
                                       isError || isAsist
                                         ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                                         : isWarning || isMesa
@@ -621,7 +621,7 @@ export default function Navbar({ onToggleSidebar }) {
           >
             {/* Cabecera del Buscador */}
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
-              <Search className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <Search className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0" />
               <input
                 type="text"
                 value={searchQuery}
@@ -692,9 +692,9 @@ export default function Navbar({ onToggleSidebar }) {
               {/* Sección Estudiantes / DNI */}
               {matchedStudents.length > 0 && (
                 <div className="py-2 first:pt-0">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center justify-between font-mono">
+                  <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center justify-between font-mono">
                     <span>Estudiantes / DNI ({matchedStudents.length})</span>
-                    <span className="text-[9px] text-slate-400">Saltar a legajo</span>
+                    <span className="text-[11px] text-slate-400">Saltar a legajo</span>
                   </div>
                   {matchedStudents.map((s, idx) => {
                     const isSelected = selectedIndex === idx;
@@ -718,19 +718,19 @@ export default function Navbar({ onToggleSidebar }) {
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
                             <User className="w-4 h-4" />
                           </div>
                           <div className="truncate">
                             <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                               {s.apellido}, {s.nombre}
                             </p>
-                            <p className="text-[10px] text-slate-400 truncate font-mono">
+                            <p className="text-[11px] text-slate-400 truncate font-mono">
                               DNI: <strong className="text-slate-600 dark:text-slate-300">{formattedDni}</strong>
                             </p>
                           </div>
                         </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:text-emerald-500 shrink-0">
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 shrink-0">
                           Ver Alumno
                         </span>
                       </button>
@@ -764,12 +764,12 @@ export default function Navbar({ onToggleSidebar }) {
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <BookOpen className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
                           <div className="truncate">
                             <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                               {cat.nombre}
                             </p>
-                            <p className="text-[10px] text-slate-400 truncate font-mono">
+                            <p className="text-[11px] text-slate-400 truncate font-mono">
                               {cat.institucion_nombre || ''} {cat.anio ? `· ${cat.anio}° año` : ''} {cat.regimen ? `· ${cat.regimen}` : ''}
                             </p>
                           </div>
@@ -784,7 +784,7 @@ export default function Navbar({ onToggleSidebar }) {
               {/* Sección Acciones Rápidas */}
               {filteredActions.length > 0 && (
                 <div className="py-2">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                     Navegación & Acciones
                   </div>
                   {filteredActions.map((action, idx) => {
@@ -808,15 +808,15 @@ export default function Navbar({ onToggleSidebar }) {
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <ActionIcon className={`w-4 h-4 shrink-0 transition-colors ${
-                            isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
+                            isSelected ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-400'
                           }`} />
                           <div className="truncate">
                             <p className={`text-xs font-medium transition-colors truncate ${
-                              isSelected ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
+                              isSelected ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400'
                             }`}>
                               {action.titulo}
                             </p>
-                            <p className="text-[10px] text-slate-400 truncate">
+                            <p className="text-[11px] text-slate-400 truncate">
                               {action.subtitulo}
                             </p>
                           </div>

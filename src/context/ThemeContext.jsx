@@ -31,14 +31,14 @@ export const PALETTES = {
     id: 'esmeralda',
     name: 'Verde Esmeralda',
     description: 'Fresco y armónico',
-    primary: '#059669',
-    primaryHover: '#047857',
+    primary: '#047857',
+    primaryHover: '#065f46',
     primaryLight: '#ecfdf5',
     primaryMuted: '#a7f3d0',
-    rgb: '5 150 105',
-    hoverRgb: '4 120 87',
-    previewHex: '#059669',
-    badgeClass: 'bg-[#059669] text-white'
+    rgb: '4 120 87',
+    hoverRgb: '6 95 70',
+    previewHex: '#047857',
+    badgeClass: 'bg-[#047857] text-white'
   },
   'purpura': {
     id: 'purpura',
@@ -146,6 +146,8 @@ export function ThemeProvider({ children }) {
 
     root.style.setProperty('--color-primary-rgb', pal.rgb);
     root.style.setProperty('--color-primary-hover-rgb', pal.hoverRgb);
+    root.style.setProperty('--primary-rgb', pal.rgb);
+    root.style.setProperty('--primary-hover-rgb', pal.hoverRgb);
     root.style.setProperty('--color-primary-light', pal.primaryLight);
     root.style.setProperty('--color-primary-muted', pal.primaryMuted);
   }, [colorPalette]);

@@ -30,15 +30,15 @@ export default function Footer() {
       {/* ========================================================
           1. BANNER SUPERIOR DE INVITACIÓN CÁLIDO Y HUMANO
          ======================================================== */}
-      <div className="bg-surface/90 dark:bg-[#0c1222]/90 backdrop-blur-xl border-t border-b border-surface-border relative overflow-hidden py-12 px-4 sm:px-6 lg:px-8 transition-colors">
+      <div className="bg-surface/90 backdrop-blur-xl border-t border-b border-surface-border relative overflow-hidden py-12 px-4 sm:px-6 lg:px-8 transition-colors">
         {/* Glows de fondo con acento esmeralda */}
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-10 left-1/3 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
           <div className="space-y-2 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-bold tracking-wider uppercase">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
               <span>Espacio Docente</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">
@@ -72,7 +72,7 @@ export default function Footer() {
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300/60 dark:border-slate-700/60 text-xs sm:text-sm font-medium transition-all shadow-sm cursor-pointer active:scale-95"
             >
-              <Calendar className="w-4 h-4 text-emerald-500" />
+              <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               <span>Ver Mesas y Calendario</span>
             </button>
           </div>
@@ -82,7 +82,7 @@ export default function Footer() {
       {/* ========================================================
           2. FOOTER INFERIOR CON FONDO ILUSTRADO Y ANCLAJE PROPORCIONAL
          ======================================================== */}
-      <footer className="relative w-full overflow-hidden bg-[#F8FAFC] dark:bg-[#080C14] border-t border-slate-200/80 dark:border-slate-800/80 transition-colors duration-300">
+      <footer className="relative w-full overflow-hidden bg-canvas border-t border-slate-200/80 dark:border-slate-800/80 transition-colors duration-300">
         {/* Capa de fondo ilustrado con anclaje a la derecha y escalado proporcional */}
         <div 
           className="absolute inset-0 w-full h-full pointer-events-none bg-no-repeat bg-right-bottom sm:bg-right bg-contain opacity-75 dark:opacity-85 transition-opacity duration-300 bg-[url('/footer-light.webp')] dark:bg-[url('/footer.webp')]"
@@ -90,7 +90,7 @@ export default function Footer() {
 
         {/* Máscara de degradado hacia la izquierda para que los textos siempre tengan contraste 100% legible */}
         <div 
-          className="absolute inset-0 bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/80 to-transparent dark:from-[#080C14] dark:via-[#080C14]/85 dark:to-transparent pointer-events-none" 
+          className="absolute inset-0 bg-gradient-to-r from-canvas via-canvas/80 to-transparent dark:from-canvas dark:via-canvas/85 dark:to-transparent pointer-events-none" 
         />
 
         {/* Contenido HTML del Footer montado con z-10 */}
@@ -105,9 +105,9 @@ export default function Footer() {
               <div className="pt-1">
                 <a 
                   href="mailto:emiliopacheco521@gmail.com.ar" 
-                  className="text-xs font-mono text-slate-500 hover:text-emerald-500 flex items-center gap-1.5 transition-colors mt-3"
+                  className="text-xs font-mono text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1.5 transition-colors mt-3"
                 >
-                  <Mail className="w-3.5 h-3.5 text-emerald-500" /> 
+                  <Mail className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" /> 
                   <span>emiliopacheco521@gmail.com.ar</span>
                 </a>
               </div>
@@ -120,26 +120,26 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2 text-xs">
                 <li>
-                  <Link to="/dashboard" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
-                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                  <Link to="/dashboard" className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Panel de Cátedras</span>
                   </Link>
                 </li>
                 <li>
-                  <Link to="/mesas-examen" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
-                    <Award className="w-3.5 h-3.5 text-emerald-500" />
+                  <Link to="/mesas-examen" className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2">
+                    <Award className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Mesas de Examen</span>
                   </Link>
                 </li>
                 <li>
-                  <Link to="/calendario" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+                  <Link to="/calendario" className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Calendario Académico</span>
                   </Link>
                 </li>
                 <li>
-                  <Link to="/instituciones" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
-                    <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <Link to="/instituciones" className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Instituciones</span>
                   </Link>
                 </li>
@@ -153,20 +153,20 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2 text-xs">
                 <li>
-                  <Link to="/guias" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
-                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                  <Link to="/guias" className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Guías Paso a Paso</span>
                   </Link>
                 </li>
                 <li>
-                  <Link to="/consulta/demo" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
-                    <Users className="w-3.5 h-3.5 text-emerald-500" />
+                  <Link to="/consulta/demo" className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Consulta de Estudiantes (Portal DNI)</span>
                   </Link>
                 </li>
                 <li>
-                  <Link to="/soporte" className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2">
-                    <LifeBuoy className="w-3.5 h-3.5 text-emerald-500" />
+                  <Link to="/soporte" className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2">
+                    <LifeBuoy className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Soporte Directo</span>
                   </Link>
                 </li>
@@ -174,9 +174,9 @@ export default function Footer() {
                   <button
                     type="button"
                     onClick={() => setIsPrivacyModalOpen(true)}
-                    className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2 text-left cursor-pointer"
+                    className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2 text-left cursor-pointer"
                   >
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Seguridad y RLS de Datos</span>
                   </button>
                 </li>
@@ -184,9 +184,9 @@ export default function Footer() {
                   <button
                     type="button"
                     onClick={() => setIsTermsModalOpen(true)}
-                    className="text-text-muted hover:text-emerald-500 transition-colors flex items-center gap-2 text-left cursor-pointer"
+                    className="text-text-muted hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-2 text-left cursor-pointer"
                   >
-                    <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                    <FileText className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Términos Institucionales</span>
                   </button>
                 </li>

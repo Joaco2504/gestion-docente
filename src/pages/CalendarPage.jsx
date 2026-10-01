@@ -676,7 +676,7 @@ export default function CalendarPage() {
           (lg:col-span-4 xl:col-span-3)
          ======================================================== */}
       <aside className="lg:col-span-4 xl:col-span-3 flex flex-col gap-5">
-        <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 shadow-sm dark:shadow-xl flex flex-col gap-5 transition-colors">
+        <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 shadow-sm dark:shadow-xl flex flex-col gap-5 transition-colors">
           
           {/* 1. CABECERA DEL DOCENTE */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">
@@ -1012,7 +1012,7 @@ export default function CalendarPage() {
           (lg:col-span-8 xl:col-span-9)
          ======================================================== */}
       <main className="lg:col-span-8 xl:col-span-9 flex flex-col gap-6">
-        <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm dark:shadow-xl flex flex-col gap-6 transition-colors">
+        <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm dark:shadow-xl flex flex-col gap-6 transition-colors">
           
           {/* 1. CABECERA TEMPORAL SUPERIOR */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">

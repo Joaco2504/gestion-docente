@@ -1401,7 +1401,7 @@ export default function AttendanceTab({
         {/* COLUMNA IZQUIERDA (lg:col-span-7): TOMA Y REGISTRO DE ASISTENCIA            */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-5">
+          <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-5">
             {/* Cabecera de la Tarjeta Bento de Asistencia */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
@@ -1783,7 +1783,7 @@ export default function AttendanceTab({
         <div className="lg:col-span-5 space-y-6">
 
           {/* Widget 1: Avance del Programa Didáctico */}
-          <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -1840,7 +1840,7 @@ export default function AttendanceTab({
           </div>
 
           {/* Widget 2: Alertas y Semáforo de Riesgo (Early Warning System) */}
-          <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm relative overflow-hidden space-y-4">
+          <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm relative overflow-hidden space-y-4">
             {/* Brillo ambiental sutil */}
             <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -1927,7 +1927,7 @@ export default function AttendanceTab({
           </div>
 
           {/* Widget 3: Sesiones de Clase / Historial de Clases */}
-          <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
+          <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">

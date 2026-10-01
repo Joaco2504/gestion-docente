@@ -137,7 +137,7 @@ export default function OnboardingModal({ forceOpen = false, onClose = null }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
       {/* Contenedor del Modal Bento Dark Enterprise */}
       <div 
-        className="bg-[#0F172A] border border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between animate-fadeInUp"
+        className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between animate-fadeInUp"
         role="dialog"
         aria-modal="true"
       >

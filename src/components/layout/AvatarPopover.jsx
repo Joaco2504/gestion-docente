@@ -307,7 +307,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
       {/* Popover flotante desplegado hacia la derecha/arriba con z-[90] */}
       <div
         ref={popoverRef}
-        className="fixed left-4 right-4 sm:left-20 sm:right-auto bottom-20 md:bottom-4 z-[90] w-auto sm:w-80 bg-white dark:bg-[#0c1222] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl shadow-black/25 dark:shadow-black/70 ring-1 ring-black/5 dark:ring-white/10 p-3 animate-scaleIn text-text-primary origin-bottom-left select-none"
+        className="fixed left-4 right-4 sm:left-20 sm:right-auto bottom-20 md:bottom-4 z-[90] w-auto sm:w-80 bg-surface border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl shadow-black/25 dark:shadow-black/70 ring-1 ring-black/5 dark:ring-white/10 p-3 animate-scaleIn text-text-primary origin-bottom-left select-none"
       >
         {/* Encabezado: Avatar, Nombre del docente, Correo electrónico y Badge de rol (Docente o Superadmin) */}
         <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 flex items-center gap-3 mb-2">
@@ -332,7 +332,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
               <span className="text-xs font-bold text-text-primary truncate block" title={teacherName}>
                 {teacherName}
               </span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0 ${
                 esSuperadmin 
                   ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50' 
                   : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50'
@@ -343,7 +343,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
             <p className="text-[11px] text-text-muted truncate font-mono" title={teacherEmail}>
               {teacherEmail}
             </p>
-            <div className="flex items-center gap-1 text-[10px] text-primary font-semibold mt-1">
+            <div className="flex items-center gap-1 text-[11px] text-primary font-semibold mt-1">
               <ShieldCheck className="w-3 h-3" />
               <span>{isDemo ? 'Sesión Demo Activa' : 'Cuenta Verificada'}</span>
             </div>
@@ -367,7 +367,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
           >
             <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 transition-transform duration-200 group-hover:scale-110" />
             <span className="flex-1">Mi Perfil</span>
-            <span className="text-[10px] font-normal text-text-muted">Datos</span>
+            <span className="text-[11px] font-normal text-text-muted">Datos</span>
           </button>
 
           {/* Opción 2: [ ⚙️ Preferencias ] */}
@@ -381,7 +381,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
           >
             <Settings className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0 transition-transform duration-200 group-hover:rotate-45" />
             <span className="flex-1">Preferencias</span>
-            <span className="text-[10px] font-normal text-text-muted">Temas</span>
+            <span className="text-[11px] font-normal text-text-muted">Temas</span>
           </button>
 
           {/* Opción 3: Personalizar Avatar */}
@@ -397,7 +397,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
               <Camera className="w-4 h-4 text-primary shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span className="font-semibold text-primary">Personalizar Avatar</span>
             </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
+            <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
               Foto
             </span>
           </button>
@@ -448,7 +448,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
                 <span className="font-bold text-sm text-text-primary truncate">
                   {teacherName}
                 </span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
                   esSuperadmin 
                     ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50' 
                     : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50'
@@ -569,7 +569,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
                     <div className="w-12 h-12 rounded-xl overflow-hidden shadow-xs">
                       {preset.svg}
                     </div>
-                    <span className="text-[10px] font-medium text-text-secondary text-center truncate max-w-[70px]">
+                    <span className="text-[11px] font-medium text-text-secondary text-center truncate max-w-[70px]">
                       {preset.label.split(' ')[0]}
                     </span>
                     {isSelected && (
@@ -590,7 +590,7 @@ export default function AvatarPopover({ isOpen, onClose, anchorRef }) {
                 <Upload className="w-4 h-4 text-primary" />
                 <span className="text-xs font-bold text-text-primary">Subir Fotografía Propia</span>
               </div>
-              <span className="text-[10px] text-text-muted font-mono">PNG, JPG o WebP</span>
+              <span className="text-[11px] text-text-muted font-mono">PNG, JPG o WebP</span>
             </div>
 
             <p className="text-xs text-text-muted leading-relaxed">

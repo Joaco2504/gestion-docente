@@ -87,7 +87,7 @@ function AuthenticatedDocenteShell() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-canvas dark:bg-[#080C14] text-text-primary antialiased selection:bg-primary/20 selection:text-primary">
+    <div className="flex h-screen w-full overflow-hidden bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary">
       {/* 1. Barra Lateral Anclada a Altura Completa */}
       <DualSidebar 
         isOpen={sidebarOpen} 

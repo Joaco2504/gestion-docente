@@ -57,6 +57,6 @@
 .dark .korum-search-icon:focus ~ .korum-search-input,
 .dark .korum-search-input:focus,
 .dark .korum-search-input:not(:placeholder-shown) {
-  background-color: #0F172A;
+  background-color: rgb(var(--surface-rgb));
   border-color: #10B981;
 }

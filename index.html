@@ -8,12 +8,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Korum · Gestión Académica</title>
     
+    <!-- Anti-FOUC Script -->
+    <script>
+      (function() {
+        try {
+          var savedTheme = localStorage.getItem('docentepro_theme') || localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Google Fonts: Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-canvas-light text-slate-900 antialiased selection:bg-brand-100 selection:text-brand-primary min-h-screen">
+  <body class="bg-canvas text-text-primary antialiased selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300 min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

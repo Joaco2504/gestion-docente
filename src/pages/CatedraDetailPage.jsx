@@ -383,7 +383,7 @@ export default function CatedraDetailPage() {
             <button
               type="button"
               onClick={() => navigate('/dashboard')}
-              className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+              className="hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors cursor-pointer"
             >
               Panel de Cátedras
             </button>
@@ -396,7 +396,7 @@ export default function CatedraDetailPage() {
           {/* Lado derecho (Contexto Académico y Herramientas) */}
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="hidden sm:flex items-center gap-1.5 font-medium">
-              <Building2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <Building2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
               <span>{institucionNombre} ({catedra?.nivel ? (catedra.nivel.toUpperCase() === 'TERCIARIO' ? 'Terciario' : 'Secundario') : 'Terciario'})</span>
               <span className="text-slate-300 dark:text-slate-700 select-none">|</span>
               <span>Ciclo {anioCiclo}</span>
@@ -410,7 +410,7 @@ export default function CatedraDetailPage() {
                 title="Configuración de cátedra"
                 className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                <SettingsIcon className="w-4 h-4 hover:text-emerald-500 cursor-pointer transition-colors" />
+                <SettingsIcon className="w-4 h-4 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer transition-colors" />
               </button>
               <button
                 type="button"
@@ -418,7 +418,7 @@ export default function CatedraDetailPage() {
                 title="Notificaciones"
                 className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                <Bell className="w-4 h-4 hover:text-emerald-500 cursor-pointer transition-colors" />
+                <Bell className="w-4 h-4 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer transition-colors" />
               </button>
             </div>
           </div>
@@ -470,7 +470,7 @@ export default function CatedraDetailPage() {
         {/* ========================================================
             PARTE 3: BARRA DE PESTAÑAS SEGMENTADAS (TABS)
            ======================================================== */}
-        <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2 mb-6 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-6 overflow-x-auto scrollbar-none">
           {TABS_CONFIG.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -479,10 +479,10 @@ export default function CatedraDetailPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center gap-2 text-xs sm:text-sm transition-all duration-150 cursor-pointer whitespace-nowrap ${
+                className={`min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                   isActive
-                    ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-semibold border-b-2 border-emerald-500 rounded-t-xl px-4 py-2.5 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-4 py-2.5 rounded-t-xl hover:bg-slate-100/50 dark:hover:bg-slate-800/40 font-medium'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />

@@ -48,7 +48,7 @@ export function QuickSaveFab({
 
   const fabContent = (
     <div
-      className={`fixed bottom-6 right-6 z-50 group select-none transition-all duration-300 ease-out origin-bottom-right ${
+      className={`fixed bottom-24 md:bottom-6 right-6 z-50 group select-none transition-all duration-300 ease-out origin-bottom-right ${
         isDirtyState
           ? 'scale-100 opacity-100 pointer-events-auto'
           : 'scale-0 opacity-0 pointer-events-none'
@@ -65,7 +65,7 @@ export function QuickSaveFab({
         {/* Distintivo indicador de cambios pendientes */}
         <span className="absolute -top-1 -right-1 flex h-4 w-4">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border border-white text-[9px] font-black text-white items-center justify-center shadow-xs">
+          <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border border-white text-[11px] font-black text-white items-center justify-center shadow-xs">
             !
           </span>
         </span>

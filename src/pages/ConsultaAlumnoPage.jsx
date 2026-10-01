@@ -196,7 +196,7 @@ export default function ConsultaAlumnoPage() {
   // 1. PANTALLA DE CARGA INICIAL
   if (initLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080C14] p-4">
+      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
         <div className="flex flex-col items-center gap-4 max-w-sm text-center">
           <div className="relative">
             <div className="w-14 h-14 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
@@ -258,12 +258,12 @@ export default function ConsultaAlumnoPage() {
   const modalidadLabel = catedra.modalidad || 'ANUAL';
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#080C14] text-slate-900 dark:text-slate-100 antialiased selection:bg-emerald-500/20 selection:text-emerald-500">
+    <div className="min-h-screen flex flex-col bg-canvas text-slate-900 dark:text-slate-100 antialiased selection:bg-emerald-500/20 selection:text-emerald-500">
       
       {/* ========================================================================= */}
       {/* PARTE 1: HEADER INSTITUCIONAL Y BARRA DE SEGURIDAD                         */}
       {/* ========================================================================= */}
-      <header className="w-full bg-white dark:bg-[#0F172A] border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-sm sticky top-0 z-30">
+      <header className="w-full bg-surface border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-sm sticky top-0 z-30">
         {/* Extremo Izquierdo */}
         <div className="flex items-center gap-3">
           <img 
@@ -333,11 +333,11 @@ export default function ConsultaAlumnoPage() {
         {!resultado ? (
           <section className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch animate-fadeIn">
             {/* Columna Izquierda (md:col-span-7) - Formulario DNI */}
-            <div className="md:col-span-7 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
+            <div className="md:col-span-7 bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
               <div>
                 {/* Encabezado del Formulario */}
                 <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
                     <Lock className="w-4 h-4" />
                   </div>
                   <div>
@@ -367,7 +367,7 @@ export default function ConsultaAlumnoPage() {
 
                   {/* Micro-nota de respaldo */}
                   <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 text-[11px] text-slate-500 dark:text-slate-400 font-medium mb-4">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
                     <span>Tu información está protegida con tecnología de cifrado.</span>
                   </div>
 
@@ -408,7 +408,7 @@ export default function ConsultaAlumnoPage() {
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className="shrink-0 flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:underline font-semibold cursor-pointer"
+                  className="shrink-0 flex items-center gap-1 text-emerald-700 dark:text-emerald-400 hover:underline font-semibold cursor-pointer"
                   title="Copiar enlace de acceso directo"
                 >
                   <Copy className="w-3.5 h-3.5" />
@@ -418,10 +418,10 @@ export default function ConsultaAlumnoPage() {
             </div>
 
             {/* Columna Derecha (md:col-span-5) - Privacidad y Seguridad */}
-            <div className="md:col-span-5 bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
+            <div className="md:col-span-5 bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
               <div>
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                 </div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base mt-3 mb-1">
                   Privacidad y seguridad
@@ -434,20 +434,20 @@ export default function ConsultaAlumnoPage() {
               {/* 3 Columnas de Garantías */}
               <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-center">
                 <div className="flex flex-col items-center">
-                  <Shield className="w-4 h-4 text-emerald-500 mx-auto mb-1.5" />
-                  <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
+                  <Shield className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1.5" />
+                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
                     Conexión segura (SSL / RLS)
                   </span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <UserCheck className="w-4 h-4 text-emerald-500 mx-auto mb-1.5" />
-                  <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
+                  <UserCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1.5" />
+                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
                     Solo vos podés ver tus datos
                   </span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <Lock className="w-4 h-4 text-emerald-500 mx-auto mb-1.5" />
-                  <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
+                  <Lock className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1.5" />
+                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
                     Sin registro de consultas
                   </span>
                 </div>
@@ -463,7 +463,7 @@ export default function ConsultaAlumnoPage() {
             {/* 1. Barra de Estado del Resultado */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-500 inline" />
+                <FileText className="w-4 h-4 text-emerald-700 dark:text-emerald-400 inline" />
                 <span className="font-bold text-slate-800 dark:text-slate-200">
                   Resultado de la consulta
                 </span>
@@ -473,7 +473,7 @@ export default function ConsultaAlumnoPage() {
                 <button
                   type="button"
                   onClick={handleConsultarDni}
-                  className="p-1 hover:text-emerald-500 transition-colors cursor-pointer"
+                  className="p-1 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors cursor-pointer"
                   title="Actualizar datos"
                 >
                   <RotateCw className="w-3.5 h-3.5 hover:rotate-180 transition-transform duration-500" />
@@ -482,7 +482,7 @@ export default function ConsultaAlumnoPage() {
             </div>
 
             {/* 2. Tarjeta Bento de Identidad del Alumno */}
-            <div className="bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+            <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-5">
               {/* Lado Izquierdo (Datos personales) */}
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-lg flex items-center justify-center shrink-0 font-mono">
@@ -574,15 +574,15 @@ export default function ConsultaAlumnoPage() {
               {resultado.config?.portal_mostrar_asistencia && resultado.asistencia && (
                 <div className={`${
                   resultado.config?.portal_mostrar_notas ? 'lg:col-span-6' : 'w-full'
-                } bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4`}>
+                } bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4`}>
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-emerald-500" />
+                      <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                       <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                         Asistencia Registrada
                       </h3>
                     </div>
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
                       RAM Docente
                     </span>
                   </div>
@@ -632,7 +632,7 @@ export default function ConsultaAlumnoPage() {
                               <span className="text-2xl sm:text-3xl font-mono font-black text-slate-900 dark:text-white tracking-tight">
                                 {pct}%
                               </span>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                                 Asistencia
                               </span>
                             </div>
@@ -645,19 +645,19 @@ export default function ConsultaAlumnoPage() {
                   {/* 3 Contadores en píldoras */}
                   <div className="grid grid-cols-3 gap-2 text-center pt-2 font-mono">
                     <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
-                      <span className="text-[10px] uppercase font-bold block">Presentes</span>
+                      <span className="text-[11px] uppercase font-bold block">Presentes</span>
                       <span className="text-base font-extrabold">
                         {resultado.asistencia.presentes ?? 0}
                       </span>
                     </div>
                     <div className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Dictadas</span>
+                      <span className="text-[11px] uppercase font-bold text-slate-400 block">Dictadas</span>
                       <span className="text-base font-bold text-slate-900 dark:text-white">
                         {resultado.asistencia.total_clases ?? 0}
                       </span>
                     </div>
                     <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400">
-                      <span className="text-[10px] uppercase font-bold block">Ausentes</span>
+                      <span className="text-[11px] uppercase font-bold block">Ausentes</span>
                       <span className="text-base font-extrabold">
                         {resultado.asistencia.ausentes ?? 0}
                       </span>
@@ -665,7 +665,7 @@ export default function ConsultaAlumnoPage() {
                   </div>
 
                   {/* Pie con umbrales RAM */}
-                  <div className="text-[10px] font-mono text-slate-400 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
+                  <div className="text-[11px] font-mono text-slate-400 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
                     Mínimo Regularidad: <strong className="text-slate-700 dark:text-slate-300">{resultado.asistencia.min_asist_reg ?? 70}%</strong> | Mínimo Promoción: <strong className="text-slate-700 dark:text-slate-300">{resultado.asistencia.min_asist_promo ?? 80}%</strong>
                   </div>
                 </div>
@@ -675,10 +675,10 @@ export default function ConsultaAlumnoPage() {
               {resultado.config?.portal_mostrar_notas && (
                 <div className={`${
                   resultado.config?.portal_mostrar_asistencia ? 'lg:col-span-6' : 'w-full'
-                } bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4`}>
+                } bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4`}>
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
                     <div className="flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-emerald-500" />
+                      <GraduationCap className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                       <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                         Calificaciones y Evaluaciones
                       </h3>

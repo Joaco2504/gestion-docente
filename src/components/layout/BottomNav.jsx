@@ -63,7 +63,7 @@ export default function BottomNav() {
 
   return (
     <nav 
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0c1222]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.5)] safe-area-bottom"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-surface/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.5)] safe-area-bottom"
       aria-label="Navegación móvil inferior"
     >
       <div className="flex items-center justify-around h-16 px-1.5">
@@ -74,7 +74,7 @@ export default function BottomNav() {
             <NavLink
               key={item.label}
               to={item.to}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10.5px] font-semibold transition-all select-none touch-target-44 ${
+              className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[11px] font-semibold transition-all select-none touch-target-44 ${
                 item.isActive
                   ? 'text-primary font-bold'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'

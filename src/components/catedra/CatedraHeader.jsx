@@ -169,7 +169,7 @@ export default function CatedraHeader({
   const notaMinReg = Number(criterios?.nota_min_reg) || 4;
 
   return (
-    <div className="relative w-full bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm mb-6 transition-all overflow-visible">
+    <div className="relative w-full bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm mb-6 transition-all overflow-visible">
       {/* Luz ambiental sutil Korum (decoración superior) */}
       <div className="absolute top-0 right-1/4 w-96 h-28 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
@@ -383,7 +383,7 @@ export default function CatedraHeader({
 
               {/* Menú Flotante */}
               {isActionsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 shadow-xl z-50 py-1.5 animate-fadeIn">
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 shadow-xl z-50 py-1.5 animate-fadeIn">
                   {/* Opción: Editar Cátedra */}
                   {onEditCatedra && (
                     <button

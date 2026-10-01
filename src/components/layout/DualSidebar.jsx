@@ -267,7 +267,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       {isOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity duration-200"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-200"
           aria-hidden="true"
         />
       )}
@@ -283,7 +283,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
         {/* ========================================================
             1. RIEL PRINCIPAL DE ÍCONOS (SIN SCROLLBAR VERTICAL)
            ======================================================== */}
-        <div className="w-16 min-w-[4rem] h-screen max-h-screen bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-white/10 flex flex-col py-2.5 items-center z-20 select-none overflow-y-auto overflow-x-hidden scrollbar-none shrink-0">
+        <div className="w-16 min-w-[4rem] h-screen max-h-screen bg-surface border-r border-slate-200/80 dark:border-white/10 flex flex-col py-2.5 items-center z-20 select-none overflow-y-auto overflow-x-hidden scrollbar-none shrink-0">
           
           {/* Botón Disparador Directo Limpio y Transparente Menú Korum */}
           <div className="mb-1 shrink-0">
@@ -307,7 +307,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                   className={`
                     relative w-10 h-10 flex items-center justify-center cursor-pointer touch-target-44 group transition-colors shrink-0
                     ${isActive
-                      ? 'bg-emerald-500/10 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-xl font-semibold'
+                      ? 'bg-emerald-500/10 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 rounded-xl font-semibold'
                       : link.isSuperadminItem
                       ? 'text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl p-2.5'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl p-2.5'
@@ -320,7 +320,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-emerald-500 rounded-r" />
                   )}
 
-                  <Icon className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+                  <Icon className={`w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-emerald-700 dark:text-emerald-400' : ''}`} />
 
                   {/* Indicador sutil si hay auditorías pendientes */}
                   {link.isSuperadminItem && link.hasPending && (
@@ -386,7 +386,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
               {isSecondaryNavOpen ? (
                 <PanelLeftClose className="w-4 h-4 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" />
               ) : (
-                <PanelLeftOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400 transition-transform duration-200 ease-out group-hover:scale-110" />
+                <PanelLeftOpen className="w-4 h-4 text-emerald-700 dark:text-emerald-400 transition-transform duration-200 ease-out group-hover:scale-110" />
               )}
 
               <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl text-xs font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
@@ -411,10 +411,10 @@ export default function DualSidebar({ isOpen = false, onClose }) {
            ======================================================== */}
         <div
           className={`
-            bg-white dark:bg-[#0c1222] border-r border-slate-200/80 dark:border-slate-800 flex flex-col justify-between
-            transition-all duration-300 ease-in-out z-10 shrink-0 h-full
+            bg-surface-hover dark:bg-slate-900/90 border-r border-slate-200/80 dark:border-slate-800 flex flex-col justify-between
+            transition-[transform,opacity] duration-200 ease-out z-10 shrink-0 h-full
             ${isSecondaryNavOpen 
-              ? 'w-72 opacity-100 translate-x-0' 
+              ? 'w-72 max-w-[calc(100vw-4.5rem)] opacity-100 translate-x-0' 
               : 'w-0 opacity-0 -translate-x-full overflow-hidden pointer-events-none md:border-r-0'
             }
           `}
@@ -429,7 +429,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                 <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   Gestión Docente
                 </span>
-                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/20">
                   Korum
                 </span>
               </div>
@@ -453,7 +453,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                 <button
                   type="button"
                   onClick={() => setIsInstModalOpen(true)}
-                  className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 text-[10px] cursor-pointer"
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 text-[11px] cursor-pointer"
                   title="Nueva Institución"
                 >
                   <Plus className="w-3 h-3" />
@@ -485,7 +485,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                 <button
                   type="button"
                   onClick={() => setIsCicloModalOpen(true)}
-                  className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 text-[10px] cursor-pointer"
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 text-[11px] cursor-pointer"
                   title="Nuevo Ciclo Lectivo"
                 >
                   <Plus className="w-3 h-3" />
@@ -514,13 +514,13 @@ export default function DualSidebar({ isOpen = false, onClose }) {
           {/* Menú de Árbol Jerárquico: CÁTEDRAS ACTIVAS & SUB-VISTAS */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
                 Cátedras ({catedras.length})
               </span>
               <NavLink
                 to="/dashboard"
                 onClick={onClose}
-                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
               >
                 Ver todas
               </NavLink>
@@ -639,7 +639,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                 setOpenNewCatedraModal(true);
                 if (onClose) onClose();
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Nueva Cátedra</span>

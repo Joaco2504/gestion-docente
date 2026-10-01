@@ -306,7 +306,7 @@ export default function TeacherSupportDrawer({
       {/* Overlay Backdrop */}
       <div 
         onClick={onClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 transition-opacity animate-fadeIn"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity animate-fadeIn"
       />
 
       {/* Slide-over Drawer Panel */}

@@ -16,6 +16,17 @@
     --ring: 158 64% 52%;
 
     /* Compatibilidad con diseño de superficies y contrastes Korum */
+    --canvas-rgb: 248 250 252;
+    --surface-rgb: 255 255 255;
+    --surface-hover-rgb: 241 245 249;
+    --surface-border-rgb: 226 232 240;
+    --text-primary-rgb: 15 23 42;
+    --text-secondary-rgb: 51 65 85;
+    --text-muted-rgb: 100 116 139;
+    /* Primario Esmeralda Oficial con Contraste WCAG AA (5.5:1 sobre blanco) */
+    --primary-rgb: 4 120 87; /* #047857 */
+    --primary-hover-rgb: 6 95 70; /* #065f46 */
+
     --canvas: #f8fafc;
     --surface: #ffffff;
     --surface-hover: #f1f5f9;
@@ -23,8 +34,8 @@
     --text-primary: #0f172a;
     --text-secondary: #334155;
     --text-muted: #64748b;
-    --color-primary-rgb: 16 185 129;
-    --color-primary-hover-rgb: 5 150 105;
+    --color-primary-rgb: 4 120 87;
+    --color-primary-hover-rgb: 6 95 70;
     --color-primary-light: #ecfdf5;
     --color-primary-muted: #a7f3d0;
   }
@@ -42,6 +53,16 @@
     --ring: 151 75% 52%;            /* #34D399 Menta Neón */
 
     /* Compatibilidad con diseño de superficies oscuras Korum */
+    --canvas-rgb: 8 12 20; /* #080C14 */
+    --surface-rgb: 15 23 42; /* #0F172A */
+    --surface-hover-rgb: 30 41 59; /* #1E293B */
+    --surface-border-rgb: 51 65 85; /* #334155 */
+    --text-primary-rgb: 248 250 252;
+    --text-secondary-rgb: 203 213 225;
+    --text-muted-rgb: 148 163 184;
+    --primary-rgb: 16 185 129; /* #10B981 */
+    --primary-hover-rgb: 5 150 105; /* #059669 */
+
     --canvas: #080c14;
     --surface: #0f172a;
     --surface-hover: #1e293b;
@@ -91,6 +112,15 @@
 
   .badge-ram-libre, .badge-ram-ausente {
     @apply bg-[#FEF2F2] text-[#991B1B] border border-[#FECACA] dark:bg-[#450A0A]/60 dark:text-[#FCA5A5] dark:border-[#DC2626]/40;
+  }
+
+  /* Utilidad real para ocultar scrollbars sin romper el desplazamiento */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }
 
