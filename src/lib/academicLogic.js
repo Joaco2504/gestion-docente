@@ -83,13 +83,17 @@ export function calcularCondicionFinal(
   const notaMinReg = Number(criterios.nota_min_reg ?? 4);
   const notaMinSec = Number(criterios.nota_min_sec ?? 6);
 
-  // Mapeo rápido de notas por ID de evaluación
+  // Mapeo rápido de notas y estados por ID de evaluación
   const notasMap = new Map();
+  const estadosMap = new Map();
   studentNotas.forEach(n => {
     const evalId = n.evaluacion_id || n.id;
-    const val = n.valor !== undefined ? Number(n.valor) : (n.nota !== undefined ? Number(n.nota) : null);
+    const val = n.valor !== undefined && n.valor !== null ? Number(n.valor) : (n.nota !== undefined && n.nota !== null ? Number(n.nota) : null);
     if (val !== null && !isNaN(val)) {
       notasMap.set(evalId, val);
+    }
+    if (n.estado) {
+      estadosMap.set(evalId, String(n.estado).toUpperCase());
     }
   });
 
@@ -97,7 +101,25 @@ export function calcularCondicionFinal(
   // NIVEL SECUNDARIO: Aprobado con nota >= 6
   // =========================================================================
   if (nivel === 'SECUNDARIO') {
-    const valores = Array.from(notasMap.values());
+    const valores = [];
+    if (evaluaciones && evaluaciones.length > 0) {
+      evaluaciones.forEach(ev => {
+        if (notasMap.has(ev.id)) {
+          valores.push(notasMap.get(ev.id));
+        } else if (estadosMap.get(ev.id) === 'NO_ENTREGO' || estadosMap.get(ev.id) === 'AUSENTE') {
+          valores.push(1); // Aplazo reglamentario por inasistencia o no entrega
+        }
+      });
+    }
+
+    // Fallback si no había lista de evaluaciones o studentNotas venía directo
+    if (valores.length === 0 && (notasMap.size > 0 || estadosMap.size > 0)) {
+      notasMap.forEach(v => valores.push(v));
+      estadosMap.forEach(est => {
+        if (est === 'NO_ENTREGO' || est === 'AUSENTE') valores.push(1);
+      });
+    }
+
     if (valores.length === 0) {
       return {
         condicion: 'SIN CALIFICAR',
@@ -107,7 +129,9 @@ export function calcularCondicionFinal(
       };
     }
 
-    const promedio = valores.reduce((a, b) => a + b, 0) / valores.length;
+    const divisor = Math.max(1, valores.length);
+    const suma = valores.reduce((a, b) => a + (isNaN(b) ? 0 : Number(b)), 0);
+    const promedio = Number((suma / divisor).toFixed(2));
     const aprobado = promedio >= notaMinSec && asistenciaPct >= minRegAsist;
 
     if (aprobado) {
@@ -130,7 +154,7 @@ export function calcularCondicionFinal(
   // =========================================================================
   // NIVEL TERCIARIO: Promocional, Regular, Libre
   // =========================================================================
-  if (notasMap.size === 0) {
+  if (notasMap.size === 0 && estadosMap.size === 0) {
     return {
       condicion: 'EN CURSO',
       color: 'text-text-muted',
@@ -141,15 +165,24 @@ export function calcularCondicionFinal(
     };
   }
 
-  const parciales = evaluaciones.filter(e => e.tipo === 'PARCIAL');
-  const tps = evaluaciones.filter(e => e.tipo === 'TP');
-  const recuperatorios = evaluaciones.filter(e => e.tipo === 'RECUPERATORIO');
+  const parciales = evaluaciones.filter(e => {
+    const t = String(e.tipo || '').toUpperCase();
+    return t === 'PARCIAL' || t === 'PRUEBA' || (t.includes('PARCIAL') && !t.includes('RECUP'));
+  });
+  const tps = evaluaciones.filter(e => {
+    const t = String(e.tipo || '').toUpperCase();
+    return t === 'TP' || t.includes('TRABAJO') || t.includes('PRÁCTICO') || t.includes('PRACTICO');
+  });
+  const recuperatorios = evaluaciones.filter(e => {
+    const t = String(e.tipo || '').toUpperCase();
+    return t === 'RECUPERATORIO' || t.includes('RECUP');
+  });
 
   // Verificar TPs (se exige aprobación con >= notaMinReg para los TPs ya calificados o vencidos)
   let todosTpsAprobados = true;
   const tpsExigibles = tps.filter(tp => {
-    // Si el TP tiene fecha de entrega futura y el alumno aún no tiene nota, está en plazo de entrega
-    if (tp.fecha_entrega && !isDatePast(tp.fecha_entrega) && !notasMap.has(tp.id)) {
+    // Si el TP tiene fecha de entrega futura y el alumno aún no tiene nota ni estado, está en plazo de entrega
+    if (tp.fecha_entrega && !isDatePast(tp.fecha_entrega) && !notasMap.has(tp.id) && !estadosMap.has(tp.id)) {
       return false;
     }
     return true;
@@ -158,20 +191,21 @@ export function calcularCondicionFinal(
   if (tpsExigibles.length > 0) {
     for (const tp of tpsExigibles) {
       const v = notasMap.get(tp.id);
-      if (v === undefined || v < notaMinReg) {
+      const est = estadosMap.get(tp.id);
+      if (est === 'NO_ENTREGO' || v === undefined || v < notaMinReg) {
         todosTpsAprobados = false;
         break;
       }
     }
   }
 
-  // Parciales y recuperatorios exigibles (excluyendo parciales con fecha futura sin calificar)
+  // Parciales y recuperatorios exigibles (excluyendo parciales con fecha futura sin calificar ni estado)
   let recupsUsados = 0;
   let todosParcialesReg = true;
   let todosParcialesPromo = true;
 
   const parcialesExigibles = parciales.filter(p => {
-    if (p.fecha_entrega && !isDatePast(p.fecha_entrega) && !notasMap.has(p.id)) {
+    if (p.fecha_entrega && !isDatePast(p.fecha_entrega) && !notasMap.has(p.id) && !estadosMap.has(p.id)) {
       return false;
     }
     return true;
@@ -179,15 +213,26 @@ export function calcularCondicionFinal(
 
   for (const p of parcialesExigibles) {
     const notaOrig = notasMap.get(p.id);
+    const estadoOrig = estadosMap.get(p.id);
     const recupLinked = recuperatorios.find(r => r.evaluacion_origen_id === p.id);
     const notaRecup = recupLinked ? notasMap.get(recupLinked.id) : undefined;
+    const estadoRecup = recupLinked ? estadosMap.get(recupLinked.id) : undefined;
 
-    if (notaRecup !== undefined) {
+    if (notaRecup !== undefined || (estadoRecup && estadoRecup !== '')) {
       recupsUsados++;
     }
 
-    // La nota efectiva para regularidad o promoción toma el recuperatorio si existe y es mayor
-    const notaEfectiva = notaRecup !== undefined ? Math.max(notaOrig ?? 0, notaRecup) : (notaOrig ?? null);
+    // La nota efectiva para regularidad o promoción toma el recuperatorio si existe
+    let notaEfectiva = null;
+    if (notaRecup !== undefined) {
+      notaEfectiva = notaRecup;
+    } else if (estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO') {
+      notaEfectiva = null;
+    } else if (notaOrig !== undefined) {
+      notaEfectiva = notaOrig;
+    } else if (estadoOrig === 'AUSENTE' || estadoOrig === 'NO_ENTREGO') {
+      notaEfectiva = null;
+    }
 
     if (notaEfectiva === null || notaEfectiva < notaMinReg) {
       todosParcialesReg = false;

@@ -160,6 +160,32 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     };
   }
 
+  // 2.1 Error PostgreSQL 42P10: Falta de restricción de unicidad para ON CONFLICT
+  if (
+    codeStr === '42P10' ||
+    lowerText.includes('42p10') ||
+    lowerText.includes('no unique or exclusion constraint matching the on conflict')
+  ) {
+    return {
+      codigo: 'ERR-42P10',
+      mensaje: 'Restricción de duplicados pendiente en base de datos. Se requiere la regla de unicidad (clase_id, estudiante_id).',
+      originalError: error
+    };
+  }
+
+  // 2.2 Error PostgreSQL 23502: Dato obligatorio no nulo faltante
+  if (
+    codeStr === '23502' ||
+    lowerText.includes('23502') ||
+    lowerText.includes('null value in column')
+  ) {
+    return {
+      codigo: 'ERR-23502',
+      mensaje: 'Dato obligatorio faltante. Uno de los campos requeridos se envió vacío.',
+      originalError: error
+    };
+  }
+
   // 3. Conflicto de unicidad / duplicado / ON CONFLICT (Postgres 23505)
   if (
     fullText.includes('ON CONFLICT') ||

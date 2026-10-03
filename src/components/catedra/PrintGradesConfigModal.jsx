@@ -59,11 +59,11 @@ export default function PrintGradesConfigModal({
 
   // Evaluaciones principales (no recuperatorios) y mapa de recuperatorios
   const mainEvaluations = useMemo(() => {
-    return evaluaciones.filter(e => e.tipo !== 'RECUPERATORIO');
+    return evaluaciones.filter(e => !String(e.tipo || '').toUpperCase().includes('RECUP'));
   }, [evaluaciones]);
 
   const recuperatorios = useMemo(() => {
-    return evaluaciones.filter(e => e.tipo === 'RECUPERATORIO');
+    return evaluaciones.filter(e => String(e.tipo || '').toUpperCase().includes('RECUP'));
   }, [evaluaciones]);
 
   // Toggle individual de evaluación
@@ -96,13 +96,19 @@ export default function PrintGradesConfigModal({
 
   const selectOnlyParciales = () => {
     const parcialIds = evaluaciones
-      .filter(e => e.tipo === 'PARCIAL' || (e.tipo === 'RECUPERATORIO' && evaluaciones.some(p => p.id === e.evaluacion_origen_id && p.tipo === 'PARCIAL')))
+      .filter(e => {
+        const t = String(e.tipo || '').toUpperCase();
+        return t.includes('PARCIAL') || (t.includes('RECUP') && evaluaciones.some(p => p.id === e.evaluacion_origen_id && String(p.tipo || '').toUpperCase().includes('PARCIAL')));
+      })
       .map(e => e.id);
     setSelectedEvalIds(parcialIds);
   };
 
   const selectOnlyTPs = () => {
-    const tpIds = evaluaciones.filter(e => e.tipo === 'TP').map(e => e.id);
+    const tpIds = evaluaciones.filter(e => {
+      const t = String(e.tipo || '').toUpperCase();
+      return t.includes('TP') || t.includes('TRABAJO');
+    }).map(e => e.id);
     setSelectedEvalIds(tpIds);
   };
 

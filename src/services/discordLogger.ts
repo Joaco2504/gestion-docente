@@ -3,6 +3,8 @@
  * Notifica errores críticos de base de datos o fallos de operación al canal de soporte técnico.
  */
 
+import { traducirErrorTecnico } from '../lib/errorHandler';
+
 const DEFAULT_WEBHOOK_URL = 'https://discord.com/api/webhooks/1444417664805240873/f4ME1RVsAu5h1oKXgBNbpvf_459zLRLF0gXfCNkE4b1TeLKHa9T4C8kGiuCflTHvDsKT';
 
 function getDiscordWebhookUrl(): string {
@@ -79,41 +81,26 @@ export async function notificarErrorDiscord({
       fechaCatamarca = new Date().toLocaleString();
     }
 
+    const traduccion = traducirErrorTecnico(
+      typeof errorTecnico === 'object' && errorTecnico !== null
+        ? { code: codigoError || errorTecnico.code, message: errorTecnico.message || mensajeFinal, ...errorTecnico }
+        : { code: codigoError, message: mensajeFinal }
+    );
+
     const payload = {
-      username: 'PlanillaDocente Telemetry',
+      username: 'Korum Telemetría',
       avatar_url: 'https://cdn-icons-png.flaticon.com/512/3135/3135755.png',
       embeds: [
         {
-          title: `🚨 Error en PlanillaDocente [${codigoFinal}]`,
-          color: 0xe11d48, // Carmesí / Rose-600
-          description: `Se ha registrado una incidencia no recuperable durante la interacción del docente.`,
+          title: `⚠️ ${traduccion.titulo}`,
+          description: traduccion.explicacion,
+          color: 0xEF4444,
           fields: [
-            {
-              name: '👤 Usuario / Docente',
-              value: usuario?.email 
-                ? `${usuario.email} (\`${usuario.id || 'N/A'}\`)`
-                : 'Docente Anónimo / Sesión Local',
-              inline: true
-            },
-            {
-              name: '📍 Contexto / Módulo',
-              value: contexto || 'General',
-              inline: true
-            },
-            {
-              name: '💬 Mensaje Mostrado al Docente',
-              value: mensajeFinal,
-              inline: false
-            },
-            {
-              name: '🛠️ Detalle Técnico (PostgreSQL / Supabase)',
-              value: `\`\`\`json\n${detalleTecnicoStr || '{}'}\n\`\`\``,
-              inline: false
-            }
+            { name: 'Módulo', value: contexto || 'Asistencias', inline: true },
+            { name: 'Docente', value: usuario?.email || 'Desconocido', inline: true },
+            { name: 'Solución Sugerida', value: traduccion.accionSugerida }
           ],
-          footer: {
-            text: `PlanillaDocente Telemetría • Catamarca: ${fechaCatamarca}`
-          },
+          footer: { text: `Korum Telemetría · Catamarca, 2026` },
           timestamp: new Date().toISOString()
         }
       ]

@@ -510,6 +510,7 @@ export default function CatedraDetailPage() {
                 catedraName={catedra.nombre} 
                 cursadaFinalizada={Boolean(catedra?.cursada_finalizada)}
                 onNavigateToLibroTemas={() => handleTabChange('libro-temas')}
+                catedra={catedra}
               />
             )}
 

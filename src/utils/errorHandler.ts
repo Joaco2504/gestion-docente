@@ -4,3 +4,4 @@
 export { handleAppError, default } from './handleAppError';
 export { procesarErrorDocente, DICCIONARIO_ERRORES } from './errorCodes';
 export type { ErrorDocenteInfo } from './errorCodes';
+export { traducirErrorTecnico, guardarAsistenciasBlindado } from '../lib/errorHandler';

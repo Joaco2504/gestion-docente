@@ -397,10 +397,19 @@ export default function ResourcesTab({ catedraId, catedraName }) {
     ? resources
     : resources.filter(r => r.categoria === selectedCategory);
 
+  const matchesEvalCategory = (e, cat) => {
+    const t = String(e.tipo || '').toUpperCase();
+    if (cat === 'ALL') return true;
+    if (cat === 'PARCIAL') return (t.includes('PARCIAL') || t === 'PRUEBA') && !t.includes('RECUP');
+    if (cat === 'TP') return t.includes('TP') || t.includes('TRABAJO');
+    if (cat === 'RECUPERATORIO') return t.includes('RECUP');
+    return t === cat;
+  };
+
   // Filtrado de evaluaciones
   const filteredEvaluaciones = selectedEvalCategory === 'ALL'
     ? evaluaciones
-    : evaluaciones.filter(e => e.tipo === selectedEvalCategory);
+    : evaluaciones.filter(e => matchesEvalCategory(e, selectedEvalCategory));
 
   const getCategoryBadgeVariant = (cat) => {
     switch (cat) {
@@ -625,9 +634,9 @@ export default function ResourcesTab({ catedraId, catedraName }) {
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
               {[
                 { id: 'ALL', label: 'Todas', count: evaluaciones.length },
-                { id: 'TP', label: 'Trabajos Prácticos', count: evaluaciones.filter(e => e.tipo === 'TP').length },
-                { id: 'PARCIAL', label: 'Parciales', count: evaluaciones.filter(e => e.tipo === 'PARCIAL').length },
-                { id: 'RECUPERATORIO', label: 'Recuperatorios', count: evaluaciones.filter(e => e.tipo === 'RECUPERATORIO').length }
+                { id: 'TP', label: 'Trabajos Prácticos', count: evaluaciones.filter(e => matchesEvalCategory(e, 'TP')).length },
+                { id: 'PARCIAL', label: 'Parciales', count: evaluaciones.filter(e => matchesEvalCategory(e, 'PARCIAL')).length },
+                { id: 'RECUPERATORIO', label: 'Recuperatorios', count: evaluaciones.filter(e => matchesEvalCategory(e, 'RECUPERATORIO')).length }
               ].map(tab => (
                 <button
                   key={tab.id}

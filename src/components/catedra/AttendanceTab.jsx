@@ -52,6 +52,8 @@ import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 import { handleAppError } from '../../utils/handleAppError';
 import { exportAttendanceToExcel } from '../../lib/excel';
 import { catedraCache } from '../../services/catedraCache';
+import RegistrarFaltaDocenteModal from './modals/RegistrarFaltaDocenteModal';
+import { guardarAsistenciasBlindado } from '../../lib/errorHandler';
 
 // Comparador memoizado para tarjeta táctil mobile
 function areAttendanceCardPropsEqual(prev, next) {
@@ -255,9 +257,12 @@ export default function AttendanceTab({
   catedraId,
   catedraName,
   cursadaFinalizada = false,
-  onNavigateToLibroTemas
+  onNavigateToLibroTemas,
+  catedra: catedraProp
 }) {
   const { user, isDemo } = useAuth();
+  const [isFaltaModalOpen, setIsFaltaModalOpen] = useState(false);
+  const catedra = catedraProp || { id: catedraId, nombre: catedraName };
   
   const [clases, setClases] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
@@ -901,10 +906,7 @@ export default function AttendanceTab({
 
         if (isSupabaseConfigured && !isDemo) {
           const payload = sanitizeAttendancePayload(defaultAttendance);
-          const { data, error: asistError } = await supabase
-            .from('asistencias')
-            .upsert(payload, { onConflict: 'clase_id, estudiante_id' })
-            .select();
+          const { data, error: asistError } = await guardarAsistenciasBlindado(supabase, payload, claseId);
 
           if (asistError) console.warn('Aviso al autocompletar asistencias:', asistError);
           const createdAsist = (data && Array.isArray(data)) ? data : defaultAttendance;
@@ -988,21 +990,21 @@ export default function AttendanceTab({
           registro.id = existing.id;
         }
 
-        const { data, error } = await supabase
-          .from('asistencias')
-          .upsert([registro], { onConflict: 'clase_id, estudiante_id' })
-          .select()
-          .maybeSingle();
+        const { data, error } = await guardarAsistenciasBlindado(supabase, [registro], activeClase.id);
 
         if (error) {
           handleAppError(error, 'AttendanceTab / Guardar Asistencia', user);
           return;
         }
 
-        if (data?.id) {
+        const savedItem = Array.isArray(data) 
+          ? (data.find(d => d.estudiante_id === estudianteId) || data[0]) 
+          : data;
+
+        if (savedItem?.id) {
           setAsistencias(prev => {
             const nextAsist = prev.map(a => 
-              (a.clase_id === activeClase.id && a.estudiante_id === estudianteId) ? data : a
+              (a.clase_id === activeClase.id && a.estudiante_id === estudianteId) ? savedItem : a
             );
             catedraCache.update(catedraId, { asistencias: nextAsist });
             return nextAsist;
@@ -1073,10 +1075,7 @@ export default function AttendanceTab({
           return registro;
         });
 
-        const { data, error } = await supabase
-          .from('asistencias')
-          .upsert(payload, { onConflict: 'clase_id, estudiante_id' })
-          .select();
+        const { data, error } = await guardarAsistenciasBlindado(supabase, payload, activeClase.id);
 
         if (error) {
           handleAppError(error, 'AttendanceTab / Marcar Todos Presentes', user);
@@ -1151,10 +1150,7 @@ export default function AttendanceTab({
           throw new Error('Sesión de usuario requerida.');
         }
 
-        const { data, error } = await supabase
-          .from('asistencias')
-          .upsert(payload, { onConflict: 'clase_id, estudiante_id' })
-          .select();
+        const { data, error } = await guardarAsistenciasBlindado(supabase, payload, activeClase.id);
 
         if (error) {
           handleAppError(error, 'AttendanceTab / Guardado Rápido Asistencia', user);
@@ -1265,6 +1261,155 @@ export default function AttendanceTab({
       toast.success('Inasistencia docente anulada.');
     } catch (err) {
       handleAppError(err, 'AttendanceTab / Anular Inasistencia Docente', user);
+    }
+  };
+
+  // Asentar Falta Docente desde el modal especializado RegistrarFaltaDocenteModal
+  const handleAsentarFaltaDocente = async ({ fecha, articulo, motivo, horario }) => {
+    if (!fecha) {
+      toast.error('Por favor especifica una fecha válida.');
+      return;
+    }
+
+    const feriado = obtenerFeriado(fecha);
+    if (feriado) {
+      toast.error(`La fecha seleccionada coincide con el feriado "${feriado.nombre}". No requiere cómputo de falta docente.`);
+      return;
+    }
+
+    setSavingInasistencia(true);
+    try {
+      if (isSupabaseConfigured && !isDemo && !user?.id) {
+        throw new Error('Usuario no autenticado.');
+      }
+
+      const obsDetalle = motivo?.trim() 
+        ? `${articulo}: ${motivo.trim()}${horario ? ` [${horario}]` : ''}` 
+        : `Inasistencia Docente (${articulo})${horario ? ` [${horario}]` : ''}`;
+
+      // 1. Guardar en inasistencias_docente
+      const inasistPayload = {
+        catedra_id: catedraId,
+        docente_id: user?.id,
+        fecha: fecha,
+        tipo: 'LICENCIA',
+        articulo_licencia: articulo,
+        observaciones: obsDetalle
+      };
+
+      let inasistData = inasistPayload;
+      if (isSupabaseConfigured && !isDemo) {
+        const { data, error } = await supabase
+          .from('inasistencias_docente')
+          .upsert(inasistPayload, { onConflict: 'catedra_id, fecha' })
+          .select()
+          .single();
+
+        if (error) throw error;
+        inasistData = data;
+      } else {
+        inasistData = { ...inasistPayload, id: 'inasist-' + Date.now() };
+      }
+
+      const otherInasist = inasistenciasDocente.filter(i => i.fecha !== fecha);
+      const updatedInasist = [...otherInasist, inasistData];
+      setInasistenciasDocente(updatedInasist);
+      if (!isSupabaseConfigured || isDemo) {
+        localStorage.setItem(`inasistencias_docente_${catedraId}`, JSON.stringify(updatedInasist));
+      }
+
+      // 2. Crear o actualizar la sesión de clase de esa fecha con estado: 'DOCENTE_AUSENTE'
+      const existingClase = clases.find(c => c.fecha === fecha);
+      const temaClase = `Sin actividad - Inasistencia Docente (${articulo})`;
+
+      if (existingClase) {
+        const updatePayload = {
+          estado: 'DOCENTE_AUSENTE',
+          docente_ausente: true,
+          es_computable: false,
+          observaciones: obsDetalle
+        };
+
+        if (isSupabaseConfigured && !isDemo) {
+          let { error: errUpdate } = await supabase
+            .from('clases')
+            .update(updatePayload)
+            .eq('id', existingClase.id);
+
+          if (errUpdate && (errUpdate.code === '42703' || errUpdate.message?.includes('column'))) {
+            await supabase
+              .from('clases')
+              .update({
+                tema: existingClase.tema?.includes('Inasistencia Docente') ? existingClase.tema : `${existingClase.tema} · [Docente Ausente - ${articulo}]`,
+                observaciones: obsDetalle
+              })
+              .eq('id', existingClase.id);
+          }
+        }
+
+        const updatedClases = clases.map(c => 
+          c.id === existingClase.id 
+            ? { ...c, ...updatePayload, tema: existingClase.tema || temaClase } 
+            : c
+        );
+        setClases(updatedClases);
+        setSelectedClaseId(existingClase.id);
+        localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updatedClases));
+        catedraCache.update(catedraId, { clases: updatedClases });
+      } else {
+        const newClaseObj = {
+          catedra_id: catedraId,
+          fecha: fecha,
+          tema: temaClase,
+          estado: 'DOCENTE_AUSENTE',
+          docente_ausente: true,
+          es_computable: false,
+          observaciones: obsDetalle
+        };
+
+        let createdClase = null;
+        if (isSupabaseConfigured && !isDemo) {
+          let { data: cData, error: cErr } = await supabase
+            .from('clases')
+            .insert(newClaseObj)
+            .select()
+            .single();
+
+          if (cErr && (cErr.code === '42703' || cErr.message?.includes('column'))) {
+            const { data: fbData, error: fbErr } = await supabase
+              .from('clases')
+              .insert({
+                catedra_id: catedraId,
+                fecha: fecha,
+                tema: temaClase,
+                observaciones: obsDetalle
+              })
+              .select()
+              .single();
+            if (fbErr) throw fbErr;
+            createdClase = { ...fbData, docente_ausente: true, estado: 'DOCENTE_AUSENTE', es_computable: false };
+          } else if (cErr) {
+            throw cErr;
+          } else {
+            createdClase = cData;
+          }
+        } else {
+          createdClase = { ...newClaseObj, id: 'clase-' + Date.now() };
+        }
+
+        const nextClases = [createdClase, ...clases];
+        setClases(nextClases);
+        setSelectedClaseId(createdClase.id);
+        localStorage.setItem(`clases_${catedraId}`, JSON.stringify(nextClases));
+        catedraCache.update(catedraId, { clases: nextClases });
+      }
+
+      toast.success(`Inasistencia docente registrada para el ${formatFechaDMY(fecha)}. No computa falta a los alumnos.`);
+      setIsFaltaModalOpen(false);
+    } catch (err) {
+      handleAppError(err, 'AttendanceTab / Registrar Falta Docente', user);
+    } finally {
+      setSavingInasistencia(false);
     }
   };
 
@@ -1572,25 +1717,14 @@ export default function AttendanceTab({
                 size="sm"
                 icon={ShieldAlert}
                 type="button"
-                disabled={cursadaFinalizada || Boolean(feriadoDetectado)}
+                disabled={cursadaFinalizada}
                 onClick={() => {
-                  setFechaInasistencia(activeClase ? activeClase.fecha : new Date().toISOString().split('T')[0]);
-                  if (inasistenciaActual) {
-                    setTipoInasistencia(inasistenciaActual.tipo || 'LICENCIA');
-                    setArticuloLicencia(inasistenciaActual.articulo_licencia || 'Art. 17° - Afecciones Comunes de Corto Tratamiento');
-                    setObsInasistencia(inasistenciaActual.observaciones || '');
-                  } else {
-                    setTipoInasistencia('LICENCIA');
-                    setArticuloLicencia('Art. 17° - Afecciones Comunes de Corto Tratamiento');
-                    setOtroArticulo('');
-                    setObsInasistencia('');
-                  }
-                  setIsInasistenciaModalOpen(true);
+                  setIsFaltaModalOpen(true);
                 }}
                 className="text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 px-3 py-2 rounded-xl whitespace-nowrap ml-auto"
-                title="Registrar o editar licencia del docente"
+                title="Registrar falta o inasistencia docente con selector de fecha y régimen"
               >
-                {inasistenciaActual ? 'Licencia' : 'Falta Docente'}
+                {inasistenciaActual ? 'Licencia' : '+ Falta'}
               </Button>
             </div>
 
@@ -1604,7 +1738,7 @@ export default function AttendanceTab({
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                        {feriadoDetectado.tipo === 'PROVINCIAL' ? '🏛️ Feriado Provincial' : '🇦🇷 Feriado Nacional'}: {feriadoDetectado.nombre}
+                        {String(feriadoDetectado.tipo).toLowerCase() === 'provincial' ? '🏛️ Feriado Provincial' : '🇦🇷 Feriado Nacional'}: {feriadoDetectado.nombre}
                       </span>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold">
                         No computable
@@ -2410,6 +2544,15 @@ export default function AttendanceTab({
         totalAsistencias={deleteClassCount}
         onConfirmDelete={handleConfirmDeleteClass}
         deleting={deletingClass}
+      />
+
+      {/* Modal Interactivo Registrar Falta Docente */}
+      <RegistrarFaltaDocenteModal
+        isOpen={isFaltaModalOpen}
+        onClose={() => setIsFaltaModalOpen(false)}
+        onConfirm={handleAsentarFaltaDocente}
+        catedra={catedra}
+        fechaPorDefecto={activeClase?.fecha || getTodayYMD()}
       />
 
       {/* Visor Unificado de Impresión de Asistencias */}

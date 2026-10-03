@@ -36,6 +36,7 @@ import { useApp } from '../../context/AppContext';
 import { formatFechaDMY, getTodayYMD } from '../../lib/dateUtils';
 import { handleAppError } from '../../utils/handleAppError';
 import { obtenerFeriadosCatedraEnPeriodo, obtenerFeriado } from '../../utils/feriadosAcademicos';
+import { catedraCache } from '../../services/catedraCache';
 
 const CARACTER_OPTIONS = [
   { value: 'TEORICA', label: 'Teórica' },
@@ -291,7 +292,6 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
               .update({ fecha: modalFecha, tema: modalTema.trim() })
               .eq('id', editingClass.id);
           }
-          toast.success('Clase actualizada en el Libro de Temas.');
         } else {
           // Insertar nueva clase
           const { error } = await supabase
@@ -304,7 +304,6 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
               .from('clases')
               .insert([{ catedra_id: catedraId, fecha: modalFecha, tema: modalTema.trim() }]);
           }
-          toast.success('Clase registrada en el Libro de Temas.');
         }
         await fetchClases();
       } else {
@@ -312,15 +311,160 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
         let updated;
         if (editingClass) {
           updated = clases.map(c => c.id === editingClass.id ? { ...c, ...payload } : c);
-          toast.success('Clase actualizada en el Libro de Temas.');
         } else {
           const newCls = { id: 'cls-' + Date.now(), ...payload };
           updated = [...clases, newCls];
-          toast.success('Clase registrada en el Libro de Temas.');
         }
         updated.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
         setClases(updated);
         localStorage.setItem(`clases_${catedraId}`, JSON.stringify(updated));
+      }
+
+      // -------------------------------------------------------------
+      // AUTO-CREACIÓN DE EVALUACIÓN SI CARÁCTER O TEMA COINCIDE CON EXAMEN
+      // -------------------------------------------------------------
+      const temaTexto = modalTema.trim();
+      const esCaracterEvaluacion = 
+        modalCaracter?.toLowerCase().includes('evaluac') || 
+        modalCaracter?.toLowerCase().includes('examen') ||
+        modalCaracter === 'EVALUACION';
+
+      const coincideNombreExamen = 
+        /parcial|evaluaci[oó]n|recuperatorio|coloquio/i.test(temaTexto);
+
+      let evaluacionCreada = false;
+
+      if (esCaracterEvaluacion || coincideNombreExamen) {
+        // 1. Obtener lista actual de evaluaciones (DB o localStorage)
+        let evaluacionesActuales = [];
+        if (isSupabaseConfigured && !isDemo) {
+          try {
+            const { data: dbEvals } = await supabase
+              .from('evaluaciones')
+              .select('id, catedra_id, titulo, tipo, fecha_entrega')
+              .eq('catedra_id', catedraId);
+            if (dbEvals) evaluacionesActuales = dbEvals;
+          } catch (errDbFetch) {
+            console.warn('Aviso al consultar evaluaciones existentes:', errDbFetch);
+          }
+        }
+
+        if (evaluacionesActuales.length === 0) {
+          const stored = localStorage.getItem(`evaluaciones_${catedraId}`);
+          if (stored) {
+            try {
+              evaluacionesActuales = JSON.parse(stored);
+            } catch (_) {}
+          }
+        }
+
+        // 2. Verificar si ya existe una evaluación con el mismo nombre o fecha
+        const yaExiste = evaluacionesActuales.some(ev => {
+          const nom = (ev.titulo || ev.nombre || '').toLowerCase().trim();
+          const fec = ev.fecha_entrega || ev.fecha;
+          return nom === temaTexto.toLowerCase() || (fec === modalFecha && (nom.includes('parcial') || nom.includes('evaluac')));
+        });
+
+        if (!yaExiste) {
+          // 3. Determinar tipo de evaluación
+          let tipoAuto = 'Parcial';
+          if (/recuperatorio/i.test(temaTexto)) {
+            tipoAuto = 'Recuperatorio';
+          } else if (/pr[aá]ctico|tp\b/i.test(temaTexto)) {
+            tipoAuto = 'Trabajo Práctico';
+          }
+
+          const localId = 'eval-' + Date.now();
+          const nuevaEval = {
+            id: localId,
+            catedra_id: catedraId,
+            titulo: temaTexto,
+            nombre: temaTexto,
+            tipo: tipoAuto,
+            formato: 'Escrito',
+            fecha: modalFecha,
+            fecha_entrega: modalFecha,
+            ponderacion: 1,
+            created_at: new Date().toISOString()
+          };
+
+          let insertedEval = nuevaEval;
+
+          if (isSupabaseConfigured && !isDemo) {
+            try {
+              // Intento con campos completos
+              const payloadEval = {
+                catedra_id: catedraId,
+                titulo: temaTexto,
+                nombre: temaTexto,
+                tipo: tipoAuto,
+                formato: 'Escrito',
+                fecha: modalFecha,
+                fecha_entrega: modalFecha,
+                ponderacion: 1
+              };
+
+              const { data: dbNew, error: dbErr } = await supabase
+                .from('evaluaciones')
+                .insert(payloadEval)
+                .select()
+                .single();
+
+              if (dbErr) {
+                // Fallback defensivo: mapear tipo legacy para evitar error de check constraint
+                let legacyTipo = 'PARCIAL';
+                if (tipoAuto === 'Recuperatorio') legacyTipo = 'RECUPERATORIO';
+                else if (tipoAuto === 'Trabajo Práctico') legacyTipo = 'TP';
+
+                const fallbackPayload = {
+                  catedra_id: catedraId,
+                  titulo: temaTexto,
+                  tipo: legacyTipo,
+                  fecha_entrega: modalFecha
+                };
+
+                const { data: fbData } = await supabase
+                  .from('evaluaciones')
+                  .insert(fallbackPayload)
+                  .select()
+                  .single();
+
+                if (fbData) {
+                  insertedEval = { ...nuevaEval, ...fbData, formato: 'Escrito' };
+                }
+              } else if (dbNew) {
+                insertedEval = { ...nuevaEval, ...dbNew };
+              }
+            } catch (errDb) {
+              console.warn('Evaluación preservada localmente. Aviso Supabase:', errDb);
+            }
+          }
+
+          // Guardar en localStorage
+          const prevEvals = JSON.parse(localStorage.getItem(`evaluaciones_${catedraId}`) || '[]');
+          const nextEvals = [...prevEvals, insertedEval];
+          localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(nextEvals));
+
+          // Actualizar caché de sesión en memoria
+          const cached = catedraCache.get(catedraId) || {};
+          catedraCache.update(catedraId, {
+            ...cached,
+            evaluaciones: nextEvals
+          });
+
+          // Disparar evento para actualización reactiva en Calificaciones
+          window.dispatchEvent(new CustomEvent('evaluaciones_updated', {
+            detail: { catedraId, evaluacion: insertedEval }
+          }));
+
+          evaluacionCreada = true;
+        }
+      }
+
+      if (evaluacionCreada) {
+        toast.success(`Clase guardada y evaluación "${temaTexto}" creada en Calificaciones.`);
+      } else {
+        toast.success(editingClass ? 'Clase actualizada en el Libro de Temas.' : 'Clase registrada en el Libro de Temas.');
       }
 
       setIsClassModalOpen(false);
@@ -1010,6 +1154,12 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
               placeholder="Ej: Unidad 2: Modelado Relacional, Normalización 1FN, 2FN y 3FN. Ejercitación guiada..."
               className="w-full px-3.5 py-2 text-xs sm:text-sm border border-surface-border rounded-xl bg-surface text-text-primary outline-none focus:ring-2 focus:ring-primary/20 resize-none"
             />
+            {((modalCaracter?.toLowerCase().includes('evaluac') || modalCaracter?.toLowerCase().includes('examen') || modalCaracter === 'EVALUACION') || /parcial|evaluaci[oó]n|recuperatorio|coloquio/i.test(modalTema)) && (
+              <div className="mt-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Esta clase creará automáticamente la columna de evaluación en la sábana de Calificaciones.</span>
+              </div>
+            )}
           </div>
 
           {/* Observaciones Pedagógicas */}

@@ -494,19 +494,23 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
   // 2. Mapeo de Evaluaciones y Calificaciones
   const studentEvaluaciones = evaluaciones.map(ev => {
     const notaRecord = notas.find(n => n.evaluacion_id === ev.id && n.estudiante_id === student.id);
+    const numValor = notaRecord?.valor !== undefined && notaRecord?.valor !== null ? Number(notaRecord.valor) : null;
+    const numNota = notaRecord?.nota !== undefined && notaRecord?.nota !== null ? Number(notaRecord.nota) : numValor;
     return {
       id: ev.id,
       titulo: ev.titulo,
       tipo: ev.tipo,
       fecha_entrega: ev.fecha_entrega || null,
-      valor: notaRecord?.valor !== undefined && notaRecord?.valor !== null ? Number(notaRecord.valor) : null
+      valor: numValor,
+      nota: numNota,
+      estado: notaRecord?.estado || null
     };
   });
 
   // 3. Cálculo de Condición RAM
   const studentNotasForLogic = studentEvaluaciones
-    .filter(e => e.valor !== null)
-    .map(e => ({ evaluacion_id: e.id, valor: e.valor, tipo: e.tipo }));
+    .filter(e => e.valor !== null || e.estado)
+    .map(e => ({ evaluacion_id: e.id, valor: e.valor, nota: e.nota, estado: e.estado, tipo: e.tipo }));
 
   const condicionCalculada = calcularCondicionFinal(
     portalConfig.nivel,

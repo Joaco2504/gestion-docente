@@ -19,6 +19,34 @@ export interface ClaseItem {
   tema?: string;
 }
 
+export interface EvaluacionItem {
+  id: string;
+  titulo?: string;
+  nombre?: string;
+  tipo?: string;
+  formato?: string;
+  fecha?: string | null;
+  fecha_entrega?: string | null;
+  evaluacion_origen_id?: string | null;
+  ponderacion?: number;
+}
+
+export interface NotaItem {
+  evaluacion_id: string;
+  estudiante_id?: string;
+  valor?: number | null;
+  nota?: number | null;
+  estado?: 'CALIFICADO' | 'NO_ENTREGO' | 'AUSENTE' | string;
+}
+
+export interface EvaluacionResultadoRAM {
+  evaluada: boolean;
+  aprobado: boolean;
+  nota: number | null;
+  estado: 'CALIFICADO' | 'NO_ENTREGO' | 'AUSENTE' | 'PENDIENTE';
+  requiereRecuperatorio: boolean;
+}
+
 /**
  * Calcula el porcentaje de asistencia reglamentaria RAM protegiendo la integridad
  * del denominador. Los feriados y clases no computables se excluyen estrictamente
@@ -53,6 +81,103 @@ export function calcularAsistenciaRAM(
   });
 
   return calcAsistLegacy(asistenciasComputables, totalClasesComputables, licencias);
+}
+
+/**
+ * Normaliza y audita las notas de un alumno protegiendo el cálculo RAM contra valores NaN,
+ * tratando NO_ENTREGO y AUSENTE como instancias desaprobadas con derecho a recuperatorio cuando corresponda.
+ */
+export function calcularNotasRAM(
+  evaluaciones: EvaluacionItem[] = [],
+  notas: NotaItem[] = [],
+  estudianteId?: string,
+  notaMinimaAprobacion = 4
+): EvaluacionResultadoRAM[] {
+  if (!evaluaciones || evaluaciones.length === 0) return [];
+
+  return evaluaciones.map(ev => {
+    const registro = notas.find(n => 
+      n.evaluacion_id === ev.id && 
+      (!estudianteId || !n.estudiante_id || n.estudiante_id === estudianteId)
+    );
+
+    if (!registro) {
+      return { 
+        evaluada: false, 
+        aprobado: false, 
+        nota: null, 
+        estado: 'PENDIENTE', 
+        requiereRecuperatorio: false 
+      };
+    }
+
+    const tUpper = String(ev.tipo || '').toUpperCase();
+    const esParcial = tUpper.includes('PARCIAL') || tUpper.includes('RECUP') || tUpper === 'PRUEBA';
+
+    // 1. Estado No Entregó (Típico en TPs)
+    if (registro.estado === 'NO_ENTREGO') {
+      return {
+        evaluada: true,
+        aprobado: false,
+        nota: 0,
+        estado: 'NO_ENTREGO',
+        requiereRecuperatorio: false
+      };
+    }
+
+    // 2. Estado Ausente (Típico en Parciales / Exámenes)
+    if (registro.estado === 'AUSENTE') {
+      return {
+        evaluada: true,
+        aprobado: false,
+        nota: 0,
+        estado: 'AUSENTE',
+        requiereRecuperatorio: esParcial
+      };
+    }
+
+    // 3. Calificación numérica estándar
+    const val = registro.valor !== undefined && registro.valor !== null
+      ? Number(registro.valor)
+      : (registro.nota !== undefined && registro.nota !== null ? Number(registro.nota) : null);
+
+    if (val !== null && !isNaN(val)) {
+      return {
+        evaluada: true,
+        aprobado: val >= notaMinimaAprobacion,
+        nota: val,
+        estado: 'CALIFICADO',
+        requiereRecuperatorio: esParcial && val < notaMinimaAprobacion
+      };
+    }
+
+    return {
+      evaluada: false,
+      aprobado: false,
+      nota: null,
+      estado: 'PENDIENTE',
+      requiereRecuperatorio: false
+    };
+  });
+}
+
+/**
+ * Calcula el promedio aritmético o ponderado blindado contra NaN o divisiones por cero.
+ */
+export function calcularPromedioRAM(
+  evaluaciones: EvaluacionItem[] = [],
+  notas: NotaItem[] = [],
+  estudianteId?: string
+): number | null {
+  const analizadas = calcularNotasRAM(evaluaciones, notas, estudianteId);
+  const calificadas = analizadas.filter(a => a.evaluada && a.nota !== null && !isNaN(a.nota));
+
+  if (calificadas.length === 0) return null;
+
+  const suma = calificadas.reduce((acc, curr) => acc + (curr.nota || 0), 0);
+  const prom = suma / calificadas.length;
+
+  return isNaN(prom) ? null : Number(prom.toFixed(2));
 }
 
 // Re-exportar cálculo tradicional y condicional

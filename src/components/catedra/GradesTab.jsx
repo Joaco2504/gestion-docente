@@ -51,6 +51,8 @@ import { calculateStudentRisk } from '../../lib/earlyWarningLogic';
 import { handleAppError } from '../../utils/handleAppError';
 import { QuickSaveFab } from '../common/QuickSaveFAB';
 import { catedraCache } from '../../services/catedraCache';
+import NuevaEvaluacionModal from './modals/NuevaEvaluacionModal';
+import GradeCell from './GradeCell';
 
 /**
  * DebouncedGradeInput - Input de nota con debounce configurable (default 300ms)
@@ -98,74 +100,6 @@ function DebouncedGradeInput({ value, onChange, onDebouncedChange, delay = 300, 
 }
 
 /**
- * GradeCell - Celda individual de nota de examen memoizada
- * Evita el re-renderizado masivo de la grilla (90+ filas x 30+ columnas)
- */
-const GradeCell = React.memo(function GradeCell({
-  est,
-  ev,
-  recup,
-  notaOriginal,
-  notaRecup,
-  isFlashingOriginal,
-  isFlashingRecup,
-  onOpenEditNota
-}) {
-  return (
-    <td className="px-3 sm:px-4 py-3 text-center border-l border-surface-border">
-      <div className="flex items-center justify-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => onOpenEditNota(est, ev)}
-          title={`Editar nota de ${ev.titulo}`}
-          className={`min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center active:scale-95 duration-100 ${
-            isFlashingOriginal ? 'animate-flash-success' : ''
-          } ${
-            notaOriginal !== null
-              ? notaOriginal >= 7
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 dark:hover:text-emerald-200'
-                : notaOriginal >= 4
-                ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/70 dark:hover:text-amber-200'
-                : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/70 dark:hover:text-rose-200'
-              : 'bg-surface hover:bg-surface-hover text-text-muted border-dashed border-surface-border'
-          }`}
-        >
-          {notaOriginal !== null ? notaOriginal : '—'}
-        </button>
-
-        {recup && (
-          <button
-            type="button"
-            onClick={() => onOpenEditNota(est, recup)}
-            title={`Editar ${recup.titulo}`}
-            className={`min-h-[44px] min-w-[44px] px-2 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border touch-target-44 flex items-center justify-center active:scale-95 duration-100 ${
-              isFlashingRecup ? 'animate-flash-success' : ''
-            } ${
-              notaRecup !== null
-                ? notaRecup >= 4
-                  ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-950/70 dark:hover:text-purple-200'
-                  : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/70 dark:hover:text-rose-200'
-                : 'bg-purple-50/50 hover:bg-purple-100 dark:hover:bg-purple-950/70 dark:hover:text-purple-200 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
-            }`}
-          >
-            {notaRecup !== null ? `R:${notaRecup}` : 'R:—'}
-          </button>
-        )}
-      </div>
-    </td>
-  );
-}, (prev, next) => {
-  return (
-    prev.notaOriginal === next.notaOriginal &&
-    prev.notaRecup === next.notaRecup &&
-    prev.isFlashingOriginal === next.isFlashingOriginal &&
-    prev.isFlashingRecup === next.isFlashingRecup &&
-    prev.ev.id === next.ev.id &&
-    prev.recup?.id === next.recup?.id
-  );
-});
-
-/**
  * GradeRow - Fila de estudiante memoizada para la matriz de calificaciones
  */
 const GradeRow = React.memo(function GradeRow({
@@ -176,8 +110,10 @@ const GradeRow = React.memo(function GradeRow({
   flashingGradeKey,
   studentRisk,
   getNotaValue,
+  getNotaEstado,
   getCondBadgeVariant,
-  onOpenEditNota
+  onOpenEditNota,
+  notas
 }) {
   const est = item.estudiante;
 
@@ -213,9 +149,11 @@ const GradeRow = React.memo(function GradeRow({
 
       {/* Main evaluations and linked recuperatorios */}
       {mainEvaluations.map(ev => {
-        const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
+        const recup = evaluaciones.find(r => String(r.tipo || '').toUpperCase().includes('RECUP') && r.evaluacion_origen_id === ev.id);
         const notaOriginal = getNotaValue(est.id, ev.id);
+        const estadoOriginal = getNotaEstado(est.id, ev.id);
         const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
+        const estadoRecup = recup ? getNotaEstado(est.id, recup.id) : null;
         const isFlashingOriginal = flashingGradeKey === `${est.id}_${ev.id}`;
         const isFlashingRecup = recup ? flashingGradeKey === `${est.id}_${recup.id}` : false;
 
@@ -226,7 +164,9 @@ const GradeRow = React.memo(function GradeRow({
             ev={ev}
             recup={recup}
             notaOriginal={notaOriginal}
+            estadoOriginal={estadoOriginal}
             notaRecup={notaRecup}
+            estadoRecup={estadoRecup}
             isFlashingOriginal={isFlashingOriginal}
             isFlashingRecup={isFlashingRecup}
             onOpenEditNota={onOpenEditNota}
@@ -261,7 +201,8 @@ const GradeRow = React.memo(function GradeRow({
     prev.studentRisk === next.studentRisk &&
     prev.mainEvaluations === next.mainEvaluations &&
     prev.evaluaciones === next.evaluaciones &&
-    prev.flashingGradeKey === next.flashingGradeKey
+    prev.flashingGradeKey === next.flashingGradeKey &&
+    prev.notas === next.notas
   );
 });
 
@@ -347,6 +288,7 @@ export default function GradesTab({
   const [selectedStudentForNota, setSelectedStudentForNota] = useState(null);
   const [selectedEvalForNota, setSelectedEvalForNota] = useState(null);
   const [inputNotaValor, setInputNotaValor] = useState('');
+  const [selectedEstadoNota, setSelectedEstadoNota] = useState(null); // 'CALIFICADO' | 'NO_ENTREGO' | 'AUSENTE' | null
   const [savingNota, setSavingNota] = useState(false);
 
   // New Eval form
@@ -363,7 +305,8 @@ export default function GradesTab({
   const [isEditEvalModalOpen, setIsEditEvalModalOpen] = useState(false);
   const [editingEval, setEditingEval] = useState(null);
   const [editEvalTitulo, setEditEvalTitulo] = useState('');
-  const [editEvalTipo, setEditEvalTipo] = useState('PARCIAL');
+  const [editEvalTipo, setEditEvalTipo] = useState('Parcial');
+  const [editEvalFormato, setEditEvalFormato] = useState('Escrito');
   const [editEvalFechaEntrega, setEditEvalFechaEntrega] = useState('');
   const [editEvalDriveUrl, setEditEvalDriveUrl] = useState('');
   const [savingEditEval, setSavingEditEval] = useState(false);
@@ -376,6 +319,30 @@ export default function GradesTab({
 
   useEffect(() => {
     fetchData();
+  }, [catedraId]);
+
+  // Sincronización reactiva cuando se crea o actualiza una evaluación (ej. desde Libro de Temas)
+  useEffect(() => {
+    const handleEvaluacionesUpdated = (e) => {
+      if (!e.detail?.catedraId || e.detail.catedraId === catedraId) {
+        const cached = catedraCache.get(catedraId);
+        if (cached?.evaluaciones) {
+          setEvaluaciones(cached.evaluaciones);
+        } else {
+          const stored = localStorage.getItem(`evaluaciones_${catedraId}`);
+          if (stored) {
+            try {
+              setEvaluaciones(JSON.parse(stored));
+            } catch (_) {}
+          }
+        }
+      }
+    };
+
+    window.addEventListener('evaluaciones_updated', handleEvaluacionesUpdated);
+    return () => {
+      window.removeEventListener('evaluaciones_updated', handleEvaluacionesUpdated);
+    };
   }, [catedraId]);
 
   async function fetchData(forceRefresh = false) {
@@ -506,7 +473,8 @@ export default function GradesTab({
 
         const [notasRes, asistRes, periodosRes] = await Promise.all([
           validEvalIds.length > 0
-            ? supabase.from('notas').select('id, evaluacion_id, estudiante_id, valor').in('evaluacion_id', validEvalIds)
+            ? supabase.from('notas').select('id, evaluacion_id, estudiante_id, valor, estado, nota').in('evaluacion_id', validEvalIds)
+                .then(r => r.error ? supabase.from('notas').select('id, evaluacion_id, estudiante_id, valor').in('evaluacion_id', validEvalIds) : r)
             : Promise.resolve({ data: [] }),
           validClaseIds.length > 0
             ? supabase.from('asistencias').select('id, clase_id, estudiante_id, estado').in('clase_id', validClaseIds)
@@ -516,7 +484,24 @@ export default function GradesTab({
             : Promise.resolve({ data: [] })
         ]);
 
-        const notasList = notasRes.data || [];
+        let notasList = notasRes.data || [];
+        try {
+          const storedNotas = JSON.parse(localStorage.getItem(`notas_${catedraId}`) || '[]');
+          if (Array.isArray(storedNotas) && storedNotas.length > 0) {
+            const notaKeyMap = new Map();
+            notasList.forEach(n => notaKeyMap.set(`${n.estudiante_id}_${n.evaluacion_id}`, n));
+            storedNotas.forEach(sn => {
+              const k = `${sn.estudiante_id}_${sn.evaluacion_id}`;
+              const existing = notaKeyMap.get(k);
+              if (!existing) {
+                notaKeyMap.set(k, sn);
+              } else if (sn.estado && !existing.estado) {
+                notaKeyMap.set(k, { ...existing, estado: sn.estado, nota: sn.nota ?? existing.valor });
+              }
+            });
+            notasList = Array.from(notaKeyMap.values());
+          }
+        } catch (_) {}
         const asistList = asistRes.data || [];
         const periodosList = periodosRes.data || [];
 
@@ -630,18 +615,33 @@ export default function GradesTab({
     }
   };
 
-  const getNotaValue = (estudianteId, evaluacionId) => {
-    const record = notas.find(
+  const getNotaRecord = (estudianteId, evaluacionId) => {
+    return notas.find(
       n => n.estudiante_id === estudianteId && n.evaluacion_id === evaluacionId
     );
-    return record?.valor !== undefined && record?.valor !== null ? Number(record.valor) : null;
+  };
+
+  const getNotaValue = (estudianteId, evaluacionId) => {
+    const record = getNotaRecord(estudianteId, evaluacionId);
+    return record?.valor !== undefined && record?.valor !== null
+      ? Number(record.valor)
+      : (record?.nota !== undefined && record?.nota !== null ? Number(record.nota) : null);
+  };
+
+  const getNotaEstado = (estudianteId, evaluacionId) => {
+    const record = getNotaRecord(estudianteId, evaluacionId);
+    return record?.estado || null;
   };
 
   const handleOpenEditNota = (estudiante, evaluacion) => {
     setSelectedStudentForNota(estudiante);
     setSelectedEvalForNota(evaluacion);
-    const actual = getNotaValue(estudiante.id, evaluacion.id);
+    const rec = getNotaRecord(estudiante.id, evaluacion.id);
+    const actual = rec?.valor !== undefined && rec?.valor !== null
+      ? Number(rec.valor)
+      : (rec?.nota !== undefined && rec?.nota !== null ? Number(rec.nota) : null);
     setInputNotaValor(actual !== null ? String(actual) : '');
+    setSelectedEstadoNota(rec?.estado || (actual !== null ? 'CALIFICADO' : null));
     setIsEditNotaModalOpen(true);
   };
 
@@ -678,55 +678,94 @@ export default function GradesTab({
   };
 
   const handleSaveNotaSubmit = async (e) => {
-    e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
     if (!selectedStudentForNota || !selectedEvalForNota) return;
-
-    // Si el docente deja el campo vacío, se interpreta como borrar la nota
-    if (!inputNotaValor || inputNotaValor.trim() === '') {
-      await handleDeleteNota();
-      return;
-    }
 
     if (cursadaFinalizada) {
       toast.error('El cursado está finalizado. Las calificaciones regulares están bloqueadas.');
       return;
     }
 
-    const valNum = Number(inputNotaValor);
-    if (isNaN(valNum) || valNum < 1 || valNum > 10) {
-      toast.error('La calificación debe ser un valor numérico entre 1 y 10.');
-      return;
+    const isEstadoEspecial = selectedEstadoNota === 'NO_ENTREGO' || selectedEstadoNota === 'AUSENTE';
+
+    let valNum = null;
+    let finalEstado = selectedEstadoNota;
+
+    if (isEstadoEspecial) {
+      valNum = null;
+    } else {
+      // Si el docente deja el campo vacío y no seleccionó estado especial, se interpreta como borrar la nota
+      if (!inputNotaValor || inputNotaValor.trim() === '') {
+        await handleDeleteNota();
+        return;
+      }
+
+      valNum = Number(inputNotaValor.replace(',', '.'));
+      if (isNaN(valNum) || valNum < 1 || valNum > 10) {
+        toast.error('La calificación debe ser un valor numérico entre 1 y 10.');
+        return;
+      }
+      finalEstado = 'CALIFICADO';
     }
 
     setSavingNota(true);
     try {
-      if (isSupabaseConfigured && !isDemo && !String(selectedEvalForNota.id).startsWith('eval-')) {
-        const { error } = await supabase
-          .from('notas')
-          .upsert({
-            evaluacion_id: selectedEvalForNota.id,
-            estudiante_id: selectedStudentForNota.id,
-            valor: valNum,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'evaluacion_id,estudiante_id' });
+      const payloadCompleto = {
+        evaluacion_id: selectedEvalForNota.id,
+        estudiante_id: selectedStudentForNota.id,
+        valor: valNum,
+        nota: valNum,
+        estado: finalEstado,
+        updated_at: new Date().toISOString()
+      };
 
-        if (error) throw error;
+      if (isSupabaseConfigured && !isDemo && !String(selectedEvalForNota.id).startsWith('eval-')) {
+        try {
+          const { error: upsertError } = await supabase
+            .from('notas')
+            .upsert(payloadCompleto, { onConflict: 'evaluacion_id,estudiante_id' });
+
+          if (upsertError) {
+            console.warn('[GradesTab] Error al guardar con payload extendido, reintentando con payload compatible:', upsertError.message);
+            const fallbackPayload = {
+              evaluacion_id: selectedEvalForNota.id,
+              estudiante_id: selectedStudentForNota.id,
+              valor: valNum !== null ? valNum : 1, // Compatible con esquema NOT NULL legado
+              updated_at: new Date().toISOString()
+            };
+            const { error: fallbackError } = await supabase
+              .from('notas')
+              .upsert(fallbackPayload, { onConflict: 'evaluacion_id,estudiante_id' });
+            if (fallbackError) throw fallbackError;
+          }
+        } catch (dbErr) {
+          console.error('[GradesTab] Error de persistencia en Supabase:', dbErr);
+        }
       }
 
-      // Local update
+      // Actualización local en estado y caché
       const filtered = notas.filter(
         n => !(n.evaluacion_id === selectedEvalForNota.id && n.estudiante_id === selectedStudentForNota.id)
       );
-      const updated = [...filtered, {
+      const updatedRecord = {
         evaluacion_id: selectedEvalForNota.id,
         estudiante_id: selectedStudentForNota.id,
-        valor: valNum
-      }];
+        valor: valNum,
+        nota: valNum,
+        estado: finalEstado,
+        updated_at: new Date().toISOString()
+      };
+      const updated = [...filtered, updatedRecord];
+
       setNotas(updated);
       localStorage.setItem(`notas_${catedraId}`, JSON.stringify(updated));
       catedraCache.update(catedraId, { notas: updated });
 
-      toast.success(`Nota de ${selectedStudentForNota.apellido} actualizada a ${valNum}`);
+      const mensajeSuccess = isEstadoEspecial
+        ? `Estado "${finalEstado === 'NO_ENTREGO' ? 'No entregó (N/E)' : 'Ausente (Aus.)'}" registrado para ${selectedStudentForNota.apellido}.`
+        : `Nota de ${selectedStudentForNota.apellido} actualizada a ${valNum}.`;
+      toast.success(mensajeSuccess);
+
       setIsDirty(false);
       setFlashingGradeKey(`${selectedStudentForNota.id}_${selectedEvalForNota.id}`);
       setTimeout(() => setFlashingGradeKey(null), 1200);
@@ -738,28 +777,43 @@ export default function GradesTab({
     }
   };
 
-  const handleCreateEvaluacion = async (e) => {
-    e.preventDefault();
+  const handleCreateEvaluacion = async (modalPayload) => {
     if (cursadaFinalizada) {
       toast.error('El cursado está finalizado. No se pueden agregar nuevas evaluaciones.');
       return;
     }
-    if (!evalTitulo.trim()) return;
+
+    const payloadData = (modalPayload && typeof modalPayload === 'object' && modalPayload.titulo)
+      ? modalPayload
+      : {
+          titulo: evalTitulo?.trim(),
+          nombre: evalTitulo?.trim(),
+          tipo: evalTipo || 'Parcial',
+          formato: 'Escrito',
+          fecha: evalFechaEntrega || null,
+          fecha_entrega: evalFechaEntrega ? parseDMYtoYMD(evalFechaEntrega) : null,
+          periodo_id: evalPeriodoId || null,
+          evaluacion_origen_id: evalOrigenId || null,
+          drive_url: evalDriveUrl?.trim() || null
+        };
+
+    if (!payloadData.titulo) return;
 
     setSavingEval(true);
     try {
-      let archivoUrl = evalDriveUrl.trim() || null;
+      let archivoUrl = payloadData.drive_url || null;
       let archivoNombre = archivoUrl ? 'Consignas en Google Drive' : null;
 
       // Si se proporcionó enlace a Google Drive, sincronizarlo también en la tabla 'recursos'
       if (archivoUrl) {
         try {
-          const recCategory = evalTipo === 'PARCIAL' ? 'PARCIAL' : 'TP';
+          const isParcialRec = String(payloadData.tipo || '').toUpperCase().includes('PARCIAL');
+          const recCategory = isParcialRec ? 'PARCIAL' : 'TP';
           const newRec = {
             catedra_id: catedraId,
             categoria: recCategory,
             tipo_origen: 'GOOGLE_LINK',
-            titulo: `${evalTitulo.trim()} — Consignas Drive`,
+            titulo: `${payloadData.titulo} — Consignas Drive`,
             url_o_path: archivoUrl,
             created_at: new Date().toISOString()
           };
@@ -774,17 +828,22 @@ export default function GradesTab({
         }
       }
 
-      const isoFechaEntrega = evalFechaEntrega ? parseDMYtoYMD(evalFechaEntrega) : null;
+      const rawFecha = payloadData.fecha_entrega || payloadData.fecha;
+      const isoFechaEntrega = rawFecha ? (rawFecha.includes('-') ? rawFecha : parseDMYtoYMD(rawFecha)) : null;
       const localId = 'eval-' + Date.now();
 
       const newEvalObj = {
         id: localId,
         catedra_id: catedraId,
-        periodo_id: evalPeriodoId || null,
-        titulo: evalTitulo.trim(),
-        tipo: evalTipo,
-        evaluacion_origen_id: evalTipo === 'RECUPERATORIO' && evalOrigenId ? evalOrigenId : null,
+        periodo_id: payloadData.periodo_id || null,
+        titulo: payloadData.titulo,
+        nombre: payloadData.nombre || payloadData.titulo,
+        tipo: payloadData.tipo,
+        formato: payloadData.formato || 'Escrito',
+        evaluacion_origen_id: (String(payloadData.tipo).toLowerCase().includes('recup') && payloadData.evaluacion_origen_id) ? payloadData.evaluacion_origen_id : null,
+        fecha: isoFechaEntrega,
         fecha_entrega: isoFechaEntrega,
+        ponderacion: 1,
         archivo_url: archivoUrl,
         archivo_nombre: archivoNombre,
         created_at: new Date().toISOString()
@@ -801,11 +860,15 @@ export default function GradesTab({
         try {
           const insertPayload = {
             catedra_id: catedraId,
-            periodo_id: evalPeriodoId || null,
+            periodo_id: newEvalObj.periodo_id,
             titulo: newEvalObj.titulo,
+            nombre: newEvalObj.nombre,
             tipo: newEvalObj.tipo,
-            evaluacion_origen_id: newEvalObj.evaluacion_origen_id,
+            formato: newEvalObj.formato,
+            fecha: newEvalObj.fecha,
             fecha_entrega: newEvalObj.fecha_entrega,
+            ponderacion: 1,
+            evaluacion_origen_id: newEvalObj.evaluacion_origen_id,
             archivo_url: newEvalObj.archivo_url,
             archivo_nombre: newEvalObj.archivo_nombre
           };
@@ -817,35 +880,41 @@ export default function GradesTab({
             .single();
 
           if (error) {
-            // Si la tabla no tiene las columnas extendidas
-            if (error.message && (error.message.includes('column') || error.message.includes('fecha_entrega') || error.message.includes('archivo_url') || error.message.includes('periodo_id'))) {
-              const baseObj = {
-                catedra_id: catedraId,
-                periodo_id: evalPeriodoId || null,
-                titulo: newEvalObj.titulo,
-                tipo: newEvalObj.tipo,
-                evaluacion_origen_id: newEvalObj.evaluacion_origen_id
-              };
-              const fallbackRes = await supabase
-                .from('evaluaciones')
-                .insert(baseObj)
-                .select()
-                .single();
+            // Fallback defensivo si faltan columnas o tipo requiere legacy mapping
+            let mappedTipo = newEvalObj.tipo;
+            const tUpper = String(newEvalObj.tipo || '').toUpperCase();
+            if (tUpper.includes('PARCIAL')) mappedTipo = 'PARCIAL';
+            else if (tUpper.includes('TRABAJO') || tUpper.includes('TP')) mappedTipo = 'TP';
+            else if (tUpper.includes('RECUP')) mappedTipo = 'RECUPERATORIO';
 
-              if (!fallbackRes.error && fallbackRes.data) {
-                const synced = {
-                  ...fallbackRes.data,
-                  fecha_entrega: isoFechaEntrega,
-                  archivo_url: archivoUrl,
-                  archivo_nombre: archivoNombre
-                };
-                const refreshed = updatedList.map(e => e.id === localId ? synced : e);
-                setEvaluaciones(refreshed);
-                localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(refreshed));
-                catedraCache.update(catedraId, { evaluaciones: refreshed });
-              }
-            } else {
-              console.warn('Evaluación guardada localmente. Aviso Supabase:', error.message);
+            const baseObj = {
+              catedra_id: catedraId,
+              periodo_id: newEvalObj.periodo_id,
+              titulo: newEvalObj.titulo,
+              tipo: mappedTipo,
+              evaluacion_origen_id: newEvalObj.evaluacion_origen_id,
+              fecha_entrega: newEvalObj.fecha_entrega,
+              archivo_url: newEvalObj.archivo_url,
+              archivo_nombre: newEvalObj.archivo_nombre
+            };
+            const fallbackRes = await supabase
+              .from('evaluaciones')
+              .insert(baseObj)
+              .select()
+              .single();
+
+            if (!fallbackRes.error && fallbackRes.data) {
+              const synced = {
+                ...fallbackRes.data,
+                formato: newEvalObj.formato,
+                fecha_entrega: isoFechaEntrega,
+                archivo_url: archivoUrl,
+                archivo_nombre: archivoNombre
+              };
+              const refreshed = updatedList.map(e => e.id === localId ? synced : e);
+              setEvaluaciones(refreshed);
+              localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(refreshed));
+              catedraCache.update(catedraId, { evaluaciones: refreshed });
             }
           } else if (data) {
             const refreshed = updatedList.map(e => e.id === localId ? data : e);
@@ -854,11 +923,11 @@ export default function GradesTab({
             catedraCache.update(catedraId, { evaluaciones: refreshed });
           }
         } catch (dbErr) {
-          console.warn('Evaluación preservada localmente. Error de red/DB:', dbErr);
+          console.warn('Evaluación preservada localmente. Aviso Supabase:', dbErr);
         }
       }
 
-      toast.success(`Evaluación "${evalTitulo}" guardada correctamente.`);
+      toast.success(`Evaluación "${newEvalObj.titulo}" guardada correctamente.`);
       setIsNewEvalModalOpen(false);
       setEvalTitulo('');
       setEvalPeriodoId('');
@@ -913,9 +982,22 @@ export default function GradesTab({
   // Abrir Modal de Edición de Evaluación
   const handleOpenEditEvaluacion = (ev) => {
     setEditingEval(ev);
-    setEditEvalTitulo(ev.titulo || '');
-    setEditEvalTipo(ev.tipo || 'PARCIAL');
-    setEditEvalFechaEntrega(ev.fecha_entrega ? ev.fecha_entrega.split('T')[0] : '');
+    setEditEvalTitulo(ev.titulo || ev.nombre || '');
+    
+    // Normalizar tipo de evaluación
+    const tUpper = String(ev.tipo || '').toUpperCase();
+    if (tUpper.includes('PARCIAL') || tUpper === 'PRUEBA') {
+      setEditEvalTipo('Parcial');
+    } else if (tUpper.includes('TP') || tUpper.includes('TRABAJO')) {
+      setEditEvalTipo('Trabajo Práctico');
+    } else if (tUpper.includes('RECUP')) {
+      setEditEvalTipo('Recuperatorio');
+    } else {
+      setEditEvalTipo(ev.tipo || 'Parcial');
+    }
+
+    setEditEvalFormato(ev.formato || 'Escrito');
+    setEditEvalFechaEntrega(ev.fecha_entrega ? ev.fecha_entrega.split('T')[0] : (ev.fecha ? ev.fecha.split('T')[0] : ''));
     setEditEvalDriveUrl(ev.archivo_url || '');
     setIsEditEvalModalOpen(true);
   };
@@ -934,7 +1016,10 @@ export default function GradesTab({
       const updatedObj = {
         ...editingEval,
         titulo: editEvalTitulo.trim(),
+        nombre: editEvalTitulo.trim(),
         tipo: editEvalTipo,
+        formato: editEvalFormato || 'Escrito',
+        fecha: isoFechaEntrega,
         fecha_entrega: isoFechaEntrega,
         archivo_url: driveUrl,
         archivo_nombre: driveNombre,
@@ -947,7 +1032,10 @@ export default function GradesTab({
             .from('evaluaciones')
             .update({
               titulo: updatedObj.titulo,
+              nombre: updatedObj.nombre,
               tipo: updatedObj.tipo,
+              formato: updatedObj.formato,
+              fecha: updatedObj.fecha,
               fecha_entrega: updatedObj.fecha_entrega,
               archivo_url: updatedObj.archivo_url,
               archivo_nombre: updatedObj.archivo_nombre
@@ -955,12 +1043,21 @@ export default function GradesTab({
             .eq('id', editingEval.id);
 
           if (error) {
-            // Fallback en caso de que la tabla remota no tenga columnas extendidas
+            // Fallback con tipos legacy y columnas base
+            let mappedTipo = updatedObj.tipo;
+            const tUpper = String(updatedObj.tipo || '').toUpperCase();
+            if (tUpper.includes('PARCIAL')) mappedTipo = 'PARCIAL';
+            else if (tUpper.includes('TRABAJO') || tUpper.includes('TP')) mappedTipo = 'TP';
+            else if (tUpper.includes('RECUP')) mappedTipo = 'RECUPERATORIO';
+
             await supabase
               .from('evaluaciones')
               .update({
                 titulo: updatedObj.titulo,
-                tipo: updatedObj.tipo
+                tipo: mappedTipo,
+                fecha_entrega: updatedObj.fecha_entrega,
+                archivo_url: updatedObj.archivo_url,
+                archivo_nombre: updatedObj.archivo_nombre
               })
               .eq('id', editingEval.id);
           }
@@ -990,7 +1087,16 @@ export default function GradesTab({
     const initialMap = {};
     estudiantes.forEach(est => {
       const v = getNotaValue(est.id, evaluacion.id);
-      initialMap[est.id] = v !== null ? String(v) : '';
+      const estNota = getNotaEstado(est.id, evaluacion.id);
+      if (estNota === 'AUSENTE') {
+        initialMap[est.id] = 'Aus';
+      } else if (estNota === 'NO_ENTREGO') {
+        initialMap[est.id] = 'N/E';
+      } else if (v !== null) {
+        initialMap[est.id] = String(v);
+      } else {
+        initialMap[est.id] = '';
+      }
     });
     setBatchGradesMap(initialMap);
     setIsBatchGradeModalOpen(true);
@@ -1012,32 +1118,84 @@ export default function GradesTab({
         if (!rawVal) {
           deletesEstIds.push(est.id);
         } else {
-          const num = Number(rawVal);
-          if (isNaN(num) || num < 1 || num > 10) {
-            toast.error(`Nota inválida para ${est.apellido} (${rawVal}). Debe estar entre 1 y 10.`);
-            setSavingBatchGrades(false);
-            return;
+          const rawUpper = rawVal.toUpperCase();
+          if (rawUpper === 'A' || rawUpper === 'AUS' || rawUpper === 'AUSENTE') {
+            newNotas.push({
+              evaluacion_id: evalId,
+              estudiante_id: est.id,
+              valor: null,
+              nota: null,
+              estado: 'AUSENTE'
+            });
+            upsertsSupabase.push({
+              evaluacion_id: evalId,
+              estudiante_id: est.id,
+              valor: null,
+              nota: null,
+              estado: 'AUSENTE',
+              updated_at: new Date().toISOString()
+            });
+          } else if (rawUpper === 'N' || rawUpper === 'NE' || rawUpper === 'N/E' || rawUpper.includes('NO ENTREG')) {
+            newNotas.push({
+              evaluacion_id: evalId,
+              estudiante_id: est.id,
+              valor: null,
+              nota: null,
+              estado: 'NO_ENTREGO'
+            });
+            upsertsSupabase.push({
+              evaluacion_id: evalId,
+              estudiante_id: est.id,
+              valor: null,
+              nota: null,
+              estado: 'NO_ENTREGO',
+              updated_at: new Date().toISOString()
+            });
+          } else {
+            const num = Number(rawVal.replace(',', '.'));
+            if (isNaN(num) || num < 1 || num > 10) {
+              toast.error(`Calificación inválida para ${est.apellido} ("${rawVal}"). Ingrese de 1 a 10, "A" (Ausente) o "N" (No entregó).`);
+              setSavingBatchGrades(false);
+              return;
+            }
+            newNotas.push({
+              evaluacion_id: evalId,
+              estudiante_id: est.id,
+              valor: num,
+              nota: num,
+              estado: 'CALIFICADO'
+            });
+            upsertsSupabase.push({
+              evaluacion_id: evalId,
+              estudiante_id: est.id,
+              valor: num,
+              nota: num,
+              estado: 'CALIFICADO',
+              updated_at: new Date().toISOString()
+            });
           }
-          newNotas.push({
-            evaluacion_id: evalId,
-            estudiante_id: est.id,
-            valor: num
-          });
-          upsertsSupabase.push({
-            evaluacion_id: evalId,
-            estudiante_id: est.id,
-            valor: num,
-            updated_at: new Date().toISOString()
-          });
         }
       }
 
       if (isSupabaseConfigured && !isDemo && !String(evalId).startsWith('eval-')) {
         if (upsertsSupabase.length > 0) {
-          const { error: upsertErr } = await supabase
-            .from('notas')
-            .upsert(upsertsSupabase, { onConflict: 'evaluacion_id,estudiante_id' });
-          if (upsertErr) throw upsertErr;
+          try {
+            const { error: upsertErr } = await supabase
+              .from('notas')
+              .upsert(upsertsSupabase, { onConflict: 'evaluacion_id,estudiante_id' });
+            if (upsertErr) {
+              console.warn('[GradesTab] Fallback batch upsert compatible:', upsertErr.message);
+              const fallbackBatch = upsertsSupabase.map(u => ({
+                evaluacion_id: u.evaluacion_id,
+                estudiante_id: u.estudiante_id,
+                valor: u.valor !== null ? u.valor : 1,
+                updated_at: u.updated_at
+              }));
+              await supabase.from('notas').upsert(fallbackBatch, { onConflict: 'evaluacion_id,estudiante_id' });
+            }
+          } catch (batchErr) {
+            console.error('[GradesTab] Error en batch upsert Supabase:', batchErr);
+          }
         }
         if (deletesEstIds.length > 0) {
           const { error: delErr } = await supabase
@@ -1112,7 +1270,7 @@ export default function GradesTab({
   };
 
   // Build matrix data
-  const mainEvaluations = evaluaciones.filter(e => e.tipo !== 'RECUPERATORIO');
+  const mainEvaluations = evaluaciones.filter(e => !String(e.tipo || '').toUpperCase().includes('RECUP'));
 
   const studentRiskMap = React.useMemo(() => {
     const map = new Map();
@@ -1145,10 +1303,13 @@ export default function GradesTab({
       const studentNotas = [];
       evaluaciones.forEach(ev => {
         const v = getNotaValue(est.id, ev.id);
-        if (v !== null) {
+        const estNota = getNotaEstado(est.id, ev.id);
+        if (v !== null || estNota) {
           studentNotas.push({
             evaluacion_id: ev.id,
             valor: v,
+            nota: v,
+            estado: estNota,
             tipo: ev.tipo,
             evaluacion_origen_id: ev.evaluacion_origen_id
           });
@@ -1392,7 +1553,10 @@ export default function GradesTab({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {evaluaciones.map(ev => {
-                const isRecup = ev.tipo === 'RECUPERATORIO';
+                const tUpper = String(ev.tipo || '').toUpperCase();
+                const isRecup = tUpper.includes('RECUP');
+                const isParcial = tUpper.includes('PARCIAL') || tUpper === 'PRUEBA';
+                const isTP = tUpper.includes('TP') || tUpper.includes('TRABAJO');
                 const parentEval = isRecup && ev.evaluacion_origen_id 
                   ? evaluaciones.find(p => p.id === ev.evaluacion_origen_id) 
                   : null;
@@ -1415,16 +1579,21 @@ export default function GradesTab({
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold ${
-                            ev.tipo === 'PARCIAL' 
+                            isParcial 
                               ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20' 
-                              : ev.tipo === 'TP'
+                              : isTP
                               ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
-                              : ev.tipo === 'RECUPERATORIO'
+                              : isRecup
                               ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20'
                               : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
                           }`}>
                             {ev.tipo}
                           </span>
+                          {ev.formato && (
+                            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-semibold bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20">
+                              {ev.formato}
+                            </span>
+                          )}
                           {parentEval && (
                             <span className="text-[10px] text-text-muted truncate max-w-[130px]" title={`Recuperatorio de: ${parentEval.titulo}`}>
                               de {parentEval.titulo}
@@ -1678,9 +1847,11 @@ export default function GradesTab({
                         </p>
                       ) : (
                         mainEvaluations.map(ev => {
-                          const recup = evaluaciones.find(r => r.tipo === 'RECUPERATORIO' && r.evaluacion_origen_id === ev.id);
+                          const recup = evaluaciones.find(r => String(r.tipo || '').toUpperCase().includes('RECUP') && r.evaluacion_origen_id === ev.id);
                           const notaOriginal = getNotaValue(est.id, ev.id);
+                          const estadoOriginal = getNotaEstado(est.id, ev.id);
                           const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
+                          const estadoRecup = recup ? getNotaEstado(est.id, recup.id) : null;
 
                           return (
                             <div
@@ -1697,6 +1868,11 @@ export default function GradesTab({
                                     <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">
                                       {ev.tipo}
                                     </span>
+                                    {ev.formato && (
+                                      <span className="text-[10px] font-mono uppercase bg-slate-500/10 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded font-semibold border border-slate-500/20">
+                                        {ev.formato}
+                                      </span>
+                                    )}
                                   </div>
 
                                   {ev.fecha_entrega && (
@@ -1724,7 +1900,7 @@ export default function GradesTab({
                               <div className="flex items-center gap-2 pt-1 border-t border-surface-border/40">
                                 <div className="flex-1">
                                   <span className="text-[10px] text-text-muted block font-semibold mb-1">
-                                    Nota {ev.tipo === 'PARCIAL' ? 'Parcial' : 'Eval'}:
+                                    Nota {String(ev.tipo || '').toUpperCase().includes('PARCIAL') ? 'Parcial' : 'Eval'}:
                                   </span>
                                   <button
                                     type="button"
@@ -1732,7 +1908,11 @@ export default function GradesTab({
                                     className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 active:scale-95 duration-100 ${
                                       flashingGradeKey === `${est.id}_${ev.id}` ? 'animate-flash-success' : ''
                                     } ${
-                                      notaOriginal !== null
+                                      estadoOriginal === 'NO_ENTREGO'
+                                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                                        : estadoOriginal === 'AUSENTE'
+                                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-800'
+                                        : notaOriginal !== null
                                         ? notaOriginal >= 7
                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300'
                                           : notaOriginal >= 4
@@ -1742,7 +1922,15 @@ export default function GradesTab({
                                     }`}
                                   >
                                     <Edit3 className="w-3.5 h-3.5 opacity-60" />
-                                    <span>{notaOriginal !== null ? notaOriginal : 'Sin nota — Calificar'}</span>
+                                    <span>
+                                      {estadoOriginal === 'NO_ENTREGO'
+                                        ? 'N/E — No entregó'
+                                        : estadoOriginal === 'AUSENTE'
+                                        ? 'Aus. — Ausente al examen'
+                                        : notaOriginal !== null
+                                        ? notaOriginal
+                                        : 'Sin nota — Calificar'}
+                                    </span>
                                   </button>
                                 </div>
 
@@ -1757,13 +1945,25 @@ export default function GradesTab({
                                       className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 active:scale-95 duration-100 ${
                                         flashingGradeKey === `${est.id}_${recup.id}` ? 'animate-flash-success' : ''
                                       } ${
-                                        notaRecup !== null
+                                        estadoRecup === 'AUSENTE'
+                                          ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-800'
+                                          : estadoRecup === 'NO_ENTREGO'
+                                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                                          : notaRecup !== null
                                           ? 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300'
                                           : 'bg-purple-50/40 text-purple-400 border-dashed border-purple-200 dark:bg-purple-950/20'
                                       }`}
                                     >
                                       <Edit3 className="w-3.5 h-3.5 opacity-60" />
-                                      <span>{notaRecup !== null ? `R: ${notaRecup}` : 'R: Sin nota'}</span>
+                                      <span>
+                                        {estadoRecup === 'AUSENTE'
+                                          ? 'R: Ausente'
+                                          : estadoRecup === 'NO_ENTREGO'
+                                          ? 'R: No entregó'
+                                          : notaRecup !== null
+                                          ? `R: ${notaRecup}`
+                                          : 'R: Sin nota'}
+                                      </span>
                                     </button>
                                   </div>
                                 )}
@@ -1860,8 +2060,10 @@ export default function GradesTab({
                     flashingGradeKey={flashingGradeKey}
                     studentRisk={studentRiskMap.get(item.estudiante.id)}
                     getNotaValue={getNotaValue}
+                    getNotaEstado={getNotaEstado}
                     getCondBadgeVariant={getCondBadgeVariant}
                     onOpenEditNota={handleOpenEditNota}
+                    notas={notas}
                   />
                 ))}
               </tbody>
@@ -1875,213 +2077,199 @@ export default function GradesTab({
         isOpen={isEditNotaModalOpen}
         onClose={() => setIsEditNotaModalOpen(false)}
         title="Asignar Calificación"
-        subtitle={selectedStudentForNota && selectedEvalForNota ? `${selectedStudentForNota.apellido}, ${selectedStudentForNota.nombre} • ${selectedEvalForNota.titulo}` : ''}
+        subtitle={selectedStudentForNota && selectedEvalForNota ? `${selectedStudentForNota.apellido}, ${selectedStudentForNota.nombre} • ${selectedEvalForNota.titulo || selectedEvalForNota.nombre}` : ''}
       >
         <form onSubmit={handleSaveNotaSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-              Calificación Numérica (1 a 10)
-            </label>
-            <DebouncedGradeInput
-              autoFocus
-              placeholder="Ej: 7.5 (dejar vacío para borrar nota)"
-              value={inputNotaValor}
-              delay={300}
-              onDebouncedChange={(val) => {
-                setInputNotaValor(val);
-                setIsDirty(true);
-              }}
-              className="w-full px-3.5 py-3 text-lg font-mono font-bold border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-            />
-            <p className="text-[11px] text-text-muted mt-1.5">
-              {selectedEvalForNota?.tipo === 'RECUPERATORIO' 
-                ? 'Nota de examen recuperatorio: se conserva en paralelo sin sobreescribir la nota del examen original.' 
-                : 'Escala numérica estándar reglamentaria de 1 a 10. Deja en blanco o presiona "Borrar Nota" para eliminarla.'}
-            </p>
-          </div>
+          {(() => {
+            const evalTipoUpper = String(selectedEvalForNota?.tipo || '').toUpperCase();
+            const esTP = evalTipoUpper === 'TP' || evalTipoUpper.includes('TRABAJO') || evalTipoUpper.includes('PRÁCTICO') || evalTipoUpper.includes('PRACTICO');
+            const esParcial = evalTipoUpper.includes('PARCIAL') || evalTipoUpper.includes('RECUP') || evalTipoUpper === 'PRUEBA';
 
-          <div className="flex items-center justify-between gap-2 pt-3 border-t border-surface-border">
-            <div>
-              {selectedStudentForNota && selectedEvalForNota && getNotaValue(selectedStudentForNota.id, selectedEvalForNota.id) !== null && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={Trash2}
-                  type="button"
-                  onClick={handleDeleteNota}
-                  loading={savingNota}
-                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 border-rose-200 dark:border-rose-900/50 text-xs"
-                  title="Eliminar la calificación asignada a este estudiante"
-                >
-                  Borrar Nota
-                </Button>
-              )}
-            </div>
+            return (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+                    Calificación Numérica (1 a 10)
+                  </label>
+                  <DebouncedGradeInput
+                    autoFocus
+                    placeholder={
+                      selectedEstadoNota === 'NO_ENTREGO'
+                        ? 'No entregó (N/E) marcado'
+                        : selectedEstadoNota === 'AUSENTE'
+                        ? 'Ausente (Aus.) marcado'
+                        : 'Ej: 7.5 (dejar vacío para borrar nota)'
+                    }
+                    value={inputNotaValor}
+                    delay={300}
+                    onKeyDown={(e) => {
+                      if (e.key === 'a' || e.key === 'A') {
+                        if (esParcial) {
+                          e.preventDefault();
+                          setSelectedEstadoNota(prev => prev === 'AUSENTE' ? null : 'AUSENTE');
+                          setInputNotaValor('');
+                        }
+                      } else if (e.key === 'n' || e.key === 'N') {
+                        if (esTP) {
+                          e.preventDefault();
+                          setSelectedEstadoNota(prev => prev === 'NO_ENTREGO' ? null : 'NO_ENTREGO');
+                          setInputNotaValor('');
+                        }
+                      }
+                    }}
+                    onDebouncedChange={(val) => {
+                      setInputNotaValor(val);
+                      if (val && val.trim() !== '') {
+                        setSelectedEstadoNota('CALIFICADO');
+                      }
+                      setIsDirty(true);
+                    }}
+                    className="w-full px-3.5 py-3 text-lg font-mono font-bold border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+                  />
+                  <p className="text-[11px] text-text-muted mt-1.5">
+                    {String(selectedEvalForNota?.tipo || '').toUpperCase().includes('RECUP') 
+                      ? 'Nota de examen recuperatorio: se conserva en paralelo sin sobreescribir la nota del examen original.' 
+                      : 'Escala numérica estándar reglamentaria de 1 a 10.'}
+                  </p>
+                </div>
 
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" onClick={() => setIsEditNotaModalOpen(false)} type="button">
-                Cancelar
-              </Button>
-              <Button type="submit" loading={savingNota}>
-                Guardar Nota
-              </Button>
-            </div>
-          </div>
+                {/* Acciones de estado especial contextual */}
+                <div className="pt-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono uppercase font-bold text-text-muted">
+                      Estado Especial:
+                    </span>
+                    <span className="text-[10px] text-text-muted italic">
+                      (Para instancias no aprobadas reglamentarias)
+                    </span>
+                  </div>
+
+                  {esTP && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedEstadoNota === 'NO_ENTREGO') {
+                          setSelectedEstadoNota(null);
+                        } else {
+                          setSelectedEstadoNota('NO_ENTREGO');
+                          setInputNotaValor('');
+                        }
+                      }}
+                      className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                        selectedEstadoNota === 'NO_ENTREGO'
+                          ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-white shadow-sm ring-2 ring-slate-400/40'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/70'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-slate-400" />
+                        <span>Marcar como &quot;No entregó&quot;</span>
+                        <span className="px-1.5 py-0.5 rounded font-mono text-[10px] bg-slate-200/80 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold border border-slate-300 dark:border-slate-600">
+                          N/E
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono opacity-70">
+                        Atajo: [N]
+                      </span>
+                    </button>
+                  )}
+
+                  {esParcial && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedEstadoNota === 'AUSENTE') {
+                          setSelectedEstadoNota(null);
+                        } else {
+                          setSelectedEstadoNota('AUSENTE');
+                          setInputNotaValor('');
+                        }
+                      }}
+                      className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                        selectedEstadoNota === 'AUSENTE'
+                          ? 'bg-rose-600 text-white border-rose-600 dark:bg-rose-600 shadow-sm ring-2 ring-rose-400/40'
+                          : 'bg-rose-50/60 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/40 hover:bg-rose-100/70 dark:hover:bg-rose-950/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="w-4 h-4" />
+                        <span>Marcar como &quot;Ausente al Examen&quot;</span>
+                        <span className="px-1.5 py-0.5 rounded font-mono text-[10px] bg-rose-200/80 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200 font-bold border border-rose-300 dark:border-rose-700">
+                          Aus.
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono opacity-70">
+                        Atajo: [A]
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Banner explicativo según estado */}
+                  {selectedEstadoNota === 'NO_ENTREGO' && (
+                    <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 animate-fadeIn">
+                      <AlertCircle className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="font-bold">No entregó (N/E):</strong> Computa como desaprobado para regularidad y requerirá instancia de recuperatorio reglamentario.
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedEstadoNota === 'AUSENTE' && (
+                    <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 flex items-start gap-2.5 text-xs text-rose-800 dark:text-rose-300 animate-fadeIn">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="font-bold">Ausente al examen (Aus.):</strong> Inasistencia computada como desaprobada con derecho a examen recuperatorio.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-3 border-t border-surface-border">
+                  <div>
+                    {selectedStudentForNota && selectedEvalForNota && (getNotaValue(selectedStudentForNota.id, selectedEvalForNota.id) !== null || getNotaEstado(selectedStudentForNota.id, selectedEvalForNota.id) !== null) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        icon={Trash2}
+                        type="button"
+                        onClick={handleDeleteNota}
+                        loading={savingNota}
+                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 border-rose-200 dark:border-rose-900/50 text-xs"
+                        title="Eliminar la calificación asignada a este estudiante"
+                      >
+                        Borrar
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" onClick={() => setIsEditNotaModalOpen(false)} type="button">
+                      Cancelar
+                    </Button>
+                    <Button type="submit" loading={savingNota}>
+                      {selectedEstadoNota === 'NO_ENTREGO'
+                        ? 'Guardar "No entregó"'
+                        : selectedEstadoNota === 'AUSENTE'
+                        ? 'Guardar "Ausente"'
+                        : 'Guardar Calificación'}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </form>
       </Modal>
 
-      {/* Modal / Bottom Sheet Nueva Evaluación */}
-      <Modal
+      {/* Modal Nueva Evaluación */}
+      <NuevaEvaluacionModal
         isOpen={isNewEvalModalOpen}
         onClose={() => setIsNewEvalModalOpen(false)}
-        title="Crear Nueva Evaluación"
-        subtitle="Registra un Parcial, Trabajo Práctico o Recuperatorio con fecha de entrega y consignas"
-      >
-        <form onSubmit={handleCreateEvaluacion} className="space-y-4">
-          <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-text-secondary leading-relaxed flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <span>
-              Puedes registrar la evaluación ahora y colocar el enlace a Google Drive de sus consignas. Se guardará de inmediato y no penalizará a los alumnos mientras esté en plazo.
-            </span>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-              Título o Nombre de la Evaluación *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="Ej: TP N° 1 - Modelado Relacional, Parcial 1..."
-              value={evalTitulo}
-              onChange={(e) => setEvalTitulo(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-                Tipo de Evaluación *
-              </label>
-              <CustomSelect
-                value={evalTipo}
-                onChange={(val) => setEvalTipo(typeof val === 'object' ? val.target.value : val)}
-                options={[
-                  { value: 'PARCIAL', label: 'Parcial (Instancia Mayor)', badge: 'Mayor' },
-                  { value: 'TP', label: 'Trabajo Práctico Obligatorio', badge: 'TP' },
-                  { value: 'PRUEBA', label: 'Prueba Escrita / Periódica', badge: 'Prueba' },
-                  { value: 'RECUPERATORIO', label: 'Recuperatorio', badge: 'Recup' }
-                ]}
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold uppercase text-text-secondary">
-                  Fecha de Entrega (Opcional)
-                </label>
-                {evalFechaEntrega && (
-                  <span className="text-[10px] font-mono text-primary font-bold">
-                    {formatFechaDMY(evalFechaEntrega)}
-                  </span>
-                )}
-              </div>
-              <input
-                type="date"
-                value={evalFechaEntrega}
-                onChange={(e) => setEvalFechaEntrega(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-              />
-            </div>
-          </div>
-
-          {periodos.length > 0 && (
-            <div>
-              <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-                Período Académico (Opcional)
-              </label>
-              <CustomSelect
-                value={evalPeriodoId}
-                onChange={(val) => setEvalPeriodoId(typeof val === 'object' ? val.target.value : val)}
-                options={[
-                  { value: '', label: '-- General / Todo el Ciclo --' },
-                  ...periodos.map(p => ({
-                    value: p.id,
-                    label: p.nombre || `Período ${p.numero}`
-                  }))
-                ]}
-                placeholder="Seleccionar período académico..."
-              />
-            </div>
-          )}
-
-          {evalTipo === 'RECUPERATORIO' && (
-            <div>
-              <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-                Vincular al Parcial Original (Opcional)
-              </label>
-              <CustomSelect
-                value={evalOrigenId}
-                onChange={(val) => setEvalOrigenId(typeof val === 'object' ? val.target.value : val)}
-                options={[
-                  { value: '', label: '-- Sin vinculación directa --' },
-                  ...evaluaciones.filter(e => e.tipo === 'PARCIAL' || e.tipo === 'PRUEBA').map(e => ({
-                    value: e.id,
-                    label: `${e.titulo} (${e.tipo})`
-                  }))
-                ]}
-                placeholder="Seleccionar evaluación original..."
-              />
-            </div>
-          )}
-
-          {/* Enlace de Google Drive a Consignas / Trabajo Práctico */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold uppercase text-text-secondary">
-                Enlace a Google Drive con Consignas / TP (Opcional)
-              </label>
-              <a
-                href="https://drive.google.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] font-semibold text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <ExternalLink className="w-3 h-3" />
-                <span>Abrir Drive</span>
-              </a>
-            </div>
-            <div className="relative">
-              <input
-                type="url"
-                placeholder="https://drive.google.com/file/d/..."
-                value={evalDriveUrl}
-                onChange={(e) => setEvalDriveUrl(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-              />
-              <LinkIcon className="w-4 h-4 text-text-muted absolute left-3 top-3" />
-            </div>
-            <p className="text-[11px] text-text-muted mt-1.5 leading-relaxed">
-              Guarda tus consignas directamente en Google Drive sin ocupar cuota en Supabase y pega aquí el enlace compartido.
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">
-            <Button
-              variant="secondary"
-              onClick={() => setIsNewEvalModalOpen(false)}
-              type="button"
-              disabled={savingEval}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" loading={savingEval}>
-              Guardar Evaluación
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        onSave={handleCreateEvaluacion}
+        periodos={periodos}
+        evaluaciones={evaluaciones}
+        saving={savingEval}
+      />
 
       {/* Modal Editar Evaluación */}
       <Modal
@@ -2090,58 +2278,73 @@ export default function GradesTab({
           setIsEditEvalModalOpen(false);
           setEditingEval(null);
         }}
-        title={`Editar: ${editingEval?.titulo || ''}`}
-        subtitle="Modifica el título, tipo, fecha de entrega o consignas en Google Drive"
+        title={`Editar: ${editingEval?.titulo || editingEval?.nombre || ''}`}
+        subtitle="Modifica el título, tipo, formato, fecha estipulada o consignas en Google Drive"
       >
         <form onSubmit={handleSaveEditEvaluacion} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
-              Título de la Evaluación *
+            <label className="block text-xs font-mono uppercase font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Título o Nombre de la Evaluación *
             </label>
             <input
               type="text"
               required
               value={editEvalTitulo}
               onChange={(e) => setEditEvalTitulo(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all font-medium"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+              <label className="block text-xs font-mono uppercase font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Tipo de Evaluación *
               </label>
-              <CustomSelect
+              <select
                 value={editEvalTipo}
-                onChange={(val) => setEditEvalTipo(typeof val === 'object' ? val.target.value : val)}
-                options={[
-                  { value: 'PARCIAL', label: 'Parcial (Instancia Mayor)', badge: 'Mayor' },
-                  { value: 'TP', label: 'Trabajo Práctico Obligatorio', badge: 'TP' },
-                  { value: 'PRUEBA', label: 'Prueba Escrita / Periódica', badge: 'Prueba' },
-                  { value: 'RECUPERATORIO', label: 'Recuperatorio', badge: 'Recup' }
-                ]}
-              />
+                onChange={(e) => setEditEvalTipo(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
+              >
+                <option value="Parcial">Parcial</option>
+                <option value="Trabajo Práctico">Trabajo Práctico</option>
+                <option value="Recuperatorio">Recuperatorio</option>
+              </select>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold uppercase text-text-secondary">
-                  Fecha de Entrega (Opcional)
-                </label>
-                {editEvalFechaEntrega && (
-                  <span className="text-[10px] font-mono text-primary font-bold">
-                    {formatFechaDMY(editEvalFechaEntrega)}
-                  </span>
-                )}
-              </div>
-              <input
-                type="date"
-                value={editEvalFechaEntrega}
-                onChange={(e) => setEditEvalFechaEntrega(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm font-mono border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-surface text-text-primary"
-              />
+              <label className="block text-xs font-mono uppercase font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Formato
+              </label>
+              <select
+                value={editEvalFormato}
+                onChange={(e) => setEditEvalFormato(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
+              >
+                <option value="Escrito">Escrito</option>
+                <option value="Oral">Oral</option>
+              </select>
             </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-mono uppercase font-semibold text-slate-700 dark:text-slate-300">
+                {editEvalTipo === 'Trabajo Práctico' || editEvalTipo === 'TP'
+                  ? 'Fecha de Entrega'
+                  : 'Fecha Estipulada'}
+              </label>
+              {editEvalFechaEntrega && (
+                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                  {formatFechaDMY(editEvalFechaEntrega)}
+                </span>
+              )}
+            </div>
+            <input
+              type="date"
+              value={editEvalFechaEntrega}
+              onChange={(e) => setEditEvalFechaEntrega(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm font-mono focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
+            />
           </div>
 
           {/* Enlace de Google Drive a Consignas / Trabajo Práctico */}

@@ -68,8 +68,14 @@ export function calculateStudentRisk(studentId, {
     }
   });
 
-  const parciales = evaluaciones.filter(e => e.tipo === 'PARCIAL');
-  const recuperatorios = evaluaciones.filter(e => e.tipo === 'RECUPERATORIO');
+  const parciales = evaluaciones.filter(e => {
+    const t = String(e.tipo || '').toUpperCase();
+    return t === 'PARCIAL' || t === 'PRUEBA' || (t.includes('PARCIAL') && !t.includes('RECUP'));
+  });
+  const recuperatorios = evaluaciones.filter(e => {
+    const t = String(e.tipo || '').toUpperCase();
+    return t === 'RECUPERATORIO' || t.includes('RECUP');
+  });
 
   let parcialesReprobadosSinRecup = 0;
   let parcialesConNotaBaja = 0;

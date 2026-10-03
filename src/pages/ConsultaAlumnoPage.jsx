@@ -777,6 +777,14 @@ export default function ConsultaAlumnoPage() {
                                 }`}>
                                   CALIFICACIÓN {notaNum.toFixed(1)} / 10
                                 </span>
+                              ) : ev.estado === 'NO_ENTREGO' ? (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300/80 dark:border-slate-700 shadow-2xs">
+                                  ESTADO: NO ENTREGÓ
+                                </span>
+                              ) : ev.estado === 'AUSENTE' ? (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-500/10 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-500/30 shadow-2xs">
+                                  ESTADO: AUSENTE
+                                </span>
                               ) : (
                                 <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-400">
                                   Pendiente
