@@ -35,6 +35,10 @@ export async function getEstudiantesCatedra(catedraId, options = {}) {
         nota_final,
         nota_final_acreditacion,
         fecha_acreditacion,
+        es_equivalencia,
+        tiene_certificado_trabajo,
+        resolucion_equivalencia,
+        fecha_equivalencia,
         ciclos_lectivos ( id, nombre, anio ),
         estudiantes (
           id,
@@ -139,6 +143,10 @@ export async function getEstudiantesCatedra(catedraId, options = {}) {
           nota_final_acreditacion: notaFinal,
           nota_final: notaFinal,
           fecha_acreditacion: ins.fecha_acreditacion || null,
+          es_equivalencia: Boolean(ins.es_equivalencia),
+          tiene_certificado_trabajo: Boolean(ins.tiene_certificado_trabajo),
+          resolucion_equivalencia: ins.resolucion_equivalencia || null,
+          fecha_equivalencia: ins.fecha_equivalencia || null,
           ciclo_id: ins.ciclo_id || null,
           ciclo_lectivo: ins.ciclos_lectivos || null,
           acta_reciente: actaMatch || null
@@ -161,6 +169,10 @@ export async function getEstudiantesCatedra(catedraId, options = {}) {
           return parsed.map(s => ({
             ...s,
             estado_academico: s.estado_academico ?? 'CURSANDO',
+            es_equivalencia: Boolean(s.es_equivalencia),
+            tiene_certificado_trabajo: Boolean(s.tiene_certificado_trabajo),
+            resolucion_equivalencia: s.resolucion_equivalencia || null,
+            fecha_equivalencia: s.fecha_equivalencia || null,
             nota_final_acreditacion: s.nota_final_acreditacion ?? s.nota_final ?? null,
             nota_final: s.nota_final_acreditacion ?? s.nota_final ?? null
           }));
@@ -186,4 +198,134 @@ export async function getEstudiantesCatedra(catedraId, options = {}) {
   }
 
   return sample;
+}
+
+/**
+ * Actualiza el estado del certificado de trabajo de un estudiante en la cátedra.
+ */
+export async function actualizarCertificadoTrabajo(catedraId, estudianteId, tieneCertificado, options = {}) {
+  const client = options.supabase || defaultSupabase;
+  const isDemo = Boolean(options.isDemo);
+
+  if (isSupabaseConfigured && !isDemo && client) {
+    try {
+      const { error } = await client
+        .from('inscripciones')
+        .update({ tiene_certificado_trabajo: Boolean(tieneCertificado) })
+        .eq('catedra_id', catedraId)
+        .eq('estudiante_id', estudianteId);
+      if (error) {
+        console.warn('[catedraEstudiantesService] Error al actualizar certificado de trabajo en BD:', error);
+      }
+    } catch (e) {
+      console.warn('[catedraEstudiantesService] Excepción al actualizar certificado de trabajo:', e);
+    }
+  }
+
+  // Actualizar localStorage / cache
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const stored = localStorage.getItem(`estudiantes_${catedraId}`);
+      if (stored) {
+        const list = JSON.parse(stored);
+        const updated = list.map(st => st.id === estudianteId ? { ...st, tiene_certificado_trabajo: Boolean(tieneCertificado) } : st);
+        localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
+      }
+    } catch (_) {}
+  }
+}
+
+/**
+ * Declara la acreditación por equivalencia reglamentaria para un estudiante en la cátedra.
+ */
+export async function declararEquivalencia(catedraId, estudianteId, { resolucion = '', fecha = '' } = {}, options = {}) {
+  const client = options.supabase || defaultSupabase;
+  const isDemo = Boolean(options.isDemo);
+  const fechaEquiv = fecha || new Date().toISOString().split('T')[0];
+
+  if (isSupabaseConfigured && !isDemo && client) {
+    try {
+      const { error } = await client
+        .from('inscripciones')
+        .update({
+          es_equivalencia: true,
+          resolucion_equivalencia: resolucion || null,
+          fecha_equivalencia: fechaEquiv,
+          condicion: 'ACREDITADA_EQUIVALENCIA',
+          estado_academico: 'ACREDITADO'
+        })
+        .eq('catedra_id', catedraId)
+        .eq('estudiante_id', estudianteId);
+      if (error) {
+        console.warn('[catedraEstudiantesService] Error al declarar equivalencia en BD:', error);
+      }
+    } catch (e) {
+      console.warn('[catedraEstudiantesService] Excepción al declarar equivalencia:', e);
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const stored = localStorage.getItem(`estudiantes_${catedraId}`);
+      if (stored) {
+        const list = JSON.parse(stored);
+        const updated = list.map(st => st.id === estudianteId ? {
+          ...st,
+          es_equivalencia: true,
+          resolucion_equivalencia: resolucion || null,
+          fecha_equivalencia: fechaEquiv,
+          condicion: 'ACREDITADA_EQUIVALENCIA',
+          estado_academico: 'ACREDITADO'
+        } : st);
+        localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
+      }
+    } catch (_) {}
+  }
+}
+
+/**
+ * Revierte la condición de equivalencia volviendo al alumno a condición regular cursante.
+ */
+export async function revertirEquivalencia(catedraId, estudianteId, options = {}) {
+  const client = options.supabase || defaultSupabase;
+  const isDemo = Boolean(options.isDemo);
+
+  if (isSupabaseConfigured && !isDemo && client) {
+    try {
+      const { error } = await client
+        .from('inscripciones')
+        .update({
+          es_equivalencia: false,
+          resolucion_equivalencia: null,
+          fecha_equivalencia: null,
+          condicion: 'REGULAR',
+          estado_academico: 'CURSANDO'
+        })
+        .eq('catedra_id', catedraId)
+        .eq('estudiante_id', estudianteId);
+      if (error) {
+        console.warn('[catedraEstudiantesService] Error al revertir equivalencia en BD:', error);
+      }
+    } catch (e) {
+      console.warn('[catedraEstudiantesService] Excepción al revertir equivalencia:', e);
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const stored = localStorage.getItem(`estudiantes_${catedraId}`);
+      if (stored) {
+        const list = JSON.parse(stored);
+        const updated = list.map(st => st.id === estudianteId ? {
+          ...st,
+          es_equivalencia: false,
+          resolucion_equivalencia: null,
+          fecha_equivalencia: null,
+          condicion: 'REGULAR',
+          estado_academico: 'CURSANDO'
+        } : st);
+        localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(updated));
+      }
+    } catch (_) {}
+  }
 }

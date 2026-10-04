@@ -90,6 +90,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
   const [criterios, setCriterios] = useState({
     min_asist_promo: 80,
     min_asist_reg: 70,
+    min_asist_trabajo: 60,
     nota_min_promo: 7,
     nota_min_reg: 4,
     nota_min_sec: 6
@@ -128,8 +129,9 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
 
   async function loadAllSettings(initNombre, initMod, initNivel, initHorarios) {
     let loadedCrit = {
-      min_asist_promo: 80,
-      min_asist_reg: 70,
+      min_asist_promo: Number(catedra?.ram_asistencia_promocion) || 80,
+      min_asist_reg: Number(catedra?.ram_asistencia_regular) || 70,
+      min_asist_trabajo: Number(catedra?.ram_asistencia_trabajo) || 60,
       nota_min_promo: 7,
       nota_min_reg: 4,
       nota_min_sec: 6
@@ -150,8 +152,9 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
 
         if (critData) {
           loadedCrit = {
-            min_asist_promo: Number(critData.min_asist_promo) || 80,
-            min_asist_reg: Number(critData.min_asist_reg) || 70,
+            min_asist_promo: Number(critData.min_asist_promo) || Number(catedra?.ram_asistencia_promocion) || 80,
+            min_asist_reg: Number(critData.min_asist_reg) || Number(catedra?.ram_asistencia_regular) || 70,
+            min_asist_trabajo: Number(critData.min_asist_trabajo) || Number(catedra?.ram_asistencia_trabajo) || 60,
             nota_min_promo: Number(critData.nota_min_promo) || 7,
             nota_min_reg: Number(critData.nota_min_reg) || 4,
             nota_min_sec: Number(critData.nota_min_sec) || 6
@@ -274,11 +277,29 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
           .update({
             nombre: nombre.trim(),
             modalidad,
-            horarios_semanales: horarios
+            horarios_semanales: horarios,
+            ram_asistencia_regular: Number(criterios.min_asist_reg || 70),
+            ram_asistencia_trabajo: Number(criterios.min_asist_trabajo || 60),
+            ram_asistencia_promocion: Number(criterios.min_asist_promo || 80)
           })
           .eq('id', catedra.id)
           .select()
           .single();
+
+        if (catError && (catError.code === '42703' || catError.message?.includes('ram_asistencia'))) {
+          const retryRes = await supabase
+            .from('catedras')
+            .update({
+              nombre: nombre.trim(),
+              modalidad,
+              horarios_semanales: horarios
+            })
+            .eq('id', catedra.id)
+            .select()
+            .single();
+          catError = retryRes.error;
+          updatedCatedra = retryRes.data;
+        }
 
         if (catError && (catError.message?.includes('violates check constraint') || catError.message?.includes('catedras_modalidad_check'))) {
           const fallbackRes = await supabase
@@ -291,24 +312,38 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
             .eq('id', catedra.id)
             .select()
             .single();
-          if (fallbackRes.error) throw fallbackRes.error;
-          updatedCatedra = fallbackRes.data;
-          toast.info(`Modalidad guardada. Ejecuta 'supabase/update_modalidad_check.sql' en el SQL Editor para guardar el valor exacto.`);
+          if (!fallbackRes.error) {
+            updatedCatedra = fallbackRes.data;
+            catError = null;
+          }
         } else if (catError) {
           throw catError;
         }
 
+        // Sincronizar localmente y disparar evento de parámetros RAM
+        window.dispatchEvent(new CustomEvent('catedra_ram_updated', {
+          detail: {
+            catedraId: catedra.id,
+            ram: {
+              ram_asistencia_regular: Number(criterios.min_asist_reg || 70),
+              ram_asistencia_trabajo: Number(criterios.min_asist_trabajo || 60),
+              ram_asistencia_promocion: Number(criterios.min_asist_promo || 80)
+            }
+          }
+        }));
+
         // 2. Upsert criterios
+        const critPayload = {
+          catedra_id: catedra.id,
+          min_asist_promo: criterios.min_asist_promo,
+          min_asist_reg: criterios.min_asist_reg,
+          nota_min_promo: criterios.nota_min_promo,
+          nota_min_reg: criterios.nota_min_reg,
+          nota_min_sec: criterios.nota_min_sec
+        };
         const { error: critError } = await supabase
           .from('criterios_evaluacion')
-          .upsert({
-            catedra_id: catedra.id,
-            min_asist_promo: criterios.min_asist_promo,
-            min_asist_reg: criterios.min_asist_reg,
-            nota_min_promo: criterios.nota_min_promo,
-            nota_min_reg: criterios.nota_min_reg,
-            nota_min_sec: criterios.nota_min_sec
-          }, { onConflict: 'catedra_id' });
+          .upsert(critPayload, { onConflict: 'catedra_id' });
 
         if (critError) throw critError;
 
@@ -891,6 +926,24 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                     <span className="text-xs font-bold text-text-muted">%</span>
                   </div>
                   <p className="text-[10px] text-text-muted mt-1">Reglamentario: 70%</p>
+                </div>
+
+                <div className="p-3 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-900/40">
+                  <label className="block text-xs font-medium text-text-secondary mb-1 flex items-center gap-1">
+                    <span>💼 % Asist. Régimen Laboral</span>
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={criterios.min_asist_trabajo ?? 60}
+                      onChange={(e) => setCriterios({ ...criterios, min_asist_trabajo: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 text-sm font-mono font-bold border border-blue-200 dark:border-blue-800 rounded-lg bg-surface text-blue-700 dark:text-blue-300"
+                    />
+                    <span className="text-xs font-bold text-text-muted">%</span>
+                  </div>
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1 font-semibold">Reglamentario RAM: 60%</p>
                 </div>
 
                 <div className="p-3 bg-surface-hover/30 rounded-xl border border-surface-border">

@@ -69,6 +69,11 @@ export default function EditarCatedraModal({
   const [modalidad, setModalidad] = useState('ANUAL');
   const [horarios, setHorarios] = useState([]);
 
+  // Estados de configuración de asistencia RAM
+  const [asistRegular, setAsistRegular] = useState(70);
+  const [asistTrabajo, setAsistTrabajo] = useState(60);
+  const [asistPromo, setAsistPromo] = useState(80);
+
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -140,6 +145,11 @@ export default function EditarCatedraModal({
 
       setNivel(catedra.nivel || 'TERCIARIO');
       setModalidad(catedra.modalidad || 'ANUAL');
+
+      // Parámetros RAM
+      setAsistRegular(Number(catedra.ram_asistencia_regular) || 70);
+      setAsistTrabajo(Number(catedra.ram_asistencia_trabajo) || 60);
+      setAsistPromo(Number(catedra.ram_asistencia_promocion) || 80);
 
       const rawHorarios = Array.isArray(catedra.horarios_semanales) ? catedra.horarios_semanales : [];
       setHorarios(rawHorarios.map((h, i) => ({
@@ -214,6 +224,9 @@ export default function EditarCatedraModal({
           nivel,
           modalidad,
           horarios_semanales: cleanHorarios,
+          ram_asistencia_regular: Number(asistRegular),
+          ram_asistencia_trabajo: Number(asistTrabajo),
+          ram_asistencia_promocion: Number(asistPromo),
           updated_at: new Date().toISOString()
         };
 
@@ -223,12 +236,12 @@ export default function EditarCatedraModal({
           .eq('id', catedra.id)
           .select('*, instituciones(*), ciclos_lectivos(*)');
 
-        // Fallback defensivo si la columna 'updated_at' aún no existe en el esquema PostgreSQL (código 42703)
-        if (error && (error.code === '42703' || error.message?.includes('updated_at'))) {
-          const { updated_at, ...payloadWithoutUpdatedAt } = updatePayload;
+        // Fallback defensivo si alguna columna RAM o 'updated_at' no existe en el esquema PostgreSQL
+        if (error && (error.code === '42703' || error.message?.includes('ram_asistencia') || error.message?.includes('updated_at'))) {
+          const { ram_asistencia_regular, ram_asistencia_trabajo, ram_asistencia_promocion, updated_at, ...payloadBase } = updatePayload;
           const retryRes = await supabase
             .from('catedras')
-            .update(payloadWithoutUpdatedAt)
+            .update(payloadBase)
             .eq('id', catedra.id)
             .select('*, instituciones(*), ciclos_lectivos(*)');
           data = retryRes.data;
@@ -290,6 +303,9 @@ export default function EditarCatedraModal({
           nivel,
           modalidad,
           horarios_semanales: cleanHorarios,
+          ram_asistencia_regular: Number(asistRegular),
+          ram_asistencia_trabajo: Number(asistTrabajo),
+          ram_asistencia_promocion: Number(asistPromo),
           updated_at: new Date().toISOString()
         };
 
@@ -305,6 +321,32 @@ export default function EditarCatedraModal({
           localStorage.setItem('cached_catedras', JSON.stringify(newCached));
         }
       }
+
+      // Sincronizar criterios RAM locales
+      try {
+        const prevCrit = JSON.parse(localStorage.getItem(`criterios_${catedra.id}`) || '{}');
+        localStorage.setItem(`criterios_${catedra.id}`, JSON.stringify({
+          ...prevCrit,
+          min_asist_reg: Number(asistRegular),
+          min_asist_trabajo: Number(asistTrabajo),
+          min_asist_promo: Number(asistPromo),
+          ram_asistencia_regular: Number(asistRegular),
+          ram_asistencia_trabajo: Number(asistTrabajo),
+          ram_asistencia_promocion: Number(asistPromo)
+        }));
+      } catch (_) {}
+
+      // Disparar evento para actualizar componentes reactivamente
+      window.dispatchEvent(new CustomEvent('catedra_ram_updated', {
+        detail: {
+          catedraId: catedra.id,
+          ram: {
+            ram_asistencia_regular: Number(asistRegular),
+            ram_asistencia_trabajo: Number(asistTrabajo),
+            ram_asistencia_promocion: Number(asistPromo)
+          }
+        }
+      }));
 
       // 1. Sincronizar inmediatamente el estado global de cátedras en memoria (AppContext)
       if (setCatedras && updatedCatedra) {
@@ -484,7 +526,75 @@ export default function EditarCatedraModal({
             </div>
           </div>
 
-          {/* 4. SECCIÓN: HORARIOS SEMANALES Y AULA */}
+          {/* 4. SECCIÓN: RÉGIMEN ACADÉMICO MARCO (RAM) Y ASISTENCIA */}
+          <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/80 space-y-3.5">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Régimen Académico Marco (RAM) y Asistencia</span>
+            </div>
+
+            <p className="text-[11px] text-text-muted leading-relaxed">
+              Configura los umbrales mínimos porcentuales de asistencia para regularidad, régimen especial laboral y promoción directa.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
+                  Asistencia Estándar (%)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={asistRegular}
+                    onChange={(e) => setAsistRegular(Number(e.target.value))}
+                    className="w-full px-2.5 py-1.5 text-sm font-mono font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <span className="text-xs font-mono font-bold text-text-muted">%</span>
+                </div>
+                <span className="text-[10px] text-text-muted block mt-1">Reglamentario: 70%</span>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-blue-200/60 dark:border-blue-900/40 shadow-2xs">
+                <label className="block text-xs font-semibold text-text-secondary mb-1 flex items-center gap-1">
+                  <span>💼 Régimen Laboral (%)</span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={asistTrabajo}
+                    onChange={(e) => setAsistTrabajo(Number(e.target.value))}
+                    className="w-full px-2.5 py-1.5 text-sm font-mono font-bold border border-blue-200 dark:border-blue-900/60 rounded-lg bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <span className="text-xs font-mono font-bold text-text-muted">%</span>
+                </div>
+                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold block mt-1">Reglamentario RAM: 60%</span>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <label className="block text-xs font-semibold text-text-secondary mb-1">
+                  Promoción Directa (%)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={asistPromo}
+                    onChange={(e) => setAsistPromo(Number(e.target.value))}
+                    className="w-full px-2.5 py-1.5 text-sm font-mono font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <span className="text-xs font-mono font-bold text-text-muted">%</span>
+                </div>
+                <span className="text-[10px] text-text-muted block mt-1">Reglamentario: 80%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. SECCIÓN: HORARIOS SEMANALES Y AULA */}
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
               <div>

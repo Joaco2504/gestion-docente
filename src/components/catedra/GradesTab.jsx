@@ -53,6 +53,7 @@ import { QuickSaveFab } from '../common/QuickSaveFAB';
 import { catedraCache } from '../../services/catedraCache';
 import NuevaEvaluacionModal from './modals/NuevaEvaluacionModal';
 import GradeCell from './GradeCell';
+import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
 
 /**
  * DebouncedGradeInput - Input de nota con debounce configurable (default 300ms)
@@ -131,20 +132,36 @@ const GradeRow = React.memo(function GradeRow({
           </div>
           <RiskBadge risk={studentRisk} compact />
         </div>
-        <div className="text-[11px] font-mono tabular-nums text-text-muted pl-7">
-          DNI: {est.dni || 'S/D'}
+        <div className="text-[11px] font-mono tabular-nums text-text-muted pl-7 flex items-center gap-1.5 flex-wrap">
+          <span>DNI: {est.dni || 'S/D'}</span>
+          {est.es_equivalencia && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold font-sans">
+              Equivalencia
+            </span>
+          )}
+          {est.tiene_certificado_trabajo && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold font-sans" title="Régimen Laboral acreditado (60%)">
+              💼 60%
+            </span>
+          )}
         </div>
       </td>
 
       {/* Attendance % */}
       <td className="px-3 py-3 text-center font-mono tabular-nums w-24 sm:w-28">
-        <span className={`px-2 py-0.5 rounded text-xs font-bold tabular-nums ${
-          item.asistenciaPct < 70 
-            ? 'bg-red-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300' 
-            : 'bg-green-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-        }`}>
-          {item.asistenciaPct}%
-        </span>
+        {est.es_equivalencia ? (
+          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500" title="Exento de asistencia obligatoria por Acreditación por Equivalencia">
+            Exento
+          </span>
+        ) : (
+          <span className={`px-2 py-0.5 rounded text-xs font-bold tabular-nums ${
+            item.asistenciaPct < (est.tiene_certificado_trabajo ? 60 : 70) 
+              ? 'bg-red-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300' 
+              : 'bg-green-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+          }`}>
+            {item.asistenciaPct}%
+          </span>
+        )}
       </td>
 
       {/* Main evaluations and linked recuperatorios */}
@@ -179,7 +196,7 @@ const GradeRow = React.memo(function GradeRow({
         <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-1.5">
             <Badge variant={getCondBadgeVariant(item.condicion?.condicion)}>
-              {item.condicion?.condicion}
+              {item.condicion?.condicion === 'ACREDITADA_EQUIVALENCIA' ? 'EQUIVALENCIA' : item.condicion?.condicion}
             </Badge>
             <RiskBadge risk={studentRisk} compact />
           </div>
@@ -366,34 +383,16 @@ export default function GradesTab({
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
-        // Round 1: Carga paralela de inscripciones, evaluaciones, clases, inasistencias, criterios y ciclo
+        // Round 1: Carga paralela de estudiantes, evaluaciones, clases, inasistencias, criterios y ciclo
         const [
-          inscRes,
+          estList,
           evalRes,
           clsRes,
           inasistRes,
           critRes,
           catRes
         ] = await Promise.all([
-          supabase
-            .from('inscripciones')
-            .select(`
-              id,
-              estudiante_id,
-              catedra_id,
-              ciclo_id,
-              estado_academico,
-              condicion,
-              nota_final,
-              nota_final_acreditacion,
-              estudiantes (
-                id,
-                dni,
-                apellido,
-                nombre
-              )
-            `)
-            .eq('catedra_id', catedraId),
+          getEstudiantesCatedra(catedraId, { supabase, isDemo }),
           supabase
             .from('evaluaciones')
             .select('id, catedra_id, titulo, tipo, evaluacion_origen_id, fecha_entrega, archivo_url, created_at')
@@ -418,25 +417,6 @@ export default function GradesTab({
             .eq('id', catedraId)
             .maybeSingle()
         ]);
-
-        const estList = (inscRes.data || [])
-          .map(ins => {
-            const est = ins.estudiantes || {};
-            const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
-            const notaFinal = ins.nota_final ?? ins.nota_final_acreditacion ?? null;
-            const estado = ins.estado_academico ?? ins.condicion ?? 'CURSANDO';
-            return {
-              ...est,
-              inscripcion_id: ins.id,
-              condicion,
-              estado_academico: estado,
-              nota_final: notaFinal,
-              nota_final_acreditacion: notaFinal
-            };
-          })
-          .filter(Boolean)
-          .filter(s => s && s.id);
-        estList.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
 
         const localKey = `evaluaciones_${catedraId}`;
         let localEvals = [];
@@ -544,13 +524,7 @@ export default function GradesTab({
         const storedClases = localStorage.getItem(`clases_${catedraId}`);
         const storedAsist = localStorage.getItem(`asistencias_${catedraId}`);
 
-        let estList = storedEst ? JSON.parse(storedEst) : [
-          { id: 'est-1', dni: '40111222', apellido: 'Álvarez', nombre: 'Martín' },
-          { id: 'est-2', dni: '39444555', apellido: 'Benítez', nombre: 'Lucía' },
-          { id: 'est-3', dni: '41888999', apellido: 'Castillo', nombre: 'Ignacio' },
-          { id: 'est-4', dni: '38222333', apellido: 'Domínguez', nombre: 'Valentina' },
-          { id: 'est-5', dni: '42333444', apellido: 'Fernández', nombre: 'Santiago' }
-        ];
+        let estList = await getEstudiantesCatedra(catedraId, { isDemo: true });
 
         let evalList = storedEval ? JSON.parse(storedEval) : [
           { id: 'eval-1', catedra_id: catedraId, titulo: 'TP N° 1 - Arquitectura', tipo: 'TP' },
@@ -1342,7 +1316,8 @@ export default function GradesTab({
         asistPct,
         evaluaciones,
         studentNotas,
-        criterios
+        criterios,
+        est
       );
 
       return {
@@ -1401,6 +1376,7 @@ export default function GradesTab({
       case 'LIBRE': return 'libre';
       case 'APROBADO': return 'promo';
       case 'DESAPROBADO': return 'libre';
+      case 'ACREDITADA_EQUIVALENCIA': return 'promo';
       default: return 'default';
     }
   };
@@ -1581,12 +1557,13 @@ export default function GradesTab({
                   ? evaluaciones.find(p => p.id === ev.evaluacion_origen_id) 
                   : null;
 
-                // Calificaciones stats
-                const validNotas = estudiantes
+                // Calificaciones stats (solo cursantes activos)
+                const activeEstudiantes = estudiantes.filter(e => !e.es_equivalencia);
+                const validNotas = activeEstudiantes
                   .map(est => getNotaValue(est.id, ev.id))
                   .filter(v => v !== null);
                 const gradedCount = validNotas.length;
-                const totalStudents = estudiantes.length;
+                const totalStudents = activeEstudiantes.length;
                 const gradedPct = totalStudents > 0 ? Math.round((gradedCount / totalStudents) * 100) : 0;
                 const avgNota = validNotas.length > 0 
                   ? (validNotas.reduce((a, b) => a + b, 0) / validNotas.length).toFixed(1) 
@@ -1802,15 +1779,25 @@ export default function GradesTab({
                           </h4>
                           <RiskBadge risk={studentRiskMap.get(est.id)} compact />
                         </div>
-                        <span className="text-[11px] font-mono text-text-muted">
-                          DNI: {est.dni}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono text-text-muted">
+                          <span>DNI: {est.dni}</span>
+                          {est.es_equivalencia && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold font-sans">
+                              Equivalencia
+                            </span>
+                          )}
+                          {est.tiene_certificado_trabajo && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold font-sans">
+                              💼 Cert. Laboral (60%)
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Condition Badge */}
                     <Badge variant={getCondBadgeVariant(item.condicion.condicion)}>
-                      {item.condicion.condicion}
+                      {item.condicion.condicion === 'ACREDITADA_EQUIVALENCIA' ? 'EQUIVALENCIA' : item.condicion.condicion}
                     </Badge>
                   </div>
 
@@ -1820,20 +1807,28 @@ export default function GradesTab({
                       <span className="text-text-muted font-medium flex items-center gap-1">
                         <Percent className="w-3.5 h-3.5" /> Asistencia
                       </span>
-                      <span className={`font-mono font-bold ${
-                        item.asistenciaPct < 70 ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'
-                      }`}>
-                        {item.asistenciaPct}%
-                      </span>
+                      {est.es_equivalencia ? (
+                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                          Exento (Equivalencia)
+                        </span>
+                      ) : (
+                        <span className={`font-mono font-bold ${
+                          item.asistenciaPct < (est.tiene_certificado_trabajo ? 60 : 70) ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'
+                        }`}>
+                          {item.asistenciaPct}%
+                        </span>
+                      )}
                     </div>
-                    <div className="w-full bg-surface rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          item.asistenciaPct < 70 ? 'bg-rose-500' : 'bg-emerald-500'
-                        }`}
-                        style={{ width: `${Math.min(100, item.asistenciaPct)}%` }}
-                      />
-                    </div>
+                    {!est.es_equivalencia && (
+                      <div className="w-full bg-surface rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            item.asistenciaPct < (est.tiene_certificado_trabajo ? 60 : 70) ? 'bg-rose-500' : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${Math.min(100, item.asistenciaPct)}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Accordion Trigger for Evaluations */}

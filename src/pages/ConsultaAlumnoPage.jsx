@@ -537,7 +537,17 @@ export default function ConsultaAlumnoPage() {
                     DNI: {formatDniDisplay(resultado.estudiante?.dni)}
                   </span>
                   <div className="text-[10px] font-mono uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400 mt-2 flex flex-wrap items-center gap-1.5">
-                    <span>ESTUDIANTE REGULAR</span>
+                    {resultado.estudiante?.es_equivalencia ? (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20">
+                        ACREDITACIÓN POR EQUIVALENCIA
+                      </span>
+                    ) : resultado.estudiante?.tiene_certificado_trabajo ? (
+                      <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/20">
+                        💼 RÉGIMEN LABORAL (60%)
+                      </span>
+                    ) : (
+                      <span>ESTUDIANTE REGULAR</span>
+                    )}
                     <span>•</span>
                     <span>{catedra.nombre}</span>
                     <span>•</span>
@@ -555,9 +565,26 @@ export default function ConsultaAlumnoPage() {
                   
                   {(() => {
                     const c = resultado.condicion_ram;
+                    const isEquiv = c.condicion === 'ACREDITADA_EQUIVALENCIA' || resultado.estudiante?.es_equivalencia;
                     const isPromo = c.condicion === 'PROMOCIONAL' || c.condicion === 'PROMOCIONADO' || c.condicion === 'APROBADO';
                     const isReg = c.condicion === 'REGULAR';
                     const isLibre = c.condicion === 'LIBRE' || c.condicion === 'DESAPROBADO' || c.condicion === 'EN RIESGO';
+
+                    if (isEquiv) {
+                      return (
+                        <div className="space-y-1 sm:text-right">
+                          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-mono font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
+                            <CheckCircle2 className="w-4 h-4 shrink-0" />
+                            <span>CONDICIÓN: MATERIA ACREDITADA (EQUIVALENCIA)</span>
+                          </span>
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 text-right font-medium">
+                            {resultado.estudiante?.resolucion_equivalencia 
+                              ? `Aprobada según Resolución: ${resultado.estudiante.resolucion_equivalencia}` 
+                              : (c.motivo || 'Materia acreditada por equivalencia reglamentaria.')}
+                          </p>
+                        </div>
+                      );
+                    }
 
                     if (isPromo) {
                       return (
@@ -627,87 +654,118 @@ export default function ConsultaAlumnoPage() {
                     </span>
                   </div>
 
-                  {/* Donut Chart destacado */}
-                  <div className="flex flex-col items-center justify-center py-2">
-                    <div className="relative w-36 h-36 flex items-center justify-center">
-                      {(() => {
-                        const pct = Math.min(100, Math.max(0, resultado.asistencia.porcentaje || 0));
-                        const radius = 52;
-                        const circumference = 2 * Math.PI * radius;
-                        const strokeDashoffset = circumference - (pct / 100) * circumference;
-
-                        let strokeColor = '#10B981'; // emerald
-                        if (pct < Number(resultado.asistencia.min_asist_reg || 70)) {
-                          strokeColor = '#EF4444'; // rose
-                        } else if (pct < Number(resultado.asistencia.min_asist_promo || 80)) {
-                          strokeColor = '#0284C7'; // sky
-                        }
-
-                        return (
-                          <>
-                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 128 128">
-                              <circle
-                                cx="64"
-                                cy="64"
-                                r={radius}
-                                stroke="currentColor"
-                                strokeWidth="9"
-                                className="text-slate-100 dark:text-slate-800"
-                                fill="transparent"
-                              />
-                              <circle
-                                cx="64"
-                                cy="64"
-                                r={radius}
-                                stroke={strokeColor}
-                                strokeWidth="9"
-                                strokeDasharray={circumference}
-                                strokeDashoffset={strokeDashoffset}
-                                strokeLinecap="round"
-                                fill="transparent"
-                                className="transition-all duration-700 ease-out"
-                              />
-                            </svg>
-                            <div className="absolute flex flex-col items-center justify-center text-center">
-                              <span className="text-2xl sm:text-3xl font-mono font-black text-slate-900 dark:text-white tracking-tight">
-                                {pct}%
-                              </span>
-                              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                Asistencia
-                              </span>
-                            </div>
-                          </>
-                        );
-                      })()}
+                  {resultado.estudiante?.es_equivalencia ? (
+                    <div className="py-8 px-4 text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                          Exención de Asistencia por Equivalencia
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                          Al contar con acreditación reglamentaria de la materia, no se requiere cursado presencial ni cómputo de asistencia diaria en este ciclo lectivo.
+                        </p>
+                        {resultado.estudiante?.resolucion_equivalencia && (
+                          <div className="inline-block mt-2 px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                            Resolución / Expediente: {resultado.estudiante.resolucion_equivalencia}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Donut Chart destacado */}
+                      <div className="flex flex-col items-center justify-center py-2">
+                        <div className="relative w-36 h-36 flex items-center justify-center">
+                          {(() => {
+                            const pct = Math.min(100, Math.max(0, resultado.asistencia.porcentaje || 0));
+                            const radius = 52;
+                            const circumference = 2 * Math.PI * radius;
+                            const strokeDashoffset = circumference - (pct / 100) * circumference;
 
-                  {/* 3 Contadores en píldoras */}
-                  <div className="grid grid-cols-3 gap-2 text-center pt-2 font-mono">
-                    <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
-                      <span className="text-[11px] uppercase font-bold block">Presentes</span>
-                      <span className="text-base font-extrabold">
-                        {resultado.asistencia.presentes ?? 0}
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                      <span className="text-[11px] uppercase font-bold text-slate-400 block">Dictadas</span>
-                      <span className="text-base font-bold text-slate-900 dark:text-white">
-                        {resultado.asistencia.total_clases ?? 0}
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400">
-                      <span className="text-[11px] uppercase font-bold block">Ausentes</span>
-                      <span className="text-base font-extrabold">
-                        {resultado.asistencia.ausentes ?? 0}
-                      </span>
-                    </div>
-                  </div>
+                            const minReg = Number(resultado.asistencia.min_asist_reg || (resultado.estudiante?.tiene_certificado_trabajo ? 60 : 70));
+                            let strokeColor = '#10B981'; // emerald
+                            if (pct < minReg) {
+                              strokeColor = '#EF4444'; // rose
+                            } else if (pct < Number(resultado.asistencia.min_asist_promo || 80)) {
+                              strokeColor = '#0284C7'; // sky
+                            }
 
-                  {/* Pie con umbrales RAM */}
-                  <div className="text-[11px] font-mono text-slate-400 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
-                    Mínimo Regularidad: <strong className="text-slate-700 dark:text-slate-300">{resultado.asistencia.min_asist_reg ?? 70}%</strong> | Mínimo Promoción: <strong className="text-slate-700 dark:text-slate-300">{resultado.asistencia.min_asist_promo ?? 80}%</strong>
-                  </div>
+                            return (
+                              <>
+                                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 128 128">
+                                  <circle
+                                    cx="64"
+                                    cy="64"
+                                    r={radius}
+                                    stroke="currentColor"
+                                    strokeWidth="9"
+                                    className="text-slate-100 dark:text-slate-800"
+                                    fill="transparent"
+                                  />
+                                  <circle
+                                    cx="64"
+                                    cy="64"
+                                    r={radius}
+                                    stroke={strokeColor}
+                                    strokeWidth="9"
+                                    strokeDasharray={circumference}
+                                    strokeDashoffset={strokeDashoffset}
+                                    strokeLinecap="round"
+                                    fill="transparent"
+                                    className="transition-all duration-700 ease-out"
+                                  />
+                                </svg>
+                                <div className="absolute flex flex-col items-center justify-center text-center">
+                                  <span className="text-2xl sm:text-3xl font-mono font-black text-slate-900 dark:text-white tracking-tight">
+                                    {pct}%
+                                  </span>
+                                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    Asistencia
+                                  </span>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* 3 Contadores en píldoras */}
+                      <div className="grid grid-cols-3 gap-2 text-center pt-2 font-mono">
+                        <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
+                          <span className="text-[11px] uppercase font-bold block">Presentes</span>
+                          <span className="text-base font-extrabold">
+                            {resultado.asistencia.presentes ?? 0}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                          <span className="text-[11px] uppercase font-bold text-slate-400 block">Dictadas</span>
+                          <span className="text-base font-bold text-slate-900 dark:text-white">
+                            {resultado.asistencia.total_clases ?? 0}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400">
+                          <span className="text-[11px] uppercase font-bold block">Ausentes</span>
+                          <span className="text-base font-extrabold">
+                            {resultado.asistencia.ausentes ?? 0}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Pie con umbrales RAM */}
+                      <div className="text-[11px] font-mono text-slate-400 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-center space-y-1">
+                        <div>
+                          Mínimo Regularidad: <strong className="text-slate-700 dark:text-slate-300">{resultado.asistencia.min_asist_reg ?? (resultado.estudiante?.tiene_certificado_trabajo ? 60 : 70)}%</strong> | Mínimo Promoción: <strong className="text-slate-700 dark:text-slate-300">{resultado.asistencia.min_asist_promo ?? 80}%</strong>
+                        </div>
+                        {resultado.estudiante?.tiene_certificado_trabajo && (
+                          <div className="text-blue-600 dark:text-blue-400 font-semibold font-sans text-xs pt-0.5 flex items-center justify-center gap-1">
+                            <span>💼 Régimen Laboral Acreditado · Requisito Regularidad: 60%</span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

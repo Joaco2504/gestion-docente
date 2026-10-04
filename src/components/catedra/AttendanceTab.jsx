@@ -54,6 +54,7 @@ import { exportAttendanceToExcel } from '../../lib/excel';
 import { catedraCache } from '../../services/catedraCache';
 import RegistrarFaltaDocenteModal from './modals/RegistrarFaltaDocenteModal';
 import { guardarAsistenciasBlindado } from '../../lib/errorHandler';
+import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
 
 // Comparador memoizado para tarjeta táctil mobile
 function areAttendanceCardPropsEqual(prev, next) {
@@ -66,7 +67,9 @@ function areAttendanceCardPropsEqual(prev, next) {
     prev.risk === next.risk &&
     prev.est?.apellido === next.est?.apellido &&
     prev.est?.nombre === next.est?.nombre &&
-    prev.est?.dni === next.est?.dni
+    prev.est?.dni === next.est?.dni &&
+    prev.est?.tiene_certificado_trabajo === next.est?.tiene_certificado_trabajo &&
+    prev.est?.es_equivalencia === next.est?.es_equivalencia
   );
 }
 
@@ -82,6 +85,7 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
   const isPresente = estado === 'PRESENTE';
   const isAusente = estado === 'AUSENTE';
   const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
+  const minThreshold = est.tiene_certificado_trabajo ? 60 : 75;
 
   return (
     <div
@@ -99,6 +103,14 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
               <h4 className="text-sm font-bold text-text-primary truncate leading-tight">
                 {est.apellido}, {est.nombre}
               </h4>
+              {est.tiene_certificado_trabajo && (
+                <span 
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 shrink-0" 
+                  title="Régimen Laboral Acreditado: Meta de asistencia al 60%"
+                >
+                  💼 60%
+                </span>
+              )}
               <RiskBadge risk={risk} compact />
             </div>
             <p className="text-[11px] font-mono text-text-muted mt-0.5">
@@ -109,7 +121,7 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
 
         <div className="text-right shrink-0">
           <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg border ${
-            asistPct >= 75
+            asistPct >= minThreshold
               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300/40'
               : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300/40'
           }`}>
@@ -162,7 +174,9 @@ function areAttendanceRowPropsEqual(prev, next) {
     prev.risk === next.risk &&
     prev.est?.apellido === next.est?.apellido &&
     prev.est?.nombre === next.est?.nombre &&
-    prev.est?.dni === next.est?.dni
+    prev.est?.dni === next.est?.dni &&
+    prev.est?.tiene_certificado_trabajo === next.est?.tiene_certificado_trabajo &&
+    prev.est?.es_equivalencia === next.est?.es_equivalencia
   );
 }
 
@@ -193,6 +207,14 @@ const AttendanceRow = React.memo(function AttendanceRow({
             <span className="font-semibold text-text-primary break-words">
               {est.apellido}, {est.nombre}
             </span>
+            {est.tiene_certificado_trabajo && (
+              <span 
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 shrink-0" 
+                title="Régimen Laboral Acreditado: Meta de asistencia al 60%"
+              >
+                💼 60%
+              </span>
+            )}
           </div>
           <RiskBadge risk={risk} compact />
         </div>
@@ -391,12 +413,17 @@ export default function AttendanceTab({
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [attendanceFilter, setAttendanceFilter] = useState('TODOS'); // 'TODOS' | 'AUSENTES' | 'RIESGO' | 'AMBAR' | 'VERDE'
 
-  // Resumen de alumnos por nivel del Semáforo de Riesgo RAM
+  // Estudiantes activos cursantes (excluye acreditados por equivalencia de la asistencia diaria)
+  const estudiantesCursantes = React.useMemo(() => {
+    return (estudiantes ?? []).filter(e => !e?.es_equivalencia);
+  }, [estudiantes]);
+
+  // Resumen de alumnos por nivel del Semáforo de Riesgo RAM (solo cursantes activos)
   const riskCounts = React.useMemo(() => {
     let verde = 0;
     let ambar = 0;
     let critico = 0;
-    (estudiantes ?? []).forEach(est => {
+    estudiantesCursantes.forEach(est => {
       const risk = studentRiskMap.get(est.id);
       const level = risk?.level;
       if (level === 'RAM_RISK' || level === 'RED') {
@@ -408,7 +435,7 @@ export default function AttendanceTab({
       }
     });
     return { verde, ambar, critico };
-  }, [estudiantes, studentRiskMap]);
+  }, [estudiantesCursantes, studentRiskMap]);
 
   // Avance del Programa Didáctico (Unidades dictadas)
   const programaMetrics = React.useMemo(() => {
@@ -427,8 +454,8 @@ export default function AttendanceTab({
 
   // Total de alumnos en riesgo (< 75% de asistencia)
   const totalEnRiesgo = React.useMemo(() => {
-    return (estudiantes ?? []).filter(e => (studentStatsMap.get(e?.id) ?? 100) < 75).length;
-  }, [estudiantes, studentStatsMap]);
+    return estudiantesCursantes.filter(e => (studentStatsMap.get(e?.id) ?? 100) < 75).length;
+  }, [estudiantesCursantes, studentStatsMap]);
 
   // Normalizador de búsqueda insensible a tildes y diacríticos
   const normalizeSearchText = (text) => {
@@ -440,14 +467,14 @@ export default function AttendanceTab({
       .trim();
   };
 
-  // Lista filtrada de estudiantes según búsqueda y píldora de filtro
+  // Lista filtrada de estudiantes según búsqueda y píldora de filtro (excluye equivalencias)
   const filteredEstudiantes = React.useMemo(() => {
     const rawQuery = (studentSearchQuery || '').trim();
     const normalizedQuery = normalizeSearchText(rawQuery);
     const digitsOnlyQuery = rawQuery.replace(/\D/g, '');
 
     return (estudiantes ?? []).filter(est => {
-      if (!est) return false;
+      if (!est || est.es_equivalencia) return false;
       // 1. Filtro por píldoras y categorías del Semáforo RAM
       if (attendanceFilter === 'AUSENTES') {
         const estado = getEstado(est.id);
@@ -583,10 +610,10 @@ export default function AttendanceTab({
     setLoading(true);
     try {
       if (isSupabaseConfigured && !isDemo) {
-        // Round 1: Carga paralela de clases, inscripciones, inasistencias, evaluaciones, criterios y unidades
+        // Round 1: Carga paralela de clases, estudiantes, inasistencias, evaluaciones, criterios y unidades
         const [
           clsRes,
-          inscRes,
+          estList,
           inasistRes,
           evalRes,
           critRes,
@@ -597,25 +624,7 @@ export default function AttendanceTab({
             .select('id, catedra_id, fecha, tema, unidad_id')
             .eq('catedra_id', catedraId)
             .order('fecha', { ascending: false }),
-          supabase
-            .from('inscripciones')
-            .select(`
-              id,
-              estudiante_id,
-              catedra_id,
-              ciclo_id,
-              estado_academico,
-              condicion,
-              nota_final,
-              nota_final_acreditacion,
-              estudiantes (
-                id,
-                dni,
-                apellido,
-                nombre
-              )
-            `)
-            .eq('catedra_id', catedraId),
+          getEstudiantesCatedra(catedraId, { supabase, isDemo }),
           supabase
             .from('inasistencias_docente')
             .select('id, catedra_id, fecha, motivo, articulo')
@@ -639,25 +648,6 @@ export default function AttendanceTab({
         ]);
 
         const cls = clsRes.data || [];
-        const estList = (inscRes.data || [])
-          .map(ins => {
-            const est = ins.estudiantes || {};
-            const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
-            const notaFinal = ins.nota_final ?? ins.nota_final_acreditacion ?? null;
-            const estado = ins.estado_academico ?? ins.condicion ?? 'CURSANDO';
-            return {
-              ...est,
-              inscripcion_id: ins.id,
-              condicion,
-              estado_academico: estado,
-              nota_final: notaFinal,
-              nota_final_acreditacion: notaFinal
-            };
-          })
-          .filter(Boolean)
-          .filter(s => s && s.id);
-        estList.sort((a, b) => (a.apellido || '').localeCompare(b.apellido || '', 'es'));
-
         const inasistList = inasistRes.data || [];
         const evList = evalRes.data || [];
 
@@ -738,13 +728,7 @@ export default function AttendanceTab({
           { id: 'unit-2', catedra_id: catedraId, numero: 2, titulo: 'Diseño y Modelado Conceptual' }
         ];
 
-        let estList = storedEst ? JSON.parse(storedEst) : [
-          { id: 'est-1', dni: '40111222', apellido: 'Álvarez', nombre: 'Martín' },
-          { id: 'est-2', dni: '39444555', apellido: 'Benítez', nombre: 'Lucía' },
-          { id: 'est-3', dni: '41888999', apellido: 'Castillo', nombre: 'Ignacio' },
-          { id: 'est-4', dni: '38222333', apellido: 'Domínguez', nombre: 'Valentina' },
-          { id: 'est-5', dni: '42333444', apellido: 'Fernández', nombre: 'Santiago' }
-        ];
+        let estList = await getEstudiantesCatedra(catedraId, { isDemo: true });
 
         let asist = storedAsist ? JSON.parse(storedAsist) : [
           { clase_id: 'clase-1', estudiante_id: 'est-1', estado: 'PRESENTE' },
@@ -896,9 +880,9 @@ export default function AttendanceTab({
         catedraCache.update(catedraId, { clases: updated });
       }
 
-      // Automatically mark all currently enrolled students as PRESENTE
-      if (claseId && estudiantes.length > 0) {
-        const defaultAttendance = estudiantes.map(e => ({
+      // Automatically mark all currently enrolled students as PRESENTE (excluyendo equivalencias)
+      if (claseId && estudiantesCursantes.length > 0) {
+        const defaultAttendance = estudiantesCursantes.map(e => ({
           clase_id: claseId,
           estudiante_id: e.id,
           estado: 'PRESENTE'
@@ -1029,7 +1013,7 @@ export default function AttendanceTab({
       toast.error('El cursado está finalizado. La asistencia no puede modificarse.');
       return;
     }
-    if (!activeClase || estudiantes.length === 0) return;
+    if (!activeClase || estudiantesCursantes.length === 0) return;
     if (feriadoDetectado || (activeClase.fecha && obtenerFeriado(activeClase.fecha))) {
       toast.error(`No es posible asentar asistencias el día ${formatFechaDMY(activeClase.fecha)}: Jornada de Feriado.`);
       return;
@@ -1040,7 +1024,7 @@ export default function AttendanceTab({
     setTimeout(() => setFlashingStudentId(null), 800);
 
     const previousState = [...asistencias];
-    const itemsToSave = estudiantes.map(e => {
+    const itemsToSave = estudiantesCursantes.map(e => {
       const existing = (asistencias ?? []).find(
         a => a.clase_id === activeClase.id && a.estudiante_id === e.id
       );
@@ -1095,7 +1079,7 @@ export default function AttendanceTab({
         catedraCache.update(catedraId, { asistencias: updated });
       }
 
-      toast.success('Todos los estudiantes marcados como presentes.');
+      toast.success('Todos los estudiantes cursantes marcados como presentes.');
     } catch (err) {
       setAsistencias(previousState);
       handleAppError(err, 'AttendanceTab / Marcar Todos Presentes', user);
@@ -1119,7 +1103,7 @@ export default function AttendanceTab({
 
     setSavingQuickAttendance(true);
     try {
-      const itemsToSave = estudiantes.map(item => {
+      const itemsToSave = estudiantesCursantes.map(item => {
         const existing = (asistencias ?? []).find(
           a => a.clase_id === activeClase.id && a.estudiante_id === item.id
         );
@@ -1553,21 +1537,21 @@ export default function AttendanceTab({
     }
   };
 
-  const presentesCount = estudiantes.filter(e => getEstado(e.id) === 'PRESENTE').length;
-  const ausentesCount = estudiantes.filter(e => getEstado(e.id) === 'AUSENTE').length;
-  const presentismoPct = estudiantes.length > 0 
-    ? ((presentesCount / estudiantes.length) * 100).toFixed(1) 
+  const presentesCount = estudiantesCursantes.filter(e => getEstado(e.id) === 'PRESENTE').length;
+  const ausentesCount = estudiantesCursantes.filter(e => getEstado(e.id) === 'AUSENTE').length;
+  const presentismoPct = estudiantesCursantes.length > 0 
+    ? ((presentesCount / estudiantesCursantes.length) * 100).toFixed(1) 
     : 0;
 
   const handleExportExcel = () => {
     try {
-      if (estudiantes.length === 0) {
-        toast.info('No hay estudiantes registrados en esta cátedra para exportar.');
+      if (estudiantesCursantes.length === 0) {
+        toast.info('No hay estudiantes cursantes registrados en esta cátedra para exportar.');
         return;
       }
       exportAttendanceToExcel(
         { nombre: catedraName },
-        estudiantes,
+        estudiantesCursantes,
         clases,
         asistencias,
         inasistenciasDocente,
@@ -1916,7 +1900,7 @@ export default function AttendanceTab({
                 <div className="block md:hidden space-y-3">
                   <div className="flex items-center justify-between px-1 text-xs text-slate-500">
                     <span className="font-semibold uppercase tracking-wider text-[11px]">
-                      {filteredEstudiantes.length} de {estudiantes.length} Alumnos
+                      {filteredEstudiantes.length} de {estudiantesCursantes.length} Cursantes
                     </span>
                     <span className="font-mono text-[11px] font-bold">
                       {presentesCount} P / {ausentesCount} A ({presentismoPct}%)
@@ -2565,7 +2549,7 @@ export default function AttendanceTab({
         defaultOrientation="landscape"
         data={{
           catedra: { id: catedraId, nombre: catedraName },
-          estudiantes,
+          estudiantes: estudiantesCursantes,
           clases,
           asistencias,
           inasistenciasDocente,

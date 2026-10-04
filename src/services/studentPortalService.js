@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { calcularPorcentajeAsistencia, calcularCondicionFinal } from '../lib/academicLogic';
+import { getEstudiantesCatedra } from './catedraEstudiantesService';
 
 /**
  * Convierte un nombre de cátedra o texto en un slug amigable y limpio en kebab-case.
@@ -397,24 +398,18 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
     };
   }
 
-  // Cargar estudiantes de la cátedra
+  // Cargar estudiantes de la cátedra de manera resiliente
   let studentList = [];
   try {
-    const stored = localStorage.getItem(`estudiantes_${catedraId}`);
-    if (stored) {
-      studentList = JSON.parse(stored);
-    } else {
-      // Muestra demo si es la primera vez que se consulta
-      studentList = [
-        { id: 'est-1', dni: '40111222', apellido: 'Álvarez', nombre: 'Martín' },
-        { id: 'est-2', dni: '39444555', apellido: 'Benítez', nombre: 'Lucía' },
-        { id: 'est-3', dni: '41888999', apellido: 'Castillo', nombre: 'Ignacio' },
-        { id: 'est-4', dni: '38222333', apellido: 'Domínguez', nombre: 'Valentina' },
-        { id: 'est-5', dni: '42333444', apellido: 'Fernández', nombre: 'Santiago' }
-      ];
-      localStorage.setItem(`estudiantes_${catedraId}`, JSON.stringify(studentList));
-    }
-  } catch (_) {}
+    studentList = await getEstudiantesCatedra(resolvedCatedraId, { supabase, isDemo });
+  } catch (_) {
+    try {
+      const stored = localStorage.getItem(`estudiantes_${resolvedCatedraId}`) || localStorage.getItem(`estudiantes_${catedraId}`);
+      if (stored) {
+        studentList = JSON.parse(stored);
+      }
+    } catch (_) {}
+  }
 
   // Buscar coincidencia de DNI
   const student = studentList.find(s => normalizeDni(s.dni) === cleanDni);
@@ -435,6 +430,7 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
   let criterios = {
     min_asist_promo: 80,
     min_asist_reg: 70,
+    min_asist_trabajo: 60,
     nota_min_promo: 7,
     nota_min_reg: 4,
     nota_min_sec: 6
@@ -515,19 +511,29 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
     .filter(e => e.valor !== null || e.estado)
     .map(e => ({ evaluacion_id: e.id, valor: e.valor, nota: e.nota, estado: e.estado, tipo: e.tipo }));
 
-  const condicionCalculada = calcularCondicionFinal(
-    portalConfig.nivel,
-    portalConfig.modalidad,
-    asistenciaPct,
-    evaluaciones,
-    studentNotasForLogic,
-    criterios
-  );
+  const condicionCalculada = student.es_equivalencia 
+    ? {
+        condicion: 'ACREDITADA_EQUIVALENCIA',
+        badgeVariant: 'promo',
+        color: 'text-emerald-700 dark:text-emerald-400',
+        motivo: `Materia acreditada por equivalencia reglamentaria${student.resolucion_equivalencia ? ` (${student.resolucion_equivalencia})` : ''}. No requiere cursado ni asistencia.`,
+        resolucion: student.resolucion_equivalencia || null,
+        fecha_resolucion: student.fecha_equivalencia || null
+      }
+    : calcularCondicionFinal(
+        portalConfig.nivel,
+        portalConfig.modalidad,
+        asistenciaPct,
+        evaluaciones,
+        studentNotasForLogic,
+        criterios,
+        student
+      );
 
   // Verificar override manual del docente si existe
   const manualOverride = localStorage.getItem(`condicion_override_${catedraId}_${student.id}`);
   let finalCondicion = condicionCalculada;
-  if (manualOverride && manualOverride !== 'AUTO') {
+  if (!student.es_equivalencia && manualOverride && manualOverride !== 'AUTO') {
     finalCondicion = {
       condicion: manualOverride,
       badgeVariant: manualOverride === 'PROMOCIONAL' || manualOverride === 'APROBADO' ? 'promo' : (manualOverride === 'REGULAR' ? 'regular' : 'libre'),
@@ -550,7 +556,11 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
       id: student.id,
       dni: student.dni,
       apellido: student.apellido,
-      nombre: student.nombre
+      nombre: student.nombre,
+      es_equivalencia: Boolean(student.es_equivalencia),
+      tiene_certificado_trabajo: Boolean(student.tiene_certificado_trabajo),
+      resolucion_equivalencia: student.resolucion_equivalencia || null,
+      fecha_equivalencia: student.fecha_equivalencia || null
     },
     config: {
       portal_mostrar_asistencia: portalConfig.portal_mostrar_asistencia,
@@ -562,8 +572,11 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
       presentes,
       ausentes,
       porcentaje: asistenciaPct,
-      min_asist_reg: criterios.min_asist_reg,
-      min_asist_promo: criterios.min_asist_promo
+      min_asist_reg: student.tiene_certificado_trabajo ? (criterios.min_asist_trabajo ?? 60) : (criterios.min_asist_reg ?? 70),
+      min_asist_trabajo: criterios.min_asist_trabajo ?? 60,
+      min_asist_promo: criterios.min_asist_promo ?? 80,
+      tiene_certificado_trabajo: Boolean(student.tiene_certificado_trabajo),
+      es_equivalencia: Boolean(student.es_equivalencia)
     } : null,
     evaluaciones: portalConfig.portal_mostrar_notas ? studentEvaluaciones : null,
     condicion_ram: portalConfig.portal_mostrar_condicion ? finalCondicion : null

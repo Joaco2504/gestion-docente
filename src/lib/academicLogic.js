@@ -44,7 +44,8 @@ export function calcularCondicionFinal(
   arg3,
   arg4,
   arg5,
-  arg6
+  arg6,
+  arg7
 ) {
   let nivel = 'TERCIARIO';
   let modalidad = 'CUATRIMESTRAL';
@@ -68,7 +69,7 @@ export function calcularCondicionFinal(
     studentNotas = arg1.studentNotas || arg1.notas || [];
     criterios = { ...criterios, ...(arg1.criterios || {}) };
   } else {
-    // Argumentos posicionales: (academicLevel, modalidad, asistPct, evaluaciones, studentNotas, criterios)
+    // Argumentos posicionales: (academicLevel, modalidad, asistPct, evaluaciones, studentNotas, criterios, arg7)
     if (arg1) nivel = arg1;
     if (arg2) modalidad = arg2;
     if (arg3 !== undefined) asistenciaPct = arg3;
@@ -77,8 +78,36 @@ export function calcularCondicionFinal(
     if (arg6) criterios = { ...criterios, ...arg6 };
   }
 
-  const minPromoAsist = Number(criterios.min_asist_promo ?? 80);
-  const minRegAsist = Number(criterios.min_asist_reg ?? 70);
+  // 1. Verificación directa de Acreditación por Equivalencia
+  if (
+    arg1?.es_equivalencia || 
+    arg1?.inscripcion?.es_equivalencia || 
+    arg1?.estudiante?.es_equivalencia ||
+    criterios?.es_equivalencia ||
+    arg7?.es_equivalencia ||
+    arg7?.inscripcion?.es_equivalencia
+  ) {
+    return {
+      condicion: 'ACREDITADA_EQUIVALENCIA',
+      color: 'text-emerald-700',
+      badgeVariant: 'promo',
+      motivo: 'Materia acreditada por equivalencia reglamentaria.'
+    };
+  }
+
+  const tieneCertificadoTrabajo = Boolean(
+    arg1?.tiene_certificado_trabajo ||
+    arg1?.inscripcion?.tiene_certificado_trabajo ||
+    arg1?.estudiante?.tiene_certificado_trabajo ||
+    criterios?.tiene_certificado_trabajo ||
+    arg7?.tiene_certificado_trabajo ||
+    arg7?.inscripcion?.tiene_certificado_trabajo
+  );
+
+  const minRegAsistBase = Number(criterios.min_asist_reg ?? criterios.ram_asistencia_regular ?? 70);
+  const minTrabajoAsist = Number(criterios.min_asist_trabajo ?? criterios.ram_asistencia_trabajo ?? criterios.asistenciaTrabajo ?? 60);
+  const minRegAsist = tieneCertificadoTrabajo ? minTrabajoAsist : minRegAsistBase;
+  const minPromoAsist = Number(criterios.min_asist_promo ?? criterios.ram_asistencia_promocion ?? criterios.asistenciaPromocion ?? 80);
   const notaMinPromo = Number(criterios.nota_min_promo ?? 7);
   const notaMinReg = Number(criterios.nota_min_reg ?? 4);
   const notaMinSec = Number(criterios.nota_min_sec ?? 6);

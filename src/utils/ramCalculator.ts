@@ -47,6 +47,79 @@ export interface EvaluacionResultadoRAM {
   requiereRecuperatorio: boolean;
 }
 
+export interface CriteriosRamCatedra {
+  asistenciaRegular: number;   // Ej. 70
+  asistenciaTrabajo: number;   // Ej. 60
+  asistenciaPromocion: number; // Ej. 80
+  notaAprobacion: number;      // Ej. 4
+  notaPromocion: number;       // Ej. 7
+}
+
+/**
+ * Motor de Regularidad RAM dinámico:
+ * - Soporte para acreditación directa por equivalencia (excluye de cómputos)
+ * - Umbral preferencial del 60% para estudiantes con régimen laboral certificado
+ * - Umbral del 70% para cursantes estándar y 80% para promoción directa
+ */
+export function evaluarCondicionEstudiante(
+  inscripcion: {
+    es_equivalencia?: boolean;
+    tiene_certificado_trabajo?: boolean;
+  } = {},
+  porcentajeAsistencia = 0,
+  notasValidas: Array<{ nota: number | null; estado: string; aprobado: boolean }> = [],
+  criterios: CriteriosRamCatedra = {
+    asistenciaRegular: 70,
+    asistenciaTrabajo: 60,
+    asistenciaPromocion: 80,
+    notaAprobacion: 4,
+    notaPromocion: 7
+  }
+): { condicion: 'ACREDITADA_EQUIVALENCIA' | 'PROMOCIONAL' | 'REGULAR' | 'LIBRE'; umbralAplicado: number; detalle: string } {
+  // 1. Acreditación directa por equivalencia
+  if (inscripcion?.es_equivalencia) {
+    return {
+      condicion: 'ACREDITADA_EQUIVALENCIA',
+      umbralAplicado: 0,
+      detalle: 'Materia acreditada por equivalencia reglamentaria.'
+    };
+  }
+
+  // 2. Determinar umbral de asistencia según régimen del estudiante
+  const umbralAsistencia = inscripcion?.tiene_certificado_trabajo
+    ? (criterios?.asistenciaTrabajo ?? 60)
+    : (criterios?.asistenciaRegular ?? 70);
+
+  const cumpleAsistenciaRegular = porcentajeAsistencia >= umbralAsistencia;
+  const cumpleAsistenciaPromo = porcentajeAsistencia >= (criterios?.asistenciaPromocion ?? 80);
+
+  const examenesAprobados = notasValidas.length > 0 && notasValidas.every(n => n.aprobado);
+  const notasParaPromo = notasValidas.length > 0 && notasValidas.every(n => (n.nota || 0) >= (criterios?.notaPromocion ?? 7));
+
+  // 3. Dictamen reglamentario
+  if (cumpleAsistenciaPromo && notasParaPromo && examenesAprobados && notasValidas.length > 0) {
+    return {
+      condicion: 'PROMOCIONAL',
+      umbralAplicado: criterios?.asistenciaPromocion ?? 80,
+      detalle: `Promoción directa alcanzada (${porcentajeAsistencia}% asistencia).`
+    };
+  }
+
+  if (cumpleAsistenciaRegular && examenesAprobados) {
+    return {
+      condicion: 'REGULAR',
+      umbralAplicado: umbralAsistencia,
+      detalle: `Regularidad alcanzada (${porcentajeAsistencia}% sobre mín. ${umbralAsistencia}%).`
+    };
+  }
+
+  return {
+    condicion: 'LIBRE',
+    umbralAplicado: umbralAsistencia,
+    detalle: `No alcanza regularidad (requiere ${umbralAsistencia}% asistencia y exámenes aprobados).`
+  };
+}
+
 /**
  * Calcula el porcentaje de asistencia reglamentaria RAM protegiendo la integridad
  * del denominador. Los feriados y clases no computables se excluyen estrictamente
