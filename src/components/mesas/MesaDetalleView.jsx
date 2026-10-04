@@ -25,6 +25,8 @@ import Badge from '../common/Badge';
 import Card from '../common/Card';
 import PrintPreviewModal from '../common/PrintPreviewModal';
 import SeleccionarAlumnosMesaModal from './SeleccionarAlumnosMesaModal';
+import ColorPickerPopover from '../common/ColorPickerPopover';
+import { DEFAULT_MESA_COLOR } from '../../lib/colorTokens';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -47,6 +49,7 @@ export default function MesaDetalleView({
   const [saving, setSaving] = useState(false);
   const [isSelectAlumnosModalOpen, setIsSelectAlumnosModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [mesaColor, setMesaColor] = useState(mesa?.color || DEFAULT_MESA_COLOR);
 
   // Evaluaciones y notas de cursada para calcular promedios
   const [evaluaciones, setEvaluaciones] = useState([]);
@@ -58,10 +61,42 @@ export default function MesaDetalleView({
 
   useEffect(() => {
     if (mesa?.id) {
+      setMesaColor(mesa?.color || DEFAULT_MESA_COLOR);
       fetchActas();
       fetchCursadaData();
     }
-  }, [mesa?.id]);
+  }, [mesa?.id, mesa?.color]);
+
+  const handleUpdateColor = async (newColor) => {
+    setMesaColor(newColor);
+    try {
+      if (isSupabaseConfigured && !isDemo && mesa?.id) {
+        await supabase
+          .from('mesas_examen')
+          .update({ color: newColor })
+          .eq('id', mesa.id);
+      }
+      // Actualizar almacenamiento local
+      try {
+        const storedAll = JSON.parse(localStorage.getItem('mesas_examen_all') || '[]');
+        const updatedAll = storedAll.map(m => m.id === mesa.id ? { ...m, color: newColor } : m);
+        localStorage.setItem('mesas_examen_all', JSON.stringify(updatedAll));
+
+        if (mesa.catedra_id) {
+          const storedCat = JSON.parse(localStorage.getItem(`mesas_examen_${mesa.catedra_id}`) || '[]');
+          const updatedCat = storedCat.map(m => m.id === mesa.id ? { ...m, color: newColor } : m);
+          localStorage.setItem(`mesas_examen_${mesa.catedra_id}`, JSON.stringify(updatedCat));
+        }
+      } catch (_) {}
+
+      toast.success('Color de la mesa actualizado en el calendario.');
+      if (onMesaUpdated) {
+        onMesaUpdated({ ...mesa, color: newColor });
+      }
+    } catch (err) {
+      console.warn('Error al actualizar color de la mesa:', err);
+    }
+  };
 
   async function fetchCursadaData() {
     try {
@@ -465,16 +500,20 @@ export default function MesaDetalleView({
       {/* =========================================================================
           CABECERA HERO DE LA MESA SELECCIONADA
       ========================================================================= */}
-      <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div className="space-y-1.5 min-w-0 flex-1">
+      <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs flex flex-col gap-5">
+        {/* Fila 1: Botón Volver */}
+        <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-text-muted hover:text-primary transition-colors mb-1 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-text-muted hover:text-primary transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Volver a todas las mesas</span>
           </button>
+        </div>
 
+        {/* Fila 2: Metadatos, Selector de Color y Título */}
+        <div className="space-y-3 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge 
               variant={
@@ -494,6 +533,18 @@ export default function MesaDetalleView({
             <span className="text-xs text-text-muted bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-white/5">
               Libro: <b>{mesa.libro || '—'}</b> • Folio: <b>{mesa.folio || '—'}</b> • Acta: <b>{mesa.acta_numero || '—'}</b>
             </span>
+
+            <div className="inline-flex items-center">
+              <ColorPickerPopover
+                color={mesaColor}
+                onChange={handleUpdateColor}
+                defaultColor={DEFAULT_MESA_COLOR}
+                isMesa={true}
+                label="Color de Mesa en Calendario"
+                previewTitle={`Mesa: ${catedraNombre}`}
+                previewSubtitle={`${mesa.turno_llamado || 'Examen'} • Borde distintivo`}
+              />
+            </div>
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
@@ -512,8 +563,8 @@ export default function MesaDetalleView({
           </div>
         </div>
 
-        {/* Botones de Acción */}
-        <div className="flex items-center gap-2 flex-wrap self-stretch sm:self-auto shrink-0">
+        {/* Fila 3: Botones de Acción de Acta */}
+        <div className="flex items-center gap-2 flex-wrap pt-3 border-t border-slate-100 dark:border-white/5">
           <Link
             to="/guias?section=mesas-examen"
             target="_blank"
@@ -573,7 +624,7 @@ export default function MesaDetalleView({
             icon={CheckCircle2}
             onClick={handleSaveActa}
             loading={saving}
-            className="text-xs font-bold rounded-2xl min-h-[44px] shadow-sm"
+            className="text-xs font-bold rounded-2xl min-h-[44px] shadow-sm ml-auto"
           >
             <span>Guardar Notas</span>
           </Button>

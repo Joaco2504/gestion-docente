@@ -1,0 +1,93 @@
+{
+  "version": "1.0.0",
+  "timezone": "America/Argentina/Catamarca",
+  "guild_id": "1430396981095960600",
+  "channel_id": "1556366651296055357",
+  "templates": {
+    "TRIBUNAL_EXAMEN": {
+      "tipo_nombre": "Mesa de examen",
+      "emoji": "🎓",
+      "titulo_plantilla": "🎓 Mesa de examen: {catedra}",
+      "descripcion_plantilla": "Falta **{falta}**.",
+      "footer": "Korum • Recordatorio de Examen",
+      "campos": [
+        { "name": "Cátedra", "key": "catedra", "inline": true },
+        { "name": "Fecha", "key": "fecha_larga", "inline": true },
+        { "name": "Hora", "key": "hora", "inline": true },
+        { "name": "Lugar / Aula", "key": "aula_o_lugar", "inline": true },
+        { "name": "Turno / Llamado", "key": "turno_llamado", "inline": true },
+        { "name": "Cierre de Inscripción", "key": "cierre_inscripcion", "inline": true },
+        { "name": "Tribunal Evaluador", "key": "tribunal", "inline": false },
+        { "name": "Detalle", "key": "descripcion", "inline": false }
+      ]
+    },
+    "EVALUACION": {
+      "tipo_nombre": "Parcial",
+      "emoji": "📝",
+      "titulo_plantilla": "📝 Parcial: {titulo}",
+      "descripcion_plantilla": "Falta **{falta}**.",
+      "footer": "Korum • Recordatorio de Evaluación",
+      "campos": [
+        { "name": "Cátedra", "key": "catedra", "inline": true },
+        { "name": "Fecha", "key": "fecha_larga", "inline": true },
+        { "name": "Hora", "key": "hora", "inline": true },
+        { "name": "Lugar / Aula", "key": "aula_o_lugar", "inline": true },
+        { "name": "Contenidos / Unidades", "key": "contenidos", "inline": false },
+        { "name": "Detalle", "key": "descripcion", "inline": false }
+      ]
+    },
+    "TRABAJO_PRACTICO": {
+      "tipo_nombre": "Entrega de TP",
+      "emoji": "📤",
+      "titulo_plantilla": "📤 Entrega de TP: {titulo}",
+      "descripcion_plantilla": "Falta **{falta}**.",
+      "footer": "Korum • Entrega de Trabajos Prácticos",
+      "campos": [
+        { "name": "Cátedra", "key": "catedra", "inline": true },
+        { "name": "Fecha", "key": "fecha_larga", "inline": true },
+        { "name": "Hora Límite", "key": "hora", "inline": true },
+        { "name": "Lugar / Aula", "key": "aula_o_lugar", "inline": true },
+        { "name": "Modalidad de Entrega", "key": "modalidad_entrega", "inline": true },
+        { "name": "Enlace de Envío", "key": "link_entrega", "inline": false },
+        { "name": "Detalle", "key": "descripcion", "inline": false }
+      ]
+    },
+    "RECORDATORIO": {
+      "tipo_nombre": "Recordatorio",
+      "emoji": "🔔",
+      "titulo_plantilla": "🔔 {titulo}",
+      "descripcion_plantilla": "Falta **{falta}**.",
+      "footer": "Korum • Agenda Docente",
+      "campos": [
+        { "name": "Cátedra", "key": "catedra", "inline": true },
+        { "name": "Fecha", "key": "fecha_larga", "inline": true },
+        { "name": "Hora", "key": "hora", "inline": true },
+        { "name": "Lugar / Aula", "key": "aula_o_lugar", "inline": true },
+        { "name": "Detalle", "key": "descripcion", "inline": false }
+      ]
+    },
+    "CANCELACION": {
+      "tipo_nombre": "Cancelación",
+      "emoji": "🚫",
+      "titulo_plantilla": "🚫 Se canceló: {titulo}",
+      "descripcion_plantilla": "Este evento ha sido **cancelado o suspendido** en la agenda de Korum.",
+      "color_fijo": 14428454,
+      "footer": "Korum • Notificación de Cancelación",
+      "campos": [
+        { "name": "Cátedra", "key": "catedra", "inline": true },
+        { "name": "Fecha Original", "key": "fecha_larga", "inline": true },
+        { "name": "Hora Original", "key": "hora", "inline": true },
+        { "name": "Motivo / Detalle", "key": "descripcion", "inline": false }
+      ]
+    },
+    "RESUMEN_DIARIO": {
+      "tipo_nombre": "Resumen diario",
+      "emoji": "📅",
+      "titulo_plantilla": "📅 Resumen de Agenda • Korum",
+      "descripcion_plantilla": "Eventos programados para **hoy** y los próximos **3 días** en tu ciclo lectivo:",
+      "color_fijo": 4674921,
+      "footer": "Korum • Resumen Matutino (07:00 hs)",
+      "campos": []
+    }
+  }
+}

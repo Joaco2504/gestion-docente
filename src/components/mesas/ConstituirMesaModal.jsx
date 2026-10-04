@@ -15,6 +15,8 @@ import {
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CustomSelect from '../common/CustomSelect';
+import ColorPickerPopover from '../common/ColorPickerPopover';
+import { DEFAULT_MESA_COLOR } from '../../lib/colorTokens';
 import { toast } from 'sonner';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -56,12 +58,14 @@ export default function ConstituirMesaModal({
   const [actaNumero, setActaNumero] = useState('');
   const [vocal1, setVocal1] = useState('');
   const [vocal2, setVocal2] = useState('');
+  const [color, setColor] = useState(DEFAULT_MESA_COLOR);
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Inicializar o resetear formulario cuando abre
   useEffect(() => {
     if (isOpen) {
+      setColor(DEFAULT_MESA_COLOR);
       const defaultCatId = initialCatedraId || (catedras.length > 0 ? catedras[0].id : '');
       setCatedraId(defaultCatId);
       setCondicionActa(initialCondicionActa || 'REGULAR');
@@ -121,6 +125,7 @@ export default function ConstituirMesaModal({
       turno_llamado: turnoLlamado,
       condicion_acta: condicionActa,
       tipo_mesa: condicionActa === 'PROMOCIONAL' ? 'PROMOCIONAL' : 'FINAL',
+      color: color || DEFAULT_MESA_COLOR,
       libro: (libro || '').trim(),
       tomo: (tomo || '').trim(),
       folio: (folio || '').trim(),
@@ -134,7 +139,7 @@ export default function ConstituirMesaModal({
       let createdMesa = null;
 
       if (isSupabaseConfigured && !isDemo) {
-        // Intento 1: Inserción directa con condicion_acta y vocal_1
+        // Intento 1: Inserción directa con condicion_acta, vocal_1 y color
         let { data, error } = await supabase
           .from('mesas_examen')
           .insert([mesaPayload])
@@ -143,6 +148,7 @@ export default function ConstituirMesaModal({
             catedras (
               id,
               nombre,
+              color,
               nivel,
               instituciones (
                 id,
@@ -152,8 +158,8 @@ export default function ConstituirMesaModal({
           `)
           .single();
 
-        // Fallback si la columna condicion_acta o vocal_1 no están en la tabla
-        if (error && (error.code === '42703' || error.message?.includes('condicion_acta') || error.message?.includes('vocal_1'))) {
+        // Fallback si la columna condicion_acta, vocal_1 o color no están en la tabla
+        if (error && (error.code === '42703' || error.message?.includes('condicion_acta') || error.message?.includes('vocal_1') || error.message?.includes('color'))) {
           const fallbackPayload = {
             ...mesaPayload,
             vocal1: mesaPayload.vocal_1,
@@ -162,6 +168,7 @@ export default function ConstituirMesaModal({
           delete fallbackPayload.vocal_1;
           delete fallbackPayload.vocal_2;
           if (error.message?.includes('condicion_acta')) delete fallbackPayload.condicion_acta;
+          if (error.message?.includes('color')) delete fallbackPayload.color;
 
           const res = await supabase
             .from('mesas_examen')
@@ -413,6 +420,19 @@ export default function ConstituirMesaModal({
               onChange={(e) => setPresidente(e.target.value)}
               required
               className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+
+          {/* Color propio de la Mesa */}
+          <div className="pt-2">
+            <ColorPickerPopover
+              color={color}
+              onChange={setColor}
+              defaultColor={DEFAULT_MESA_COLOR}
+              isMesa={true}
+              label="Color Propio de la Mesa en Calendario"
+              previewTitle="Mesa de Examen Final"
+              previewSubtitle={`${turnoLlamado} • Borde distintivo`}
             />
           </div>
 

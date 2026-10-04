@@ -50,6 +50,13 @@ import { generateIcsContent, downloadIcsFile } from '../lib/calendarSync';
 import { formatFechaDMY, parseDMYtoYMD, formatFechaLegible, getRelativeDateLabel, getTodayYMD, getTodayDMY } from '../lib/dateUtils';
 import { FERIADOS_ARGENTINA } from '../data/feriadosArgentina';
 import { obtenerFeriado } from '../utils/feriadosAcademicos';
+import { 
+  DEFAULT_MESA_COLOR, 
+  DEFAULT_CURATED_COLORS, 
+  getEventChipStyle, 
+  getContrastTextColor, 
+  isLightColor 
+} from '../lib/colorTokens';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const SHORT_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -99,6 +106,7 @@ export default function CalendarPage() {
   const [events, setEvents] = useState([]);
   const [clases, setClases] = useState([]);
   const [periodos, setPeriodos] = useState([]);
+  const [mesas, setMesas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filtros reactivos de cátedras y categorías
@@ -110,6 +118,10 @@ export default function CalendarPage() {
     TRABAJO_PRACTICO: true,
     PERIODO: true
   });
+
+  // Estado de la leyenda (bottom-sheet en móvil / colapsable en desktop)
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [isLegendCollapsed, setIsLegendCollapsed] = useState(false);
 
   // Mini-calendario fecha de navegación
   const [miniCalDate, setMiniCalDate] = useState(new Date());
@@ -218,6 +230,30 @@ export default function CalendarPage() {
         } else {
           setPeriodos(getDefaultPeriods());
         }
+
+        // 4. Mesas de Examen registradas
+        try {
+          const { data: mData } = await supabase
+            .from('mesas_examen')
+            .select(`
+              *,
+              catedras (
+                id,
+                nombre,
+                color,
+                nivel,
+                instituciones (
+                  id,
+                  nombre
+                )
+              )
+            `)
+            .order('fecha', { ascending: true });
+          setMesas(mData || []);
+        } catch (mErr) {
+          console.warn('Aviso al cargar mesas de examen en Supabase:', mErr);
+          setMesas([]);
+        }
       } else {
         loadDemoCalendarData();
       }
@@ -235,44 +271,71 @@ export default function CalendarPage() {
     const d = String(today.getDate()).padStart(2, '0');
     const todayIso = `${y}-${m}-${d}`;
 
+    // Obtener cátedras disponibles
+    const firstCat = catedras?.[0] || { id: 'cat-demo-1', nombre: 'Práctica Profesional', color: '#10B981' };
+    const secondCat = catedras?.[1] || { id: 'cat-demo-2', nombre: 'Sistemas Operativos', color: '#0EA5E9' };
+
+    // Cargar o sembrar mesas de demostración
+    let storedMesas = [];
+    try {
+      storedMesas = JSON.parse(localStorage.getItem('mesas_examen_all') || '[]');
+    } catch (_) {}
+
+    if (storedMesas.length === 0) {
+      const mesaFecha = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0];
+      const initialDemoMesa = {
+        id: 'mesa-demo-auto-1',
+        catedra_id: firstCat.id,
+        catedras: {
+          id: firstCat.id,
+          nombre: firstCat.nombre,
+          color: firstCat.color || '#10B981',
+          instituciones: { nombre: 'Instituto Superior' }
+        },
+        fecha: mesaFecha,
+        hora_inicio: '18:00',
+        hora_fin: '20:30',
+        turno_llamado: '1° LLAMADO',
+        condicion_acta: 'REGULAR',
+        presidente: 'Prof. Docente Titular',
+        color: DEFAULT_MESA_COLOR,
+        aula: 'Tribunal Magna',
+        created_at: new Date().toISOString()
+      };
+      storedMesas = [initialDemoMesa];
+      localStorage.setItem('mesas_examen_all', JSON.stringify(storedMesas));
+    }
+    setMesas(storedMesas);
+
     const sampleEvents = [
       {
-        id: 'ev-demo-1',
-        titulo: 'Mesa de Examen Final - Turno Tarde',
-        tipo: 'TRIBUNAL_EXAMEN',
-        fecha_inicio: `${todayIso}T18:00:00`,
-        fecha_fin: `${todayIso}T20:30:00`,
-        aula: 'Aula Magna',
-        institucion: 'I.E.S Belén',
-        catedra_nombre: 'Estadística Aplicada',
-        alumnos_count: 28,
-        notas: 'Tribunal constituido por Prof. Pacheco y Prof. Gómez. Modalidad oral y escrita.',
-        editable: true
-      },
-      {
         id: 'ev-demo-2',
-        titulo: 'Evaluación Parcial 1: Control Estadístico',
+        titulo: `Evaluación Parcial: ${firstCat.nombre}`,
         tipo: 'EVALUACION',
-        fecha_inicio: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0] + 'T19:00:00',
-        fecha_fin: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0] + 'T21:00:00',
+        catedra_id: firstCat.id,
+        catedra_nombre: firstCat.nombre,
+        catedra_color: firstCat.color || '#10B981',
+        fecha_inicio: new Date(Date.now() + 86400000 * 1).toISOString().split('T')[0] + 'T19:00:00',
+        fecha_fin: new Date(Date.now() + 86400000 * 1).toISOString().split('T')[0] + 'T21:00:00',
         aula: 'Aula 4',
-        institucion: 'I.E.S Belén',
-        catedra_nombre: 'Estadística (2° año)',
+        institucion: 'Sede Central',
         alumnos_count: 35,
         notas: 'Primer examen parcial integrador según pautas RAM.',
         editable: true
       },
       {
         id: 'ev-demo-3',
-        titulo: 'Entrega de Trabajo Práctico N° 2',
+        titulo: `Entrega TP Final: ${secondCat.nombre}`,
         tipo: 'TRABAJO_PRACTICO',
+        catedra_id: secondCat.id,
+        catedra_nombre: secondCat.nombre,
+        catedra_color: secondCat.color || '#0EA5E9',
         fecha_inicio: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0] + 'T20:00:00',
         fecha_fin: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0] + 'T21:30:00',
         aula: 'Lab 2',
-        institucion: 'Colegio Belgrano',
-        catedra_nombre: 'Higiene y Seguridad',
+        institucion: 'Sede Central',
         alumnos_count: 24,
-        notas: 'Presentación de informe de riesgos de planta y matrices ergonómicas.',
+        notas: 'Presentación de informe técnico integrador.',
         editable: true
       }
     ];
@@ -291,12 +354,15 @@ export default function CalendarPage() {
       if (catFilters[cat.id] === false) return;
       if (!categoryFilters.CLASE) return;
 
+      const catColor = cat.color || DEFAULT_CURATED_COLORS[0].value;
       const horarios = Array.isArray(cat.horarios_semanales) ? cat.horarios_semanales : [];
       horarios.forEach(h => {
         list.push({
           id: `class-recur-${cat.id}-${h.dia}`,
           catedra_id: cat.id,
           catedra_nombre: cat.nombre,
+          catedra_color: catColor,
+          color: catColor,
           titulo: cat.nombre,
           dia_semana: h.dia,
           desde: h.desde || '18:30',
@@ -370,6 +436,46 @@ export default function CalendarPage() {
   }, [periodos, categoryFilters]);
 
   /**
+   * Generación de eventos de Mesas de Examen registradas
+   */
+  const mesaEvents = useMemo(() => {
+    if (!categoryFilters.TRIBUNAL_EXAMEN) return [];
+    return (mesas || []).map(m => {
+      const catObj = (catedras || []).find(c => c.id === m.catedra_id) || m.catedras;
+      if (m.catedra_id && catFilters[m.catedra_id] === false) return null;
+
+      const f = m.fecha ? String(m.fecha).split('T')[0] : getTodayYMD();
+      const hi = m.hora_inicio || '18:00';
+      const hf = m.hora_fin || '20:30';
+      const catColor = catObj?.color || DEFAULT_CURATED_COLORS[0].value;
+      const mesaColor = m.color || DEFAULT_MESA_COLOR;
+
+      return {
+        id: `mesa-ev-${m.id}`,
+        mesa_id: m.id,
+        titulo: `Mesa: ${catObj?.nombre || 'Examen'} (${m.turno_llamado || 'Final'})`,
+        tipo: 'TRIBUNAL_EXAMEN',
+        fecha_inicio: `${f}T${hi}:00`,
+        fecha_fin: `${f}T${hf}:00`,
+        fecha: f,
+        hora_inicio: hi,
+        hora_fin: hf,
+        aula: m.aula || 'Tribunal A',
+        institucion: catObj?.instituciones?.nombre || catObj?.institucion_nombre || 'Instituto Superior',
+        catedra_id: m.catedra_id,
+        catedra_nombre: catObj?.nombre || 'Cátedra',
+        catedra_color: catColor,
+        color: mesaColor,
+        condicion_acta: m.condicion_acta,
+        presidente: m.presidente,
+        notas: `Mesa examinadora • Tribunal Pres.: ${m.presidente || 'Docente Titular'}`,
+        isMesa: true,
+        editable: true
+      };
+    }).filter(Boolean);
+  }, [mesas, catedras, catFilters, categoryFilters]);
+
+  /**
    * Colección unificada de eventos filtrados
    */
   const allFilteredEvents = useMemo(() => {
@@ -377,9 +483,16 @@ export default function CalendarPage() {
       if (categoryFilters[e.tipo] === false) return false;
       if (e.catedra_id && catFilters[e.catedra_id] === false) return false;
       return true;
+    }).map(e => {
+      const catObj = (catedras || []).find(c => c.id === e.catedra_id);
+      return {
+        ...e,
+        catedra_color: catObj?.color || e.catedra_color || null,
+        color: e.color || catObj?.color || null
+      };
     });
-    return [...customEvents, ...periodoEvents];
-  }, [events, periodoEvents, categoryFilters, catFilters]);
+    return [...customEvents, ...periodoEvents, ...mesaEvents];
+  }, [events, periodoEvents, mesaEvents, categoryFilters, catFilters, catedras]);
 
   /**
    * Cálculo de fechas de la semana actual (Lunes a Domingo)
@@ -484,41 +597,72 @@ export default function CalendarPage() {
   }, [currentDate]);
 
   /**
-   * Tokens de Color por Categoría Académica
+  /**
+   * Resolución de tokens de diseño dinámicos para chips y tarjetas de calendario
+   * Cumple con WCAG 2.1 AA automático para contraste de texto y distinción de mesas.
    */
-  const getEventStyle = (tipo) => {
-    switch (tipo) {
-      case 'CLASE':
-        return {
-          card: 'bg-emerald-50/90 text-emerald-950 border-l-4 border-emerald-500 border-slate-200/80 dark:bg-emerald-950/30 dark:text-emerald-100 dark:border-l-4 dark:border-emerald-500 dark:border-emerald-800/40',
-          badge: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-          dot: 'bg-emerald-500',
-          tag: 'Clase Regular'
-        };
-      case 'TRIBUNAL_EXAMEN':
-        return {
-          card: 'bg-amber-50/90 text-amber-950 border-l-4 border-amber-500 border-slate-200/80 dark:bg-amber-950/30 dark:text-amber-100 dark:border-l-4 dark:border-amber-500 dark:border-amber-800/40',
-          badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
-          dot: 'bg-amber-500',
-          tag: 'Mesa de Examen'
-        };
-      case 'EVALUACION':
-        return {
-          card: 'bg-blue-50/90 text-blue-950 border-l-4 border-blue-500 border-slate-200/80 dark:bg-blue-950/30 dark:text-blue-100 dark:border-l-4 dark:border-blue-500 dark:border-blue-800/40',
-          badge: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
-          dot: 'bg-blue-500',
-          tag: 'Evaluación / Parcial'
-        };
-      case 'TRABAJO_PRACTICO':
-      case 'REUNION':
-      default:
-        return {
-          card: 'bg-violet-50/90 text-violet-950 border-l-4 border-violet-500 border-slate-200/80 dark:bg-violet-950/30 dark:text-violet-100 dark:border-l-4 dark:border-violet-500 dark:border-violet-800/40',
-          badge: 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
-          dot: 'bg-violet-500',
-          tag: 'Entrega TP / Reunión'
-        };
+  const getItemDesign = (item) => {
+    if (!item) {
+      return {
+        isMesa: false,
+        bgColor: DEFAULT_CURATED_COLORS[0].value,
+        textColor: '#FFFFFF',
+        catedraColor: DEFAULT_CURATED_COLORS[0].value,
+        Icon: BookOpen,
+        tag: 'Clase Regular'
+      };
     }
+
+    const isMesa = item.tipo === 'TRIBUNAL_EXAMEN' || item.isMesa;
+    const catObj = item.catedra_id ? (catedras || []).find(c => c.id === item.catedra_id) : null;
+    const catColor = item.catedra_color || catObj?.color || DEFAULT_CURATED_COLORS[0].value;
+
+    // Las mesas tienen su propio color reservado (DEFAULT_MESA_COLOR) o editado
+    // Los demás eventos heredan el color de su cátedra
+    const bgColor = isMesa
+      ? (item.color || DEFAULT_MESA_COLOR)
+      : (item.color || catColor);
+
+    const textColor = getContrastTextColor(bgColor);
+
+    let Icon = BookOpen;
+    let tag = 'Clase Regular';
+    if (isMesa) {
+      Icon = GraduationCap;
+      tag = 'Mesa de Examen';
+    } else if (item.tipo === 'EVALUACION') {
+      Icon = CheckSquare;
+      tag = 'Evaluación / Parcial';
+    } else if (item.tipo === 'TRABAJO_PRACTICO') {
+      Icon = Bookmark;
+      tag = 'Entrega de TP';
+    } else if (item.tipo === 'PERIODO') {
+      Icon = CalendarRange;
+      tag = 'Período Académico';
+    } else if (item.tipo === 'RECORDATORIO') {
+      Icon = Bell;
+      tag = 'Recordatorio';
+    }
+
+    return {
+      isMesa,
+      bgColor,
+      textColor,
+      catedraColor: catColor,
+      Icon,
+      tag
+    };
+  };
+
+  const getEventStyle = (tipo) => {
+    const dummy = { tipo };
+    const design = getItemDesign(dummy);
+    return {
+      card: 'border border-slate-200 dark:border-slate-800',
+      badge: 'border',
+      dot: 'bg-emerald-500',
+      tag: design.tag
+    };
   };
 
   /**
@@ -672,9 +816,9 @@ export default function CalendarPage() {
       
       {/* ========================================================
           COLUMNA LATERAL IZQUIERDA: PANEL DE CONTROL Y CONTEXTO
-          (lg:col-span-4 xl:col-span-3)
+          (lg:col-span-4 xl:col-span-3 - Oculto en móvil <1024px)
          ======================================================== */}
-      <aside className="lg:col-span-4 xl:col-span-3 flex flex-col gap-5">
+      <aside className="hidden lg:flex lg:col-span-4 xl:col-span-3 flex-col gap-5">
         <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 shadow-sm dark:shadow-xl flex flex-col gap-5 transition-colors">
           
           {/* 1. CABECERA DEL DOCENTE */}
@@ -869,7 +1013,7 @@ export default function CalendarPage() {
             )}
           </div>
 
-          {/* 4. MIS CÁTEDRAS / FILTROS ACTIVOS (STYLE RADIX/IOS) */}
+          {/* 4. MIS CÁTEDRAS / FILTROS ACTIVOS (CON INDICADOR DE COLOR REAL) */}
           <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -884,6 +1028,7 @@ export default function CalendarPage() {
               {/* Cátedras individuales */}
               {(catedras || []).map(cat => {
                 const checked = catFilters[cat.id] !== false;
+                const catColor = cat.color || DEFAULT_CURATED_COLORS[0].value;
                 return (
                   <div
                     key={cat.id}
@@ -896,6 +1041,11 @@ export default function CalendarPage() {
                       ) : (
                         <Square className="w-4 h-4 text-slate-400 shrink-0" />
                       )}
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20"
+                        style={{ backgroundColor: catColor }}
+                        title={`Color de cátedra: ${catColor}`}
+                      />
                       <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                         {cat.nombre}
                       </span>
@@ -914,13 +1064,19 @@ export default function CalendarPage() {
               >
                 <div className="flex items-center gap-2">
                   {categoryFilters.TRIBUNAL_EXAMEN ? (
-                    <CheckSquare className="w-4 h-4 text-amber-500 shrink-0" />
+                    <CheckSquare className="w-4 h-4 text-indigo-500 shrink-0" />
                   ) : (
                     <Square className="w-4 h-4 text-slate-400 shrink-0" />
                   )}
+                  <span
+                    className="w-4 h-4 rounded-md shrink-0 border border-dashed border-indigo-400 flex items-center justify-center text-white text-[10px]"
+                    style={{ backgroundColor: DEFAULT_MESA_COLOR }}
+                  >
+                    <GraduationCap className="w-2.5 h-2.5" />
+                  </span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">Mesas de Examen</span>
                 </div>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                   Exámenes
                 </span>
               </div>
@@ -935,6 +1091,7 @@ export default function CalendarPage() {
                   ) : (
                     <Square className="w-4 h-4 text-slate-400 shrink-0" />
                   )}
+                  <CheckSquare className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                   <span className="font-semibold text-slate-800 dark:text-slate-200">Evaluaciones / Parciales</span>
                 </div>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
@@ -952,13 +1109,99 @@ export default function CalendarPage() {
                   ) : (
                     <Square className="w-4 h-4 text-slate-400 shrink-0" />
                   )}
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Entregas de Trabajos Prácticos</span>
+                  <Bookmark className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">Trabajos Prácticos</span>
                 </div>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
                   TPs
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* LEYENDA DEL CALENDARIO (COLAPSABLE EN ESCRITORIO) */}
+          <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+            <button
+              type="button"
+              onClick={() => setIsLegendCollapsed(!isLegendCollapsed)}
+              className="w-full flex items-center justify-between text-left cursor-pointer group"
+            >
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 group-hover:text-primary transition-colors">
+                <Tag className="w-3.5 h-3.5 text-primary" />
+                <span>Leyenda del Calendario</span>
+              </span>
+              <span className="text-[10px] text-text-muted font-mono">
+                {isLegendCollapsed ? 'Mostrar ▼' : 'Ocultar ▲'}
+              </span>
+            </button>
+
+            {!isLegendCollapsed && (
+              <div className="p-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 space-y-3 text-xs">
+                {/* 1. Cátedras */}
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block mb-1.5">
+                    Colores por Cátedra (Heredados)
+                  </span>
+                  <div className="space-y-1.5">
+                    {(catedras || []).map(cat => (
+                      <div key={cat.id} className="flex items-center gap-2">
+                        <span
+                          className="w-3 h-3 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20"
+                          style={{ backgroundColor: cat.color || DEFAULT_CURATED_COLORS[0].value }}
+                        />
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate flex-1">
+                          {cat.nombre}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Mesas de Examen */}
+                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/40">
+                  <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block mb-1.5">
+                    Mesas de Examen
+                  </span>
+                  <div className="flex items-start gap-2 p-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/30 border border-dashed border-indigo-400">
+                    <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                    <div className="text-[11px] leading-tight">
+                      <div className="font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                        <span>Color Propio Reservado</span>
+                        <span className="w-2.5 h-2.5 rounded-full inline-block text-white" style={{ backgroundColor: DEFAULT_MESA_COLOR, color: '#FFFFFF' }} />
+                      </div>
+                      <p className="text-[10px] text-indigo-800/80 dark:text-indigo-300/80 mt-1">
+                        Borde discontinuo + ícono toga + dot con color de su cátedra.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Íconos por Tipo de Evento */}
+                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/40">
+                  <span className="text-[10px] uppercase font-bold text-text-muted tracking-wider block mb-1.5">
+                    Íconos de Eventos
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-text-secondary">
+                      <BookOpen className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span>Clase</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-text-secondary">
+                      <CheckSquare className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                      <span>Parcial</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-text-secondary">
+                      <Bookmark className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                      <span>Entrega TP</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-text-secondary">
+                      <CalendarRange className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                      <span>Período</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 5. PROGRESO DE CURSADA Y CUMPLIMIENTO */}
@@ -1076,6 +1319,16 @@ export default function CalendarPage() {
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setIsLegendOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                title="Ver Leyenda y Código de Colores"
+              >
+                <Tag className="w-3.5 h-3.5 text-primary" />
+                <span>Leyenda</span>
+              </button>
 
               <button
                 type="button"
@@ -1245,7 +1498,8 @@ export default function CalendarPage() {
                               const durationHours = Math.max(1, (endMinTotal - startMinTotal) / 60);
                               const height = Math.max(56, durationHours * HOUR_ROW_HEIGHT - 6);
 
-                              const styles = getEventStyle(item.tipo);
+                              const design = getItemDesign(item);
+                              const EvIcon = design.Icon;
 
                               // Cálculo de columna en grid de 8 (col 1 es hora, cols 2-8 son días)
                               const colLeftPercent = (dayIdx + 1) * (100 / 8);
@@ -1262,29 +1516,51 @@ export default function CalendarPage() {
                                     top: `${top}px`,
                                     left: `calc(${colLeftPercent}% + 4px)`,
                                     width: `calc(${colWidthPercent}% - 8px)`,
-                                    height: `${height}px`
+                                    height: `${height}px`,
+                                    backgroundColor: design.bgColor,
+                                    color: design.textColor
                                   }}
                                   className={`
                                     absolute z-20 rounded-xl p-2.5 shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-pointer overflow-hidden flex flex-col justify-between
-                                    ${styles.card}
+                                    ${design.isMesa 
+                                      ? 'border-2 border-dashed border-indigo-300 ring-2 ring-indigo-500/40 shadow-indigo-500/20' 
+                                      : 'border border-black/10 dark:border-white/10'
+                                    }
                                   `}
                                 >
                                   {/* Línea 1: Título de la materia o examen */}
                                   <div>
-                                    <div className="flex items-center justify-between gap-1">
-                                      <h4 className="font-bold text-xs sm:text-sm truncate leading-tight">
-                                        {item.titulo}
-                                      </h4>
+                                    <div className="flex items-start justify-between gap-1">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <EvIcon className="w-3.5 h-3.5 shrink-0 opacity-90" />
+                                        <h4 className="font-bold text-xs sm:text-sm truncate leading-tight">
+                                          {item.titulo}
+                                        </h4>
+                                      </div>
                                     </div>
 
+                                    {/* Indicador de Cátedra para Mesas de Examen */}
+                                    {design.isMesa && design.catedraColor && (
+                                      <div className="flex items-center gap-1.5 mt-1">
+                                        <span
+                                          className="w-2 h-2 rounded-full shrink-0 ring-1 ring-white/80"
+                                          style={{ backgroundColor: design.catedraColor }}
+                                          title={`Cátedra: ${item.catedra_nombre || ''}`}
+                                        />
+                                        <span className="text-[10px] font-medium opacity-90 truncate">
+                                          {item.catedra_nombre || 'Materia'}
+                                        </span>
+                                      </div>
+                                    )}
+
                                     {/* Línea 2: Horario en formato 24 hs */}
-                                    <div className="font-mono text-[11px] opacity-85 mt-0.5 font-semibold">
+                                    <div className="font-mono text-[11px] opacity-85 mt-1 font-semibold">
                                       {item.hora_inicio} - {item.hora_fin} hs
                                     </div>
                                   </div>
 
                                   {/* Línea 3: Micro-chips informativos */}
-                                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono mt-1 pt-1 border-t border-black/5 dark:border-white/10">
+                                  <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono mt-1 pt-1 border-t border-black/10 dark:border-white/15 opacity-90">
                                     <span className="truncate">📍 {item.aula || 'Aula 1'}</span>
                                     {item.alumnos_count && (
                                       <span>👥 {item.alumnos_count}</span>
@@ -1309,7 +1585,10 @@ export default function CalendarPage() {
                 <div className="space-y-3">
                   <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono font-bold text-slate-400 pb-2 border-b border-slate-100 dark:border-slate-800">
                     {DAYS_OF_WEEK.map((d, i) => (
-                      <span key={i}>{d}</span>
+                      <span key={i} title={d} className="truncate">
+                        <span className="hidden xl:inline">{d}</span>
+                        <span className="inline xl:hidden">{d.slice(0, 3)}</span>
+                      </span>
                     ))}
                   </div>
 
@@ -1363,21 +1642,42 @@ export default function CalendarPage() {
                           )}
 
                           <div className="space-y-1 overflow-hidden mt-1">
-                            {dayEvents.slice(0, 2).map((ev) => {
-                              const st = getEventStyle(ev.tipo);
+                            {dayEvents.slice(0, 3).map((ev) => {
+                              const design = getItemDesign(ev);
+                              const EvIcon = design.Icon;
                               return (
                                 <div
                                   key={ev.id}
-                                  className={`text-[9px] font-semibold px-1.5 py-0.5 rounded truncate ${st.card}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEventForDetail(ev);
+                                  }}
+                                  style={{
+                                    backgroundColor: design.bgColor,
+                                    color: design.textColor
+                                  }}
+                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1 shadow-2xs hover:scale-[1.02] transition-transform ${
+                                    design.isMesa 
+                                      ? 'ring-1 ring-inset ring-white/60 border border-dashed border-indigo-300' 
+                                      : ''
+                                  }`}
                                   title={ev.titulo}
                                 >
-                                  {ev.titulo}
+                                  <EvIcon className="w-2.5 h-2.5 shrink-0 opacity-90" />
+                                  <span className="truncate flex-1">{ev.titulo}</span>
+                                  {design.isMesa && design.catedraColor && (
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full shrink-0 ring-1 ring-white/80"
+                                      style={{ backgroundColor: design.catedraColor }}
+                                      title={`Cátedra: ${ev.catedra_nombre || ''}`}
+                                    />
+                                  )}
                                 </div>
                               );
                             })}
-                            {dayEvents.length > 2 && (
+                            {dayEvents.length > 3 && (
                               <span className="text-[9px] font-mono text-slate-400 block text-right">
-                                +{dayEvents.length - 2} más
+                                +{dayEvents.length - 3} más
                               </span>
                             )}
                           </div>
@@ -1466,26 +1766,54 @@ export default function CalendarPage() {
                       }
 
                       return allItems.map(item => {
-                        const styles = getEventStyle(item.tipo);
+                        const design = getItemDesign(item);
+                        const EvIcon = design.Icon;
                         return (
                           <div
                             key={item.id}
                             onClick={() => setSelectedEventForDetail(item)}
-                            className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${styles.card}`}
+                            style={{
+                              borderLeftColor: design.bgColor
+                            }}
+                            className={`p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-l-[6px] transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 shadow-xs ${
+                              design.isMesa 
+                                ? 'bg-indigo-50/25 dark:bg-indigo-950/20 border-dashed border-r-indigo-300 dark:border-r-indigo-800/50' 
+                                : 'bg-surface'
+                            }`}
                           >
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${styles.badge}`}>
-                                  {styles.tag}
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span 
+                                  style={{
+                                    backgroundColor: design.bgColor,
+                                    color: design.textColor
+                                  }}
+                                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-2xs"
+                                >
+                                  <EvIcon className="w-3 h-3" />
+                                  <span>{design.tag}</span>
                                 </span>
-                                <span className="font-mono font-bold text-xs">
+
+                                {design.isMesa && design.catedraColor && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 inline-flex items-center gap-1 border border-slate-200 dark:border-slate-700">
+                                    <span 
+                                      className="w-2 h-2 rounded-full"
+                                      style={{ backgroundColor: design.catedraColor }}
+                                    />
+                                    <span>{item.catedra_nombre || 'Cátedra'}</span>
+                                  </span>
+                                )}
+
+                                <span className="font-mono font-bold text-xs text-slate-600 dark:text-slate-300">
                                   {item.hora_inicio} - {item.hora_fin} hs
                                 </span>
                               </div>
-                              <h4 className="text-sm font-bold">
+
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                                 {item.titulo}
                               </h4>
-                              <div className="flex items-center gap-2 text-xs opacity-80 font-mono">
+
+                              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-mono flex-wrap">
                                 <span>📍 {item.aula}</span>
                                 <span>•</span>
                                 <span>{item.institucion}</span>
@@ -1923,6 +2251,112 @@ export default function CalendarPage() {
               onClick={handleDownloadIcs}
             >
               Descargar Archivo .ics
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ========================================================
+          MODAL / BOTTOM SHEET: LEYENDA DEL CALENDARIO (MÓVIL / TABLET)
+         ======================================================== */}
+      <Modal
+        isOpen={isLegendOpen}
+        onClose={() => setIsLegendOpen(false)}
+        title="Leyenda y Código de Colores"
+        subtitle="Convención de colores, cátedras y mesas de examen"
+      >
+        <div className="space-y-4 text-xs">
+          {/* Cátedras */}
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-white/5 space-y-2">
+            <span className="text-[11px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">
+              Cátedras Activas (Colores Heredados)
+            </span>
+            <div className="space-y-2">
+              {(catedras || []).map(cat => (
+                <div key={cat.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/5">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="w-4 h-4 rounded-full shrink-0 ring-2 ring-black/10 dark:ring-white/20 shadow-xs"
+                      style={{ backgroundColor: cat.color || DEFAULT_CURATED_COLORS[0].value }}
+                    />
+                    <span className="font-bold text-slate-800 dark:text-slate-100">
+                      {cat.nombre}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-text-muted">
+                    {cat.modalidad || 'Cursada'}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-text-muted pt-1">
+              💡 Todas las clases, parciales y entregas de una cátedra heredan su color identificador.
+            </p>
+          </div>
+
+          {/* Mesas de Examen */}
+          <div className="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/30 rounded-2xl border-2 border-dashed border-indigo-400 space-y-2">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <div>
+                <h4 className="font-bold text-indigo-950 dark:text-indigo-100 text-sm">
+                  Mesas de Examen Final
+                </h4>
+                <p className="text-[11px] text-indigo-800/80 dark:text-indigo-300/80">
+                  Doble distinción: color propio reservado + indicador de su cátedra
+                </p>
+              </div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-4 h-4 rounded-md shrink-0 border border-dashed border-indigo-500 shadow-xs text-white"
+                  style={{ backgroundColor: DEFAULT_MESA_COLOR, color: '#FFFFFF' }}
+                />
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  Color Reservado de Mesas
+                </span>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                #4338CA
+              </span>
+            </div>
+            <p className="text-[11px] text-indigo-900/80 dark:text-indigo-200/80 leading-relaxed">
+              Las mesas nunca se confunden con una cátedra. Tienen borde punteado, ícono de graduación y un punto indicador del color de su cátedra de origen.
+            </p>
+          </div>
+
+          {/* Tipos de Eventos */}
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-white/5 space-y-2">
+            <span className="text-[11px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">
+              Tipos de Eventos e Íconos
+            </span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/5">
+                <BookOpen className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="font-medium text-slate-700 dark:text-slate-200">Clase Regular</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/5">
+                <CheckSquare className="w-4 h-4 text-blue-500 shrink-0" />
+                <span className="font-medium text-slate-700 dark:text-slate-200">Evaluación / Parcial</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/5">
+                <Bookmark className="w-4 h-4 text-violet-500 shrink-0" />
+                <span className="font-medium text-slate-700 dark:text-slate-200">Entrega de TP</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/5">
+                <CalendarRange className="w-4 h-4 text-teal-500 shrink-0" />
+                <span className="font-medium text-slate-700 dark:text-slate-200">Período Académico</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => setIsLegendOpen(false)}
+            >
+              Entendido
             </Button>
           </div>
         </div>

@@ -1,0 +1,229 @@
+{
+  "name": "Korum - Recordatorios Académicos a Discord",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-cron-15m",
+      "name": "Cron Cada 15 Minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT e.id, 'EVENTO' AS origen, e.tipo, e.titulo, e.fecha_inicio, e.fecha_fin, e.aula, e.notas, c.nombre AS catedra_nombre, COALESCE(e.color, c.color, '#10B981') AS color, e.recordatorio_config FROM public.eventos_calendario e LEFT JOIN public.catedras c ON e.catedra_id = c.id WHERE e.fecha_inicio >= NOW() - INTERVAL '1 hour' AND e.fecha_inicio <= NOW() + INTERVAL '8 days' UNION ALL SELECT m.id, 'MESA' AS origen, 'TRIBUNAL_EXAMEN' AS tipo, ('Mesa de Examen: ' || COALESCE(c.nombre, 'Cátedra')) AS titulo, (m.fecha::text || 'T18:00:00-03:00')::timestamptz AS fecha_inicio, (m.fecha::text || 'T20:30:00-03:00')::timestamptz AS fecha_fin, 'Aula Magna' AS aula, ('Turno: ' || m.turno_llamado || ' • Condición: ' || m.condicion_acta) AS notas, c.nombre AS catedra_nombre, COALESCE(m.color, '#4338CA') AS color, m.recordatorio_config FROM public.mesas_examen m LEFT JOIN public.catedras c ON m.catedra_id = c.id WHERE m.fecha >= CURRENT_DATE - 1 AND m.fecha <= CURRENT_DATE + 8;"
+      },
+      "id": "node-db-fetch-events",
+      "name": "Consultar Eventos y Mesas Próximas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "korum_supabase_postgres",
+          "name": "Korum Supabase Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// =====================================================================\n// EVALUACIÓN DE PLAZOS Y PREPARACIÓN DE EMBED (CATAMARCA UTC-3)\n// =====================================================================\nconst items = $input.all();\nconst results = [];\nconst TIMEZONE = 'America/Argentina/Catamarca';\nconst now = new Date();\n\n// Función para convertir hex a decimal\nfunction hexToDec(hex) {\n  if (!hex) return 1096065;\n  const clean = hex.replace('#', '').trim();\n  const val = parseInt(clean, 16);\n  return isNaN(val) ? 1096065 : val;\n}\n\nfor (const item of items) {\n  const row = item.json;\n  const eventDate = new Date(row.fecha_inicio);\n  const diffMs = eventDate.getTime() - now.getTime();\n  const diffHours = diffMs / (1000 * 60 * 60);\n  const diffDays = Math.round(diffHours / 24);\n\n  let tipoAviso = null;\n  let faltaStr = '';\n\n  if (row.tipo === 'TRIBUNAL_EXAMEN') {\n    if (diffDays === 7 && diffHours >= 166 && diffHours <= 170) {\n      tipoAviso = '7_DIAS';\n      faltaStr = 'en 7 días';\n    } else if (diffDays === 1 && diffHours >= 22 && diffHours <= 26) {\n      tipoAviso = '1_DIA';\n      faltaStr = 'mañana a las 20:00';\n    } else if (diffHours >= 1.75 && diffHours <= 2.25) {\n      tipoAviso = '2_HORAS';\n      faltaStr = 'en 2 horas';\n    }\n  } else if (row.tipo === 'EVALUACION' || row.tipo === 'TRABAJO_PRACTICO') {\n    if (diffDays === 3 && diffHours >= 70 && diffHours <= 74) {\n      tipoAviso = '3_DIAS';\n      faltaStr = 'en 3 días';\n    } else if (diffDays === 1 && diffHours >= 22 && diffHours <= 26) {\n      tipoAviso = '1_DIA';\n      faltaStr = 'mañana a las 20:00';\n    } else if (diffHours >= 10 && diffHours <= 13) {\n      tipoAviso = 'DIA_MANANA';\n      faltaStr = 'hoy a las 07:30';\n    }\n  }\n\n  if (tipoAviso) {\n    const fields = [\n      { name: 'Cátedra', value: row.catedra_nombre || 'General', inline: true },\n      { name: 'Fecha', value: eventDate.toLocaleDateString('es-AR', { timeZone: TIMEZONE, weekday: 'long', day: 'numeric', month: 'long' }), inline: true },\n      { name: 'Hora', value: eventDate.toLocaleTimeString('es-AR', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit' }) + ' hs', inline: true }\n    ];\n    if (row.aula) fields.push({ name: 'Lugar / Aula', value: row.aula, inline: true });\n    if (row.notas) fields.push({ name: 'Detalle', value: row.notas, inline: false });\n\n    results.push({\n      json: {\n        evento_id: String(row.id),\n        tipo_evento: row.tipo,\n        tipo_aviso: tipoAviso,\n        color: hexToDec(row.color),\n        titulo: row.titulo,\n        falta: faltaStr,\n        fields\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "node-evaluate-reminders",
+      "name": "Evaluar Ventana de Aviso e Idempotencia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS ya_enviado FROM public.recordatorios_enviados WHERE evento_id = $1 AND tipo_aviso = $2 AND estado = 'ENVIADO';",
+        "options": {
+          "queryReplacement": "={{ [$json.evento_id, $json.tipo_aviso] }}"
+        }
+      },
+      "id": "node-check-idempotency",
+      "name": "Verificar No Duplicado (Idempotencia)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "korum_supabase_postgres",
+          "name": "Korum Supabase Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.ya_enviado }}",
+              "operation": "equal",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "node-filter-unnotified",
+      "name": "¿Aviso Aún No Enviado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "guildId": "1430396981095960600",
+        "channelId": "1556366651296055357",
+        "content": "",
+        "embeds": [
+          {
+            "title": "={{ $('Evaluar Ventana de Aviso e Idempotencia').item.json.titulo }}",
+            "description": "=Falta **{{ $('Evaluar Ventana de Aviso e Idempotencia').item.json.falta }}**.",
+            "color": "={{ $('Evaluar Ventana de Aviso e Idempotencia').item.json.color }}",
+            "fields": "={{ $('Evaluar Ventana de Aviso e Idempotencia').item.json.fields }}",
+            "footer": {
+              "text": "Korum • Recordatorio Automático"
+            }
+          }
+        ]
+      },
+      "id": "node-discord-publish",
+      "name": "Publicar en Canal Discord de Korum",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        280
+      ],
+      "credentials": {
+        "discordBotApi": {
+          "id": "korum_discord_bot_cred",
+          "name": "Discord Bot Korum"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.recordatorios_enviados (evento_id, tipo_evento, tipo_aviso, destinatario_canal, estado, intentos, enviado_en) VALUES ($1, $2, $3, '1556366651296055357', 'ENVIADO', 1, NOW()) ON CONFLICT (evento_id, tipo_aviso) DO UPDATE SET estado = 'ENVIADO', enviado_en = NOW();",
+        "options": {
+          "queryReplacement": "={{ [$('Evaluar Ventana de Aviso e Idempotencia').item.json.evento_id, $('Evaluar Ventana de Aviso e Idempotencia').item.json.tipo_evento, $('Evaluar Ventana de Aviso e Idempotencia').item.json.tipo_aviso] }}"
+        }
+      },
+      "id": "node-db-record-sent",
+      "name": "Registrar Envío en Auditoría",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1580,
+        280
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "korum_supabase_postgres",
+          "name": "Korum Supabase Database"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron Cada 15 Minutos": {
+      "main": [
+        [
+          {
+            "node": "Consultar Eventos y Mesas Próximas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Eventos y Mesas Próximas": {
+      "main": [
+        [
+          {
+            "node": "Evaluar Ventana de Aviso e Idempotencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar Ventana de Aviso e Idempotencia": {
+      "main": [
+        [
+          {
+            "node": "Verificar No Duplicado (Idempotencia)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar No Duplicado (Idempotencia)": {
+      "main": [
+        [
+          {
+            "node": "¿Aviso Aún No Enviado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Aviso Aún No Enviado?": {
+      "main": [
+        [
+          {
+            "node": "Publicar en Canal Discord de Korum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publicar en Canal Discord de Korum": {
+      "main": [
+        [
+          {
+            "node": "Registrar Envío en Auditoría",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Argentina/Catamarca",
+    "executionOrder": "v1"
+  }
+}

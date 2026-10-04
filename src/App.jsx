@@ -115,6 +115,7 @@ function AuthenticatedDocenteShell() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/catedra/:id" element={<CatedraDetailPage />} />
                 <Route path="/mesas-examen" element={<MesasExamenPage />} />
+                <Route path="/mesas" element={<Navigate to="/mesas-examen" replace />} />
                 <Route path="/calendario" element={<CalendarPage />} />
                 <Route path="/instituciones" element={<InstitutionsPage />} />
                 <Route path="/configuracion" element={<SettingsPage />} />

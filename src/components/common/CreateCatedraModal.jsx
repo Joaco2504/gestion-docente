@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import Modal from './Modal';
 import CustomSelect from './CustomSelect';
 import Button from './Button';
+import ColorPickerPopover from './ColorPickerPopover';
+import { getLeastUsedColor, DEFAULT_CURATED_COLORS } from '../../lib/colorTokens';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -17,6 +19,7 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
     activeInstitucion, 
     activeCiclo, 
     ciclosLectivos, 
+    catedras = [],
     refreshData,
     setCatedras 
   } = useApp();
@@ -25,13 +28,15 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
   const [institucionId, setInstitucionId] = useState('');
   const [nivel, setNivel] = useState('TERCIARIO');
   const [modalidad, setModalidad] = useState('ANUAL');
+  const [color, setColor] = useState(() => getLeastUsedColor(catedras));
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Sincronizar institución por defecto al abrir o al cambiar la institución activa
+  // Sincronizar institución y color por defecto al abrir o al cambiar la institución activa
   useEffect(() => {
     if (isOpen) {
       setErrorMsg('');
+      setColor(getLeastUsedColor(catedras));
       if (activeInstitucion?.id) {
         setInstitucionId(activeInstitucion.id);
         setNivel(activeInstitucion.nivel || 'TERCIARIO');
@@ -40,7 +45,7 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
         setNivel(instituciones[0].nivel || 'TERCIARIO');
       }
     }
-  }, [isOpen, activeInstitucion, instituciones]);
+  }, [isOpen, activeInstitucion, instituciones, catedras]);
 
   const handleClose = () => {
     if (saving) return;
@@ -92,6 +97,7 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
           nombre: nombre.trim(),
           nivel,
           modalidad,
+          color: color || DEFAULT_CURATED_COLORS[0].value,
           horarios_semanales: []
         };
 
@@ -134,6 +140,7 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
           nombre: nombre.trim(),
           nivel,
           modalidad,
+          color: color || DEFAULT_CURATED_COLORS[0].value,
           horarios_semanales: [],
           estudiantes_count: 0,
           asistencia_promedio: null,
@@ -256,6 +263,16 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
               menuClassName="z-50 max-h-48 overflow-y-auto shadow-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl"
             />
           </div>
+        </div>
+
+        <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-white/5 rounded-2xl">
+          <ColorPickerPopover
+            color={color}
+            onChange={setColor}
+            label="Color Identificador en Calendario"
+            previewTitle={nombre.trim() || 'Nombre de Cátedra'}
+            previewSubtitle="Clases, parciales y entregas"
+          />
         </div>
 
         <div className="flex justify-end gap-2 pt-3 border-t border-surface-border">

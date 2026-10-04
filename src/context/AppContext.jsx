@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { handleAppError } from '../utils/handleAppError';
+import { migrateCatedrasColors } from '../lib/colorTokens';
 
 const AppContext = createContext({});
 
@@ -95,6 +96,7 @@ export function AppProvider({ children }) {
           estudiantes_count: 32
         }
       ];
+      catList = migrateCatedrasColors(catList);
 
       const savedActiveInstId = localStorage.getItem('institucion_activa_id');
       const activeInst = (savedActiveInstId && instList.find(i => i.id === savedActiveInstId)) || instList[0] || null;
@@ -162,10 +164,10 @@ export function AppProvider({ children }) {
 
       const insts = instData ?? [];
       const ciclos = cicloData ?? [];
-      const cats = (catData ?? []).map(c => ({
+      const cats = migrateCatedrasColors((catData ?? []).map(c => ({
         ...c,
         institucion_nombre: c.instituciones?.nombre || ''
-      }));
+      })));
 
       const savedActiveInstId = localStorage.getItem('institucion_activa_id');
 

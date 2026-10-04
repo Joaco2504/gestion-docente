@@ -19,6 +19,8 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CustomSelect from '../common/CustomSelect';
 import Badge from '../common/Badge';
+import ColorPickerPopover from '../common/ColorPickerPopover';
+import { DEFAULT_CURATED_COLORS } from '../../lib/colorTokens';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -68,6 +70,7 @@ export default function EditarCatedraModal({
   const [cicloId, setCicloId] = useState('');
   const [nivel, setNivel] = useState('TERCIARIO');
   const [modalidad, setModalidad] = useState('ANUAL');
+  const [color, setColor] = useState(DEFAULT_CURATED_COLORS[0].value);
   const [horarios, setHorarios] = useState([]);
 
   // Estados de configuración de asistencia RAM
@@ -146,6 +149,7 @@ export default function EditarCatedraModal({
 
       setNivel(catedra.nivel || 'TERCIARIO');
       setModalidad(catedra.modalidad || 'ANUAL');
+      setColor(catedra.color || DEFAULT_CURATED_COLORS[0].value);
 
       // Parámetros RAM
       setAsistRegular(Number(catedra.ram_asistencia_regular) || 70);
@@ -224,6 +228,7 @@ export default function EditarCatedraModal({
           nombre: nombre.trim(),
           nivel,
           modalidad,
+          color: color || DEFAULT_CURATED_COLORS[0].value,
           horarios_semanales: cleanHorarios,
           ram_asistencia_regular: Number(asistRegular),
           ram_asistencia_trabajo: Number(asistTrabajo),
@@ -237,8 +242,8 @@ export default function EditarCatedraModal({
           .eq('id', catedra.id)
           .select('*, instituciones(*), ciclos_lectivos(*)');
 
-        // Fallback defensivo si alguna columna RAM o 'updated_at' no existe en el esquema PostgreSQL
-        if (error && (error.code === '42703' || error.message?.includes('ram_asistencia') || error.message?.includes('updated_at'))) {
+        // Fallback defensivo si alguna columna no existe aún
+        if (error && (error.code === '42703' || error.message?.includes('color') || error.message?.includes('ram_asistencia') || error.message?.includes('updated_at'))) {
           const { ram_asistencia_regular, ram_asistencia_trabajo, ram_asistencia_promocion, updated_at, ...payloadBase } = updatePayload;
           const retryRes = await supabase
             .from('catedras')
@@ -303,6 +308,7 @@ export default function EditarCatedraModal({
           ciclos_lectivos: cicloFound || catedra.ciclos_lectivos,
           nivel,
           modalidad,
+          color: color || DEFAULT_CURATED_COLORS[0].value,
           horarios_semanales: cleanHorarios,
           ram_asistencia_regular: Number(asistRegular),
           ram_asistencia_trabajo: Number(asistTrabajo),
@@ -491,6 +497,17 @@ export default function EditarCatedraModal({
                 menuClassName="z-50 max-h-48 overflow-y-auto shadow-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl"
               />
             </div>
+          </div>
+
+          {/* COLOR EN CALENDARIO */}
+          <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/80">
+            <ColorPickerPopover
+              color={color}
+              onChange={setColor}
+              label="Color Identificador de la Cátedra"
+              previewTitle={nombre.trim() || catedra?.nombre || 'Cátedra'}
+              previewSubtitle="Heredado por clases, parciales y entregas"
+            />
           </div>
 
           {/* 4. SECCIÓN: RÉGIMEN ACADÉMICO MARCO (RAM) Y ASISTENCIA */}
