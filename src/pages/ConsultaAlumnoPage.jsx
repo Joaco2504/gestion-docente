@@ -24,7 +24,8 @@ import {
   Copy, 
   Link2 as IconLink, 
   Zap,
-  BookOpen
+  BookOpen,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ThemeToggle from '../components/common/ThemeToggle';
@@ -764,6 +765,19 @@ export default function ConsultaAlumnoPage() {
                               <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">
                                 {ev.titulo}
                               </h4>
+                              {(ev.archivo_url || ev.link_consigna) && (
+                                <div className="mt-1">
+                                  <a
+                                    href={ev.archivo_url || ev.link_consigna}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 hover:underline hover:text-emerald-500 font-semibold transition-colors"
+                                  >
+                                    <ExternalLink className="w-3 h-3 shrink-0" />
+                                    <span>{ev.archivo_nombre || 'Ver Consignas / Material'}</span>
+                                  </a>
+                                </div>
+                              )}
                             </div>
 
                             <div className="shrink-0 text-right">

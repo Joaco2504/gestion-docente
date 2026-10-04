@@ -801,11 +801,12 @@ export default function GradesTab({
 
     setSavingEval(true);
     try {
-      let archivoUrl = payloadData.drive_url || null;
-      let archivoNombre = archivoUrl ? 'Consignas en Google Drive' : null;
+      let archivoUrl = payloadData.archivo_url || payloadData.link_consigna || payloadData.drive_url || null;
+      let archivoNombre = payloadData.archivo_nombre || (archivoUrl ? 'Consignas en Google Drive' : null);
+      let recursoId = payloadData.recurso_id || null;
 
-      // Si se proporcionó enlace a Google Drive, sincronizarlo también en la tabla 'recursos'
-      if (archivoUrl) {
+      // Si se proporcionó enlace y NO fue registrado aún por el modal (ej. creación rápida alternativa):
+      if (archivoUrl && !payloadData.recurso_creado && !recursoId) {
         try {
           const isParcialRec = String(payloadData.tipo || '').toUpperCase().includes('PARCIAL');
           const recCategory = isParcialRec ? 'PARCIAL' : 'TP';
@@ -813,16 +814,22 @@ export default function GradesTab({
             catedra_id: catedraId,
             categoria: recCategory,
             tipo_origen: 'GOOGLE_LINK',
+            tipo: archivoUrl.includes('drive.google.com') ? 'drive' : 'enlace',
             titulo: `${payloadData.titulo} — Consignas Drive`,
             url_o_path: archivoUrl,
+            url: archivoUrl,
+            visible_alumnos: true,
             created_at: new Date().toISOString()
           };
           if (isSupabaseConfigured && !isDemo) {
-            await supabase.from('recursos').insert(newRec);
+            const { data: recData } = await supabase.from('recursos').insert(newRec).select().single();
+            if (recData?.id) recursoId = recData.id;
           } else {
+            recursoId = 'rec-' + Date.now();
             const prevRec = JSON.parse(localStorage.getItem(`recursos_${catedraId}`) || '[]');
-            localStorage.setItem(`recursos_${catedraId}`, JSON.stringify([{ ...newRec, id: 'rec-' + Date.now() }, ...prevRec]));
+            localStorage.setItem(`recursos_${catedraId}`, JSON.stringify([{ ...newRec, id: recursoId }, ...prevRec]));
           }
+          window.dispatchEvent(new CustomEvent('recursos_updated', { detail: { catedraId } }));
         } catch (recErr) {
           console.warn('Aviso al sincronizar con repositorio:', recErr);
         }
@@ -844,7 +851,9 @@ export default function GradesTab({
         fecha: isoFechaEntrega,
         fecha_entrega: isoFechaEntrega,
         ponderacion: 1,
+        recurso_id: recursoId,
         archivo_url: archivoUrl,
+        link_consigna: archivoUrl,
         archivo_nombre: archivoNombre,
         created_at: new Date().toISOString()
       };
@@ -869,7 +878,9 @@ export default function GradesTab({
             fecha_entrega: newEvalObj.fecha_entrega,
             ponderacion: 1,
             evaluacion_origen_id: newEvalObj.evaluacion_origen_id,
+            recurso_id: newEvalObj.recurso_id,
             archivo_url: newEvalObj.archivo_url,
+            link_consigna: newEvalObj.link_consigna,
             archivo_nombre: newEvalObj.archivo_nombre
           };
 
@@ -928,6 +939,15 @@ export default function GradesTab({
       }
 
       toast.success(`Evaluación "${newEvalObj.titulo}" guardada correctamente.`);
+      
+      // Notificar reactivamente a otros componentes (Libro de Temas, Recursos, etc.)
+      window.dispatchEvent(new CustomEvent('evaluaciones_updated', {
+        detail: { catedraId, evaluacion: newEvalObj }
+      }));
+      window.dispatchEvent(new CustomEvent('recursos_updated', {
+        detail: { catedraId }
+      }));
+
       setIsNewEvalModalOpen(false);
       setEvalTitulo('');
       setEvalPeriodoId('');
@@ -2269,6 +2289,7 @@ export default function GradesTab({
         periodos={periodos}
         evaluaciones={evaluaciones}
         saving={savingEval}
+        catedraId={catedraId}
       />
 
       {/* Modal Editar Evaluación */}

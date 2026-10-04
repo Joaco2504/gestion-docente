@@ -501,6 +501,9 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
       titulo: ev.titulo,
       tipo: ev.tipo,
       fecha_entrega: ev.fecha_entrega || null,
+      archivo_url: ev.archivo_url || ev.link_consigna || null,
+      archivo_nombre: ev.archivo_nombre || null,
+      link_consigna: ev.link_consigna || ev.archivo_url || null,
       valor: numValor,
       nota: numNota,
       estado: notaRecord?.estado || null

@@ -92,6 +92,20 @@ export default function ResourcesTab({ catedraId, catedraName }) {
 
   useEffect(() => {
     fetchAllData();
+
+    const handleActualizaciones = (e) => {
+      if (!e?.detail?.catedraId || e.detail.catedraId === catedraId) {
+        fetchAllData();
+      }
+    };
+
+    window.addEventListener('recursos_updated', handleActualizaciones);
+    window.addEventListener('evaluaciones_updated', handleActualizaciones);
+
+    return () => {
+      window.removeEventListener('recursos_updated', handleActualizaciones);
+      window.removeEventListener('evaluaciones_updated', handleActualizaciones);
+    };
   }, [catedraId]);
 
   async function fetchAllData() {
@@ -412,18 +426,22 @@ export default function ResourcesTab({ catedraId, catedraName }) {
     }
   };
 
+  // Helper para concordancia de categorías de recursos
+  const matchesMaterialCategory = (r, catId) => {
+    if (catId === 'ALL') return true;
+    const cat = r.categoria;
+    if (catId === 'APUNTE') return cat === 'APUNTE' || cat === 'Apunte de Cátedra' || cat === 'General';
+    if (catId === 'TP') return cat === 'TP' || cat === 'Trabajo Práctico';
+    if (catId === 'PARCIAL') return cat === 'PARCIAL' || cat === 'Parcial' || cat === 'Evaluaciones';
+    if (catId === 'PLANIFICACION') return cat === 'PLANIFICACION' || cat === 'Planificación';
+    if (catId === 'BIBLIOGRAFIA') return cat === 'BIBLIOGRAFIA' || cat === 'Bibliografía';
+    return cat === catId;
+  };
+
   // Filtrado de materiales
   const filteredResources = selectedCategory === 'ALL'
     ? resources
-    : resources.filter(r => {
-        const cat = r.categoria;
-        if (selectedCategory === 'APUNTE') return cat === 'APUNTE' || cat === 'Apunte de Cátedra' || cat === 'General';
-        if (selectedCategory === 'TP') return cat === 'TP' || cat === 'Trabajo Práctico';
-        if (selectedCategory === 'PARCIAL') return cat === 'PARCIAL' || cat === 'Parcial';
-        if (selectedCategory === 'PLANIFICACION') return cat === 'PLANIFICACION' || cat === 'Planificación';
-        if (selectedCategory === 'BIBLIOGRAFIA') return cat === 'BIBLIOGRAFIA' || cat === 'Bibliografía';
-        return cat === selectedCategory;
-      });
+    : resources.filter(r => matchesMaterialCategory(r, selectedCategory));
 
   const matchesEvalCategory = (e, cat) => {
     const t = String(e.tipo || '').toUpperCase();
@@ -450,6 +468,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
         return 'secondary';
       case 'PARCIAL':
       case 'Parcial':
+      case 'Evaluaciones':
         return 'warning';
       case 'PLANIFICACION':
       case 'Planificación':
@@ -530,7 +549,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
               const isSelected = selectedCategory === cat.id;
               const count = cat.id === 'ALL' 
                 ? resources.length 
-                : resources.filter(r => r.categoria === cat.id).length;
+                : resources.filter(r => matchesMaterialCategory(r, cat.id)).length;
 
               return (
                 <button
