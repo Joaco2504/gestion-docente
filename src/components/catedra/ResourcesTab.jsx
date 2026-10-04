@@ -28,6 +28,7 @@ import EmptyState from '../common/EmptyState';
 import MinimalSpinner from '../common/MinimalSpinner';
 import CloudUploadIllustration from '../illustrations/CloudUploadIllustration';
 import EditEvaluacionParamsModal from './EditEvaluacionParamsModal';
+import { EditarRecursoModal } from './modals/EditarRecursoModal';
 import { toast } from 'sonner';
 import { handleAppError } from '../../utils/handleAppError';
 import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
@@ -54,6 +55,25 @@ export default function ResourcesTab({ catedraId, catedraName }) {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Estado para modal de editar recurso
+  const [recursoAEditar, setRecursoAEditar] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const handleAbrirEditar = (recurso) => {
+    setRecursoAEditar(recurso);
+    setIsEditModalOpen(true);
+  };
+
+  const handleResourceUpdated = (recursoActualizado) => {
+    setResources((prev) => {
+      const updated = prev.map((r) => (r.id === recursoActualizado.id ? { ...r, ...recursoActualizado } : r));
+      try {
+        localStorage.setItem(`recursos_${catedraId}`, JSON.stringify(updated));
+      } catch (_) {}
+      return updated;
+    });
+  };
   
   // Estado de evaluaciones vinculadas
   const [evaluaciones, setEvaluaciones] = useState([]);
@@ -395,7 +415,15 @@ export default function ResourcesTab({ catedraId, catedraName }) {
   // Filtrado de materiales
   const filteredResources = selectedCategory === 'ALL'
     ? resources
-    : resources.filter(r => r.categoria === selectedCategory);
+    : resources.filter(r => {
+        const cat = r.categoria;
+        if (selectedCategory === 'APUNTE') return cat === 'APUNTE' || cat === 'Apunte de Cátedra' || cat === 'General';
+        if (selectedCategory === 'TP') return cat === 'TP' || cat === 'Trabajo Práctico';
+        if (selectedCategory === 'PARCIAL') return cat === 'PARCIAL' || cat === 'Parcial';
+        if (selectedCategory === 'PLANIFICACION') return cat === 'PLANIFICACION' || cat === 'Planificación';
+        if (selectedCategory === 'BIBLIOGRAFIA') return cat === 'BIBLIOGRAFIA' || cat === 'Bibliografía';
+        return cat === selectedCategory;
+      });
 
   const matchesEvalCategory = (e, cat) => {
     const t = String(e.tipo || '').toUpperCase();
@@ -413,12 +441,24 @@ export default function ResourcesTab({ catedraId, catedraName }) {
 
   const getCategoryBadgeVariant = (cat) => {
     switch (cat) {
-      case 'APUNTE': return 'info';
-      case 'TP': return 'secondary';
-      case 'PARCIAL': return 'warning';
-      case 'PLANIFICACION': return 'primary';
-      case 'BIBLIOGRAFIA': return 'default';
-      default: return 'default';
+      case 'APUNTE':
+      case 'Apunte de Cátedra':
+      case 'General':
+        return 'info';
+      case 'TP':
+      case 'Trabajo Práctico':
+        return 'secondary';
+      case 'PARCIAL':
+      case 'Parcial':
+        return 'warning';
+      case 'PLANIFICACION':
+      case 'Planificación':
+        return 'primary';
+      case 'BIBLIOGRAFIA':
+      case 'Bibliografía':
+        return 'default';
+      default:
+        return 'default';
     }
   };
 
@@ -556,16 +596,35 @@ export default function ResourcesTab({ catedraId, catedraName }) {
                   <Card key={res.id} hover className="flex flex-col justify-between p-4.5 group space-y-4">
                     <div>
                       <div className="flex items-start justify-between gap-2 mb-2.5">
-                        <Badge variant={getCategoryBadgeVariant(res.categoria)}>
-                          {res.categoria}
-                        </Badge>
-                        <button
-                          onClick={() => handleDeleteResource(res.id)}
-                          className="text-text-muted hover:text-danger p-1 rounded-lg hover:bg-danger/10 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                          title="Eliminar recurso"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant={getCategoryBadgeVariant(res.categoria)}>
+                            {res.categoria}
+                          </Badge>
+                          {res.visible_alumnos === false && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                              Oculto
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleAbrirEditar(res)}
+                            title="Editar recurso"
+                            className="p-1.5 min-w-[32px] min-h-[32px] rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/80 dark:border-slate-700/80 transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                          >
+                            <Pencil className="w-4 h-4"/>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteResource(res.id)}
+                            className="p-1.5 min-w-[32px] min-h-[32px] rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            title="Eliminar recurso"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="flex items-start gap-3 mt-1">
@@ -589,6 +648,11 @@ export default function ResourcesTab({ catedraId, catedraName }) {
                             <span>•</span>
                             <span>{new Date(res.created_at).toLocaleDateString('es-AR')}</span>
                           </p>
+                          {res.descripcion && (
+                            <p className="text-xs text-text-muted mt-2 line-clamp-2 italic bg-slate-50 dark:bg-slate-900/40 p-2 rounded-lg border border-surface-border">
+                              {res.descripcion}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -997,6 +1061,17 @@ export default function ResourcesTab({ catedraId, catedraName }) {
         evaluacion={editingEval}
         onSave={handleSaveEvaluacionParams}
         catedraId={catedraId}
+      />
+
+      {/* Modal para Editar Recurso / Material */}
+      <EditarRecursoModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setRecursoAEditar(null);
+        }}
+        recurso={recursoAEditar}
+        onResourceUpdated={handleResourceUpdated}
       />
     </div>
   );
