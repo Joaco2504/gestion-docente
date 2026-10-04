@@ -156,8 +156,9 @@ export default function OnboardingModal({ forceOpen = false, onClose = null }) {
           <button
             type="button"
             onClick={handleSkip}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer"
+            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center touch-target-44 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer"
             title="Cerrar guía"
+            aria-label="Cerrar guía"
           >
             <X className="w-4 h-4" />
           </button>
@@ -203,20 +204,22 @@ export default function OnboardingModal({ forceOpen = false, onClose = null }) {
             </button>
           )}
 
-          {/* Indicadores de pasos (Dots) */}
-          <div className="flex items-center gap-1.5">
+          {/* Indicadores de pasos (Dots con touch target 44x44px) */}
+          <div className="flex items-center gap-0.5">
             {[1, 2, 3].map((stepNum) => (
               <button
                 key={stepNum}
                 type="button"
                 onClick={() => setCurrentStep(stepNum)}
-                className={`h-2 rounded-full transition-all cursor-pointer ${
+                className="min-w-[40px] min-h-[44px] flex items-center justify-center p-2 cursor-pointer touch-target-44"
+                aria-label={`Ir al paso ${stepNum}`}
+              >
+                <span className={`h-2 rounded-full transition-all block ${
                   currentStep === stepNum
                     ? 'w-6 bg-emerald-500 shadow-sm shadow-emerald-500/50'
                     : 'w-2 bg-slate-700 hover:bg-slate-600'
-                }`}
-                aria-label={`Ir al paso ${stepNum}`}
-              />
+                }`} />
+              </button>
             ))}
           </div>
 

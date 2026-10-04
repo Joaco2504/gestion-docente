@@ -1,5 +1,4 @@
 import { chromium } from 'file:///C:/Users/emili/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright/index.mjs';
-import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -7,30 +6,6 @@ const SCREENSHOTS_DIR = path.resolve('screenshots');
 if (!fs.existsSync(SCREENSHOTS_DIR)) {
   fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 }
-
-// Start preview server
-console.log('--- Iniciando servidor preview de Vite en puerto 4173 ---');
-const previewProcess = spawn('npx.cmd', ['vite', 'preview', '--port', '4173'], {
-  stdio: 'pipe',
-  shell: true
-});
-
-let serverReady = false;
-
-previewProcess.stdout.on('data', (data) => {
-  const str = data.toString();
-  if (str.includes('http://localhost:4173') || str.includes('Local:')) {
-    serverReady = true;
-  }
-});
-
-// Wait up to 10s for server
-for (let i = 0; i < 20; i++) {
-  if (serverReady) break;
-  await new Promise(r => setTimeout(r, 500));
-}
-
-console.log('Servidor listo o timeout alcanzado, iniciando pruebas con Playwright...');
 
 const VIEWPORTS = [
   { width: 320, height: 640, label: '320px-se-compact' },
@@ -44,14 +19,13 @@ const VIEWPORTS = [
 
 const results = [];
 
-try {
+async function run() {
+  console.log('--- Iniciando suite de pruebas Playwright en http://localhost:4173 ---');
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
-  const page = await context.newPage();
 
-  // Seed demo auth in localStorage
-  await page.goto('http://localhost:4173/login');
-  await page.evaluate(() => {
+  // Inyectar estado de autenticación Demo antes de la carga de cualquier script en la página
+  await context.addInitScript(() => {
     const demoUser = {
       id: '00000000-0000-0000-0000-000000000001',
       email: 'profesor.demo@docentepro.edu.ar',
@@ -67,11 +41,31 @@ try {
       rol: 'superadmin',
       created_at: new Date().toISOString()
     };
-    localStorage.setItem('docentepro_demo_user', JSON.stringify(demoUser));
-    localStorage.setItem('docentepro_demo_perfil', JSON.stringify(demoPerfil));
+    window.localStorage.setItem('docentepro_demo_user', JSON.stringify(demoUser));
+    window.localStorage.setItem('docentepro_demo_perfil', JSON.stringify(demoPerfil));
+    window.localStorage.setItem(`korum_onboarding_completed_${demoUser.id}`, 'true');
+    window.localStorage.setItem('korum_onboarding_v1', 'completed');
   });
 
-  // Verify viewports
+  const page = await context.newPage();
+
+  // Cargar primero dashboard para verificar inicialización de datos
+  await page.goto('http://localhost:4173/dashboard', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+
+  const catId = await page.evaluate(() => {
+    try {
+      const stored = localStorage.getItem('demo_catedras');
+      if (stored) {
+        const list = JSON.parse(stored);
+        if (list[0]?.id) return list[0].id;
+      }
+    } catch (_) {}
+    return 'cat-1';
+  });
+
+  console.log(`Cátedra activa de prueba: ${catId}`);
+
   for (const vp of VIEWPORTS) {
     console.log(`\n========================================`);
     console.log(`PROBANDO VIEWPORT: ${vp.width}x${vp.height} (${vp.label})`);
@@ -81,134 +75,110 @@ try {
 
     // 1. Dashboard Page
     await page.goto('http://localhost:4173/dashboard', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(300);
 
-    // Overflow check
-    const dashboardOverflow = await page.evaluate(() => {
+    const dashboardData = await page.evaluate((width) => {
       const doc = document.documentElement;
-      return {
-        scrollWidth: doc.scrollWidth,
-        clientWidth: doc.clientWidth,
-        innerWidth: window.innerWidth,
-        hasHorizontalOverflow: doc.scrollWidth > window.innerWidth
-      };
-    });
-
-    // Check BottomNav & QuickDock visibility
-    const navChecks = await page.evaluate((width) => {
       const bottomNav = document.querySelector('nav[aria-label="Navegación principal inferior"]');
       const quickDock = document.querySelector('button[aria-label*="atajos de aula"]');
       const isMobile = width < 1024;
-      
-      const bottomNavVisible = bottomNav ? window.getComputedStyle(bottomNav).display !== 'none' : false;
-      const quickDockVisible = quickDock ? window.getComputedStyle(quickDock).display !== 'none' : false;
+
+      const bottomNavVisible = bottomNav ? (window.getComputedStyle(bottomNav).display !== 'none' && bottomNav.getBoundingClientRect().height > 0) : false;
+      let quickDockVisible = false;
+      if (quickDock) {
+        const r = quickDock.getBoundingClientRect();
+        const style = window.getComputedStyle(quickDock);
+        const parentStyle = quickDock.parentElement ? window.getComputedStyle(quickDock.parentElement) : null;
+        quickDockVisible = r.width > 0 && r.height > 0 && style.display !== 'none' && parentStyle?.display !== 'none';
+      }
 
       return {
-        bottomNavVisible,
-        quickDockVisible,
+        hasOverflow: doc.scrollWidth > window.innerWidth,
+        scrollWidth: doc.scrollWidth,
+        innerWidth: window.innerWidth,
         bottomNavCorrect: isMobile ? bottomNavVisible : !bottomNavVisible,
         quickDockCorrect: isMobile ? quickDockVisible : !quickDockVisible
       };
     }, vp.width);
 
-    // Screenshot Dashboard Light
-    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `dashboard-${vp.label}-light.png`), fullPage: false });
-
-    // Dark Mode Dashboard
+    // Screenshots Dashboard (Light & Dark)
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `dashboard-${vp.label}-light.png`) });
     await page.evaluate(() => document.documentElement.classList.add('dark'));
-    await page.waitForTimeout(200);
-    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `dashboard-${vp.label}-dark.png`), fullPage: false });
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `dashboard-${vp.label}-dark.png`) });
     await page.evaluate(() => document.documentElement.classList.remove('dark'));
 
     // 2. Catedra Detail Page (Alumnos tab)
-    await page.goto('http://localhost:4173/catedra/cat-1?tab=alumnos', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(700);
+    await page.goto(`http://localhost:4173/catedra/${catId}?tab=alumnos`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(400);
 
-    const catedraOverflow = await page.evaluate(() => {
+    const catedraData = await page.evaluate((width) => {
       const doc = document.documentElement;
-      return {
-        scrollWidth: doc.scrollWidth,
-        clientWidth: doc.clientWidth,
-        innerWidth: window.innerWidth,
-        hasHorizontalOverflow: doc.scrollWidth > window.innerWidth
-      };
-    });
-
-    // Design Fork check: Cards on <1024px vs Table on >=1024px
-    const forkCheck = await page.evaluate((width) => {
       const isMobile = width < 1024;
-      // Check for mobile student cards
-      const mobileCardSelector = document.querySelectorAll('[role="button"][aria-label*="ficha académica"]');
-      const desktopTable = document.querySelector('.tbl');
+      const mobileWrap = document.querySelector('.lg\\:hidden.space-y-3');
+      const desktopWrap = document.querySelector('.hidden.lg\\:block');
 
-      const cardsVisible = mobileCardSelector.length > 0;
-      const tableVisible = desktopTable ? window.getComputedStyle(desktopTable).display !== 'none' : false;
+      const mobileVisible = mobileWrap ? window.getComputedStyle(mobileWrap).display !== 'none' : false;
+      const desktopVisible = desktopWrap ? window.getComputedStyle(desktopWrap).display !== 'none' : false;
 
-      return {
-        cardsCount: mobileCardSelector.length,
-        hasTable: !!desktopTable,
-        forkCorrect: isMobile ? (cardsVisible) : (tableVisible)
-      };
-    }, vp.width);
-
-    // Touch targets check on mobile (<1024px)
-    const touchTargetCheck = await page.evaluate((width) => {
-      if (width >= 1024) return { pass: true, failures: [] };
+      // Check touch targets (only visible within active viewport, not offscreen drawers)
       const interactiveElements = document.querySelectorAll('button, a, input, select');
-      const failures = [];
-      for (const el of interactiveElements) {
-        // Skip hidden elements or tiny helper spans
-        const rect = el.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) continue;
-        const style = window.getComputedStyle(el);
-        if (style.display === 'none' || style.visibility === 'hidden') continue;
-
-        // Check target area: target should be at least 40px in smallest dimension or inside a touch target wrapper
-        if (rect.height < 36 && rect.width < 36) {
-          failures.push({
-            tag: el.tagName,
-            text: el.innerText?.slice(0, 20),
-            height: Math.round(rect.height),
-            width: Math.round(rect.width)
-          });
+      let touchFailures = 0;
+      if (isMobile) {
+        for (const el of interactiveElements) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) continue;
+          if (rect.right < 0 || rect.left > window.innerWidth) continue;
+          const style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden') continue;
+          if (rect.height < 36 && rect.width < 36) {
+            touchFailures++;
+          }
         }
       }
+
       return {
-        pass: failures.length === 0,
-        failures: failures.slice(0, 5)
+        hasOverflow: doc.scrollWidth > window.innerWidth,
+        scrollWidth: doc.scrollWidth,
+        innerWidth: window.innerWidth,
+        forkCorrect: isMobile ? (mobileVisible && !desktopVisible) : (desktopVisible && !mobileVisible),
+        touchTargetsPass: touchFailures === 0
       };
     }, vp.width);
 
     // Screenshots Catedra Alumnos (Light & Dark)
-    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `alumnos-${vp.label}-light.png`), fullPage: false });
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `alumnos-${vp.label}-light.png`) });
     await page.evaluate(() => document.documentElement.classList.add('dark'));
-    await page.waitForTimeout(200);
-    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `alumnos-${vp.label}-dark.png`), fullPage: false });
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `alumnos-${vp.label}-dark.png`) });
     await page.evaluate(() => document.documentElement.classList.remove('dark'));
 
     const result = {
       viewport: vp.label,
       width: vp.width,
-      dashboardHorizontalOverflow: dashboardOverflow.hasHorizontalOverflow,
-      catedraHorizontalOverflow: catedraOverflow.hasHorizontalOverflow,
-      bottomNavCorrect: navChecks.bottomNavCorrect,
-      quickDockCorrect: navChecks.quickDockCorrect,
-      designForkCorrect: forkCheck.forkCorrect,
-      touchTargetsPass: touchTargetCheck.pass
+      dashboardNoOverflow: !dashboardData.hasOverflow,
+      catedraNoOverflow: !catedraData.hasOverflow,
+      bottomNavCorrect: dashboardData.bottomNavCorrect,
+      quickDockCorrect: dashboardData.quickDockCorrect,
+      designForkCorrect: catedraData.forkCorrect,
+      touchTargetsPass: catedraData.touchTargetsPass
     };
 
     results.push(result);
-    console.log(`Resultado para ${vp.label}:`, JSON.stringify(result, null, 2));
+    console.log(`Resultado ${vp.label}:`, JSON.stringify(result, null, 2));
   }
 
   await browser.close();
-} catch (err) {
-  console.error('Error durante la verificación:', err);
-} finally {
-  previewProcess.kill();
+
+  console.log('\n========================================');
+  console.log('RESUMEN GENERAL DE VERIFICACIÓN:');
+  console.log('========================================');
+  console.table(results);
 }
 
-console.log('\n========================================');
-console.log('RESUMEN GENERAL DE VERIFICACIÓN:');
-console.log('========================================');
-console.table(results);
+run()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error('Error:', err);
+    process.exit(1);
+  });

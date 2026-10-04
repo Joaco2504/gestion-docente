@@ -53,15 +53,17 @@ export default function RiskBadge({ risk, compact = false, className = '' }) {
         <button
           type="button"
           aria-label={config.label}
-          className="relative p-1 rounded-full hover:scale-110 transition-transform cursor-pointer focus:outline-none"
+          className="relative min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-full touch-target-44 hover:scale-105 transition-transform cursor-pointer focus:outline-none"
         >
-          {/* Pulsing Beacon */}
-          {(isCritical || isWarning) && (
-            <span className="absolute inset-0.5 rounded-full animate-ping-subtle opacity-75 inline-flex"
-              style={{ backgroundColor: isCritical ? '#f43f5e' : '#f59e0b' }}
-            />
-          )}
-          <span className={`relative block w-2.5 h-2.5 rounded-full ${config.dotBg}`} />
+          <span className="relative flex items-center justify-center w-3 h-3">
+            {/* Pulsing Beacon */}
+            {(isCritical || isWarning) && (
+              <span className="absolute inset-0 rounded-full animate-ping-subtle opacity-75 inline-flex"
+                style={{ backgroundColor: isCritical ? '#f43f5e' : '#f59e0b' }}
+              />
+            )}
+            <span className={`relative block w-2.5 h-2.5 rounded-full ${config.dotBg}`} />
+          </span>
         </button>
       ) : (
         <div 

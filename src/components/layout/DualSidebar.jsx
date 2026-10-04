@@ -277,8 +277,9 @@ export default function DualSidebar({ isOpen = false, onClose }) {
         className={`
           fixed lg:sticky top-0 left-0 z-50 lg:z-20 h-dvh
           flex shrink-0 transition-transform duration-300 ease-in-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none lg:pointer-events-auto lg:translate-x-0'}
         `}
+        aria-hidden={!isOpen ? "true" : undefined}
       >
         {/* ========================================================
             1. RIEL PRINCIPAL DE ÍCONOS (SIN SCROLLBAR VERTICAL)
@@ -398,7 +399,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-text-muted hover:text-text-primary rounded-lg lg:hidden cursor-pointer shrink-0"
+              className="p-2 text-text-muted hover:text-text-primary rounded-lg lg:hidden cursor-pointer shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center touch-target-44"
               title="Cerrar menú"
             >
               <X className="w-5 h-5" />

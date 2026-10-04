@@ -73,9 +73,9 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
+    const savedDemo = localStorage.getItem('docentepro_demo_user');
+    if (isDemo || savedDemo || !isSupabaseConfigured || !supabase) {
       // Verificar si hay sesión demo previa en localStorage
-      const savedDemo = localStorage.getItem('docentepro_demo_user');
       if (savedDemo) {
         try {
           const parsed = JSON.parse(savedDemo);

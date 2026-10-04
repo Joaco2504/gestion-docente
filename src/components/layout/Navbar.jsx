@@ -277,14 +277,14 @@ export default function Navbar({ onToggleSidebar }) {
   );
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-surface/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-surface/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs overflow-x-clip">
       {/* Animated top shimmer beam */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-80 animate-pulseGlow" />
 
-      <div className="w-full px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
+      <div className="w-full px-2.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-1.5 sm:gap-4 relative z-10">
         
         {/* Brand & Mobile Drawer Button (solo visible en pantallas móviles / tablet < lg) */}
-        <div className="flex items-center gap-2.5 lg:hidden">
+        <div className="flex items-center gap-2 lg:hidden shrink-0">
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -300,10 +300,10 @@ export default function Navbar({ onToggleSidebar }) {
           </button>
 
           <div className="flex items-center gap-1.5">
-            <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white">
+            <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white hidden min-[360px]:inline">
               Korum
             </span>
-            <span className="text-[11px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono">
+            <span className="text-[11px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono hidden min-[400px]:inline">
               v2.0
             </span>
           </div>
@@ -318,7 +318,7 @@ export default function Navbar({ onToggleSidebar }) {
             <button
               type="button"
               onClick={() => setIsCatedraDropdownOpen(prev => !prev)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:border-emerald-500/40 transition-all cursor-pointer max-w-[210px] lg:max-w-[260px] truncate"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:border-emerald-500/40 transition-all cursor-pointer max-w-[170px] xl:max-w-[260px] truncate"
               title="Conmutar cátedra activa"
             >
               <BookOpen className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
@@ -378,11 +378,23 @@ export default function Navbar({ onToggleSidebar }) {
         {/* =========================================================================
             MÓDULO 3: COMMAND PALETTE BAR (BUSCADOR CENTRAL ⌘K)
            ========================================================================= */}
-        <div className="flex items-center">
+        {/* En móvil (<sm): botón táctil compacto de 44x44px */}
+        <button
+          type="button"
+          onClick={() => setIsCommandPaletteOpen(true)}
+          className="sm:hidden min-w-[44px] min-h-[44px] p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+          title="Buscar estudiante o DNI (⌘K)"
+          aria-label="Buscar en Korum"
+        >
+          <Search className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+        </button>
+
+        {/* En tablet y desktop (>=sm): barra ancha con shortcut ⌘K */}
+        <div className="hidden sm:flex items-center">
           <button
             type="button"
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center gap-2 w-40 sm:w-48 md:w-72 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-400 hover:border-emerald-500/40 cursor-pointer transition-all"
+            className="flex items-center gap-2 w-36 md:w-48 lg:w-56 xl:w-72 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-400 hover:border-emerald-500/40 cursor-pointer transition-all"
             title="Abrir buscador rápido (⌘K o Ctrl+K)"
             aria-label="Buscar en Korum"
           >
@@ -397,19 +409,19 @@ export default function Navbar({ onToggleSidebar }) {
         {/* =========================================================================
             MÓDULO 4: PILL DE PERFIL DOCENTE CON ROL + TEMA Y NOTIFICACIONES
            ========================================================================= */}
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+        <div className="flex items-center gap-1 sm:gap-2 ml-auto shrink-0">
           {/* MÓDULO 4: Pill de Perfil Docente con Rol (Desktop) */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
-            <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate max-w-[120px] lg:max-w-[180px] select-none">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
+            <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate max-w-[90px] lg:max-w-[130px] xl:max-w-[180px] select-none">
               {teacherName}
             </span>
-            <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 select-none">
+            <span className="hidden lg:inline ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 select-none">
               {esSuperadmin ? 'Superadmin' : 'Docente Titular'}
             </span>
           </div>
 
-          {/* Botón de Perfil Móvil (44x44 px) */}
-          <div className="flex sm:hidden items-center justify-center">
+          {/* Botón de Perfil Móvil (44x44 px) - Solo en pantallas medianas móviles >=380px para evitar overflow en 320/360px */}
+          <div className="hidden min-[380px]:flex sm:hidden items-center justify-center">
             <button
               type="button"
               onClick={() => navigate('/settings')}
@@ -443,7 +455,7 @@ export default function Navbar({ onToggleSidebar }) {
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white font-mono text-[11px] font-black rounded-full flex items-center justify-center shadow-xs animate-scaleIn">
+                <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white font-mono text-[11px] font-black rounded-full flex items-center justify-center shadow-xs animate-scaleIn">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
