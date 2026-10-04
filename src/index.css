@@ -47,6 +47,22 @@
     --table-row-hover: #f1f5f9;            /* slate-100 */
     --table-border: #e2e8f0;               /* slate-200 */
     --table-sticky-shadow: 2px 0 5px -2px rgb(0 0 0 / 0.08);
+
+    /* Tokens de Movimiento & Resortes (Korum Motion System) */
+    --duration-fast: 150ms;
+    --duration-normal: 200ms;
+    --duration-sheet: 260ms;
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+    /* Tipografía Fluida & Escala Dinámica */
+    --text-display: clamp(1.5rem, 1.2rem + 1.2vw, 2.25rem);
+    --text-heading: clamp(1.2rem, 1.05rem + 0.7vw, 1.625rem);
+    --text-subheading: clamp(0.875rem, 0.8rem + 0.35vw, 1.125rem);
+
+    /* Zonas del Pulgar & Safe Areas */
+    --dock-offset-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
+    --main-bottom-pad: calc(env(safe-area-inset-bottom, 0px) + 5.5rem);
   }
 
   .dark {
@@ -102,7 +118,8 @@
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     min-height: 100vh;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    min-height: 100dvh;
+    transition: background-color var(--duration-normal) ease, color var(--duration-normal) ease;
   }
 
   /* JetBrains Mono with tabular nums for grades and DNI */
@@ -110,15 +127,32 @@
     font-family: 'JetBrains Mono', monospace;
     font-variant-numeric: tabular-nums;
   }
+
+  /* Clases de Tipografía Fluida */
+  .font-fluid-display {
+    font-size: var(--text-display);
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+  }
+  .font-fluid-heading {
+    font-size: var(--text-heading);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+  .font-fluid-subheading {
+    font-size: var(--text-subheading);
+    line-height: 1.35;
+  }
 }
 
 @layer components {
-  /* Envoltorio responsivo universal */
+  /* Envoltorio responsivo universal sin secuestro de scroll vertical */
   .tbl-wrap {
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     border-radius: 1rem;
     border: 1px solid var(--table-border);
-    touch-action: pan-x;
+    touch-action: pan-x pan-y;
   }
 
   /* Tabla base */
@@ -519,11 +553,12 @@
   }
 }
 
-/* 5. Pista visual sutil para tablas con scroll horizontal en móvil */
+/* 5. Pista visual sutil para tablas con scroll horizontal en móvil sin capturar scroll vertical */
 .tbl-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
 }
 .tbl-hint::after {
   content: "Deslizá horizontalmente para ver más →";
@@ -552,4 +587,57 @@
     height: 48px !important;
   }
 }
+
+/* 7. Animaciones y utilidades del Teacher Quick Dock y Bottom-Sheets */
+@keyframes sheetSlideUp {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes sheetSlideDown {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+
+@keyframes dockPopIn {
+  0% { transform: scale(0.85) translateY(10px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.animate-sheet-up {
+  animation: sheetSlideUp var(--duration-sheet) var(--ease-spring) forwards;
+}
+
+.animate-sheet-down {
+  animation: sheetSlideDown 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.animate-dock-pop {
+  animation: dockPopIn var(--duration-fast) var(--ease-spring) forwards;
+}
+
+.pb-mobile-main {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem);
+}
+
+.bottom-dock {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
+}
+
+.touch-target-44 {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.touch-target-48 {
+  min-width: 48px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 

@@ -114,6 +114,18 @@ export default {
         modalOut: {
           '0%': { opacity: '1', transform: 'scale(1) translateY(0)' },
           '100%': { opacity: '0', transform: 'scale(0.97) translateY(6px)' },
+        },
+        dockPop: {
+          '0%': { opacity: '0', transform: 'scale(0.85) translateY(12px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        sheetUp: {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        sheetDown: {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(100%)' },
         }
       },
       animation: {
@@ -122,6 +134,9 @@ export default {
         fadeIn: 'fadeIn 0.2s ease-out forwards',
         fadeInUp: 'fadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         slideUp: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        dockPop: 'dockPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        sheetUp: 'sheetUp 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        sheetDown: 'sheetDown 0.18s cubic-bezier(0.4, 0, 1, 1) forwards',
         pulseGlow: 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         emeraldFlash: 'emeraldFlash 0.8s ease-out forwards',
         shimmer: 'shimmer 1.8s ease-in-out infinite',

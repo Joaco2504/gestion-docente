@@ -267,7 +267,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       {isOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-200"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-200"
           aria-hidden="true"
         />
       )}
@@ -275,9 +275,9 @@ export default function DualSidebar({ isOpen = false, onClose }) {
       {/* DUAL SIDEBAR CONTAINER */}
       <aside
         className={`
-          fixed md:relative inset-y-0 left-0 z-50 md:z-20 h-app
+          fixed lg:sticky top-0 left-0 z-50 lg:z-20 h-dvh
           flex shrink-0 transition-transform duration-300 ease-in-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         {/* ========================================================
@@ -379,7 +379,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
             <button
               type="button"
               onClick={toggleSecondaryNav}
-              className="group hover:bg-slate-100 dark:hover:bg-slate-800/60 p-2 rounded-xl transition-colors hidden md:flex items-center justify-center w-10 h-10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer relative shrink-0"
+              className="group hover:bg-slate-100 dark:hover:bg-slate-800/60 p-2 rounded-xl transition-colors hidden lg:flex items-center justify-center w-10 h-10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer relative shrink-0"
               title={isSecondaryNavOpen ? 'Ocultar panel lateral (Ctrl + B)' : 'Mostrar panel lateral (Ctrl + B)'}
               aria-label="Mostrar/Ocultar panel lateral"
             >
@@ -389,16 +389,16 @@ export default function DualSidebar({ isOpen = false, onClose }) {
                 <PanelLeftOpen className="w-4 h-4 text-emerald-700 dark:text-emerald-400 transition-transform duration-200 ease-out group-hover:scale-110" />
               )}
 
-              <span className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl text-xs font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
+              <span className="hidden lg:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl text-xs font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap z-50 animate-fadeIn pointer-events-none items-center gap-1.5 backdrop-blur-md">
                 {isSecondaryNavOpen ? 'Ocultar panel (Ctrl + B)' : 'Mostrar panel (Ctrl + B)'}
               </span>
             </button>
 
-            {/* Botón cerrar para móvil */}
+            {/* Botón cerrar para móvil / tablet */}
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-text-muted hover:text-text-primary rounded-lg md:hidden cursor-pointer shrink-0"
+              className="p-2 text-text-muted hover:text-text-primary rounded-lg lg:hidden cursor-pointer shrink-0"
               title="Cerrar menú"
             >
               <X className="w-5 h-5" />

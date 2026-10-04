@@ -114,8 +114,8 @@ export default function EstudianteDetailModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="🎓 Ficha Académica del Estudiante"
-      size="lg"
+      title="Ficha Académica del Estudiante"
+      maxWidth="max-w-2xl"
     >
       <div className="space-y-6">
         {/* Cabecera Bento del Alumno */}
@@ -160,7 +160,7 @@ export default function EstudianteDetailModal({
                   Estado Académico Final
                 </span>
                 <h4 className="text-base sm:text-lg font-black text-emerald-950 dark:text-white">
-                  🎓 ACREDITADO — MATERIA APROBADA
+                  ACREDITADO — MATERIA APROBADA
                 </h4>
                 <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80 mt-0.5">
                   {student.fecha_acreditacion 
@@ -250,7 +250,7 @@ export default function EstudianteDetailModal({
 
                         <td className="p-3">
                           <Badge variant={isPromo ? 'promo' : 'info'} compact>
-                            {isPromo ? '🎖️ Promo' : 'Final'}
+                            {isPromo ? 'Promo' : 'Final'}
                           </Badge>
                         </td>
 

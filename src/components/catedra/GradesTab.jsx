@@ -28,7 +28,8 @@ import {
   ListChecks,
   Check,
   Printer,
-  Lock
+  Lock,
+  Briefcase
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -140,8 +141,9 @@ const GradeRow = React.memo(function GradeRow({
             </span>
           )}
           {est.tiene_certificado_trabajo && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold font-sans" title="Régimen Laboral acreditado (60%)">
-              💼 60%
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold font-sans inline-flex items-center gap-1" title="Régimen Laboral acreditado (60%)">
+              <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+              <span>60%</span>
             </span>
           )}
         </div>
@@ -1787,8 +1789,9 @@ export default function GradesTab({
                             </span>
                           )}
                           {est.tiene_certificado_trabajo && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold font-sans">
-                              💼 Cert. Laboral (60%)
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold font-sans inline-flex items-center gap-1">
+                              <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                              <span>Cert. Laboral (60%)</span>
                             </span>
                           )}
                         </div>

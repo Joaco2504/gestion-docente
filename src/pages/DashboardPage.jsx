@@ -1003,8 +1003,8 @@ const normalizeSearchText = (str) => {
         </button>
       </section>
 
-      {/* 2. SEGUNDA FILA: MONITOREO OPERATIVO (LAYOUT 50/50) */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-stretch">
+      {/* 2. SEGUNDA FILA: MONITOREO OPERATIVO (LAYOUT BENTO 50/50 EN TABLET Y ESCRITORIO) */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-stretch">
         {/* =========================================================
             BENTO BOX 1: [ Próxima Clase ]
            ========================================================= */}
@@ -1160,7 +1160,7 @@ const normalizeSearchText = (str) => {
               <div className="grid grid-cols-1 gap-2 w-full">
                 <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-normal">
-                    <span className="text-sm">👥</span>
+                    <Users className="w-3.5 h-3.5 text-primary shrink-0" />
                     <span>Alumnos Activos:</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
@@ -1169,7 +1169,7 @@ const normalizeSearchText = (str) => {
                 </div>
                 <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-normal">
-                    <span className="text-sm">📖</span>
+                    <BookOpen className="w-3.5 h-3.5 text-primary shrink-0" />
                     <span>{displayedMetrics.isFiltered ? 'Materia:' : 'Cátedras:'}</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">
@@ -1178,7 +1178,7 @@ const normalizeSearchText = (str) => {
                 </div>
                 <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-normal">
-                    <span className="text-sm">⏱️</span>
+                    <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
                     <span>Clases Totales:</span>
                   </span>
                   <span className="text-sm font-bold font-mono text-slate-900 dark:text-white shrink-0">

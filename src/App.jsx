@@ -7,6 +7,7 @@ import { useTheme } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
 import DualSidebar from './components/layout/DualSidebar';
 import BottomNav from './components/layout/BottomNav';
+import TeacherQuickDock from './components/layout/TeacherQuickDock';
 import HeaderSelector from './components/layout/HeaderSelector';
 import Footer from './components/layout/Footer';
 import CreateCatedraModal from './components/common/CreateCatedraModal';
@@ -87,23 +88,23 @@ function AuthenticatedDocenteShell() {
   }
 
   return (
-    <div className="flex h-app min-h-app w-full overflow-hidden bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary">
+    <div className="flex min-h-dvh w-full bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary relative">
       {/* 1. Barra Lateral Anclada a Altura Completa */}
       <DualSidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)} 
       />
 
-      {/* 2. Área de Trabajo Principal (Header pegado arriba + Scroll interno) */}
-      <div className="flex flex-col flex-1 min-w-0 h-app overflow-hidden">
-        {/* Header adosado de forma continua al Sidebar, sin huecos */}
+      {/* 2. Área de Trabajo Principal (Scroll a nivel de documento, sin capturas intermedias) */}
+      <div className="flex flex-col flex-1 min-w-0 min-h-dvh">
+        {/* Header pegado arriba con sticky top-0 */}
         <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
         {/* Global Notice Banner & Maintenance Alert (Realtime Broadcast) */}
         <GlobalNoticeBanner />
 
-        {/* Contenido con scroll independiente */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 w-full max-w-full scrollbar-thin">
+        {/* Contenido principal con padding inferior seguro para la barra de navegación */}
+        <main className="flex-1 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] lg:pb-10 w-full max-w-full">
           <div className="max-w-7xl 2xl:max-w-[96rem] mx-auto space-y-6 transition-all duration-300">
             {/* Global Context Bar: Institución y Ciclo Activo */}
             <HeaderSelector />
@@ -134,8 +135,11 @@ function AuthenticatedDocenteShell() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (Hidden on md and up) */}
+      {/* Mobile Bottom Navigation Bar (Hidden on lg and up) */}
       <BottomNav />
+
+      {/* Teacher Quick Dock (FAB 48x48 para atajos de aula, hidden on lg and up) */}
+      <TeacherQuickDock />
 
       {/* Modal Global para Crear Nueva Cátedra */}
       <CreateCatedraModal 

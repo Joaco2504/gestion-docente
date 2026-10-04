@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Users, 
   UserPlus, 
@@ -17,7 +17,9 @@ import {
   Briefcase,
   RotateCcw,
   Award,
-  X
+  X,
+  ChevronDown,
+  SlidersHorizontal
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -78,8 +80,8 @@ const StudentRow = React.memo(function StudentRow({
 }) {
   return (
     <tr className="hover:bg-surface-hover/40 transition-colors group">
-      {/* 1. DNI */}
-      <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap">
+      {/* 1. DNI (Sticky col en desktop) */}
+      <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap sticky left-0 bg-surface group-hover:bg-surface-hover/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
         {st.dni || '-'}
       </td>
 
@@ -137,7 +139,7 @@ const StudentRow = React.memo(function StudentRow({
               title={`Materia Acreditada (Calificación Final: ${notaFinal ?? 'Aprobado'}). Clic para ver ficha`}
             >
               <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>🎓 Acreditado (Nota: {notaFinal ?? 'Aprobado'})</span>
+              <span>Acreditado (Nota: {notaFinal ?? 'Aprobado'})</span>
             </button>
           ) : (
             <>
@@ -227,8 +229,8 @@ const EquivalenciaRow = React.memo(function EquivalenciaRow({
 }) {
   return (
     <tr className="hover:bg-surface-hover/40 transition-colors group">
-      {/* 1. DNI */}
-      <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap">
+      {/* 1. DNI (Sticky col en desktop) */}
+      <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap sticky left-0 bg-surface group-hover:bg-surface-hover/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
         {st.dni || '-'}
       </td>
 
@@ -288,6 +290,280 @@ const EquivalenciaRow = React.memo(function EquivalenciaRow({
         </div>
       </td>
     </tr>
+  );
+});
+
+/**
+ * StudentCardMobile - Card táctil optimizada para móvil y tablet (<1024px)
+ * Ergonomía para el pulgar, micro-KPIs (asistencia y promedio), sin emojis, acordeón accesible.
+ */
+const StudentCardMobile = React.memo(function StudentCardMobile({
+  st,
+  cond,
+  isAcreditado,
+  notaFinal,
+  risk,
+  asistPct,
+  promedio,
+  onOpenStudentDetail,
+  onOpenEdit,
+  onOpenDelete,
+  onOpenDeclararEquivalencia,
+  onToggleCertificadoTrabajo,
+  getCondBadgeVariant
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const initials = ((st.apellido?.[0] || '') + (st.nombre?.[0] || '')).toUpperCase() || 'AL';
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpenStudentDetail(st)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenStudentDetail(st);
+        }
+      }}
+      aria-label={`Ver ficha académica de ${st.apellido}, ${st.nombre}`}
+      className="group relative bg-surface hover:bg-surface-hover/30 p-4 rounded-2xl border border-surface-border shadow-xs hover:shadow-sm transition-all text-left w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+    >
+      {/* Fila Superior: Iniciales + Nombre + DNI + Semáforo */}
+      <div className="flex items-start justify-between gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 border border-primary/20">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 
+              className="font-bold text-text-primary text-sm sm:text-base leading-tight truncate group-hover:text-primary transition-colors"
+              title={`${st.apellido}, ${st.nombre}`}
+            >
+              {st.apellido}, {st.nombre}
+            </h4>
+            <span className="font-mono tabular-nums text-xs text-text-secondary mt-0.5 block">
+              {st.dni ? `DNI ${st.dni}` : 'Sin DNI'}
+            </span>
+          </div>
+        </div>
+        <div className="shrink-0 pt-0.5">
+          <RiskBadge risk={risk} compact />
+        </div>
+      </div>
+
+      {/* Badges de Estado */}
+      <div className="flex items-center gap-1.5 flex-wrap mt-3">
+        {st.es_equivalencia ? (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+            <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+            <span>Acreditada (Equiv.)</span>
+          </span>
+        ) : isAcreditado ? (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+            <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+            <span>Acreditado (Nota: {notaFinal ?? 'Aprobado'})</span>
+          </span>
+        ) : (
+          <Badge variant={getCondBadgeVariant(cond)}>
+            {cond}
+          </Badge>
+        )}
+
+        {st.tiene_certificado_trabajo && (
+          <span 
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20"
+            title="Régimen Laboral Acreditado (60%)"
+          >
+            <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+            <span>Cert. Laboral (60%)</span>
+          </span>
+        )}
+      </div>
+
+      {/* Micro-KPI Grid de 2 columnas para el docente frente al aula */}
+      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-surface-border">
+        <div className="bg-surface-elevated/50 p-2.5 rounded-xl border border-surface-border/50">
+          <span className="text-[10px] font-semibold uppercase text-text-muted block">Asistencia</span>
+          <span className={`text-base font-bold font-mono tabular-nums leading-tight mt-0.5 block ${
+            asistPct !== null && asistPct !== undefined
+              ? asistPct >= (st.tiene_certificado_trabajo ? 60 : 70)
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-amber-600 dark:text-amber-400'
+              : 'text-text-secondary'
+          }`}>
+            {asistPct !== null && asistPct !== undefined ? `${asistPct}%` : '—'}
+          </span>
+        </div>
+
+        <div className="bg-surface-elevated/50 p-2.5 rounded-xl border border-surface-border/50">
+          <span className="text-[10px] font-semibold uppercase text-text-muted block">Promedio</span>
+          <span className="text-base font-bold font-mono tabular-nums leading-tight mt-0.5 text-text-primary block">
+            {promedio !== null && promedio !== undefined ? promedio : '—'}
+          </span>
+        </div>
+      </div>
+
+      {/* Barra de Acciones del Pulgar */}
+      <div className="flex items-center justify-between gap-2 mt-3 pt-2">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenStudentDetail(st);
+          }}
+          className="flex-1 py-2 px-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold flex items-center justify-center gap-1.5 min-h-[44px] transition-colors"
+        >
+          <FileText className="w-4 h-4 shrink-0" />
+          <span>Ver Ficha</span>
+        </button>
+
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(prev => !prev);
+          }}
+          className="px-3 py-2 rounded-xl border border-surface-border hover:bg-surface-hover text-text-secondary hover:text-text-primary text-xs font-medium flex items-center gap-1 min-h-[44px] transition-colors"
+          title={expanded ? "Ocultar acciones secundarias" : "Más acciones"}
+        >
+          <span>Acciones</span>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {/* Acordeón accesible de acciones secundarias */}
+      {expanded && (
+        <div 
+          onClick={(e) => e.stopPropagation()} 
+          className="mt-3 pt-3 border-t border-surface-border grid grid-cols-2 gap-2 animate-fadeIn"
+        >
+          <button
+            type="button"
+            onClick={() => onToggleCertificadoTrabajo(st)}
+            className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 min-h-[44px] transition-colors ${
+              st.tiene_certificado_trabajo
+                ? 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300'
+                : 'border-surface-border text-text-secondary hover:bg-surface-hover'
+            }`}
+          >
+            <Briefcase className="w-4 h-4 shrink-0" />
+            <span className="truncate">{st.tiene_certificado_trabajo ? 'Quitar Cert. (70%)' : 'Cert. Laboral (60%)'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onOpenDeclararEquivalencia(st)}
+            className="p-2.5 rounded-xl border border-surface-border text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1.5 min-h-[44px] transition-colors"
+          >
+            <Award className="w-4 h-4 shrink-0" />
+            <span className="truncate">Equivalencia</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onOpenEdit(st)}
+            className="p-2.5 rounded-xl border border-surface-border text-xs font-semibold text-text-primary hover:bg-surface-hover flex items-center gap-1.5 min-h-[44px] transition-colors"
+          >
+            <Edit3 className="w-4 h-4 shrink-0" />
+            <span className="truncate">Editar</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onOpenDelete(st)}
+            className="p-2.5 rounded-xl border border-danger/20 text-xs font-semibold text-danger hover:bg-danger/10 flex items-center gap-1.5 min-h-[44px] transition-colors"
+          >
+            <UserMinus className="w-4 h-4 shrink-0" />
+            <span className="truncate">Dar de Baja</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
+
+/**
+ * EquivalenciaCardMobile - Card táctil para alumnos de equivalencia (<1024px)
+ */
+const EquivalenciaCardMobile = React.memo(function EquivalenciaCardMobile({
+  st,
+  onOpenStudentDetail,
+  onRevertirEquivalencia
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpenStudentDetail(st)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenStudentDetail(st);
+        }
+      }}
+      aria-label={`Ver ficha académica de ${st.apellido}, ${st.nombre}`}
+      className="group relative bg-surface hover:bg-surface-hover/30 p-4 rounded-2xl border border-surface-border shadow-xs hover:shadow-sm transition-all text-left w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+    >
+      <div className="flex items-start justify-between gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-500/20">
+            {((st.apellido?.[0] || '') + (st.nombre?.[0] || '')).toUpperCase() || 'EQ'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="font-bold text-text-primary text-sm sm:text-base leading-tight truncate group-hover:text-primary transition-colors">
+              {st.apellido}, {st.nombre}
+            </h4>
+            <span className="font-mono tabular-nums text-xs text-text-secondary mt-0.5 block">
+              {st.dni ? `DNI ${st.dni}` : 'Sin DNI'}
+            </span>
+          </div>
+        </div>
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+          <GraduationCap className="w-3.5 h-3.5" />
+          <span>Equivalencia</span>
+        </span>
+      </div>
+
+      <div className="mt-3 p-2.5 rounded-xl bg-surface-elevated/50 border border-surface-border/50 space-y-1">
+        <div className="flex items-center gap-1.5 text-xs text-text-primary font-mono">
+          <Award className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="font-semibold truncate">{st.resolucion_equivalencia || 'Resolución Registrada'}</span>
+        </div>
+        {st.fecha_equivalencia && (
+          <span className="text-[11px] font-mono text-text-secondary block">
+            Acreditado el: {formatFechaDMY(st.fecha_equivalencia)}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 mt-3 pt-2">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenStudentDetail(st);
+          }}
+          className="flex-1 py-2 px-3 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold flex items-center justify-center gap-1.5 min-h-[44px] transition-colors"
+        >
+          <FileText className="w-4 h-4 shrink-0" />
+          <span>Ver Ficha</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRevertirEquivalencia(st);
+          }}
+          className="py-2 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center gap-1.5 min-h-[44px] transition-colors"
+        >
+          <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+          <span>Revertir</span>
+        </button>
+      </div>
+    </div>
   );
 });
 
@@ -641,6 +917,46 @@ export default function StudentsTab({
     });
     return map;
   }, [estudiantes, asistencias, clases, inasistenciasDocente, evaluaciones, notas, criterios, academicLevel, modalidad]);
+
+  // Mapa reactivo de porcentajes de asistencia por alumno
+  const studentAttendanceMap = useMemo(() => {
+    const map = new Map();
+    (estudiantes || []).forEach(st => {
+      if (!st?.id) return;
+      const studentAsistencias = (asistencias || []).filter(a => a.estudiante_id === st.id);
+      const pct = calcularPorcentajeAsistencia(
+        studentAsistencias,
+        clases.length,
+        inasistenciasDocente.length
+      );
+      map.set(st.id, pct);
+    });
+    return map;
+  }, [estudiantes, asistencias, clases.length, inasistenciasDocente.length]);
+
+  // Mapa reactivo de promedios de notas numéricas por alumno
+  const studentAverageMap = useMemo(() => {
+    const map = new Map();
+    (estudiantes || []).forEach(st => {
+      if (!st?.id) return;
+      const studentNotas = (notas || []).filter(n => n.estudiante_id === st.id && n.valor !== null && n.valor !== undefined && !isNaN(Number(n.valor)));
+      if (studentNotas.length === 0) {
+        map.set(st.id, null);
+      } else {
+        const sum = studentNotas.reduce((acc, curr) => acc + Number(curr.valor), 0);
+        const avg = Number((sum / studentNotas.length).toFixed(1));
+        map.set(st.id, avg);
+      }
+    });
+    return map;
+  }, [estudiantes, notas]);
+
+  // Paginación incremental para móviles / tablets (<1024px)
+  const [visibleCount, setVisibleCount] = useState(30);
+
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [searchQuery, studentListFilter, sortField, sortDirection]);
 
   const getCondBadgeVariant = (cond) => {
     switch (cond) {
@@ -1083,21 +1399,36 @@ export default function StudentsTab({
       if (sortField === 'apellido') {
         valA = (a.apellido || '').trim();
         valB = (b.apellido || '').trim();
+        const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? cmp : -cmp;
       } else if (sortField === 'nombre') {
         valA = (a.nombre || '').trim();
         valB = (b.nombre || '').trim();
+        const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? cmp : -cmp;
       } else if (sortField === 'dni') {
         valA = String(a.dni || '').trim();
         valB = String(b.dni || '').trim();
+        const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? cmp : -cmp;
       } else if (sortField === 'condicion') {
         valA = getStudentCondition(a.id);
         valB = getStudentCondition(b.id);
+        const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? cmp : -cmp;
+      } else if (sortField === 'asistencia') {
+        const pctA = studentAttendanceMap.get(a.id) ?? -1;
+        const pctB = studentAttendanceMap.get(b.id) ?? -1;
+        return sortDirection === 'asc' ? pctA - pctB : pctB - pctA;
+      } else if (sortField === 'promedio') {
+        const promA = studentAverageMap.get(a.id) ?? -1;
+        const promB = studentAverageMap.get(b.id) ?? -1;
+        return sortDirection === 'asc' ? promA - promB : promB - promA;
       }
 
-      const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
-      return sortDirection === 'asc' ? cmp : -cmp;
+      return 0;
     });
-  }, [estudiantes, searchQuery, sortField, sortDirection, studentConditionsMap, studentListFilter]);
+  }, [estudiantes, searchQuery, sortField, sortDirection, studentConditionsMap, studentListFilter, studentAttendanceMap, studentAverageMap]);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
@@ -1176,11 +1507,11 @@ export default function StudentsTab({
           </div>
 
           {/* Segmented Control de Vistas: Cursantes Activos / Acreditados por Equivalencia / Todos */}
-          <div className="flex items-center gap-1.5 p-1 bg-surface rounded-2xl border border-surface-border w-fit shadow-xs flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-1.5 p-1 bg-surface rounded-2xl border border-surface-border shadow-xs overflow-x-auto no-scrollbar max-w-full shrink-0">
             <button
               type="button"
               onClick={() => setStudentListFilter('activos')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
                 studentListFilter === 'activos'
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/60'
@@ -1199,7 +1530,7 @@ export default function StudentsTab({
             <button
               type="button"
               onClick={() => setStudentListFilter('equivalencias')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
                 studentListFilter === 'equivalencias'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/60'
@@ -1219,7 +1550,7 @@ export default function StudentsTab({
             <button
               type="button"
               onClick={() => setStudentListFilter('todos')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
                 studentListFilter === 'todos'
                   ? 'bg-slate-700 dark:bg-slate-700 text-white shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/60'
@@ -1266,11 +1597,11 @@ export default function StudentsTab({
               )}
             </div>
 
-            {/* A-Z / Z-A Quick Toggle Button */}
+            {/* A-Z / Z-A Quick Toggle Button (Desktop >= 1024px) */}
             <button
               type="button"
               onClick={toggleSortAZ}
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-text-primary transition-all shadow-xs shrink-0 touch-target-44 active:scale-95 duration-100 cursor-pointer"
+              className="hidden lg:inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-text-primary transition-all shadow-xs shrink-0 touch-target-44 active:scale-95 duration-100 cursor-pointer"
               title={sortDirection === 'asc' ? 'Orden alfabético A-Z activo. Clic para ordenar Z-A' : 'Orden alfabético Z-A activo. Clic para ordenar A-Z'}
             >
               {sortDirection === 'asc' ? (
@@ -1282,6 +1613,44 @@ export default function StudentsTab({
                 <>
                   <ArrowUpZA className="w-4 h-4 text-primary" />
                   <span>Ordenar: <strong className="text-primary font-bold">Z-A</strong></span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Selector de Ordenamiento Móvil & Tablet (<1024px) */}
+          <div className="flex lg:hidden items-center justify-between gap-2 bg-surface p-2.5 rounded-2xl border border-surface-border shadow-xs">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <SlidersHorizontal className="w-4 h-4 text-text-muted shrink-0 ml-1" />
+              <select
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value)}
+                aria-label="Criterio de ordenamiento"
+                className="bg-transparent text-xs font-semibold text-text-primary focus:outline-none w-full cursor-pointer py-1"
+              >
+                <option value="apellido">Ordenar por: Apellido</option>
+                <option value="nombre">Ordenar por: Nombre</option>
+                <option value="dni">Ordenar por: DNI</option>
+                <option value="condicion">Ordenar por: Condición</option>
+                <option value="asistencia">Ordenar por: Asistencia %</option>
+                <option value="promedio">Ordenar por: Promedio Notas</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border text-xs font-bold text-primary shrink-0 touch-target-44 cursor-pointer active:scale-95 transition-all"
+              title={sortDirection === 'asc' ? 'Orden Ascendente (menor a mayor / A-Z)' : 'Orden Descendente (mayor a menor / Z-A)'}
+            >
+              {sortDirection === 'asc' ? (
+                <>
+                  <ArrowDownAZ className="w-4 h-4 text-primary" />
+                  <span className="text-[11px]">Asc</span>
+                </>
+              ) : (
+                <>
+                  <ArrowUpZA className="w-4 h-4 text-primary" />
+                  <span className="text-[11px]">Desc</span>
                 </>
               )}
             </button>
@@ -1353,15 +1722,73 @@ export default function StudentsTab({
                 </div>
               )}
             >
-              <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-                <div className="overflow-x-auto touch-pan-x">
+              {/* VISTA MÓVIL Y TABLET: Grid de cards táctiles con micro-KPIs (<1024px) */}
+              <div className="lg:hidden space-y-3">
+                {studentListFilter === 'equivalencias' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {filteredAndSortedStudents.slice(0, visibleCount).map((st) => (
+                      <EquivalenciaCardMobile
+                        key={st.id}
+                        st={st}
+                        onOpenStudentDetail={handleOpenStudentDetail}
+                        onRevertirEquivalencia={handleRevertirEquivalencia}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {filteredAndSortedStudents.slice(0, visibleCount).map((st) => {
+                      if (!st || !st.id) return null;
+                      const isAcreditado = st.estado_academico === 'ACREDITADO';
+                      const cond = getStudentCondition(st.id);
+                      const notaFinal = st.nota_final ?? st.nota_final_acreditacion ?? null;
+
+                      return (
+                        <StudentCardMobile
+                          key={st.id}
+                          st={st}
+                          cond={cond}
+                          isAcreditado={isAcreditado}
+                          notaFinal={notaFinal}
+                          risk={studentRiskMap.get(st.id)}
+                          asistPct={studentAttendanceMap.get(st.id)}
+                          promedio={studentAverageMap.get(st.id)}
+                          onOpenStudentDetail={handleOpenStudentDetail}
+                          onOpenEdit={handleOpenEdit}
+                          onOpenDelete={handleOpenDelete}
+                          onOpenDeclararEquivalencia={handleOpenDeclararEquivalencia}
+                          onToggleCertificadoTrabajo={handleToggleCertificadoTrabajo}
+                          getCondBadgeVariant={getCondBadgeVariant}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Paginación incremental para listas extensas (>30 alumnos) */}
+                {filteredAndSortedStudents.length > visibleCount && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount(prev => prev + 30)}
+                      className="w-full py-3 px-4 rounded-xl border border-surface-border bg-surface hover:bg-surface-hover text-xs font-bold text-text-primary transition-all shadow-xs min-h-[44px] flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      <span>Cargar más alumnos ({filteredAndSortedStudents.length - visibleCount} restantes)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* VISTA ESCRITORIO: Tabla reglamentaria con headers sticky y primera columna anclada (>=1024px) */}
+              <div className="hidden lg:block bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
+                <div className="overflow-x-auto overscroll-x-contain" style={{ touchAction: 'pan-x pan-y' }}>
                   {studentListFilter === 'equivalencias' ? (
                     /* Tabla Especializada para Acreditados por Equivalencia */
                     <table className="w-full text-left text-xs sm:text-sm border-collapse" aria-label="Alumnos Acreditados por Equivalencia">
                       <caption className="sr-only">Nómina de alumnos eximidos por equivalencia reglamentaria</caption>
                       <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary font-semibold border-b border-surface-border">
                         <tr>
-                          <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-300 w-32">
+                          <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-300 w-32 sticky left-0 bg-slate-50 dark:bg-slate-800 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                             DNI
                           </th>
                           <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300">
@@ -1402,7 +1829,7 @@ export default function StudentsTab({
                           <th 
                             scope="col"
                             aria-sort={sortKey === 'dni' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                            className="p-0 w-32 sm:w-36"
+                            className="p-0 w-32 sm:w-36 sticky left-0 bg-slate-50 dark:bg-slate-800 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]"
                           >
                             <button
                               type="button"

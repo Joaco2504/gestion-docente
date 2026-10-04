@@ -283,8 +283,8 @@ export default function Navbar({ onToggleSidebar }) {
 
       <div className="w-full px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
         
-        {/* Brand & Mobile Drawer Button (solo visible en pantallas móviles / < md) */}
-        <div className="flex items-center gap-2.5 md:hidden">
+        {/* Brand & Mobile Drawer Button (solo visible en pantallas móviles / tablet < lg) */}
+        <div className="flex items-center gap-2.5 lg:hidden">
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -310,9 +310,9 @@ export default function Navbar({ onToggleSidebar }) {
         </div>
 
         {/* =========================================================================
-            SELECTOR DE CÁTEDRA (ESCRITORIO / TABLET)
+            SELECTOR DE CÁTEDRA (ESCRITORIO >= lg)
            ========================================================================= */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden lg:flex items-center gap-3">
           {/* Selector Rápido de Cátedra Activa */}
           <div className="relative" ref={catedraDropdownRef}>
             <button

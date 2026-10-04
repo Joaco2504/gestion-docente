@@ -12,7 +12,8 @@ import {
   HelpCircle,
   Calendar as CalendarIcon,
   ChevronDown,
-  BookOpen
+  BookOpen,
+  Briefcase
 } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
@@ -929,8 +930,9 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
                 </div>
 
                 <div className="p-3 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-200/60 dark:border-blue-900/40">
-                  <label className="block text-xs font-medium text-text-secondary mb-1 flex items-center gap-1">
-                    <span>💼 % Asist. Régimen Laboral</span>
+                  <label className="block text-xs font-medium text-text-secondary mb-1 flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5 text-blue-500" />
+                    <span>% Asist. Régimen Laboral</span>
                   </label>
                   <div className="flex items-center gap-1">
                     <input

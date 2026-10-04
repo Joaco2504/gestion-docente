@@ -194,21 +194,21 @@ export default function CatedraHeader({
               )}
             </div>
 
-            {/* Nombre de la materia principal */}
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+            {/* Nombre de la materia principal con tipografía fluida y protección de desborde */}
+            <h1 className="font-fluid-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight min-w-0 break-words" title={catedra?.nombre}>
               {catedra?.nombre ?? 'Cátedra'}
             </h1>
 
-            {/* Meta-datos institucionales en texto compacto */}
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 flex flex-wrap items-center gap-1.5">
-              <span>{institucionNombre}</span>
-              <span className="text-slate-300 dark:text-slate-700">·</span>
+            {/* Meta-datos institucionales en texto compacto sin cortes */}
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex flex-wrap items-center gap-1.5 min-w-0">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">{institucionNombre}</span>
+              <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
               <span>{nivelLabel}</span>
-              <span className="text-slate-300 dark:text-slate-700">·</span>
+              <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
               <span>{modalidadLabel}</span>
-              <span className="text-slate-300 dark:text-slate-700">·</span>
-              <span>Ciclo {anioCiclo}</span>
-            </p>
+              <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
+              <span className="font-mono">Ciclo {anioCiclo}</span>
+            </div>
           </div>
 
           {/* Micro-KPIs incrustados Bento */}

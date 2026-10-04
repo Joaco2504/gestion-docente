@@ -22,7 +22,8 @@ import {
   Lock,
   FileSpreadsheet,
   CalendarOff,
-  CalendarCheck
+  CalendarCheck,
+  Briefcase
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Button from '../common/Button';
@@ -108,7 +109,8 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 shrink-0" 
                   title="Régimen Laboral Acreditado: Meta de asistencia al 60%"
                 >
-                  💼 60%
+                  <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                  <span>60%</span>
                 </span>
               )}
               <RiskBadge risk={risk} compact />
@@ -212,7 +214,8 @@ const AttendanceRow = React.memo(function AttendanceRow({
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 shrink-0" 
                 title="Régimen Laboral Acreditado: Meta de asistencia al 60%"
               >
-                💼 60%
+                <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                <span>60%</span>
               </span>
             )}
           </div>

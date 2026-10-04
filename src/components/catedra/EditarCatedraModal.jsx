@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { 
   X, 
   Pencil, 
@@ -13,8 +12,10 @@ import {
   AlertCircle,
   CheckCircle2,
   MapPin,
-  Sparkles
+  Sparkles,
+  Briefcase
 } from 'lucide-react';
+import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CustomSelect from '../common/CustomSelect';
 import Badge from '../common/Badge';
@@ -373,55 +374,21 @@ export default function EditarCatedraModal({
     }
   };
 
-  if (!isOpen) return null;
-  if (typeof document === 'undefined') return null;
-
-  return createPortal(
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-sm animate-fadeIn"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !saving) onClose();
-      }}
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={saving ? () => {} : onClose}
+      title="Modificar Cátedra"
+      subtitle="Corrige la institución, ciclo lectivo, nombre, modalidad y horarios de cursada"
+      maxWidth="max-w-2xl"
     >
-      <div 
-        className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-scaleIn text-text-primary"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* CABECERA DEL MODAL */}
-        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-200/80 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-indigo-500/20 text-primary flex items-center justify-center shadow-xs border border-primary/20 shrink-0">
-              <Pencil className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-black text-text-primary tracking-tight">
-                Modificar Cátedra
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Corrige la institución, ciclo lectivo, nombre, modalidad y horarios de cursada
-              </p>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {errorMsg && (
+          <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs rounded-2xl flex items-center gap-2.5 animate-fadeIn">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span className="font-semibold">{errorMsg}</span>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
-            title="Cerrar ventana"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* CUERPO DEL FORMULARIO CON SCROLL SUAVE */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 scrollbar-thin">
-          {errorMsg && (
-            <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs rounded-2xl flex items-center gap-2.5 animate-fadeIn">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span className="font-semibold">{errorMsg}</span>
-            </div>
-          )}
+        )}
 
           {/* 1. SECCIÓN: CONTEXTO INSTITUCIONAL Y CICLO */}
           <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/80 space-y-3.5">
@@ -557,8 +524,9 @@ export default function EditarCatedraModal({
               </div>
 
               <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-blue-200/60 dark:border-blue-900/40 shadow-2xs">
-                <label className="block text-xs font-semibold text-text-secondary mb-1 flex items-center gap-1">
-                  <span>💼 Régimen Laboral (%)</span>
+                <label className="block text-xs font-semibold text-text-secondary mb-1 flex items-center gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Régimen Laboral (%)</span>
                 </label>
                 <div className="flex items-center gap-1.5">
                   <input
@@ -683,7 +651,7 @@ export default function EditarCatedraModal({
                     <button
                       type="button"
                       onClick={() => handleRemoveHorario(index)}
-                      className="p-1.5 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors self-end sm:self-center shrink-0 cursor-pointer"
+                      className="p-2 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors self-end sm:self-center shrink-0 cursor-pointer touch-target-44 flex items-center justify-center"
                       title="Eliminar este horario"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -715,8 +683,6 @@ export default function EditarCatedraModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }

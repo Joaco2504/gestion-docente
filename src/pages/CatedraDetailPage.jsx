@@ -386,38 +386,36 @@ export default function CatedraDetailPage() {
         {/* ========================================================
             PARTE 1: BARRA SUPERIOR INSTITUCIONAL Y BREADCRUMB
            ======================================================== */}
-        <div className="w-full flex items-center justify-between py-2.5 px-4 sm:px-6 border-b border-slate-200/80 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-950/40 backdrop-blur-sm rounded-2xl mb-4">
-          {/* Lado izquierdo (Migas de pan) */}
-          <div className="flex items-center gap-1.5 font-medium">
+        <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0 py-2.5 px-3.5 sm:px-6 border-b border-slate-200/80 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-950/40 backdrop-blur-sm rounded-2xl mb-4">
+          {/* Lado izquierdo (Migas de pan con truncate defensivo) */}
+          <div className="flex items-center gap-1.5 font-medium min-w-0 flex-1 truncate">
             <button
               type="button"
               onClick={() => navigate('/dashboard')}
-              className="hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+              className="hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors cursor-pointer shrink-0"
             >
               Panel de Cátedras
             </button>
             <span className="text-slate-300 dark:text-slate-700 select-none">/</span>
-            <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">
+            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate" title={catedra?.nombre}>
               {catedra?.nombre ?? 'Cátedra'}
             </span>
           </div>
 
           {/* Lado derecho (Contexto Académico y Herramientas) */}
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="hidden sm:flex items-center gap-1.5 font-medium">
+          <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0">
+            <div className="flex sm:flex items-center gap-1.5 font-medium text-[11px] sm:text-xs">
               <Building2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-              <span>{institucionNombre} ({catedra?.nivel ? (catedra.nivel.toUpperCase() === 'TERCIARIO' ? 'Terciario' : 'Secundario') : 'Terciario'})</span>
+              <span className="truncate max-w-[150px] sm:max-w-[200px]" title={institucionNombre}>{institucionNombre}</span>
               <span className="text-slate-300 dark:text-slate-700 select-none">|</span>
-              <span>Ciclo {anioCiclo}</span>
-              <span className="text-slate-300 dark:text-slate-700 select-none">|</span>
-              <span>{modalidadLabel}</span>
+              <span className="font-mono">Ciclo {anioCiclo}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-400">
+            <div className="flex items-center gap-1 text-slate-400">
               <button
                 type="button"
                 onClick={() => handleTabChange('configuracion')}
                 title="Configuración de cátedra"
-                className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer touch-target-44 flex items-center justify-center"
               >
                 <SettingsIcon className="w-4 h-4 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer transition-colors" />
               </button>
@@ -425,7 +423,7 @@ export default function CatedraDetailPage() {
                 type="button"
                 onClick={() => toast.info('No hay notificaciones pendientes para esta cátedra.')}
                 title="Notificaciones"
-                className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer touch-target-44 flex items-center justify-center"
               >
                 <Bell className="w-4 h-4 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer transition-colors" />
               </button>
