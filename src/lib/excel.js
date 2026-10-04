@@ -196,7 +196,7 @@ export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4
   // Notas indexadas por estudianteId + evaluacionId
   const notasMap = new Map();
   notas.forEach(n => {
-    notasMap.set(`${n.estudiante_id}_${n.evaluacion_id}`, n.valor);
+    notasMap.set(`${n.estudiante_id}_${n.evaluacion_id}`, n);
   });
 
   // Extra matrix indexada por estudianteId
@@ -220,14 +220,34 @@ export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4
 
     // Evaluaciones principales
     mainEvals.forEach(ev => {
-      const v = notasMap.get(`${est.id}_${ev.id}`);
-      row[ev.titulo] = v !== undefined && v !== null ? v : '-';
+      const rec = notasMap.get(`${est.id}_${ev.id}`);
+      let vDisp = '-';
+      if (rec) {
+        if (rec.estado === 'NO_ENTREGO') {
+          vDisp = 'N/E';
+        } else if (rec.estado === 'AUSENTE') {
+          vDisp = 'Aus.';
+        } else if (rec.valor !== undefined && rec.valor !== null) {
+          vDisp = rec.valor;
+        }
+      }
+      row[ev.titulo] = vDisp;
 
       // Recuperatorio asociado
       const linkedRecup = recups.find(r => r.evaluacion_origen_id === ev.id);
       if (linkedRecup) {
-        const rv = notasMap.get(`${est.id}_${linkedRecup.id}`);
-        row[`Recup. ${ev.titulo}`] = rv !== undefined && rv !== null ? rv : '-';
+        const rRec = notasMap.get(`${est.id}_${linkedRecup.id}`);
+        let rvDisp = '-';
+        if (rRec) {
+          if (rRec.estado === 'NO_ENTREGO') {
+            rvDisp = 'N/E';
+          } else if (rRec.estado === 'AUSENTE') {
+            rvDisp = 'Aus.';
+          } else if (rRec.valor !== undefined && rRec.valor !== null) {
+            rvDisp = rRec.valor;
+          }
+        }
+        row[`Recup. ${ev.titulo}`] = rvDisp;
       }
     });
 

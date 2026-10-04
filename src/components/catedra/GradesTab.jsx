@@ -477,8 +477,13 @@ export default function GradesTab({
               const existing = notaKeyMap.get(k);
               if (!existing) {
                 notaKeyMap.set(k, sn);
-              } else if (sn.estado && !existing.estado) {
-                notaKeyMap.set(k, { ...existing, estado: sn.estado, nota: sn.nota ?? existing.valor });
+              } else if (
+                sn.estado && (
+                  !existing.estado || 
+                  (sn.estado !== 'CALIFICADO' && existing.estado === 'CALIFICADO' && (existing.valor === 1 || existing.valor === null))
+                )
+              ) {
+                notaKeyMap.set(k, { ...existing, estado: sn.estado, valor: sn.valor, nota: sn.nota });
               }
             });
             notasList = Array.from(notaKeyMap.values());
@@ -599,6 +604,9 @@ export default function GradesTab({
 
   const getNotaValue = (estudianteId, evaluacionId) => {
     const record = getNotaRecord(estudianteId, evaluacionId);
+    if (record?.estado === 'NO_ENTREGO' || record?.estado === 'AUSENTE') {
+      return null;
+    }
     return record?.valor !== undefined && record?.valor !== null
       ? Number(record.valor)
       : (record?.nota !== undefined && record?.nota !== null ? Number(record.nota) : null);
@@ -613,9 +621,10 @@ export default function GradesTab({
     setSelectedStudentForNota(estudiante);
     setSelectedEvalForNota(evaluacion);
     const rec = getNotaRecord(estudiante.id, evaluacion.id);
-    const actual = rec?.valor !== undefined && rec?.valor !== null
+    const isEspecial = rec?.estado === 'NO_ENTREGO' || rec?.estado === 'AUSENTE';
+    const actual = !isEspecial && rec?.valor !== undefined && rec?.valor !== null
       ? Number(rec.valor)
-      : (rec?.nota !== undefined && rec?.nota !== null ? Number(rec.nota) : null);
+      : (!isEspecial && rec?.nota !== undefined && rec?.nota !== null ? Number(rec.nota) : null);
     setInputNotaValor(actual !== null ? String(actual) : '');
     setSelectedEstadoNota(rec?.estado || (actual !== null ? 'CALIFICADO' : null));
     setIsEditNotaModalOpen(true);
@@ -702,12 +711,12 @@ export default function GradesTab({
             .upsert(payloadCompleto, { onConflict: 'evaluacion_id,estudiante_id' });
 
           if (upsertError) {
-            console.warn('[GradesTab] Error al guardar con payload extendido, reintentando con payload compatible:', upsertError.message);
+            console.warn('[GradesTab] Error al guardar con payload extendido, reintentando con payload simplificado:', upsertError.message);
             const fallbackPayload = {
               evaluacion_id: selectedEvalForNota.id,
               estudiante_id: selectedStudentForNota.id,
-              valor: valNum !== null ? valNum : 1, // Compatible con esquema NOT NULL legado
-              updated_at: new Date().toISOString()
+              valor: valNum,
+              estado: finalEstado
             };
             const { error: fallbackError } = await supabase
               .from('notas')
@@ -716,6 +725,7 @@ export default function GradesTab({
           }
         } catch (dbErr) {
           console.error('[GradesTab] Error de persistencia en Supabase:', dbErr);
+          handleAppError(dbErr, 'GradesTab / Guardar Nota', user, { mostrarToast: false });
         }
       }
 
@@ -1184,8 +1194,8 @@ export default function GradesTab({
               const fallbackBatch = upsertsSupabase.map(u => ({
                 evaluacion_id: u.evaluacion_id,
                 estudiante_id: u.estudiante_id,
-                valor: u.valor !== null ? u.valor : 1,
-                updated_at: u.updated_at
+                valor: u.valor,
+                estado: u.estado
               }));
               await supabase.from('notas').upsert(fallbackBatch, { onConflict: 'evaluacion_id,estudiante_id' });
             }
@@ -1242,12 +1252,14 @@ export default function GradesTab({
     setSavingQuickGrades(true);
     try {
       if (isSupabaseConfigured && !isDemo && notas.length > 0) {
-        const validNotas = notas.filter(n => !String(n.evaluacion_id).startsWith('eval-') && n.valor !== null);
+        const validNotas = notas.filter(n => !String(n.evaluacion_id).startsWith('eval-') && (n.valor !== null || n.estado));
         if (validNotas.length > 0) {
           const payload = validNotas.map(n => ({
             evaluacion_id: n.evaluacion_id,
             estudiante_id: n.estudiante_id,
             valor: n.valor,
+            nota: n.nota ?? n.valor,
+            estado: n.estado || (n.valor !== null ? 'CALIFICADO' : null),
             updated_at: new Date().toISOString()
           }));
           const { error } = await supabase.from('notas').upsert(payload, { onConflict: 'evaluacion_id,estudiante_id' });
