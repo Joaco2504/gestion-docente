@@ -209,7 +209,6 @@ export function NuevaEvaluacionModal({
 
     const payloadEvaluacion = {
       titulo: titulo.trim(),
-      nombre: titulo.trim(),
       tipo,
       formato,
       fecha: fecha || null,

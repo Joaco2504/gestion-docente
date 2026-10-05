@@ -22,7 +22,6 @@ export interface ClaseItem {
 export interface EvaluacionItem {
   id: string;
   titulo?: string;
-  nombre?: string;
   tipo?: string;
   formato?: string;
   fecha?: string | null;
