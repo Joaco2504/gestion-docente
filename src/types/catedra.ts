@@ -43,6 +43,7 @@ export interface HorarioSemanal {
 export interface CriteriosEvaluacion {
   min_asist_promo: number;
   min_asist_reg: number;
+  min_asist_trabajo?: number;
   nota_min_promo: number;
   nota_min_reg: number;
   nota_min_sec?: number;
@@ -166,6 +167,7 @@ export const VALID_CATEDRA_TABS: CatedraTabId[] = [
 export const DEFAULT_CRITERIOS_EVALUACION: CriteriosEvaluacion = {
   min_asist_promo: 80,
   min_asist_reg: 70,
+  min_asist_trabajo: 60,
   nota_min_promo: 7,
   nota_min_reg: 4,
   nota_min_sec: 6

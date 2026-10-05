@@ -228,7 +228,7 @@ export default function CatedraDetailPage() {
             .single(),
           supabase
             .from('criterios_evaluacion')
-            .select('min_asist_promo, min_asist_reg, nota_min_promo, nota_min_reg, nota_min_sec')
+            .select('min_asist_promo, min_asist_reg, min_asist_trabajo, nota_min_promo, nota_min_reg, nota_min_sec')
             .eq('catedra_id', id)
             .maybeSingle()
         ]);
@@ -259,6 +259,7 @@ export default function CatedraDetailPage() {
           setCriterios({
             min_asist_promo: Number(critRes.data.min_asist_promo) || 80,
             min_asist_reg: Number(critRes.data.min_asist_reg) || 70,
+            min_asist_trabajo: Number(critRes.data.min_asist_trabajo) || 60,
             nota_min_promo: Number(critRes.data.nota_min_promo) || 7,
             nota_min_reg: Number(critRes.data.nota_min_reg) || 4,
             nota_min_sec: Number(critRes.data.nota_min_sec) || 6

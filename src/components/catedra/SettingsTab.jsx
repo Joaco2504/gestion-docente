@@ -338,6 +338,7 @@ export default function SettingsTab({ catedra, onCatedraUpdated }) {
           catedra_id: catedra.id,
           min_asist_promo: criterios.min_asist_promo,
           min_asist_reg: criterios.min_asist_reg,
+          min_asist_trabajo: criterios.min_asist_trabajo,
           nota_min_promo: criterios.nota_min_promo,
           nota_min_reg: criterios.nota_min_reg,
           nota_min_sec: criterios.nota_min_sec

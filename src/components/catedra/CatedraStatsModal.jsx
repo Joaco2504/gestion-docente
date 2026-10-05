@@ -130,6 +130,7 @@ export default function CatedraStatsModal({
           setCriterios({
             min_asist_promo: Number(critData.min_asist_promo) || 80,
             min_asist_reg: Number(critData.min_asist_reg) || 70,
+            min_asist_trabajo: Number(critData.min_asist_trabajo) || 60,
             nota_min_promo: Number(critData.nota_min_promo) || 7,
             nota_min_reg: Number(critData.nota_min_reg) || 4,
             nota_min_sec: Number(critData.nota_min_sec) || 6

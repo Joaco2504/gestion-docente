@@ -1,4 +1,4 @@
-﻿
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
@@ -213,13 +213,13 @@ isOneToOne: false
                   ]
                 },"criterios_evaluacion": {
                   Row: {
-                    "catedra_id": string,"id": string,"min_asist_promo": number | null,"min_asist_reg": number | null,"nota_min_promo": number | null,"nota_min_reg": number | null,"nota_min_sec": number | null
+                    "catedra_id": string,"id": string,"min_asist_promo": number | null,"min_asist_reg": number | null,"min_asist_trabajo": number | null,"nota_min_promo": number | null,"nota_min_reg": number | null,"nota_min_sec": number | null
                   }
                   Insert: {
-                    "catedra_id": string,"id"?: string,"min_asist_promo"?: number | null,"min_asist_reg"?: number | null,"nota_min_promo"?: number | null,"nota_min_reg"?: number | null,"nota_min_sec"?: number | null
+                    "catedra_id": string,"id"?: string,"min_asist_promo"?: number | null,"min_asist_reg"?: number | null,"min_asist_trabajo"?: number | null,"nota_min_promo"?: number | null,"nota_min_reg"?: number | null,"nota_min_sec"?: number | null
                   }
                   Update: {
-                    "catedra_id"?: string,"id"?: string,"min_asist_promo"?: number | null,"min_asist_reg"?: number | null,"nota_min_promo"?: number | null,"nota_min_reg"?: number | null,"nota_min_sec"?: number | null
+                    "catedra_id"?: string,"id"?: string,"min_asist_promo"?: number | null,"min_asist_reg"?: number | null,"min_asist_trabajo"?: number | null,"nota_min_promo"?: number | null,"nota_min_reg"?: number | null,"nota_min_sec"?: number | null
                   }
                   Relationships: [
                     {
