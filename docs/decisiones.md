@@ -82,7 +82,7 @@ El repositorio presentaba un severo *schema drift*:
 ### ADR-003: Deprecación y Eliminación de la Tabla Huérfana `public.docentes` en favor de `public.perfiles`
 
 - **Fecha:** 2026-10-05
-- **Estado:** Propuesto (Esperando Go / No-Go)
+- **Estado:** Aceptado (Aprobación Go otorgada)
 - **Fase:** Fase 3 (Sub-paso 3b)
 
 #### Contexto
