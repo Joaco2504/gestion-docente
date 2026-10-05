@@ -10,7 +10,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 |---|---|---|---|
 | **Fase 1** | Línea base y saneamiento del *schema drift* | 🟢 Hecha | `refactor/fase-1-schema-baseline` |
 | **Fase 2** | Seguridad y endurecimiento RLS | 🟢 Hecha | `refactor/fase-2-seguridad-rls` |
-| **Fase 3** | Unificación de columnas duplicadas (expand → migrate → contract) | ⚪ Pendiente | — |
+| **Fase 3** | Unificación de columnas duplicadas (expand → migrate → contract) | 🟢 Hecha | `refactor/fase-3-unificacion-columnas` |
 | **Fase 4** | Integridad de dominios (ENUM vs. CHECK) | ⚪ Pendiente | — |
 | **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | ⚪ Pendiente | — |
 | **Fase 6** | Rendimiento y RPC `dashboard_resumen` | ⚪ Pendiente | — |
@@ -32,8 +32,8 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 - **Estado:** 🟢 Hecha (Migración `20261004230000_fase2_seguridad_rls.sql` aplicada, `npm run db:test` 6/6 en verde, manifiesto de storage generado, `npm run build` en verde).
 
 ### Fase 3: Unificación de columnas duplicadas
-- **Objetivo:** Proceso expand → migrate → contract para unificar columnas (`notas.valor`/`nota`, `evaluaciones.titulo`/`nombre`/`fecha`, `recursos.url_o_path`/`url`, `inscripciones.estado_ram`/`estado_academico`, etc.). ADR para `docentes` vs `perfiles`.
-- **Estado:** ⚪ Pendiente.
+- **Objetivo:** Proceso expand → migrate → contract para unificar columnas (`notas.valor`/`nota`, `evaluaciones.titulo`/`nombre`/`fecha`, `recursos.url_o_path`/`url`, `inscripciones.estado_ram`/`estado_academico`, `criterios_evaluacion.min_asist_*`/`catedras.ram_asistencia_*`). ADR para `docentes` vs `perfiles`.
+- **Estado:** 🟢 Hecha (5 sub-entregas expand aplicadas y verificadas con 34/34 tests pgTAP pasando, 0 schema drift, build en verde; contratos pendientes archivados en `supabase/contract_pending/`; ADR-003 presentado para decisión Go / No-Go).
 
 ### Fase 4: Integridad de dominios (ENUM vs. CHECK)
 - **Objetivo:** Clasificar dominios estables vs crecientes, crear ENUMs y tablas de referencia, generar tipos y constantes en `src/lib/enums.ts`, eliminar strings mágicos.

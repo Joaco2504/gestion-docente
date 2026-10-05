@@ -7,6 +7,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 ## Índice de Decisiones
 - [ADR-001: Línea Base Consolidada y Adopción de Migraciones Versionadas con Timestamp](#adr-001-línea-base-consolidada-y-adopción-de-migraciones-versionadas-con-timestamp)
 - [ADR-002: Endurecimiento RLS de Storage, search_path Explícito y Desacoplamiento de Canal Discord](#adr-002-endurecimiento-rls-de-storage-search_path-explícito-y-desacoplamiento-de-canal-discord)
+- [ADR-003: Deprecación y Eliminación de la Tabla Huérfana public.docentes en favor de public.perfiles](#adr-003-deprecación-y-eliminación-de-la-tabla-huérfana-publicdocentes-en-favor-de-publicperfiles)
 
 ---
 
@@ -75,3 +76,32 @@ El repositorio presentaba un severo *schema drift*:
   - El canal de Discord puede modificarse dinámicamente desde configuración o variables de entorno sin migraciones de esquema.
 - **Negativas / Costos:**
   - Los scripts de backend externos que requieran escribir en `recordatorios_enviados` deben correr como `service_role` o superadmin.
+
+---
+
+### ADR-003: Deprecación y Eliminación de la Tabla Huérfana `public.docentes` en favor de `public.perfiles`
+
+- **Fecha:** 2026-10-05
+- **Estado:** Propuesto (Esperando Go / No-Go)
+- **Fase:** Fase 3 (Sub-paso 3b)
+
+#### Contexto
+Durante la auditoría del esquema de base de datos se detectó la coexistencia de `public.perfiles` y `public.docentes`. La investigación técnica determinó:
+1. **Foreign Keys:** Cero tablas en PostgreSQL tienen FK apuntando a `public.docentes` ni a `public.perfiles` (todas las relaciones maestras usan `docente_id REFERENCES auth.users(id)`).
+2. **Triggers:** El trigger `handle_new_user()` tras el registro en `auth.users` inserta exclusivamente en `public.perfiles`. Nunca alimenta a `public.docentes`.
+3. **Frontend:** 8 consultas activas a `public.perfiles` en componentes críticos, y **0 consultas** a `public.docentes`.
+4. **Datos:** `public.docentes` contiene 0 registros tanto en local como en producción.
+
+#### Decisión Propuesta
+1. Establecer `public.perfiles` como entidad única y canónica de perfiles de usuario.
+2. Deprecar formalmente `public.docentes` sin añadir sincronización innecesaria.
+3. Solicitar aprobación Go / No-Go para su eliminación definitiva en la fase de contratos.
+
+#### Consecuencias
+- **Positivas:**
+  - Cero riesgo de regresión o rotura de funcionalidad.
+  - Eliminación de ambigüedad y código muerto en base de datos.
+  - Mantenimiento enfocado en una única tabla de perfiles.
+- **Negativas / Costos:**
+  - Ninguna identificada.
+
