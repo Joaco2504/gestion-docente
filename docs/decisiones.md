@@ -13,6 +13,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-006: Consolidación de Métricas de Dashboard en RPCs PostgreSQL (dashboard_resumen y dashboard_agenda)](#adr-006-consolidación-de-métricas-de-dashboard-en-rpcs-postgresql-dashboard_resumen-y-dashboard_agenda)
 - [ADR-007: Implementación de Capa de Datos con TanStack Query, Tipado de Supabase y Adaptador de Caché](#adr-007-implementación-de-capa-de-datos-con-tanstack-query-tipado-de-supabase-y-adaptador-de-caché)
 - [ADR-008: Rediseño Integral del Dashboard con Jerarquía Orientada al Día (Hoy), Alerta Temprana, Tarjetas Unificadas y Accesibilidad AA](#adr-008-rediseño-integral-del-dashboard-con-jerarquía-orientada-al-día-hoy-alerta-temprana-tarjetas-unificadas-y-accesibilidad-aa)
+- [ADR-009: Visualización de Datos Accesible con Recharts, Tokens de Diseño y Aislamiento de Bundle](#adr-009-visualización-de-datos-accesible-con-recharts-tokens-de-diseño-y-aislamiento-de-bundle)
 
 ---
 
@@ -272,7 +273,29 @@ El panel principal carecía de un foco operativo inmediato para la jornada del d
 - **Negativas / Costos:**
   - Ninguna identificada.
 
+---
 
+### ADR-009: Visualización de Datos Accesible con Recharts, Tokens de Diseño y Aislamiento de Bundle
 
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 9
 
+#### Contexto
+La visualización de métricas académicas (distribución de calificaciones, condición de alumnos, estadísticas de cátedra y asistencia docente) dependía de implementaciones manuales de SVG inline sin roles semánticos, tooltips para lectores de pantalla ni descripciones estructuradas para personas con discapacidad visual. Además, los cálculos manuales de arcos y circunferencias resultaban frágiles ante cambios de datos.
 
+#### Decisión
+1. Adoptar **Recharts v3** (`recharts@^3.10.1`, licencia MIT) como biblioteca de visualización de datos accesible.
+2. Aislar la dependencia en un chunk dedicado de Rollup en `vite.config.js` (`vendor-charts`), evitando sobrecargar el bundle principal de la aplicación.
+3. Centralizar tokens de color semánticos en `src/components/charts/chartTokens.ts` para condiciones académicas (promoción, regular, recuperatorio, libre) con contraste accesible WCAG 2.1 AA.
+4. Refactorizar `InteractiveBarChart.jsx` y `InteractiveDonutChart.jsx` incorporando roles semánticos (`role="img"`), `aria-label` detallados con métricas cuantitativas y tooltips accesibles con desenfoque de fondo.
+5. Crear `AttendanceGaugeChart.jsx` e integrarlo en `QuickMetricsCard.jsx`, eliminando el último SVG de gráficos embebido a mano.
+
+#### Consecuencias
+- **Positivas:**
+  - Plena conformidad con accesibilidad WCAG 2.1 AA para visualización de datos numéricos.
+  - Gráficos fluidos, responsivos y con animaciones de entrada suaves.
+  - Cero breaking changes en componentes consumidores (`CatedraStatsModal`, `GlobalMetricsSection`, `QuickMetricsCard`).
+  - Aislamiento de código que garantiza carga ultrarrápida del resto de la aplicación.
+- **Negativas / Costos:**
+  - Incorporación de `recharts` al proyecto, mitigada mediante el chunk Rollup dedicado (`vendor-charts`).

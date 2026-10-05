@@ -2,6 +2,7 @@ import React from 'react';
 import { TrendingUp, Users, BookOpen, Clock } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import CustomSelect from '../../../components/common/CustomSelect';
+import AttendanceGaugeChart from '../../../components/charts/AttendanceGaugeChart';
 import { useCountUp } from '../../../hooks/useCountUp';
 
 export default function QuickMetricsCard({
@@ -56,45 +57,13 @@ export default function QuickMetricsCard({
 
         {/* Layout Horizontal 2 Columnas (PC/Desktop): Col 1 Donut, Col 2 Contadores */}
         <div className="grid grid-cols-1 sm:grid-cols-[128px_1fr] items-center gap-4 py-2">
-          {/* Columna 1: Donut Chart con porcentaje de asistencia centrado */}
-          <div 
-            className="relative w-28 h-28 sm:w-32 sm:h-32 mx-auto flex items-center justify-center shrink-0"
-            role="img"
-            aria-label={`Gráfico de asistencia: ${animatedAttendance}% promedio`}
-          >
-            <svg className="w-28 h-28 sm:w-32 sm:h-32 transform -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                className="stroke-slate-200/80 dark:stroke-slate-800"
-                strokeWidth="10"
-                fill="transparent"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                className={`transition-all duration-1000 ease-out ${
-                  displayedMetrics.averageAttendance >= 75
-                    ? 'stroke-emerald-500 dark:stroke-emerald-400'
-                    : 'stroke-amber-500 dark:stroke-amber-400'
-                }`}
-                strokeWidth="10"
-                strokeDasharray={251.3}
-                strokeDashoffset={251.3 - (251.3 * Math.min(displayedMetrics.averageAttendance, 100)) / 100}
-                strokeLinecap="round"
-                fill="transparent"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
-              <span className="text-xl font-bold font-mono text-slate-900 dark:text-white leading-tight">
-                {animatedAttendance}%
-              </span>
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5 leading-none">
-                ASISTENCIA
-              </span>
-            </div>
+          {/* Columna 1: Gauge Chart accesible con Recharts */}
+          <div className="mx-auto flex items-center justify-center shrink-0">
+            <AttendanceGaugeChart
+              percentage={displayedMetrics.averageAttendance}
+              animatedPercentage={animatedAttendance}
+              size={128}
+            />
           </div>
 
           {/* Columna 2: 3 contadores con texto completo sin truncado */}

@@ -39,3 +39,22 @@ Todas las dependencias deben ser **100 % gratuitas y Open Source** bajo licencia
   - `swr`: Descartado por menor soporte para manipulaciones complejas de caché relacional (`setQueryData` granular) y mutaciones compuestas.
   - Caché manual exclusivo con `Map` (`catedraCache.js` previo): Descartado como solución final por ausencia de garbage collection automático, riesgo de fugas de memoria y falta de revalidación en segundo plano. Se conservó como adaptador puente para compatibilidad total con componentes existentes.
 
+---
+
+### Fase 9: Gráficos accesibles con Recharts / Visx
+
+#### 3. `recharts` (`dependencies`)
+- **Versión:** `^3.10.1`
+- **Licencia:** MIT (100 % Open Source, gratuita y permisiva).
+- **Tamaño en bundle de producción:** ~386 kB (111.9 kB gzipped), aislado en el chunk dedicado `vendor-charts` mediante `rollupOptions.output.manualChunks`. No penaliza la carga inicial del bundle principal.
+- **Propósito:** Visualización de métricas académicas (barras, tortas, gauges de asistencia) con gráficos vectoriales SVG accesibles:
+  - Soporte nativo para lectores de pantalla mediante roles `img` y etiquetas `aria-label` descriptivas.
+  - Paleta centralizada de tokens de diseño (`chartTokens.ts`) con contraste WCAG 2.1 AA.
+  - Componentes responsivos (`ResponsiveContainer`) y adaptables a móviles compactos (320px–480px).
+  - Tooltips interactivos formateados y animaciones fluidas con modo claro/oscuro.
+- **Alternativas descartadas:**
+  - `Chart.js`: Descartado por renderizado sobre Canvas bitmap, inaccesible por defecto para lectores de pantalla y menos idiomático en React.
+  - `visx`: Descartado por requerir excesivo código boilerplate y primitivas de bajo nivel para necesidades directas de barras y donas académicas.
+  - SVG caseros manuales: Descartados por dificultad de mantenimiento, problemas de escalabilidad en diferentes relaciones de aspecto y falta de soporte para ejes y tooltips accesibles.
+
+

@@ -14,6 +14,7 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-query': ['@tanstack/react-query'],
+          'vendor-charts': ['recharts'],
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-excel': ['xlsx']
         }

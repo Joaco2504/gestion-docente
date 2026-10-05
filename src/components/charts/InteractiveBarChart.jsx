@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  Cell, 
+  CartesianGrid 
+} from 'recharts';
+import { resolveColorForLabel } from './chartTokens';
 
-/**
- * InteractiveBarChart - Gráfico de barras interactivo nativo SVG + Tailwind.
- * Cero dependencias externas, adaptativo a móvil y desktop, con tooltips y animaciones fluidas.
- * 
- * @param {Array<{ label: string, value: number, color?: string }>} data
- * @param {string} heightClass - Clase de altura (default "h-52")
- * @param {string} valueSuffix - Sufijo para los valores (ej: "alumnos")
- */
 function formatMobileLabel(label) {
   if (!label) return '';
   const map = {
@@ -30,7 +33,36 @@ function formatMobileLabel(label) {
     'evaluaciones': 'Eval.'
   };
   const lower = label.toLowerCase().trim();
-  return map[lower] || (label.length > 8 ? label.slice(0, 7) + '.' : label);
+  return map[lower] || (label.length > 9 ? label.slice(0, 8) + '.' : label);
+}
+
+/**
+ * Tooltip personalizado y accesible
+ */
+function CustomBarTooltip({ active, payload, valueSuffix }) {
+  if (!active || !payload || !payload.length) return null;
+  const item = payload[0].payload;
+
+  return (
+    <div 
+      className="p-2.5 rounded-xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-white/10 shadow-lg backdrop-blur-md text-xs font-medium space-y-1 z-50 animate-fadeIn"
+      role="tooltip"
+    >
+      <p className="font-bold text-slate-900 dark:text-white capitalize">{item.label}</p>
+      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+        <span 
+          className="w-2.5 h-2.5 rounded-full inline-block shrink-0" 
+          style={{ backgroundColor: item.color }} 
+        />
+        <span>
+          <strong className="font-mono text-slate-900 dark:text-white">{item.value}</strong> {valueSuffix}
+        </span>
+        {item.percent && (
+          <span className="text-[10px] font-mono opacity-80">({item.percent}%)</span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function InteractiveBarChart({
@@ -38,82 +70,74 @@ export default function InteractiveBarChart({
   heightClass = "h-56 sm:h-64 md:h-72",
   valueSuffix = "alumnos"
 }) {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const total = useMemo(() => data.reduce((acc, d) => acc + (d.value || 0), 0), [data]);
 
-  const total = data.reduce((acc, d) => acc + (d.value || 0), 0);
-  const maxValue = Math.max(...data.map(d => d.value || 0), 1);
+  const formattedData = useMemo(() => {
+    return data.map((d, idx) => ({
+      ...d,
+      shortLabel: formatMobileLabel(d.label),
+      color: resolveColorForLabel(d.label, d.color, idx),
+      percent: total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0'
+    }));
+  }, [data, total]);
+
+  const ariaDescription = useMemo(() => {
+    return `Gráfico de barras: ${formattedData.map(d => `${d.label}: ${d.value} ${valueSuffix}`).join(', ')}`;
+  }, [formattedData, valueSuffix]);
 
   return (
-    <div className="w-full h-full flex flex-col justify-between p-1 sm:p-3">
-      <div className={`relative w-full ${heightClass} flex items-end gap-2 sm:gap-4 md:gap-6 pt-10 pb-2 px-1 sm:px-2`}>
-        {/* Líneas guía horizontales de fondo */}
-        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 dark:opacity-10 py-2">
-          <div className="border-b border-dashed border-slate-400 w-full" />
-          <div className="border-b border-dashed border-slate-400 w-full" />
-          <div className="border-b border-dashed border-slate-400 w-full" />
-        </div>
-
-        {data.map((item, idx) => {
-          const val = item.value || 0;
-          const heightPercent = maxValue > 0 ? Math.max((val / maxValue) * 100, 6) : 6;
-          const pctOfTotal = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
-          const isHovered = hoveredIdx === idx;
-          const barColor = item.color || '#3b82f6';
-
-          return (
-            <div
-              key={idx}
-              className="relative flex-1 flex flex-col items-center h-full justify-end group cursor-pointer select-none touch-manipulation"
-              onMouseEnter={() => setHoveredIdx(idx)}
-              onMouseLeave={() => setHoveredIdx(null)}
-              onClick={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
-              onTouchStart={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
-            >
-              {/* Tooltip flotante */}
-              {isHovered && (
-                <div className="absolute -top-9 z-20 px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 rounded-xl shadow-lg border border-white/10 pointer-events-none whitespace-nowrap animate-fadeIn scale-105 transition-all">
-                  <span className="font-bold">{val}</span> {valueSuffix} <span className="text-slate-300 font-mono text-[10px]">({pctOfTotal}%)</span>
-                </div>
-              )}
-
-              {/* Valor numérico superior estático si no está en hover */}
-              {!isHovered && (
-                <span className="text-[10px] sm:text-xs font-mono font-bold text-text-primary mb-1">
-                  {val}
-                </span>
-              )}
-
-              {/* Barra interactiva con radio redondeado superior */}
-              <div
-                className="w-full max-w-[36px] sm:max-w-[48px] md:max-w-[64px] rounded-t-2xl transition-all duration-300 ease-out"
-                style={{
-                  height: `${heightPercent}%`,
-                  backgroundColor: barColor,
-                  opacity: hoveredIdx === null || isHovered ? 1 : 0.4,
-                  boxShadow: isHovered ? `0 4px 14px ${barColor}40` : 'none'
-                }}
+    <div 
+      className={`w-full ${heightClass} p-1 sm:p-2 select-none relative`}
+      role="img"
+      aria-label={ariaDescription}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart 
+          data={formattedData} 
+          margin={{ top: 16, right: 10, left: -20, bottom: 20 }}
+        >
+          <CartesianGrid 
+            strokeDasharray="3 3" 
+            vertical={false} 
+            stroke="currentColor" 
+            className="text-slate-200 dark:text-slate-800" 
+          />
+          <XAxis 
+            dataKey="shortLabel" 
+            tickLine={false} 
+            axisLine={false}
+            tick={{ fontSize: 11, fill: 'currentColor' }}
+            className="text-slate-500 dark:text-slate-400 font-medium"
+            dy={8}
+          />
+          <YAxis 
+            tickLine={false} 
+            axisLine={false}
+            tick={{ fontSize: 10, fill: 'currentColor' }}
+            className="text-slate-500 dark:text-slate-400 font-mono"
+            allowDecimals={false}
+          />
+          <Tooltip 
+            content={<CustomBarTooltip valueSuffix={valueSuffix} />} 
+            cursor={{ fill: 'rgba(100, 116, 139, 0.08)', radius: 8 }}
+          />
+          <Bar 
+            dataKey="value" 
+            radius={[6, 6, 0, 0]} 
+            maxBarSize={48}
+            animationDuration={800}
+            animationEasing="ease-out"
+          >
+            {formattedData.map((entry, index) => (
+              <Cell 
+                key={`bar-cell-${index}`} 
+                fill={entry.color} 
+                className="transition-all hover:opacity-80 cursor-pointer"
               />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Etiquetas del eje X */}
-      <div className="flex justify-between gap-1 sm:gap-4 md:gap-6 pt-2.5 border-t border-slate-200/60 dark:border-white/10 text-[11px] sm:text-xs font-semibold text-text-secondary">
-        {data.map((item, idx) => (
-          <div key={idx} className="flex-1 text-center truncate px-0.5 sm:px-1" title={item.label}>
-            <span className="block truncate sm:hidden text-[10px] font-bold">
-              {formatMobileLabel(item.label)}
-            </span>
-            <span className="hidden sm:block truncate">
-              {item.label}
-            </span>
-            <span className="block text-[9px] sm:text-[10px] font-mono text-text-muted font-normal mt-0.5">
-              {total > 0 ? `${(((item.value || 0) / total) * 100).toFixed(0)}%` : '0%'}
-            </span>
-          </div>
-        ))}
-      </div>
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

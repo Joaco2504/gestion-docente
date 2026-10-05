@@ -1,17 +1,43 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  Tooltip 
+} from 'recharts';
 import { useCountUp } from '../../hooks/useCountUp';
+import { resolveColorForLabel } from './chartTokens';
 
 /**
- * InteractiveDonutChart - Gráfico interactivo tipo Donut / Torta nativo SVG.
- * Cero dependencias externas (0 KB bloatware), soporte para toques táctiles,
- * animaciones CSS y modo oscuro nativo con Tailwind.
- * 
- * @param {Array<{ label: string, value: number, color: string }>} data
- * @param {string} title - Título central
- * @param {string} subtitle - Subtítulo central
- * @param {number} size - Diámetro base en píxeles (default 220)
- * @param {string} valueSuffix - Sufijo para los valores (ej: "alumnos")
+ * Tooltip accesible para el Donut Chart
  */
+function CustomPieTooltip({ active, payload, valueSuffix }) {
+  if (!active || !payload || !payload.length) return null;
+  const item = payload[0].payload;
+
+  return (
+    <div 
+      className="p-2.5 rounded-xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-white/10 shadow-lg backdrop-blur-md text-xs font-medium space-y-1 z-50 animate-fadeIn"
+      role="tooltip"
+    >
+      <p className="font-bold text-slate-900 dark:text-white capitalize">{item.label}</p>
+      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+        <span 
+          className="w-2.5 h-2.5 rounded-full inline-block shrink-0" 
+          style={{ backgroundColor: item.color }} 
+        />
+        <span>
+          <strong className="font-mono text-slate-900 dark:text-white">{item.value}</strong> {valueSuffix}
+        </span>
+        <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+          ({item.percent}%)
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function InteractiveDonutChart({
   data = [],
   title = "Total",
@@ -22,123 +48,98 @@ export default function InteractiveDonutChart({
 }) {
   const [activeIndex, setActiveIndex] = useState(null);
 
-  const total = data.reduce((acc, item) => acc + (item.value || 0), 0);
+  const total = useMemo(() => data.reduce((acc, item) => acc + (item.value || 0), 0), [data]);
   const animatedTotal = useCountUp(total, 600);
-  const radius = 38;
-  const strokeWidth = 14;
-  const circumference = 2 * Math.PI * radius;
 
-  let accumulatedPercent = 0;
+  const formattedData = useMemo(() => {
+    return data.map((item, idx) => {
+      const val = item.value || 0;
+      const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+      return {
+        ...item,
+        value: val,
+        percent: pct,
+        color: resolveColorForLabel(item.label, item.color, idx)
+      };
+    });
+  }, [data, total]);
 
-  const segments = data.map((item, index) => {
-    const val = item.value || 0;
-    const percent = total > 0 ? val / total : 0;
-    const strokeDasharray = `${percent * circumference} ${circumference}`;
-    const strokeDashoffset = -accumulatedPercent * circumference;
-    accumulatedPercent += percent;
-
-    return {
-      ...item,
-      index,
-      percent: Math.round(percent * 100),
-      rawPercent: percent * 100,
-      strokeDasharray,
-      strokeDashoffset,
-    };
-  });
-
-  const activeItem = activeIndex !== null ? segments[activeIndex] : null;
+  const ariaDescription = useMemo(() => {
+    return `Gráfico de dona: ${title} ${total} ${subtitle}. Distribución: ${formattedData.map(d => `${d.label} ${d.value} (${d.percent}%)`).join(', ')}`;
+  }, [formattedData, title, total, subtitle]);
 
   return (
-    <div className="flex flex-col items-center justify-center p-2 sm:p-4 w-full h-full min-h-[220px]">
-      {/* SVG Donut Visualizer */}
+    <div 
+      className="flex flex-col items-center justify-center p-2 sm:p-4 w-full h-full min-h-[220px]"
+      role="img"
+      aria-label={ariaDescription}
+    >
+      {/* Visualizador Donut con Recharts */}
       <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-        <svg
-          viewBox="0 0 100 100"
-          className="w-full h-full -rotate-90 transform select-none"
-          role="img"
-          aria-label="Gráfico de distribución porcentual"
-        >
-          {/* Anillo base de fondo */}
-          <circle
-            cx="50"
-            cy="50"
-            r={radius}
-            fill="transparent"
-            stroke="currentColor"
-            strokeWidth={strokeWidth}
-            className="text-slate-100 dark:text-slate-800/80"
-          />
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Tooltip content={<CustomPieTooltip valueSuffix={valueSuffix} />} />
+            <Pie
+              data={formattedData}
+              innerRadius={size * 0.28}
+              outerRadius={size * 0.42}
+              paddingAngle={3}
+              dataKey="value"
+              animationDuration={800}
+              animationEasing="ease-out"
+              onMouseEnter={(_, index) => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
+            >
+              {formattedData.map((entry, index) => (
+                <Cell 
+                  key={`donut-cell-${index}`} 
+                  fill={entry.color} 
+                  stroke="none"
+                  className="transition-transform duration-200 cursor-pointer hover:opacity-85"
+                />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
 
-          {/* Segmentos de datos interactivos */}
-          {total > 0 && segments.map((seg) => {
-            const isCurrent = activeIndex === seg.index;
-            return (
-              <circle
-                key={seg.index}
-                cx="50"
-                cy="50"
-                r={radius}
-                fill="transparent"
-                stroke={seg.color}
-                strokeWidth={isCurrent ? strokeWidth + 3 : strokeWidth}
-                strokeDasharray={seg.strokeDasharray}
-                strokeDashoffset={seg.strokeDashoffset}
-                strokeLinecap="round"
-                className="transition-all duration-300 cursor-pointer origin-center hover:opacity-100"
-                style={{
-                  opacity: activeIndex === null || isCurrent ? 1 : 0.45,
-                  filter: isCurrent ? 'drop-shadow(0 2px 6px rgba(0,0,0,0.2))' : 'none'
-                }}
-                onMouseEnter={() => setActiveIndex(seg.index)}
-                onMouseLeave={() => setActiveIndex(null)}
-                onTouchStart={() => setActiveIndex(seg.index === activeIndex ? null : seg.index)}
-              />
-            );
-          })}
-        </svg>
-
-        {/* Centro de información interactivo */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-3">
-          <span className="text-xs font-semibold text-text-muted truncate max-w-[85%] uppercase tracking-wider">
-            {activeItem ? activeItem.label : title}
+        {/* Centro de Dona Informativo */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none select-none">
+          <span className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-slate-900 dark:text-white leading-none">
+            {animatedTotal}
           </span>
-          <span className="text-2xl sm:text-3xl font-mono font-extrabold text-text-primary tracking-tight mt-0.5">
-            {activeItem ? `${activeItem.rawPercent.toFixed(1)}%` : animatedTotal}
-          </span>
-          <span className="text-[11px] text-text-secondary font-medium mt-0.5">
-            {activeItem ? `${activeItem.value} ${valueSuffix}` : subtitle}
+          <span className="text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1">
+            {subtitle}
           </span>
         </div>
       </div>
 
-      {/* Leyenda interactiva inferior tipo chips Bento (columna única en mobile, flex en desktop) */}
-      {showLegend && (
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap justify-center gap-2 text-xs w-full max-w-md">
-          {segments.map((seg) => {
-            const isCurrent = activeIndex === seg.index;
-            return (
-              <button
-                key={seg.index}
-                type="button"
-                onClick={() => setActiveIndex(isCurrent ? null : seg.index)}
-                className={`flex items-center justify-between md:justify-start gap-2 px-3.5 py-2 rounded-xl border transition-all cursor-pointer select-none touch-target-44 w-full md:w-auto ${
-                  isCurrent 
-                    ? 'bg-white dark:bg-slate-800 font-bold text-text-primary shadow-sm scale-102 border-slate-300 dark:border-white/20 ring-2 ring-primary/20' 
-                    : 'bg-slate-100/70 dark:bg-white/[0.04] text-text-secondary border-slate-200/70 dark:border-white/5 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                  <span className="truncate">{seg.label}:</span>
-                </div>
-                <div className="flex items-center gap-1 font-mono shrink-0">
-                  <span className="font-bold text-text-primary">{seg.value}</span>
-                  <span className="text-[10px] text-text-muted">({seg.rawPercent.toFixed(0)}%)</span>
-                </div>
-              </button>
-            );
-          })}
+      {/* Leyenda interactiva inferior accesible */}
+      {showLegend && formattedData.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-sm">
+          {formattedData.map((item, index) => (
+            <div
+              key={`legend-${index}`}
+              onMouseEnter={() => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer ${
+                activeIndex === index
+                  ? 'bg-slate-100 dark:bg-slate-800 scale-105'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="font-medium capitalize">{item.label}:</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                {item.value}
+              </span>
+              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                ({item.percent}%)
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>
