@@ -49,11 +49,12 @@ export async function uploadCatedraFile(param1, param2, param3) {
     const { data: authData } = await supabase.auth.getUser();
     const userId = authData?.user?.id;
 
+    if (!userId) {
+      return { error: new Error('Usuario no autenticado: se requiere inicio de sesión para subir archivos.') };
+    }
+
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    // Si tenemos userId, la ruta comienza con userId/catedraId/... para cumplir con la RLS de Supabase Storage
-    const filePath = userId 
-      ? `${userId}/${catedraId}/${Date.now()}_${cleanFileName}`
-      : `${catedraId}/${Date.now()}_${cleanFileName}`;
+    const filePath = `${userId}/${catedraId}/${Date.now()}_${cleanFileName}`;
 
     const { data, error } = await supabase.storage
       .from('archivos-docentes')
