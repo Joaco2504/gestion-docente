@@ -1,5 +1,18 @@
+import { 
+  format, 
+  parse, 
+  parseISO, 
+  isValid, 
+  differenceInCalendarDays, 
+  isBefore, 
+  endOfDay, 
+  startOfDay 
+} from 'date-fns';
+import { es } from 'date-fns/locale';
+
 /**
- * Utilidades para manejo y formateo de fechas en formato DD-MM-YYYY (estándar argentino/latinoamericano).
+ * Utilidades para manejo y formateo de fechas con date-fns y soporte de localización en español.
+ * Estándar: DD-MM-YYYY para presentación y YYYY-MM-DD para persistencia en base de datos.
  */
 
 /**
@@ -11,26 +24,26 @@ export function formatFechaDMY(dateInput) {
   if (!dateInput) return '';
 
   if (dateInput instanceof Date) {
-    const d = String(dateInput.getDate()).padStart(2, '0');
-    const m = String(dateInput.getMonth() + 1).padStart(2, '0');
-    const y = dateInput.getFullYear();
-    return `${d}-${m}-${y}`;
+    return isValid(dateInput) ? format(dateInput, 'dd-MM-yyyy') : '';
   }
 
   const str = String(dateInput).trim();
 
   // Si ya viene como DD-MM-YYYY o DD/MM/YYYY
-  if (/^(\d{2})[-/](\d{2})[-/](\d{4})$/.test(str)) {
-    return str.replace(/\//g, '-');
+  if (/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.test(str)) {
+    const parts = str.split(/[-/]/);
+    const day = parts[0].padStart(2, '0');
+    const month = parts[1].padStart(2, '0');
+    const year = parts[2];
+    return `${day}-${month}-${year}`;
   }
 
-  // Si viene como YYYY-MM-DD o con tiempo (ISO)
+  // Si viene como YYYY-MM-DD o ISO con hora
   if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(str)) {
     const cleanDate = str.split('T')[0];
-    const parts = cleanDate.split(/[-/]/);
-    if (parts.length >= 3) {
-      const [year, month, day] = parts;
-      return `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`;
+    const parsed = parseISO(cleanDate);
+    if (isValid(parsed)) {
+      return format(parsed, 'dd-MM-yyyy');
     }
   }
 
@@ -69,7 +82,7 @@ export function parseDMYtoYMD(dmyStr) {
  * @returns {string}
  */
 export function getTodayDMY() {
-  return formatFechaDMY(new Date());
+  return format(new Date(), 'dd-MM-yyyy');
 }
 
 /**
@@ -77,23 +90,29 @@ export function getTodayDMY() {
  * @returns {string}
  */
 export function getTodayYMD() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return format(new Date(), 'yyyy-MM-dd');
 }
 
 /**
- * Determina si una fecha (en formato YYYY-MM-DD o DD-MM-YYYY) ya pasó respecto al día de hoy.
- * @param {string} dateStr 
+ * Determina si una fecha (en formato YYYY-MM-DD o DD-MM-YYYY) ya pasó respecto al fin del día de hoy.
+ * @param {string|Date} dateInput 
  * @returns {boolean}
  */
-export function isDatePast(dateStr) {
-  if (!dateStr) return false;
-  const iso = parseDMYtoYMD(dateStr);
-  const target = new Date(iso + 'T23:59:59');
-  return target.getTime() < Date.now();
+export function isDatePast(dateInput) {
+  if (!dateInput) return false;
+
+  let parsedDate;
+  if (dateInput instanceof Date) {
+    parsedDate = dateInput;
+  } else {
+    const iso = parseDMYtoYMD(String(dateInput));
+    parsedDate = parseISO(iso);
+  }
+
+  if (!isValid(parsedDate)) return false;
+
+  // Comparar con el final del día de la fecha objetivo
+  return isBefore(endOfDay(parsedDate), new Date());
 }
 
 /**
@@ -103,35 +122,47 @@ export function isDatePast(dateStr) {
  */
 export function formatFechaLegible(dateInput) {
   if (!dateInput) return '';
-  const d = dateInput instanceof Date ? dateInput : new Date(parseDMYtoYMD(dateInput) + 'T12:00:00');
-  if (isNaN(d.getTime())) return String(dateInput);
 
-  const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  let parsedDate;
+  if (dateInput instanceof Date) {
+    parsedDate = dateInput;
+  } else {
+    const iso = parseDMYtoYMD(String(dateInput));
+    parsedDate = parseISO(iso);
+  }
 
-  const diaSemana = dias[d.getDay()];
-  const diaNum = d.getDate();
-  const mes = meses[d.getMonth()];
+  if (!isValid(parsedDate)) return String(dateInput);
 
-  return `${diaSemana} ${diaNum} ${mes}`;
+  // Formatear con locale español: "lun 15 mar"
+  const formatted = format(parsedDate, 'EEE d MMM', { locale: es });
+  
+  // Capitalizar iniciales para consistencia visual (ej. "Lun 15 Mar")
+  return formatted
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 /**
- * Retorna etiqueta de tiempo relativo respecto a hoy (ej. "Hoy", "Mañana", "En 3 días", "Pasó").
+ * Retorna etiqueta de tiempo relativo respecto a hoy (ej. "Hoy", "Mañana", "En 3 días", "Ayer", "Hace 3 días").
  * @param {string|Date} dateInput 
  * @returns {string}
  */
 export function getRelativeDateLabel(dateInput) {
   if (!dateInput) return '';
-  const targetDate = dateInput instanceof Date ? dateInput : new Date(parseDMYtoYMD(dateInput) + 'T00:00:00');
-  if (isNaN(targetDate.getTime())) return '';
+
+  let targetDate;
+  if (dateInput instanceof Date) {
+    targetDate = dateInput;
+  } else {
+    const iso = parseDMYtoYMD(String(dateInput));
+    targetDate = parseISO(iso);
+  }
+
+  if (!isValid(targetDate)) return '';
 
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  targetDate.setHours(0, 0, 0, 0);
-
-  const diffTime = targetDate.getTime() - today.getTime();
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  const diffDays = differenceInCalendarDays(targetDate, today);
 
   if (diffDays === 0) return 'Hoy';
   if (diffDays === 1) return 'Mañana';

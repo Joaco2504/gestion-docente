@@ -102,4 +102,22 @@ Todas las dependencias deben ser **100 % gratuitas y Open Source** bajo licencia
   - `formik` + `yup`: Descartado por excesivos re-renderizados globales en el árbol de componentes y mayor peso en bundle.
   - Validación manual con `useState` disperso: Descartado por código repetitivo, fragilidad ante nuevos campos y falta de consistencia en accesibilidad ARIA.
 
+---
+
+### Fase 10 (Sub-mejora 10.3): Manejo Robusto de Fechas con `date-fns` y Locale `es`
+
+#### 8. `date-fns` (`dependencies`)
+- **Versión:** `^4.4.0`
+- **Licencia:** MIT (100 % Open Source, gratuita y permisiva).
+- **Tamaño en bundle de producción:** Aislado en el chunk dedicado `vendor-dates` (~23.8 kB / 7.0 kB gzipped).
+- **Propósito:** Manejo inmutable, performante y con localización hispanohablante de fechas y calendarios:
+  - Formateo y parseo tipado sin desfasajes de huso horario (`format`, `parseISO`, `parse`).
+  - Cálculo de días relativos y comparaciones seguras de intervalos (`differenceInCalendarDays`, `isWithinInterval`, `isBefore`, `endOfDay`).
+  - Localización nativa en español (`date-fns/locale/es`) para nombres de días y meses en calendarios, avisos y agendas docentes.
+  - Preservación estricta al 100 % de la API pública en `src/lib/dateUtils.js` y `src/utils/feriadosAcademicos.ts`.
+- **Alternativas descartadas:**
+  - `moment.js`: Descartado por arquitectura monolítica no *tree-shakeable*, mutabilidad de objetos y estado de mantenimiento congelado por sus autores.
+  - `dayjs`: Descartado por menor robustez de tipos en entornos TypeScript estrictos y necesidad de plugins dispersos para localización e intervalos.
+  - Manipulación manual con strings y `Date` nativo: Descartada por inconsistencias recurrentes de desfase horario entre UTC y hora argentina (UTC-3).
+
 

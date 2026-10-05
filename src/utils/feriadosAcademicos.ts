@@ -1,4 +1,6 @@
-import { FERIADOS_ARGENTINA, Feriado } from '../data/feriadosArgentina';
+import { parseISO, format, isWithinInterval, isValid } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { FERIADOS_ARGENTINA, type Feriado } from '../data/feriadosArgentina';
 
 // Mapeo estándar de días (0 = Domingo, 1 = Lunes, ..., 6 = Sábado)
 const DIAS_SEMANA_MAP: Record<number, string> = {
@@ -48,14 +50,22 @@ export function feriadoCoincideConCatedra(
   const feriado = obtenerFeriado(fechaStr);
   if (!feriado) return { coincide: false, feriado: null };
 
-  // Parsear fecha considerando zona horaria de Argentina (UTC-3)
-  const partes = String(fechaStr).split('T')[0].split('-');
-  const fechaObj = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
-  const diaSemanaIndex = fechaObj.getDay();
-  const nombreDia = DIAS_SEMANA_MAP[diaSemanaIndex];
+  const cleanDate = String(fechaStr).split('T')[0];
+  const parsedDate = parseISO(cleanDate);
+
+  let nombreDia = '';
+  if (isValid(parsedDate)) {
+    // Obtener nombre del día en español (ej. "lunes", "martes")
+    nombreDia = normalizarTexto(format(parsedDate, 'EEEE', { locale: es }));
+  } else {
+    // Fallback defensivo posicional
+    const partes = cleanDate.split('-');
+    const fallbackDate = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+    nombreDia = DIAS_SEMANA_MAP[fallbackDate.getDay()] || '';
+  }
 
   const horarioCatedra = (horariosSemanales || []).find(h => 
-    normalizarTexto(h.dia) === normalizarTexto(nombreDia)
+    normalizarTexto(h.dia) === nombreDia
   );
 
   return {
@@ -74,13 +84,18 @@ export function obtenerFeriadosCatedraEnPeriodo(
   fechaInicio = '2026-03-01',
   fechaFin = '2026-11-30'
 ): Array<{ fecha: string; feriado: Feriado; detalleHorario: any }> {
-  const inicio = String(fechaInicio).split('T')[0];
-  const fin = String(fechaFin).split('T')[0];
+  const start = parseISO(String(fechaInicio).split('T')[0]);
+  const end = parseISO(String(fechaFin).split('T')[0]);
 
   const resultados: Array<{ fecha: string; feriado: Feriado; detalleHorario: any }> = [];
 
   FERIADOS_ARGENTINA.forEach(f => {
-    if (f.fecha >= inicio && f.fecha <= fin) {
+    const fDate = parseISO(f.fecha);
+    const inRange = isValid(start) && isValid(end) && isValid(fDate)
+      ? isWithinInterval(fDate, { start, end })
+      : (f.fecha >= String(fechaInicio).split('T')[0] && f.fecha <= String(fechaFin).split('T')[0]);
+
+    if (inRange) {
       const match = feriadoCoincideConCatedra(f.fecha, horariosSemanales);
       if (match.coincide && match.feriado) {
         resultados.push({

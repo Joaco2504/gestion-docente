@@ -16,6 +16,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-009: Visualización de Datos Accesible con Recharts, Tokens de Diseño y Aislamiento de Bundle](#adr-009-visualización-de-datos-accesible-con-recharts-tokens-de-diseño-y-aislamiento-de-bundle)
 - [ADR-010: Reemplazo Seguro de Excel, Saneamiento de Vulnerabilidades y Mitigación de Archivos No Confiables](#adr-010-reemplazo-seguro-de-excel-saneamiento-de-vulnerabilidades-y-mitigación-de-archivos-no-confiables)
 - [ADR-011: Estandarización de Formularios con React Hook Form, Validación Tipada Zod y Accesibilidad ARIA](#adr-011-estandarización-de-formularios-con-react-hook-form-validación-tipada-zod-y-accesibilidad-aria)
+- [ADR-012: Estandarización del Manejo de Fechas con date-fns, Localización en Español y Aislamiento de Bundle](#adr-012-estandarización-del-manejo-de-fechas-con-date-fns-localización-en-español-y-aislamiento-de-bundle)
 
 ---
 
@@ -355,3 +356,28 @@ Los modales operativos del Dashboard (`NuevaCatedraModal`, `QuickClassModal`, `Q
   - Esquemas puros y testeables de forma unitaria.
 - **Negativas / Costos:**
   - Incorporación de dependencias de formularios, mitigadas por el chunk dedicado `vendor-forms`.
+
+---
+
+### ADR-012: Estandarización del Manejo de Fechas con date-fns, Localización en Español y Aislamiento de Bundle
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 10 (Sub-mejora 10.3)
+
+#### Contexto
+El formateo, cálculo de diferencias relativas y correspondencia de días festivos dependía de manipulaciones manuales sobre el objeto `Date` y strings (`split('-')`, arrays de meses e índices caseros), acarreando riesgos de desfase de día por diferencias de huso horario (ej. UTC vs. hora argentina UTC-3) e inconsistencias en comparaciones relativas.
+
+#### Decisión
+1. Adoptar **`date-fns` v4** junto con el locale oficial en español (`date-fns/locale/es`) bajo licencia MIT.
+2. Aislar la dependencia en el chunk Rollup dedicado `vendor-dates` en `vite.config.js` (~23.8 kB / 7.0 kB gzipped).
+3. Refactorizar `src/lib/dateUtils.js` y `src/utils/feriadosAcademicos.ts` utilizando utilidades puras e inmutables (`format`, `parseISO`, `differenceInCalendarDays`, `isWithinInterval`, `isBefore`, `endOfDay`).
+4. Preservar íntegramente la API pública y el estándar institucional: `DD-MM-YYYY` para presentación y `YYYY-MM-DD` para base de datos.
+
+#### Consecuencias
+- **Positivas:**
+  - Eliminación absoluta de desfases de día por huso horario en calendarios, avisos y asistencias.
+  - Formateo idiomático en español (`Lun 5 Oct`) y cálculo robusto de días relativos.
+  - Cero breaking changes en componentes consumidores.
+- **Negativas / Costos:**
+  - Incorporación de la dependencia `date-fns`, mitigada por su peso ligero y aislamiento en Rollup.

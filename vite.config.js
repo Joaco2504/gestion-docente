@@ -17,7 +17,8 @@ export default defineConfig({
           'vendor-charts': ['recharts'],
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-excel': ['xlsx'],
-          'vendor-forms': ['react-hook-form', 'zod']
+          'vendor-forms': ['react-hook-form', 'zod'],
+          'vendor-dates': ['date-fns']
         }
       }
     }
