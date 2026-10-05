@@ -6,6 +6,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 
 ## Índice de Decisiones
 - [ADR-001: Línea Base Consolidada y Adopción de Migraciones Versionadas con Timestamp](#adr-001-línea-base-consolidada-y-adopción-de-migraciones-versionadas-con-timestamp)
+- [ADR-002: Endurecimiento RLS de Storage, search_path Explícito y Desacoplamiento de Canal Discord](#adr-002-endurecimiento-rls-de-storage-search_path-explícito-y-desacoplamiento-de-canal-discord)
 
 ---
 
@@ -38,3 +39,39 @@ El repositorio presentaba un severo *schema drift*:
   - Cero riesgo de aplicar índices o migraciones sobre columnas no existentes.
 - **Negativas / Costos:**
   - Se debe conciliar gradualmente en las fases siguientes el código que dependía de columnas no aplicadas o nombres divergentes (`vocal_1`/`vocal1`, `estado_ram`/`estado_academico`).
+
+---
+
+### ADR-002: Endurecimiento RLS de Storage, search_path Explícito y Desacoplamiento de Canal Discord
+
+- **Fecha:** 2026-10-04
+- **Estado:** Aceptado
+- **Fase:** Fase 2
+
+#### Contexto
+1. El bucket de Supabase Storage `archivos-docentes` contaba con políticas globales (`Allow all uploads / deletes`) que permitían que cualquier usuario autenticado pisara o borrara archivos ajenos.
+2. El canal de Discord estaba hardcodeado como un `DEFAULT` en la base de datos y en plantillas de n8n.
+3. La tabla `recordatorios_enviados` usaba un campo `evento_id TEXT` sin soporte para referencias tipadas o índices polimórficos.
+4. Múltiples funciones `SECURITY DEFINER` carecían de `search_path` explícito, representando un vector de escalada de privilegios según las guías de seguridad de PostgreSQL y Supabase.
+
+#### Decisión
+1. **Storage RLS:**
+   - Mantener el bucket público para lectura (`SELECT`) preservando la compatibilidad de descarga directa en `recursos` y el portal de alumnos sin necesidad de regenerar URLs firmadas.
+   - Restringir `INSERT`, `UPDATE` y `DELETE` en `storage.objects` a la regla estricta: `(storage.foldername(name))[1] = auth.uid()::text OR public.es_superadmin()`.
+   - Normalizar la subida en el helper del cliente `src/lib/supabase.js` para exigir sesión autenticada y anteponer `{userId}/{catedraId}/`.
+2. **Discord:**
+   - Crear la columna `discord_canal_recordatorios` en `configuracion_sistema`, inicializada en `1556366651296055357`.
+   - Crear la tabla `recordatorios_enviados` con `evento_origen TEXT` y `evento_uuid UUID` indexados, manteniendo `evento_id TEXT` para soportar resúmenes sintéticos diarios.
+   - Adaptar `discord_reminders_worker.mjs` y `korum_discord_reminders.json` para resolver el canal desde la base o variable de entorno.
+3. **Funciones `SECURITY DEFINER`:**
+   - Reemplazar todas las funciones `SECURITY DEFINER` fijando explícitamente `SET search_path = public, extensions, pg_temp;`.
+4. **Verificación de Aislamiento:**
+   - Crear suite de pruebas de aislamiento con pgTAP (`supabase/tests/01_rls_isolation.sql`) ejecutada automáticamente con `npm run db:test`.
+
+#### Consecuencias
+- **Positivas:**
+  - Aislamiento total entre docentes demostrado empíricamente mediante pruebas automatizadas pgTAP.
+  - Blindaje contra secuestro de `search_path` en todas las funciones privilegiadas.
+  - El canal de Discord puede modificarse dinámicamente desde configuración o variables de entorno sin migraciones de esquema.
+- **Negativas / Costos:**
+  - Los scripts de backend externos que requieran escribir en `recordatorios_enviados` deben correr como `service_role` o superadmin.

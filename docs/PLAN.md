@@ -9,7 +9,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | Fase | Título | Estado | Rama |
 |---|---|---|---|
 | **Fase 1** | Línea base y saneamiento del *schema drift* | 🟢 Hecha | `refactor/fase-1-schema-baseline` |
-| **Fase 2** | Seguridad y endurecimiento RLS | ⚪ Pendiente | — |
+| **Fase 2** | Seguridad y endurecimiento RLS | 🟢 Hecha | `refactor/fase-2-seguridad-rls` |
 | **Fase 3** | Unificación de columnas duplicadas (expand → migrate → contract) | ⚪ Pendiente | — |
 | **Fase 4** | Integridad de dominios (ENUM vs. CHECK) | ⚪ Pendiente | — |
 | **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | ⚪ Pendiente | — |
@@ -29,7 +29,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 
 ### Fase 2: Seguridad y endurecimiento RLS
 - **Objetivo:** Auditar y restringir Storage `archivos-docentes` por `{docente_id}/{catedra_id}`, remover canales Discord hardcodeados hacia `configuracion_sistema` o env, resolver recursión de políticas en `perfiles`, asegurar `search_path` en funciones `SECURITY DEFINER` y suites pgTAP.
-- **Estado:** ⚪ Pendiente.
+- **Estado:** 🟢 Hecha (Migración `20261004230000_fase2_seguridad_rls.sql` aplicada, `npm run db:test` 6/6 en verde, manifiesto de storage generado, `npm run build` en verde).
 
 ### Fase 3: Unificación de columnas duplicadas
 - **Objetivo:** Proceso expand → migrate → contract para unificar columnas (`notas.valor`/`nota`, `evaluaciones.titulo`/`nombre`/`fecha`, `recursos.url_o_path`/`url`, `inscripciones.estado_ram`/`estado_academico`, etc.). ADR para `docentes` vs `perfiles`.
