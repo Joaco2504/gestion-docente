@@ -178,7 +178,7 @@ export default function DashboardPage() {
           const [inscRes, clasesRes] = await Promise.all([
             supabase
               .from('inscripciones')
-              .select('id, catedra_id, estudiante_id, estado_ram')
+              .select('id, catedra_id, estudiante_id, estado_academico')
               .in('catedra_id', catedraIds),
 
             supabase
