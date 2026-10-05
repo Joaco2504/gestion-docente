@@ -32,6 +32,7 @@ import ExpandableSearch from '../common/ExpandableSearch';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import ExcelImporter from './ExcelImporter';
 import EstudianteDetailModal from './EstudianteDetailModal';
+import StudentsDataTable from './tables/StudentsDataTable';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -62,237 +63,6 @@ const normalizeSearchText = (str) => {
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
 };
-
-/**
- * StudentRow - Fila de estudiante memoizada para la tabla de alumnos
- */
-const StudentRow = React.memo(function StudentRow({
-  st,
-  cond,
-  isAcreditado,
-  notaFinal,
-  risk,
-  onOpenStudentDetail,
-  onOpenEdit,
-  onOpenDelete,
-  onOpenDeclararEquivalencia,
-  onToggleCertificadoTrabajo,
-  getCondBadgeVariant
-}) {
-  return (
-    <tr className="hover:bg-surface-hover/40 transition-colors group">
-      {/* 1. DNI (Sticky col en desktop) */}
-      <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap sticky left-0 bg-surface group-hover:bg-surface-hover/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
-        {st.dni || '-'}
-      </td>
-
-      {/* 2. Apellido */}
-      <td className="px-4 py-3.5 font-bold text-text-primary whitespace-nowrap">
-        <button
-          type="button"
-          onClick={() => onOpenStudentDetail(st)}
-          className="text-left font-bold text-text-primary hover:text-primary transition-colors cursor-pointer"
-          title="Ver ficha académica e historial de exámenes"
-        >
-          {st.apellido || '-'}
-        </button>
-      </td>
-
-      {/* 3. Nombre & Badges */}
-      <td className="px-4 py-3.5 text-text-primary whitespace-nowrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => onOpenStudentDetail(st)}
-            className="text-left text-text-primary hover:text-primary transition-colors cursor-pointer"
-            title="Ver ficha académica e historial de exámenes"
-          >
-            {st.nombre || '-'}
-          </button>
-          {st.tiene_certificado_trabajo && (
-            <span 
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20"
-              title="Régimen Laboral Acreditado: Umbral reglamentario de regularidad al 60%"
-            >
-              <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-              <span>Cert. Laboral (60%)</span>
-            </span>
-          )}
-        </div>
-      </td>
-
-      {/* 4. Condición */}
-      <td className="px-4 py-3.5 text-center whitespace-nowrap">
-        <div className="flex items-center justify-center gap-1.5">
-          {st.es_equivalencia ? (
-            <span 
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
-              title={st.resolucion_equivalencia ? `Equivalencia según ${st.resolucion_equivalencia}` : 'Materia acreditada por equivalencia'}
-            >
-              <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Acreditada (Equiv.)</span>
-            </span>
-          ) : isAcreditado ? (
-            <button
-              type="button"
-              onClick={() => onOpenStudentDetail(st)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs"
-              title={`Materia Acreditada (Calificación Final: ${notaFinal ?? 'Aprobado'}). Clic para ver ficha`}
-            >
-              <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Acreditado (Nota: {notaFinal ?? 'Aprobado'})</span>
-            </button>
-          ) : (
-            <>
-              <Badge variant={getCondBadgeVariant(cond)}>
-                {cond}
-              </Badge>
-              <RiskBadge risk={risk} compact />
-            </>
-          )}
-        </div>
-      </td>
-
-      {/* 5. Acciones */}
-      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-        <div className="flex items-center justify-end gap-1">
-          <button
-            type="button"
-            onClick={() => onOpenStudentDetail(st)}
-            className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
-            title="Ver ficha del estudiante e historial de exámenes"
-          >
-            <FileText className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggleCertificadoTrabajo(st)}
-            className={`p-1.5 rounded-lg transition-colors touch-target-44 ${
-              st.tiene_certificado_trabajo
-                ? 'text-blue-600 bg-blue-500/15 hover:bg-blue-500/25'
-                : 'text-text-muted hover:text-blue-600 hover:bg-surface-hover'
-            }`}
-            title={st.tiene_certificado_trabajo ? "Quitar Certificado de Trabajo (volver a 70%)" : "Registrar Certificado de Trabajo (Régimen Laboral 60%)"}
-          >
-            <Briefcase className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenDeclararEquivalencia(st)}
-            className="p-1.5 rounded-lg text-text-muted hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors touch-target-44"
-            title="Declarar Acreditación por Equivalencia Reglamentaria"
-          >
-            <Award className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenEdit(st)}
-            className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
-            title="Editar datos del alumno"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenDelete(st)}
-            className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors touch-target-44"
-            title="Dar de baja de la cátedra"
-          >
-            <UserMinus className="w-4 h-4" />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}, (prev, next) => {
-  return (
-    prev.st.id === next.st.id &&
-    prev.st.dni === next.st.dni &&
-    prev.st.apellido === next.st.apellido &&
-    prev.st.nombre === next.st.nombre &&
-    prev.st.tiene_certificado_trabajo === next.st.tiene_certificado_trabajo &&
-    prev.st.es_equivalencia === next.st.es_equivalencia &&
-    prev.st.resolucion_equivalencia === next.st.resolucion_equivalencia &&
-    prev.cond === next.cond &&
-    prev.isAcreditado === next.isAcreditado &&
-    prev.notaFinal === next.notaFinal &&
-    prev.risk === next.risk
-  );
-});
-
-/**
- * EquivalenciaRow - Fila especializada para la nómina de estudiantes acreditados por equivalencia
- */
-const EquivalenciaRow = React.memo(function EquivalenciaRow({
-  st,
-  onOpenStudentDetail,
-  onRevertirEquivalencia
-}) {
-  return (
-    <tr className="hover:bg-surface-hover/40 transition-colors group">
-      {/* 1. DNI (Sticky col en desktop) */}
-      <td scope="row" className="px-4 py-3.5 font-mono tabular-nums font-medium text-text-secondary whitespace-nowrap sticky left-0 bg-surface group-hover:bg-surface-hover/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
-        {st.dni || '-'}
-      </td>
-
-      {/* 2. Apellido y Nombre */}
-      <td className="px-4 py-3.5 font-bold text-text-primary whitespace-nowrap">
-        <button
-          type="button"
-          onClick={() => onOpenStudentDetail(st)}
-          className="text-left font-bold text-text-primary hover:text-primary transition-colors cursor-pointer"
-          title="Ver ficha académica"
-        >
-          {st.apellido}, {st.nombre}
-        </button>
-      </td>
-
-      {/* 3. N° Resolución / Expediente */}
-      <td className="px-4 py-3.5 font-mono text-xs text-text-primary whitespace-nowrap">
-        <div className="flex items-center gap-1.5">
-          <Award className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span className="font-semibold">{st.resolucion_equivalencia || 'Resolución Registrada'}</span>
-        </div>
-      </td>
-
-      {/* 4. Fecha de Acreditación */}
-      <td className="px-4 py-3.5 font-mono text-xs text-text-secondary whitespace-nowrap">
-        {st.fecha_equivalencia ? formatFechaDMY(st.fecha_equivalencia) : '-'}
-      </td>
-
-      {/* 5. Condición */}
-      <td className="px-4 py-3.5 text-center whitespace-nowrap">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-          <GraduationCap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span>ACREDITADA (EQUIVALENCIA)</span>
-        </span>
-      </td>
-
-      {/* 6. Acciones */}
-      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            type="button"
-            onClick={() => onOpenStudentDetail(st)}
-            className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-surface-hover transition-colors touch-target-44"
-            title="Ver ficha académica"
-          >
-            <FileText className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onRevertirEquivalencia(st)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all touch-target-44 cursor-pointer"
-            title="Revertir condición de equivalencia y reintegrar a cursante activo"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Revertir a Regular</span>
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-});
 
 /**
  * StudentCardMobile - Card táctil optimizada para móvil y tablet (<1024px)
@@ -974,30 +744,9 @@ export default function StudentsTab({
     }
   };
 
-  // Manejo de ordenamiento (A-Z / Z-A)
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
   const toggleSortAZ = () => {
     setSortField('apellido');
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-  };
-
-  const renderSortIcon = (field) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="w-3.5 h-3.5 text-text-muted opacity-40 group-hover:opacity-70" />;
-    }
-    return sortDirection === 'asc' ? (
-      <ArrowDownAZ className="w-3.5 h-3.5 text-primary" />
-    ) : (
-      <ArrowUpZA className="w-3.5 h-3.5 text-primary" />
-    );
   };
 
   // Resolver ciclo_id de la cátedra de manera infalible
@@ -1781,154 +1530,21 @@ export default function StudentsTab({
                 )}
               </div>
 
-              {/* VISTA ESCRITORIO: Tabla reglamentaria con headers sticky y primera columna anclada (>=1024px) */}
+              {/* VISTA ESCRITORIO: Tabla headless accesible con @tanstack/react-table (>=1024px) */}
               <div className="hidden lg:block bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-                <div className="overflow-x-auto overscroll-x-contain" style={{ touchAction: 'pan-x pan-y' }}>
-                  {studentListFilter === 'equivalencias' ? (
-                    /* Tabla Especializada para Acreditados por Equivalencia */
-                    <table className="w-full text-left text-xs sm:text-sm border-collapse" aria-label="Alumnos Acreditados por Equivalencia">
-                      <caption className="sr-only">Nómina de alumnos eximidos por equivalencia reglamentaria</caption>
-                      <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary font-semibold border-b border-surface-border">
-                        <tr>
-                          <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-300 w-32 sticky left-0 bg-slate-50 dark:bg-slate-800 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
-                            DNI
-                          </th>
-                          <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                            Estudiante
-                          </th>
-                          <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                            Resolución / Expediente
-                          </th>
-                          <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 w-36">
-                            Fecha Acreditación
-                          </th>
-                          <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 text-center w-52">
-                            Condición
-                          </th>
-                          <th scope="col" className="px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 text-right w-44">
-                            Acciones
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-surface-border">
-                        {filteredAndSortedStudents.map((st) => (
-                          <EquivalenciaRow
-                            key={st.id}
-                            st={st}
-                            onOpenStudentDetail={handleOpenStudentDetail}
-                            onRevertirEquivalencia={handleRevertirEquivalencia}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    /* Tabla Estándar de Cursantes */
-                    <table className="w-full text-left text-xs sm:text-sm border-collapse" aria-label="Nómina Oficial de Estudiantes">
-                      <caption className="sr-only">Nómina oficial de estudiantes inscriptos en la cátedra</caption>
-                      <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary font-semibold border-b border-surface-border">
-                        <tr>
-                          {/* 1. DNI */}
-                          <th 
-                            scope="col"
-                            aria-sort={sortKey === 'dni' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                            className="p-0 w-32 sm:w-36 sticky left-0 bg-slate-50 dark:bg-slate-800 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleSort('dni')}
-                              className="w-full flex items-center justify-between gap-2 px-4 py-3 min-h-[44px] font-bold text-[11px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
-                              title="Ordenar por DNI"
-                            >
-                              <span>DNI</span>
-                              {renderSortIcon('dni')}
-                            </button>
-                          </th>
-
-                          {/* 2. Apellido */}
-                          <th 
-                            scope="col"
-                            aria-sort={sortKey === 'apellido' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                            className="p-0"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleSort('apellido')}
-                              className="w-full flex items-center justify-between gap-2 px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
-                              title="Ordenar por Apellido (A-Z / Z-A)"
-                            >
-                              <span>Apellido</span>
-                              {renderSortIcon('apellido')}
-                            </button>
-                          </th>
-
-                          {/* 3. Nombre */}
-                          <th 
-                            scope="col"
-                            aria-sort={sortKey === 'nombre' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                            className="p-0"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleSort('nombre')}
-                              className="w-full flex items-center justify-between gap-2 px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
-                              title="Ordenar por Nombre (A-Z / Z-A)"
-                            >
-                              <span>Nombre</span>
-                              {renderSortIcon('nombre')}
-                            </button>
-                          </th>
-
-                          {/* 4. Condición */}
-                          <th 
-                            scope="col"
-                            aria-sort={sortKey === 'condicion' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                            className="p-0 w-36 sm:w-44"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleSort('condicion')}
-                              className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-colors"
-                              title="Ordenar por Condición Académica"
-                            >
-                              <span>Condición</span>
-                              {renderSortIcon('condicion')}
-                            </button>
-                          </th>
-
-                          {/* 5. Acciones */}
-                          <th scope="col" className="px-4 py-3 text-right w-36 sm:w-44 font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                            Acciones
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-surface-border">
-                        {filteredAndSortedStudents.map((st) => {
-                          if (!st || !st.id) return null;
-                          const isAcreditado = st.estado_academico === 'ACREDITADO';
-                          const cond = getStudentCondition(st.id);
-                          const notaFinal = st.nota_final ?? st.nota_final_acreditacion ?? null;
-
-                          return (
-                            <StudentRow
-                              key={st.id}
-                              st={st}
-                              cond={cond}
-                              isAcreditado={isAcreditado}
-                              notaFinal={notaFinal}
-                              risk={studentRiskMap.get(st.id)}
-                              onOpenStudentDetail={handleOpenStudentDetail}
-                              onOpenEdit={handleOpenEdit}
-                              onOpenDelete={handleOpenDelete}
-                              onOpenDeclararEquivalencia={handleOpenDeclararEquivalencia}
-                              onToggleCertificadoTrabajo={handleToggleCertificadoTrabajo}
-                              getCondBadgeVariant={getCondBadgeVariant}
-                            />
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
+                <StudentsDataTable
+                  data={filteredAndSortedStudents}
+                  isEquivalencias={studentListFilter === 'equivalencias'}
+                  getStudentCondition={getStudentCondition}
+                  studentRiskMap={studentRiskMap}
+                  getCondBadgeVariant={getCondBadgeVariant}
+                  onOpenStudentDetail={handleOpenStudentDetail}
+                  onOpenEdit={handleOpenEdit}
+                  onOpenDelete={handleOpenDelete}
+                  onOpenDeclararEquivalencia={handleOpenDeclararEquivalencia}
+                  onToggleCertificadoTrabajo={handleToggleCertificadoTrabajo}
+                  onRevertirEquivalencia={handleRevertirEquivalencia}
+                />
               </div>
             </ErrorBoundary>
           )}

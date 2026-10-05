@@ -17,7 +17,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | **Fase 7** | Capa de datos con TanStack Query | 🟢 Hecha | `refactor/fase-7-tanstack-query` |
 | **Fase 8** | Rediseño integral del Dashboard | 🟢 Hecha | `refactor/fase-8-dashboard-redisenio` |
 | **Fase 9** | Gráficos accesibles con Recharts / Visx | 🟢 Hecha | `refactor/fase-9-graficos-recharts` |
-| **Fase 10** | Mejoras modulares opcionales | 🟡 En progreso (10.1, 10.2 y 10.3 Hechas) | `refactor/fase-10-fechas-date-fns` |
+| **Fase 10** | Mejoras modulares opcionales | 🟡 En progreso (10.1 a 10.4 Hechas) | `refactor/fase-10-tablas-tanstack` |
 
 ---
 
@@ -64,4 +64,5 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 - **Sub-mejora 10.1 (Excel Seguro y Saneamiento de Dependencias):** 🟢 Hecha (Actualización a SheetJS v0.20.3 oficial vía `cdn.sheetjs.com` con licencia Apache-2.0, remediando las vulnerabilidades críticas de Prototype Pollution y ReDoS de npm audit; tratamiento defensivo de archivos no confiables con límite de 5 MB, 5.000 filas y sanitización contra Prototype Pollution; pre-validación en `ExcelImporter.jsx`; preservación total de la API pública en `src/lib/excel.js`; ADR-010 documentado).
 - **Sub-mejora 10.2 (Formularios Tipados con react-hook-form y zod):** 🟢 Hecha (Instalación de `react-hook-form`, `zod` y `@hookform/resolvers` con chunk dedicado `vendor-forms` en Vite; esquemas puros en `src/schemas/dashboardForms.js`; refactorización de `NuevaCatedraModal`, `QuickClassModal` y `QuickEventModal` con validación declarativa, accesibilidad ARIA y bordes reactivos; 0 schema drift; 50/50 tests pgTAP pasando; build en verde; ADR-011 documentado).
 - **Sub-mejora 10.3 (Manejo Robusto de Fechas con date-fns y Locale es):** 🟢 Hecha (Instalación de `date-fns` v4 con chunk dedicado `vendor-dates` en Vite; refactorización de `src/lib/dateUtils.js` y `src/utils/feriadosAcademicos.ts` eliminando bugs de desfase por huso horario y parsing manual; formateo idiomático en español y verificación inmutable de intervalos; 0 schema drift; 50/50 tests pgTAP pasando; build en verde; ADR-012 documentado).
-- **Sub-mejoras siguientes (10.4 a 10.6):** ⚪ Pendientes de aprobación una por una.
+- **Sub-mejora 10.4 (Tablas Avanzadas con TanStack Table):** 🟢 Hecha (Instalación de `@tanstack/react-table` v8 con chunk dedicado `vendor-table`; factoría de columnas en `studentColumns.jsx` y tabla headless accesible `StudentsDataTable.jsx` con primera columna fija *sticky DNI*, ordenamiento con `aria-sort` y paginación navegable; integración en `StudentsTab.jsx` reduciendo más de 360 líneas de código acoplado; 0 schema drift; 50/50 tests pgTAP pasando; build en verde; ADR-013 documentado).
+- **Sub-mejoras siguientes (10.5 a 10.6):** ⚪ Pendientes de aprobación una por una.

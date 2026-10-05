@@ -18,7 +18,8 @@ export default defineConfig({
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-excel': ['xlsx'],
           'vendor-forms': ['react-hook-form', 'zod'],
-          'vendor-dates': ['date-fns']
+          'vendor-dates': ['date-fns'],
+          'vendor-table': ['@tanstack/react-table']
         }
       }
     }

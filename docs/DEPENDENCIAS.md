@@ -120,4 +120,23 @@ Todas las dependencias deben ser **100 % gratuitas y Open Source** bajo licencia
   - `dayjs`: Descartado por menor robustez de tipos en entornos TypeScript estrictos y necesidad de plugins dispersos para localización e intervalos.
   - Manipulación manual con strings y `Date` nativo: Descartada por inconsistencias recurrentes de desfase horario entre UTC y hora argentina (UTC-3).
 
+---
+
+### Fase 10 (Sub-mejora 10.4): Tablas Avanzadas con TanStack Table (`@tanstack/react-table`)
+
+#### 9. `@tanstack/react-table` (`dependencies`)
+- **Versión:** `^8.20.6`
+- **Licencia:** MIT (100 % Open Source, gratuita y permisiva).
+- **Tamaño en bundle de producción:** Aislado en el chunk dedicado `vendor-table` (~51.8 kB / 13.9 kB gzipped).
+- **Propósito:** Arquitectura headless para tablas y planillas de alta densidad de datos:
+  - Manejo desacoplado de lógica y marcado HTML/Tailwind CSS sin dependencias visuales externas.
+  - Ordenamiento multi-columna reactivo con atributos de accesibilidad (`aria-sort="ascending" | "descending" | "none"`).
+  - Paginación accesible con controles de avance/retroceso, salto a extremos y selector dinámico de tamaño de página (15, 25, 50, 100 registros).
+  - Soporte para primera columna pegajosa (*sticky DNI*) con separación visual por sombras y compatibilidad con modo claro y oscuro.
+  - Modelo de columnas modular y tipado (`src/components/catedra/tables/studentColumns.jsx`), manteniendo componentes bajo el límite de 300 líneas.
+- **Alternativas descartadas:**
+  - `ag-grid`: Descartado por requerir licencias comerciales de pago para funciones clave y por su excesivo peso en bundle (>500 kB).
+  - Tablas manuales con `<table>` y estado de ordenamiento casero: Descartado por duplicación de lógica en múltiples pestañas, complejidad de mantenimiento y falta de estandarización en accesibilidad ARIA para lectores de pantalla.
+
+
 

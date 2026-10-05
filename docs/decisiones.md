@@ -381,3 +381,32 @@ El formateo, cálculo de diferencias relativas y correspondencia de días festiv
   - Cero breaking changes en componentes consumidores.
 - **Negativas / Costos:**
   - Incorporación de la dependencia `date-fns`, mitigada por su peso ligero y aislamiento en Rollup.
+
+---
+
+### ADR-013: Tablas Avanzadas de Alta Densidad con TanStack Table (@tanstack/react-table) y Accesibilidad WCAG AA
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 10 (Sub-mejora 10.4)
+
+#### Contexto
+Las tablas de gestión académica (`StudentsTab.jsx`, `GradesTab.jsx`) contenían marcado HTML manual acoplado con lógica de ordenamiento imperativa y carecían de atributos semánticos `aria-sort="ascending" | "descending" | "none"`, soporte accesible para lectores de pantalla, paginación configurable y primera columna fija consistente en dispositivos con desplazamiento horizontal.
+
+#### Decisión
+1. Adoptar **`@tanstack/react-table` v8** (100% Open Source, licencia MIT) con arquitectura *headless*.
+2. Aislar la dependencia en el chunk dedicado `vendor-table` en `vite.config.js` (~51.8 kB / 13.9 kB gzipped).
+3. Diseñar componentes modulares bajo el límite de 300 líneas:
+   - `src/components/catedra/tables/studentColumns.jsx` (264 líneas): Factoría memoizada de definiciones de columnas para cursantes y alumnos de equivalencia.
+   - `src/components/catedra/tables/StudentsDataTable.jsx` (248 líneas): Tabla headless con primera columna fija (*sticky DNI*), headers pegajosos con *backdrop-blur*, ordenamiento accesible y paginación con selector de tamaño de página.
+4. Integrar `StudentsDataTable` en `StudentsTab.jsx`, eliminando más de 360 líneas de marcado manual y componentes duplicados (`StudentRow`, `EquivalenciaRow`).
+
+#### Consecuencias
+- **Positivas:**
+  - Control de accesibilidad completo según WCAG AA con `aria-sort`, `caption` descriptivo y navegación por teclado.
+  - Paginación dinámica y selector de filas (15, 25, 50, 100) para cursos masivos sin saturar el DOM.
+  - Separación de responsabilidades: la lógica de estado la provee TanStack Table y la presentación visual se controla 100% mediante Tailwind CSS y tokens de diseño de Korum.
+  - Saneamiento y reducción de tamaño del archivo `StudentsTab.jsx`.
+- **Negativas / Costos:**
+  - Nueva dependencia de runtime, mitigada por aislamiento en chunk `vendor-table` y carga diferida.
+
