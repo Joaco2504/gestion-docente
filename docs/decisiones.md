@@ -11,6 +11,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-004: Estrategia de Integridad de Dominios mediante CHECK Constraints, Triggers Auto-Normalizadores y Enums TypeScript](#adr-004-estrategia-de-integridad-de-dominios-mediante-check-constraints-triggers-auto-normalizadores-y-enums-typescript)
 - [ADR-005: Modularización Arquitectónica de DashboardPage.jsx sin Alteración Visual](#adr-005-modularización-arquitectónica-de-dashboardpagejsx-sin-alteración-visual)
 - [ADR-006: Consolidación de Métricas de Dashboard en RPCs PostgreSQL (dashboard_resumen y dashboard_agenda)](#adr-006-consolidación-de-métricas-de-dashboard-en-rpcs-postgresql-dashboard_resumen-y-dashboard_agenda)
+- [ADR-007: Implementación de Capa de Datos con TanStack Query, Tipado de Supabase y Adaptador de Caché](#adr-007-implementación-de-capa-de-datos-con-tanstack-query-tipado-de-supabase-y-adaptador-de-caché)
 
 ---
 
@@ -202,6 +203,43 @@ En el flujo previo, para computar métricas de cátedras (alumnos inscriptos, cl
   - Fallback transparente que garantiza alta resiliencia y disponibilidad continua.
 - **Negativas / Costos:**
   - Las reglas de agregación de métricas de cátedras ahora residen en PostgreSQL y deben mantenerse sincronizadas con el esquema.
+
+---
+
+### ADR-007: Implementación de Capa de Datos con TanStack Query, Tipado de Supabase y Adaptador de Caché
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 7
+
+#### Contexto
+El panel de inicio y las pestañas de cátedras presentaban parpadeos de recarga y solicitudes redundantes al navegar entre vistas. La memoria temporal en cliente dependía de un `Map` en `catedraCache.js` con TTL fijo pero sin recolección de basura estructurada ni invalidación dirigida ante mutaciones, y el cliente Supabase no contaba con el contrato de tipos de `Database`.
+
+#### Decisión
+1. **Adopción de TanStack Query v5:**
+   - Instalación de `@tanstack/react-query` y configuración de `QueryClientProvider` en `src/main.jsx`.
+   - Aislamiento en un chunk dedicado `vendor-query` en `vite.config.js` (~14.4 kB gzipped).
+   - Configuración de `staleTime: 5 min` y `gcTime: 15 min` en `src/lib/queryClient.ts`.
+2. **Fábrica de Claves Canónica:**
+   - Creación de `src/lib/queryKeys.ts` con tipado constante (`as const`) para dashboard, cátedras, instituciones y mesas.
+3. **Cliente Supabase Fuertemente Tipado:**
+   - Migración de `src/lib/supabase.js` a `src/lib/supabase.ts` con `createClient<Database>`.
+4. **Hook de Dashboard Declarativo (`useDashboardData.js`):**
+   - Integración de `useQuery` manteniendo 100% de paridad con la interfaz previa del hook.
+   - Sincronización de mutaciones optimistas con `queryClient.setQueryData`.
+5. **Puente de Compatibilidad en `catedraCache.js` y Hooks Nuevos:**
+   - Conservación íntegra de la API síncrona original de `catedraCache` con sincronización bidireccional automática hacia `queryClient`.
+   - Creación de hooks nativos en `src/hooks/useCatedraQuery.js`.
+   - Invalidación reactiva de consultas en el ciclo de vida de cursada en `CatedraDetailPage.jsx`.
+
+#### Consecuencias
+- **Positivas:**
+  - Navegación instantánea y fluida sin parpadeos ni waterfalls de red.
+  - Recolección de basura controlada y tipado end-to-end de consultas.
+  - Cero breaking changes: los componentes existentes siguen funcionando con total normalidad.
+- **Negativas / Costos:**
+  - Añade la dependencia `@tanstack/react-query` (~14.4 kB gzipped en chunk aislado).
+
 
 
 

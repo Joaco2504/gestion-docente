@@ -1,9 +1,18 @@
 /**
- * catedraCache - Memoria local / caché en estado para datos de cátedras
+ * catedraCache - Memoria local / caché sincronizada con TanStack Query
  * 
  * Evita waterfalls de red y recargas innecesarias al alternar entre las pestañas
- * "Alumnos", "Asistencias" y "Calificaciones" en CatedraDetailPage.
+ * "Alumnos", "Asistencias", "Calificaciones" y "Libro de Temas".
+ * 
+ * En la Fase 7, este módulo actúa como puente bidireccional:
+ * - Mantiene 100% la interfaz síncrona original (.get, .set, .update, .invalidate)
+ *   garantizando paridad absoluta y cero breaking changes con los componentes existentes.
+ * - Sincroniza automáticamente los datos y las invalidaciones con `queryClient`
+ *   de TanStack Query.
  */
+
+import { queryClient } from '../lib/queryClient';
+import { queryKeys } from '../lib/queryKeys';
 
 const cache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos de vigencia en sesión
@@ -17,7 +26,14 @@ export const catedraCache = {
   get(catedraId) {
     if (!catedraId) return null;
     const entry = cache.get(catedraId);
-    if (!entry) return null;
+    if (!entry) {
+      // Si el Map local está vacío, intentar recuperar del cache de TanStack Query
+      const reactQueryData = queryClient.getQueryData(queryKeys.catedras.fullData(catedraId));
+      if (reactQueryData) {
+        return reactQueryData;
+      }
+      return null;
+    }
 
     if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
       cache.delete(catedraId);
@@ -35,10 +51,13 @@ export const catedraCache = {
   set(catedraId, data) {
     if (!catedraId) return;
     const prev = cache.get(catedraId)?.data || {};
+    const merged = { ...prev, ...data };
     cache.set(catedraId, {
       timestamp: Date.now(),
-      data: { ...prev, ...data }
+      data: merged
     });
+    // Sincronizar en cache de TanStack Query
+    queryClient.setQueryData(queryKeys.catedras.fullData(catedraId), merged);
   },
 
   /**
@@ -49,10 +68,13 @@ export const catedraCache = {
   update(catedraId, partialData) {
     if (!catedraId) return;
     const prev = cache.get(catedraId)?.data || {};
+    const merged = { ...prev, ...partialData };
     cache.set(catedraId, {
       timestamp: Date.now(),
-      data: { ...prev, ...partialData }
+      data: merged
     });
+    // Sincronizar en cache de TanStack Query
+    queryClient.setQueryData(queryKeys.catedras.fullData(catedraId), merged);
   },
 
   /**
@@ -62,8 +84,11 @@ export const catedraCache = {
   invalidate(catedraId) {
     if (catedraId) {
       cache.delete(catedraId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.catedras.detail(catedraId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.catedras.fullData(catedraId) });
     } else {
       cache.clear();
+      queryClient.invalidateQueries({ queryKey: queryKeys.catedras.all });
     }
   }
 };

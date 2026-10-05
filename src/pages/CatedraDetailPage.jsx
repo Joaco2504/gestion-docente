@@ -33,6 +33,8 @@ import CatedraHeader from '../components/catedra/CatedraHeader';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import { CatedraDetailSkeleton, CatedraTabSkeleton } from '../components/common/SkeletonLoader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { queryClient } from '../lib/queryClient';
+import { queryKeys } from '../lib/queryKeys';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { 
@@ -115,7 +117,11 @@ export default function CatedraDetailPage() {
       setCatedras(prev => (prev || []).map(c => c.id === updated.id ? { ...c, ...updated } : c));
     }
 
-    // 3. Refrescar estado global en segundo plano
+    // 3. Sincronizar e invalidar en TanStack Query
+    queryClient.invalidateQueries({ queryKey: queryKeys.catedras.detail(updated.id) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+
+    // 4. Refrescar estado global en segundo plano
     if (refreshData) {
       refreshData().catch(err => console.warn('Aviso refrescando estado global:', err));
     }
@@ -154,6 +160,8 @@ export default function CatedraDetailPage() {
       } catch (_) {}
 
       toast.success('Cursado finalizado. Se habilitó la instancia de exámenes y acreditación.');
+      queryClient.invalidateQueries({ queryKey: queryKeys.catedras.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       setIsCierreModalOpen(false);
       navigate(`/mesas-examen?catedraId=${id}`);
     } catch (err) {
@@ -195,6 +203,8 @@ export default function CatedraDetailPage() {
       } catch (_) {}
 
       toast.success('Cursado reabierto. Asistencias y calificaciones habilitadas.');
+      queryClient.invalidateQueries({ queryKey: queryKeys.catedras.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       setIsReabrirModalOpen(false);
     } catch (err) {
       handleAppError(err, 'CatedraDetailPage / Reabrir cursado');

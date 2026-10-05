@@ -14,7 +14,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | **Fase 4** | Integridad de dominios (ENUM vs. CHECK) | 🟢 Hecha | `refactor/fase-4-integridad-dominios` |
 | **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | 🟢 Hecha | `refactor/fase-5-dashboard-modularizacion` |
 | **Fase 6** | Rendimiento y RPC `dashboard_resumen` | 🟢 Hecha | `refactor/fase-6-rpc-dashboard-resumen` |
-| **Fase 7** | Capa de datos con TanStack Query | ⚪ Pendiente | — |
+| **Fase 7** | Capa de datos con TanStack Query | 🟢 Hecha | `refactor/fase-7-tanstack-query` |
 | **Fase 8** | Rediseño integral del Dashboard | ⚪ Pendiente | — |
 | **Fase 9** | Gráficos accesibles con Recharts / Visx | ⚪ Pendiente | — |
 | **Fase 10** | Mejoras modulares opcionales | ⚪ Pendiente | — |
@@ -49,7 +49,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 
 ### Fase 7: Capa de datos con TanStack Query
 - **Objetivo:** Implementar `@tanstack/react-query`, reemplazar gradualmente `catedraCache.js`, tipar llamadas Supabase con `Database`.
-- **Estado:** ⚪ Pendiente.
+- **Estado:** 🟢 Hecha (Instalación de `@tanstack/react-query` v5 y chunk dedicado `vendor-query`; `queryClient` centralizado con `staleTime: 5 min` y `gcTime: 15 min`; fábrica `queryKeys.ts` tipada; cliente Supabase migrado a TypeScript `supabase.ts` tipado con `Database`; `useDashboardData.js` integrado con `useQuery` y sincronización optimista; `catedraCache.js` adaptado como puente bidireccional; hooks declarativos `useCatedraQuery.js`; 0 schema drift; build limpio en Vite; ADR-007 documentado).
 
 ### Fase 8: Rediseño integral del Dashboard
 - **Objetivo:** Jerarquía docente orientada al día ("Hoy", alertas de riesgo, agenda de 15 días, métricas, grilla), tarjetas unificadas en `Card.jsx`, accesibilidad AA en 320–1024px.

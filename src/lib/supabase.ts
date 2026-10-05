@@ -1,4 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '../types/database.types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
@@ -10,9 +11,9 @@ export const isSupabaseConfigured = Boolean(
   !supabaseUrl.includes('placeholder')
 );
 
-// Cliente oficial de Supabase
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+// Cliente oficial de Supabase fuertemente tipado con el esquema Database
+export const supabase: SupabaseClient<Database> | null = (isSupabaseConfigured && supabaseUrl && supabaseAnonKey)
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -25,9 +26,9 @@ export const supabase = isSupabaseConfigured
  * @param {string} param1 - catedraId o docenteId
  * @param {File|string} param2 - file o catedraId
  * @param {File} [param3] - file
- * @returns {Promise<{ path?: string, publicUrl?: string, error?: any }>}
+ * @returns {Promise<{ path?: string, publicUrl?: string, url?: string, error?: any }>}
  */
-export async function uploadCatedraFile(param1, param2, param3) {
+export async function uploadCatedraFile(param1: any, param2: any, param3?: any) {
   if (!isSupabaseConfigured || !supabase) {
     return { error: new Error('Supabase no está configurado en el archivo .env') };
   }
@@ -65,14 +66,14 @@ export async function uploadCatedraFile(param1, param2, param3) {
 
     if (error) {
       // Diagnóstico amigable para errores de RLS o bucket no existente
-      if (error.message?.includes('row-level security') || error.message?.includes('policy') || error.statusCode === '403') {
+      if (error.message?.includes('row-level security') || error.message?.includes('policy') || (error as any).statusCode === '403') {
         throw new Error(
           "Permiso denegado por Row-Level Security en Supabase Storage. " +
           "Asegúrate de ejecutar el script 'supabase/fix_rls_and_conflicts.sql' en el SQL Editor de Supabase " +
           "o crear el bucket 'archivos-docentes' como público con políticas de INSERT para usuarios autenticados."
         );
       }
-      if (error.message?.includes('Bucket not found') || error.statusCode === '404') {
+      if (error.message?.includes('Bucket not found') || (error as any).statusCode === '404') {
         throw new Error(
           "El bucket 'archivos-docentes' no existe en tu proyecto de Supabase. " +
           "Créalo en Supabase Dashboard -> Storage -> New Bucket ('archivos-docentes', Público: activado) " +

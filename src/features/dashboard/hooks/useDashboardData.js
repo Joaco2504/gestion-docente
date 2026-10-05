@@ -1,17 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
+import { queryKeys } from '../../../lib/queryKeys';
 import { handleAppError } from '../../../utils/handleAppError';
 import { processAgendaItems } from '../utils/dashboardHelpers';
 
+/**
+ * Hook de datos para el Dashboard de Korum respaldado por TanStack Query.
+ * - Cacheo automático y deduplicación de consultas (staleTime: 5 min).
+ * - Carga optimizada vía RPC (dashboard_resumen y dashboard_agenda).
+ * - Fallback transparente a queries cliente en caso de error.
+ * - Actualizaciones optimistas sincronizadas con el queryClient.
+ */
 export function useDashboardData(user, isDemo, activeCiclo) {
-  const [loading, setLoading] = useState(true);
-  const [catedrasList, setCatedrasList] = useState([]);
-  const [agendaItems, setAgendaItems] = useState([]);
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.dashboard.data(user?.id, activeCiclo?.id);
 
   /**
    * Datos demo para pruebas locales sin conexión activa
    */
-  const loadDemoData = useCallback(() => {
+  const getDemoData = useCallback(() => {
     const demoCatedras = [
       {
         id: 'cat-1',
@@ -99,14 +107,15 @@ export function useDashboardData(user, isDemo, activeCiclo) {
       }
     ];
 
-    setCatedrasList(demoCatedras);
-    setAgendaItems(demoAgenda);
+    return { catedras: demoCatedras, agenda: demoAgenda };
   }, []);
 
   /**
    * Fallback de consultas en paralelo desde el cliente ante ausencia o error del RPC
    */
   const fetchClientFallback = useCallback(async (todayIso, next15Days) => {
+    if (!supabase || !user) return { catedras: [], agenda: [] };
+
     const [catedrasRes, eventsRes, periodsRes] = await Promise.all([
       supabase
         .from('catedras')
@@ -204,54 +213,86 @@ export function useDashboardData(user, isDemo, activeCiclo) {
       asistencia_promedio: attendancePctByCat[c.id] ?? null
     }));
 
-    setCatedrasList(enriched);
-    setAgendaItems(agenda);
+    return { catedras: enriched, agenda };
   }, [user]);
 
   /**
-   * Carga de datos optimizada mediante RPC con fallback automático
+   * Consulta principal administrada por TanStack Query
    */
-  const fetchDashboardData = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (isSupabaseConfigured && !isDemo && user) {
+  const {
+    data,
+    isLoading,
+    refetch
+  } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!isSupabaseConfigured || isDemo || !user) {
+        return getDemoData();
+      }
+
+      try {
         const todayIso = new Date().toISOString().split('T')[0];
         const next15Days = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
 
-        // 1. Intentar llamadas optimizadas a RPCs
+        // 1. Invocar RPCs optimizados en paralelo
         const [resumenRes, agendaRes] = await Promise.all([
           supabase.rpc('dashboard_resumen', { p_docente_id: user.id }),
           supabase.rpc('dashboard_agenda', { p_docente_id: user.id, p_dias: 15 })
         ]);
 
         if (!resumenRes.error && resumenRes.data?.catedras) {
-          setCatedrasList(resumenRes.data.catedras);
-          setAgendaItems(agendaRes.data || []);
-        } else {
-          // 2. Si el RPC no está disponible o falla, ejecutar fallback transparente
-          console.info('[Dashboard] Ejecutando consulta fallback por queries cliente...');
-          await fetchClientFallback(todayIso, next15Days);
+          return {
+            catedras: resumenRes.data.catedras,
+            agenda: agendaRes.data || []
+          };
         }
-      } else {
-        loadDemoData();
-      }
-    } catch (err) {
-      handleAppError(err, 'DashboardPage / Cargar Datos', user);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, isDemo, loadDemoData, fetchClientFallback]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData, activeCiclo]);
+        // 2. Fallback transparente si RPC no está disponible o falla
+        console.info('[Dashboard] Ejecutando consulta fallback por queries cliente...');
+        return await fetchClientFallback(todayIso, next15Days);
+      } catch (err) {
+        handleAppError(err, 'DashboardPage / Cargar Datos', user);
+        return { catedras: [], agenda: [] };
+      }
+    },
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 15,
+  });
+
+  const catedrasList = data?.catedras || [];
+  const agendaItems = data?.agenda || [];
+
+  /**
+   * Modificadores optimistas sincronizados con la caché de TanStack Query
+   */
+  const setCatedrasList = useCallback((updater) => {
+    queryClient.setQueryData(queryKey, (prev) => {
+      const currentList = prev?.catedras || [];
+      const nextList = typeof updater === 'function' ? updater(currentList) : updater;
+      return {
+        ...(prev || { agenda: [] }),
+        catedras: nextList
+      };
+    });
+  }, [queryClient, queryKey]);
+
+  const setAgendaItems = useCallback((updater) => {
+    queryClient.setQueryData(queryKey, (prev) => {
+      const currentAgenda = prev?.agenda || [];
+      const nextAgenda = typeof updater === 'function' ? updater(currentAgenda) : updater;
+      return {
+        ...(prev || { catedras: [] }),
+        agenda: nextAgenda
+      };
+    });
+  }, [queryClient, queryKey]);
 
   return {
-    loading,
+    loading: isLoading,
     catedrasList,
     setCatedrasList,
     agendaItems,
     setAgendaItems,
-    fetchDashboardData
+    fetchDashboardData: refetch
   };
 }

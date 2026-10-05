@@ -508,6 +508,12 @@ isOneToOne: false
 "consultar_estado_estudiante":
 { Args: { "p_catedra_id": string,"p_dni": string }; Returns: Json
                            },
+"dashboard_agenda":
+{ Args: { "p_dias"?: number,"p_docente_id"?: string }; Returns: Json
+                           },
+"dashboard_resumen":
+{ Args: { "p_docente_id"?: string }; Returns: Json
+                           },
 "es_superadmin":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
