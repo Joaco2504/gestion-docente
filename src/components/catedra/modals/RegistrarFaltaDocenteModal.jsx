@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarOff, AlertTriangle, Check, X, Clock, ShieldAlert, BookOpen } from 'lucide-react';
+import Modal from '../../common/Modal';
 import { obtenerFeriado } from '../../../utils/feriadosAcademicos';
 
 export function RegistrarFaltaDocenteModal({ 
@@ -22,17 +23,6 @@ export function RegistrarFaltaDocenteModal({
       setErrorValidacion(null);
     }
   }, [isOpen, fechaPorDefecto]);
-
-  // Manejo de tecla Escape
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -58,44 +48,14 @@ export function RegistrarFaltaDocenteModal({
   };
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-falta-title"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Registrar Falta Docente"
+      subtitle={`${catedra?.nombre || 'Cátedra'} ${catedra?.nivel ? `· ${catedra.nivel}` : ''}`}
+      maxWidth="max-w-lg"
     >
-      <div 
-        className="w-full max-w-lg bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 transition-all transform animate-scaleUp"
-        onClick={(e) => e.stopPropagation()}
-      >
-        
-        {/* Encabezado */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shrink-0">
-              <CalendarOff className="w-5 h-5"/>
-            </div>
-            <div>
-              <h3 id="modal-falta-title" className="font-bold text-base text-slate-900 dark:text-white">
-                Registrar Falta Docente
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {catedra?.nombre || 'Cátedra'} {catedra?.nivel ? `· ${catedra.nivel}` : ''}
-              </p>
-            </div>
-          </div>
-          <button 
-            type="button"
-            onClick={onClose} 
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            aria-label="Cerrar modal"
-          >
-            <X className="w-4 h-4"/>
-          </button>
-        </div>
+      <div className="space-y-5">
 
         {/* Advertencia si la fecha es Feriado */}
         {feriadoDetectado && (
@@ -212,7 +172,7 @@ export function RegistrarFaltaDocenteModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 

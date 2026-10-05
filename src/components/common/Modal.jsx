@@ -16,7 +16,9 @@ export default function Modal({
   subtitle,
   children,
   maxWidth = 'max-w-lg',
-  zIndex = 'z-[110]'
+  zIndex = 'z-[110]',
+  hasUnsavedChanges = false,
+  unsavedChangesMessage = 'Tienes cambios sin guardar. ¿Deseas cerrar la ventana sin guardar?'
 }) {
   // Gesto de arrastre táctil hacia abajo (Pointer Events)
   const [dragOffset, setDragOffset] = useState(0);
@@ -24,7 +26,19 @@ export default function Modal({
   const dragStartYRef = useRef(0);
   const dragStartTimeRef = useRef(0);
 
+  const handleRequestClose = () => {
+    if (hasUnsavedChanges) {
+      const confirmClose = window.confirm(unsavedChangesMessage);
+      if (!confirmClose) return;
+    }
+    onClose?.();
+  };
+
   const handlePointerDown = (e) => {
+    // Si el evento se originó en un botón o control interactivo, no iniciar arrastre ni capturar puntero
+    if (e.target.closest('button, a, input, select, textarea, [role="button"], [data-no-drag]')) {
+      return;
+    }
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     setIsDragging(true);
     dragStartYRef.current = e.clientY;
@@ -58,7 +72,7 @@ export default function Modal({
     // Umbral: arrastrado > 80px o velocidad hacia abajo > 0.45 px/ms con al menos 30px
     if (dragOffset > 80 || (dragOffset > 30 && velocity > 0.45)) {
       setDragOffset(0);
-      onClose();
+      handleRequestClose();
     } else {
       setDragOffset(0);
     }
@@ -70,7 +84,14 @@ export default function Modal({
   };
 
   return (
-    <Dialog.Root open={Boolean(isOpen)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog.Root
+      open={Boolean(isOpen)}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleRequestClose();
+        }
+      }}
+    >
       <Dialog.Portal>
         {/* Backdrop animado con overlay accesible de Radix */}
         <Dialog.Overlay
@@ -83,6 +104,18 @@ export default function Modal({
             style={{
               transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
               transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+            onEscapeKeyDown={(e) => {
+              if (hasUnsavedChanges) {
+                e.preventDefault();
+                handleRequestClose();
+              }
+            }}
+            onPointerDownOutside={(e) => {
+              if (hasUnsavedChanges) {
+                e.preventDefault();
+                handleRequestClose();
+              }
             }}
             className={`pointer-events-auto modal-sheet modal-shell relative w-full sm:w-auto ${maxWidth} max-w-[100vw] sm:max-w-xl md:max-w-2xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden max-h-[90dvh] sm:max-h-[85vh] flex flex-col pb-safe focus:outline-hidden data-[state=open]:animate-sheet-up sm:data-[state=open]:animate-scaleIn`}
           >
@@ -126,11 +159,18 @@ export default function Modal({
                 <Dialog.Close asChild>
                   <button
                     type="button"
-                    className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors touch-target-44 flex items-center justify-center cursor-pointer shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRequestClose();
+                    }}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors touch-target-44 min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer shrink-0"
                     title="Cerrar ventana"
-                    aria-label="Cerrar"
+                    aria-label="Cerrar ventana"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-5 h-5 pointer-events-none" />
                   </button>
                 </Dialog.Close>
               </div>
