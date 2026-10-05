@@ -47,6 +47,7 @@
     --table-row-hover: #f1f5f9;            /* slate-100 */
     --table-border: #e2e8f0;               /* slate-200 */
     --table-sticky-shadow: 2px 0 5px -2px rgb(0 0 0 / 0.08);
+    --table-sticky-shadow-right: -2px 0 5px -2px rgb(0 0 0 / 0.08);
 
     /* Tokens de Movimiento & Resortes (Korum Motion System) */
     --duration-fast: 150ms;
@@ -108,6 +109,7 @@
     --table-row-hover: #1e293b;
     --table-border: #334155;               /* slate-700 */
     --table-sticky-shadow: 3px 0 8px -2px rgb(0 0 0 / 0.45);
+    --table-sticky-shadow-right: -3px 0 8px -2px rgb(0 0 0 / 0.45);
   }
 
   body {
@@ -195,7 +197,7 @@
     overflow-wrap: break-word;
   }
 
-  /* Columna sticky unificada */
+  /* Columna sticky unificada (izquierda) */
   .tbl .sticky-col {
     position: sticky;
     left: 0;
@@ -206,6 +208,38 @@
 
   thead .sticky-col {
     z-index: 30;
+  }
+
+  /* Columna sticky unificada (derecha) */
+  .tbl .sticky-col-right {
+    position: sticky;
+    right: 0;
+    z-index: 10;
+    background: var(--table-header-bg);
+    box-shadow: var(--table-sticky-shadow-right);
+  }
+
+  thead .sticky-col-right {
+    z-index: 30;
+  }
+
+  /* Reglas universales para tablas de la app */
+  .tbl-auto {
+    table-layout: auto;
+    width: 100%;
+  }
+
+  .tbl-badge-nowrap {
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: fit-content;
+  }
+
+  .tbl-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   /* Alineación numérica estricta */

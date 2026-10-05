@@ -54,6 +54,11 @@ import { QuickSaveFab } from '../common/QuickSaveFAB';
 import { catedraCache } from '../../services/catedraCache';
 import NuevaEvaluacionModal from './modals/NuevaEvaluacionModal';
 import GradeCell from './GradeCell';
+import GradesHeaderColumn from './grades/GradesHeaderColumn';
+import GradesDensitySelector from './grades/GradesDensitySelector';
+import GradesMobileView from './grades/GradesMobileView';
+import ConfirmDialog from '../common/ConfirmDialog';
+import Tooltip from '../common/Tooltip';
 import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
 import { 
   getEvaluacionesCatedra, 
@@ -113,6 +118,21 @@ function DebouncedGradeInput({ value, onChange, onDebouncedChange, delay = 300, 
   );
 }
 
+function getGroupAverage(estId, evals, getNotaValue) {
+  if (!evals || evals.length === 0) return null;
+  let sum = 0;
+  let count = 0;
+  for (const ev of evals) {
+    const val = getNotaValue(estId, ev.id);
+    if (val !== null && val !== undefined && !isNaN(Number(val))) {
+      sum += Number(val);
+      count++;
+    }
+  }
+  if (count === 0) return null;
+  return (sum / count).toFixed(1);
+}
+
 /**
  * GradeRow - Fila de estudiante memoizada para la matriz de calificaciones
  */
@@ -127,19 +147,30 @@ const GradeRow = React.memo(function GradeRow({
   getNotaEstado,
   getCondBadgeVariant,
   onOpenEditNota,
-  notas
+  notas,
+  density = 'comfortable',
+  evaluationGroups = [],
+  collapsedGroups = new Set(),
+  hasSuperHeaders = false
 }) {
   const est = item.estudiante;
+  const isCompact = density === 'compact';
 
   return (
     <tr className="group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
-      <td scope="row" className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 border-r border-surface-border w-64 sm:w-72">
+      {/* Sticky Left: Estudiante / DNI */}
+      <td 
+        scope="row" 
+        className={`sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 ${
+          isCompact ? 'py-1.5' : 'py-2.5'
+        } border-r border-surface-border w-64 sm:w-72 align-middle`}
+      >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[11px] font-mono tabular-nums text-text-muted select-none w-5 shrink-0 text-right">
               {idx + 1}.
             </span>
-            <span className="font-semibold text-text-primary break-words">
+            <span className="font-semibold text-text-primary truncate" title={`${est.apellido}, ${est.nombre}`}>
               {est.apellido}, {est.nombre}
             </span>
           </div>
@@ -148,12 +179,12 @@ const GradeRow = React.memo(function GradeRow({
         <div className="text-[11px] font-mono tabular-nums text-text-muted pl-7 flex items-center gap-1.5 flex-wrap">
           <span>DNI: {est.dni || 'S/D'}</span>
           {est.es_equivalencia && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold font-sans">
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold font-sans">
               Equivalencia
             </span>
           )}
           {est.tiene_certificado_trabajo && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold font-sans inline-flex items-center gap-1" title="Régimen Laboral acreditado (60%)">
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold font-sans inline-flex items-center gap-1" title="Régimen Laboral acreditado (60%)">
               <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
               <span>60%</span>
             </span>
@@ -162,62 +193,120 @@ const GradeRow = React.memo(function GradeRow({
       </td>
 
       {/* Attendance % */}
-      <td className="px-3 py-3 text-center font-mono tabular-nums w-24 sm:w-28">
+      <td className={`px-3 ${isCompact ? 'py-1.5' : 'py-2.5'} text-center font-mono tabular-nums w-20 sm:w-24 border-r border-surface-border align-middle`}>
         {est.es_equivalencia ? (
-          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500" title="Exento de asistencia obligatoria por Acreditación por Equivalencia">
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500" title="Exento de asistencia obligatoria por Acreditación por Equivalencia">
             Exento
           </span>
         ) : (
           <span className={`px-2 py-0.5 rounded text-xs font-bold tabular-nums ${
             item.asistenciaPct < (est.tiene_certificado_trabajo ? 60 : 70) 
-              ? 'bg-red-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300' 
-              : 'bg-green-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40' 
+              : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40'
           }`}>
             {item.asistenciaPct}%
           </span>
         )}
       </td>
 
-      {/* Main evaluations and linked recuperatorios */}
-      {mainEvaluations.map(ev => {
-        const recup = evaluaciones.find(r => String(r.tipo || '').toUpperCase().includes('RECUP') && r.evaluacion_origen_id === ev.id);
-        const notaOriginal = getNotaValue(est.id, ev.id);
-        const estadoOriginal = getNotaEstado(est.id, ev.id);
-        const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
-        const estadoRecup = recup ? getNotaEstado(est.id, recup.id) : null;
-        const isFlashingOriginal = flashingGradeKey === `${est.id}_${ev.id}`;
-        const isFlashingRecup = recup ? flashingGradeKey === `${est.id}_${recup.id}` : false;
+      {/* Evaluations Cells */}
+      {hasSuperHeaders ? (
+        evaluationGroups.map((group, grpIdx) => {
+          if (collapsedGroups.has(group.id)) {
+            const avg = getGroupAverage(est.id, group.evaluaciones, getNotaValue);
+            return (
+              <td
+                key={`${group.id}_collapsed`}
+                className={`px-2 ${isCompact ? 'py-1' : 'py-2'} text-center border-l border-surface-border font-mono text-xs font-semibold text-text-muted bg-slate-50/50 dark:bg-slate-900/50 align-middle`}
+              >
+                <span 
+                  className="px-2 py-0.5 rounded bg-surface border border-surface-border text-text-secondary text-[11px] select-none" 
+                  title={`Promedio de ${group.label}: ${avg ?? 'Sin notas'}`}
+                >
+                  {avg !== null ? `x̄ ${avg}` : '—'}
+                </span>
+              </td>
+            );
+          }
+          return group.evaluaciones.map((ev, colIdx) => {
+            const recup = evaluaciones.find(r => String(r.tipo || '').toUpperCase().includes('RECUP') && r.evaluacion_origen_id === ev.id);
+            const notaOriginal = getNotaValue(est.id, ev.id);
+            const estadoOriginal = getNotaEstado(est.id, ev.id);
+            const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
+            const estadoRecup = recup ? getNotaEstado(est.id, recup.id) : null;
+            const isFlashingOriginal = flashingGradeKey === `${est.id}_${ev.id}`;
+            const isFlashingRecup = recup ? flashingGradeKey === `${est.id}_${recup.id}` : false;
 
-        return (
-          <GradeCell
-            key={ev.id}
-            est={est}
-            ev={ev}
-            recup={recup}
-            notaOriginal={notaOriginal}
-            estadoOriginal={estadoOriginal}
-            notaRecup={notaRecup}
-            estadoRecup={estadoRecup}
-            isFlashingOriginal={isFlashingOriginal}
-            isFlashingRecup={isFlashingRecup}
-            onOpenEditNota={onOpenEditNota}
-          />
-        );
-      })}
+            return (
+              <GradeCell
+                key={ev.id}
+                est={est}
+                ev={ev}
+                recup={recup}
+                notaOriginal={notaOriginal}
+                estadoOriginal={estadoOriginal}
+                notaRecup={notaRecup}
+                estadoRecup={estadoRecup}
+                isFlashingOriginal={isFlashingOriginal}
+                isFlashingRecup={isFlashingRecup}
+                onOpenEditNota={onOpenEditNota}
+                density={density}
+                rowIdx={idx}
+                colIdx={colIdx + grpIdx * 10}
+              />
+            );
+          });
+        })
+      ) : (
+        mainEvaluations.map((ev, colIdx) => {
+          const recup = evaluaciones.find(r => String(r.tipo || '').toUpperCase().includes('RECUP') && r.evaluacion_origen_id === ev.id);
+          const notaOriginal = getNotaValue(est.id, ev.id);
+          const estadoOriginal = getNotaEstado(est.id, ev.id);
+          const notaRecup = recup ? getNotaValue(est.id, recup.id) : null;
+          const estadoRecup = recup ? getNotaEstado(est.id, recup.id) : null;
+          const isFlashingOriginal = flashingGradeKey === `${est.id}_${ev.id}`;
+          const isFlashingRecup = recup ? flashingGradeKey === `${est.id}_${recup.id}` : false;
 
-      {/* Final Condition Badge */}
-      <td className="px-4 py-3 text-center border-l border-surface-border bg-surface-hover/20">
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex items-center gap-1.5">
-            <Badge variant={getCondBadgeVariant(item.condicion?.condicion)}>
+          return (
+            <GradeCell
+              key={ev.id}
+              est={est}
+              ev={ev}
+              recup={recup}
+              notaOriginal={notaOriginal}
+              estadoOriginal={estadoOriginal}
+              notaRecup={notaRecup}
+              estadoRecup={estadoRecup}
+              isFlashingOriginal={isFlashingOriginal}
+              isFlashingRecup={isFlashingRecup}
+              onOpenEditNota={onOpenEditNota}
+              density={density}
+              rowIdx={idx}
+              colIdx={colIdx}
+            />
+          );
+        })
+      )}
+
+      {/* Sticky Right: Condición Final */}
+      <td className={`sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 ${
+        isCompact ? 'py-1.5' : 'py-2.5'
+      } text-center border-l border-surface-border w-36 min-w-[150px] align-middle`}>
+        <div className="flex flex-col items-center justify-center gap-1">
+          <div className="flex items-center justify-center gap-1.5 w-full">
+            <Badge 
+              variant={getCondBadgeVariant(item.condicion?.condicion)}
+              className="whitespace-nowrap shrink-0 w-fit text-[11px] font-bold px-2 py-0.5"
+            >
               {item.condicion?.condicion === 'ACREDITADA_EQUIVALENCIA' ? 'EQUIVALENCIA' : item.condicion?.condicion}
             </Badge>
-            <RiskBadge risk={studentRisk} compact />
           </div>
           {item.condicion?.motivo && (
-            <span className="text-[10px] text-text-muted truncate max-w-[130px]" title={item.condicion.motivo}>
-              {item.condicion.motivo}
-            </span>
+            <Tooltip content={item.condicion.motivo}>
+              <span className="text-[10px] text-text-muted text-center line-clamp-2 max-w-[135px] leading-tight cursor-help select-none">
+                {item.condicion.motivo}
+              </span>
+            </Tooltip>
           )}
         </div>
       </td>
@@ -233,7 +322,10 @@ const GradeRow = React.memo(function GradeRow({
     prev.mainEvaluations === next.mainEvaluations &&
     prev.evaluaciones === next.evaluaciones &&
     prev.flashingGradeKey === next.flashingGradeKey &&
-    prev.notas === next.notas
+    prev.notas === next.notas &&
+    prev.density === next.density &&
+    prev.hasSuperHeaders === next.hasSuperHeaders &&
+    prev.collapsedGroups.size === next.collapsedGroups.size
   );
 });
 
@@ -316,6 +408,50 @@ export default function GradesTab({
   // Modals state
   const [isNewEvalModalOpen, setIsNewEvalModalOpen] = useState(false);
   const [isEditNotaModalOpen, setIsEditNotaModalOpen] = useState(false);
+
+  // Densidad: 'comfortable' | 'compact' persistido en localStorage con try/catch
+  const [density, setDensity] = useState(() => {
+    try {
+      return localStorage.getItem('korum_grades_density') || 'comfortable';
+    } catch (_) {
+      return 'comfortable';
+    }
+  });
+
+  const handleDensityChange = (newDensity) => {
+    setDensity(newDensity);
+    try {
+      localStorage.setItem('korum_grades_density', newDensity);
+    } catch (_) {}
+  };
+
+  // Grupos de evaluaciones colapsables (> 6 evaluaciones)
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const toggleGroupCollapse = (groupId) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  // Diálogo de confirmación para eliminar evaluación
+  const [evalToDelete, setEvalToDelete] = useState(null);
+  const [deletingEval, setDeletingEval] = useState(false);
+
+  const handleRequestDeleteEvaluacion = (ev) => {
+    setEvalToDelete(ev);
+  };
+
+  // Render incremental para listas grandes
+  const [visibleRowsCount, setVisibleRowsCount] = useState(50);
+
+  // Estado de error para la carga
+  const [error, setError] = useState(null);
   const [selectedStudentForNota, setSelectedStudentForNota] = useState(null);
   const [selectedEvalForNota, setSelectedEvalForNota] = useState(null);
   const [inputNotaValor, setInputNotaValor] = useState('');
@@ -395,6 +531,7 @@ export default function GradesTab({
     }
 
     setLoading(true);
+    setError(null);
     try {
       if (isSupabaseConfigured && !isDemo) {
         // Round 1: Carga paralela de estudiantes, evaluaciones, clases, inasistencias, criterios y ciclo
@@ -572,6 +709,7 @@ export default function GradesTab({
       }
     } catch (err) {
       handleAppError(err, 'GradesTab / Cargar calificaciones');
+      setError(err?.message || 'Error al conectar con la base de datos.');
     } finally {
       setLoading(false);
     }
@@ -848,12 +986,11 @@ export default function GradesTab({
     }
   };
 
-  // Eliminar Evaluación con borrado en cascada de sus notas asociadas
-  const handleDeleteEvaluacion = async (evaluacionId, evalTitulo) => {
-    const isConfirmed = window.confirm(
-      `¿Estás seguro de eliminar la evaluación "${evalTitulo}"?\n\nEsta acción también eliminará todas las notas y recuperatorios asociados.`
-    );
-    if (!isConfirmed) return;
+  // Eliminar Evaluación con confirmación y borrado en cascada
+  const confirmDeleteEvaluacion = async () => {
+    if (!evalToDelete) return;
+    const { id: evaluacionId, titulo: evalTitulo } = evalToDelete;
+    setDeletingEval(true);
 
     try {
       // Si tiene recuperatorios vinculados, incluirlos en la eliminación
@@ -881,9 +1018,16 @@ export default function GradesTab({
       catedraCache.update(catedraId, { evaluaciones: updatedEvaluaciones, notas: updatedNotas });
 
       toast.success(`Evaluación "${evalTitulo}" eliminada correctamente.`);
+      setEvalToDelete(null);
     } catch (err) {
       handleAppError(err, 'GradesTab / Eliminar Evaluación', user);
+    } finally {
+      setDeletingEval(false);
     }
+  };
+
+  const handleDeleteEvaluacion = (evaluacionId, evalTitulo) => {
+    setEvalToDelete({ id: evaluacionId, titulo: evalTitulo });
   };
 
   // Abrir Modal de Edición de Evaluación
@@ -1206,6 +1350,83 @@ export default function GradesTab({
     });
   }, [matrixData, studentSearchQuery]);
 
+  // Agrupación de columnas de evaluación (TPs / Parciales / Otros)
+  const evaluationGroups = useMemo(() => {
+    const tps = [];
+    const parciales = [];
+    const otros = [];
+
+    mainEvaluations.forEach(ev => {
+      const tipo = String(ev.tipo || '').toUpperCase();
+      const titulo = String(ev.titulo || '').toLowerCase();
+      if (tipo === 'TP' || tipo.includes('TRABAJO') || tipo.includes('PRÁCTICO') || tipo.includes('PRACTICO') || titulo.startsWith('tp')) {
+        tps.push(ev);
+      } else if (tipo.includes('PARCIAL') || tipo === 'PRUEBA' || tipo.includes('EXAMEN') || titulo.includes('parcial')) {
+        parciales.push(ev);
+      } else {
+        otros.push(ev);
+      }
+    });
+
+    const groups = [];
+    if (tps.length > 0) {
+      groups.push({
+        id: 'tps',
+        label: 'Trabajos Prácticos',
+        evaluaciones: tps,
+        headerBg: 'bg-blue-50/70 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300'
+      });
+    }
+    if (parciales.length > 0) {
+      groups.push({
+        id: 'parciales',
+        label: 'Parciales',
+        evaluaciones: parciales,
+        headerBg: 'bg-amber-50/70 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+      });
+    }
+    if (otros.length > 0) {
+      groups.push({
+        id: 'otros',
+        label: 'Otras Evaluaciones',
+        evaluaciones: otros,
+        headerBg: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
+      });
+    }
+    return groups;
+  }, [mainEvaluations]);
+
+  const hasSuperHeaders = evaluationGroups.length > 1;
+
+  // Render incremental para muchas filas
+  const visibleMatrixData = useMemo(() => {
+    return filteredMatrixData.slice(0, visibleRowsCount);
+  }, [filteredMatrixData, visibleRowsCount]);
+
+  // Navegación fluida por teclado en celdas de nota (flechas arriba/abajo/izq/der)
+  const handleTableKeyDown = (e) => {
+    if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+      const target = e.target.closest('[data-grade-cell="true"]');
+      if (!target) return;
+      const r = parseInt(target.getAttribute('data-row'), 10);
+      const c = parseInt(target.getAttribute('data-col'), 10);
+      if (isNaN(r) || isNaN(c)) return;
+
+      let nr = r;
+      let nc = c;
+      if (e.key === 'ArrowRight') nc++;
+      else if (e.key === 'ArrowLeft') nc--;
+      else if (e.key === 'ArrowDown') nr++;
+      else if (e.key === 'ArrowUp') nr--;
+
+      const nextEl = document.querySelector(`[data-grade-cell="true"][data-row="${nr}"][data-col="${nc}"]`);
+      if (nextEl) {
+        e.preventDefault();
+        nextEl.focus();
+      }
+    }
+  };
+
   const handleExportExcel = () => {
     try {
       exportGradesToExcel(
@@ -1252,6 +1473,19 @@ export default function GradesTab({
     return (
       <div className="py-6 space-y-4">
         <SkeletonTable rows={6} cols={5} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center bg-surface rounded-2xl border border-rose-200 dark:border-rose-900/50 space-y-4 my-6">
+        <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
+        <h3 className="text-base font-bold text-text-primary">Error al cargar calificaciones</h3>
+        <p className="text-xs text-text-muted max-w-md mx-auto">{error}</p>
+        <Button variant="primary" onClick={() => fetchData(true)}>
+          Reintentar carga
+        </Button>
       </div>
     );
   }
@@ -1324,6 +1558,12 @@ export default function GradesTab({
               <span className="font-mono text-[11px] opacity-80">({evaluaciones.length})</span>
             </button>
           </div>
+
+          {/* Selector de Densidad Cómoda / Compacta */}
+          <GradesDensitySelector
+            density={density}
+            onDensityChange={handleDensityChange}
+          />
 
           {/* Búsqueda Animada de Alumnos */}
           <AnimatedSearchBar
@@ -1869,90 +2109,202 @@ export default function GradesTab({
           </div>
         </div>
       ) : (
-        /* High-Density Panoramic Table View with sticky student column */
-        <div className="bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
-          <div className="overflow-x-auto touch-pan-x scrollbar-thin max-h-[75vh]">
-            <table className="w-full text-left text-xs sm:text-sm border-collapse table-fixed" aria-label="Sábana de Calificaciones">
-              <caption className="sr-only">Sábana general de calificaciones y condición final de estudiantes</caption>
-              <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20 text-text-secondary border-b border-surface-border">
-                <tr>
-                  <th scope="col" className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-3 w-64 sm:w-72 border-r border-surface-border font-bold text-text-primary">
-                    Estudiante / DNI
-                  </th>
-                  <th scope="col" className="px-3 py-3 text-center w-24 sm:w-28 font-mono tabular-nums">% Asist.</th>
-
-                  {/* Main Evaluation Columns - Encabezados compactos y limpios */}
-                  {mainEvaluations.map(ev => {
-                    return (
-                      <th scope="col" key={ev.id} className="px-3 sm:px-4 py-2.5 text-center border-l border-surface-border w-28 sm:w-36 min-w-[145px] align-top">
-                        {/* Línea 1: Nombre de la evaluación */}
-                        <div className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate" title={ev.titulo}>
-                          {ev.titulo}
-                        </div>
-
-                        {/* Línea 2: Fecha de entrega */}
-                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" title={(ev.fecha_entrega || ev.fecha) ? `Entrega: ${formatFechaDMY(ev.fecha_entrega || ev.fecha)}` : 'Sin fecha asignada'}>
-                          {(ev.fecha_entrega || ev.fecha) ? `Entrega: ${formatFechaDMY(ev.fecha_entrega || ev.fecha)}` : 'Sin fecha'}
-                        </div>
-
-                        {/* Botones de acción inferiores: Editar, Calificar, Borrar (Touch Target 44x44px) */}
-                        <div className="flex items-center justify-center gap-1 mt-1 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditEvaluacion(ev)}
-                            title={`Editar datos de "${ev.titulo}"`}
-                            className="p-2 touch-44 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenBatchGrade(ev)}
-                            title={`Calificar a todo el curso en "${ev.titulo}"`}
-                            className="p-2 touch-44 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
-                          >
-                            <ListChecks className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEvaluacion(ev.id, ev.titulo)}
-                            title={`Eliminar "${ev.titulo}" y todas sus notas`}
-                            className="p-2 touch-44 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </th>
-                    );
-                  })}
-
-                  <th scope="col" className="px-4 py-3 text-center border-l border-surface-border w-32 sm:w-36 min-w-[150px] bg-slate-100 dark:bg-slate-800 font-bold">
-                    Condición Final
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-surface-border">
-                {filteredMatrixData.map((item, idx) => (
-                  <GradeRow
-                    key={item.estudiante.id}
-                    item={item}
-                    idx={idx}
-                    mainEvaluations={mainEvaluations}
-                    evaluaciones={evaluaciones}
-                    flashingGradeKey={flashingGradeKey}
-                    studentRisk={studentRiskMap.get(item.estudiante.id)}
-                    getNotaValue={getNotaValue}
-                    getNotaEstado={getNotaEstado}
-                    getCondBadgeVariant={getCondBadgeVariant}
-                    onOpenEditNota={handleOpenEditNota}
-                    notas={notas}
-                  />
-                ))}
-              </tbody>
-            </table>
+        /* High-Density Panoramic Table View with sticky student column & Mobile View */
+        <>
+          {/* Mobile View: Por evaluación para viewport < 1024px */}
+          <div className="block lg:hidden">
+            <GradesMobileView
+              evaluaciones={evaluaciones}
+              estudiantes={estudiantes}
+              notas={notas}
+              matrixData={filteredMatrixData}
+              studentRiskMap={studentRiskMap}
+              getNotaValue={getNotaValue}
+              getNotaEstado={getNotaEstado}
+              getCondBadgeVariant={getCondBadgeVariant}
+              onOpenEditNota={handleOpenEditNota}
+              onOpenEditEvaluacion={handleOpenEditEvaluacion}
+              onOpenBatchGrade={handleOpenBatchGrade}
+            />
           </div>
-        </div>
+
+          {/* Desktop Panoramic Table: ≥ 1024px */}
+          <div className="hidden lg:block bg-surface rounded-2xl border border-surface-border overflow-hidden shadow-xs">
+            <div 
+              className="overflow-x-auto touch-pan-x overscroll-x-contain scrollbar-thin max-h-[75vh]"
+              style={{ touchAction: 'pan-x pan-y' }}
+            >
+              <table 
+                className="w-full text-left text-xs sm:text-sm border-collapse table-auto tbl-auto" 
+                aria-label="Sábana de Calificaciones"
+                onKeyDown={handleTableKeyDown}
+              >
+                <caption className="sr-only">Sábana general de calificaciones y condición final de estudiantes</caption>
+                <thead className="sticky top-0 z-20 text-text-secondary border-b border-surface-border select-none">
+                  {hasSuperHeaders ? (
+                    <>
+                      {/* Fila 1: Superheaders de Agrupación (Trabajos Prácticos / Parciales) */}
+                      <tr className="bg-slate-100/90 dark:bg-slate-800/95 text-[10px] font-bold text-text-secondary border-b border-surface-border h-[22px]">
+                        <th 
+                          rowSpan={2} 
+                          scope="col" 
+                          className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-2 w-64 sm:w-72 border-r border-surface-border font-bold text-text-primary align-middle"
+                        >
+                          Estudiante / DNI
+                        </th>
+                        <th 
+                          rowSpan={2} 
+                          scope="col" 
+                          className="px-3 py-2 text-center w-20 sm:w-24 font-mono tabular-nums align-middle border-r border-surface-border text-xs"
+                        >
+                          % Asist.
+                        </th>
+
+                        {/* Grupos de Evaluaciones */}
+                        {evaluationGroups.map(group => {
+                          const isCollapsed = collapsedGroups.has(group.id);
+                          return (
+                            <th
+                              key={group.id}
+                              colSpan={isCollapsed ? 1 : group.evaluaciones.length}
+                              className={`px-2 py-0.5 text-center font-bold tracking-wider uppercase border-l border-surface-border text-[10px] leading-tight ${group.headerBg}`}
+                            >
+                              <div className="flex items-center justify-center gap-1.5 h-full">
+                                <span>{group.label} ({group.evaluaciones.length})</span>
+                                {mainEvaluations.length > 6 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleGroupCollapse(group.id)}
+                                    title={isCollapsed ? `Expandir ${group.label}` : `Colapsar ${group.label}`}
+                                    className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                                  >
+                                    {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                  </button>
+                                )}
+                              </div>
+                            </th>
+                          );
+                        })}
+
+                        <th 
+                          rowSpan={2} 
+                          scope="col" 
+                          className="sticky right-0 top-0 bg-slate-50 dark:bg-slate-800 z-30 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)] px-4 py-2 text-center border-l border-surface-border w-36 min-w-[150px] font-bold text-text-primary align-middle"
+                        >
+                          Condición Final
+                        </th>
+                      </tr>
+
+                      {/* Fila 2: Columnas de Evaluación Compactas (≤ 32px) */}
+                      <tr className="bg-slate-50/90 dark:bg-slate-800/90 border-b border-surface-border h-[32px]">
+                        {evaluationGroups.map(group => {
+                          if (collapsedGroups.has(group.id)) {
+                            return (
+                              <th
+                                key={`${group.id}_collapsed`}
+                                scope="col"
+                                className="px-2 py-1 text-center border-l border-surface-border w-24 bg-slate-100/50 dark:bg-slate-800/50 align-middle"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => toggleGroupCollapse(group.id)}
+                                  className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                                >
+                                  Expandir ({group.evaluaciones.length})
+                                </button>
+                              </th>
+                            );
+                          }
+                          return group.evaluaciones.map((ev, idx) => (
+                            <GradesHeaderColumn
+                              key={ev.id}
+                              ev={ev}
+                              index={idx}
+                              density={density}
+                              onEdit={handleOpenEditEvaluacion}
+                              onBatchGrade={handleOpenBatchGrade}
+                              onDeleteRequest={handleRequestDeleteEvaluacion}
+                            />
+                          ));
+                        })}
+                      </tr>
+                    </>
+                  ) : (
+                    /* Fila Única Compacta (≤ 54px) */
+                    <tr className="bg-slate-50 dark:bg-slate-800/90 border-b border-surface-border h-[52px]">
+                      <th 
+                        scope="col" 
+                        className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] px-3 sm:px-4 py-2 w-64 sm:w-72 border-r border-surface-border font-bold text-text-primary align-middle"
+                      >
+                        Estudiante / DNI
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-3 py-2 text-center w-20 sm:w-24 font-mono tabular-nums align-middle border-r border-surface-border text-xs"
+                      >
+                        % Asist.
+                      </th>
+
+                      {mainEvaluations.map((ev, idx) => (
+                        <GradesHeaderColumn
+                          key={ev.id}
+                          ev={ev}
+                          index={idx}
+                          density={density}
+                          onEdit={handleOpenEditEvaluacion}
+                          onBatchGrade={handleOpenBatchGrade}
+                          onDeleteRequest={handleRequestDeleteEvaluacion}
+                        />
+                      ))}
+
+                      <th 
+                        scope="col" 
+                        className="sticky right-0 top-0 bg-slate-50 dark:bg-slate-800 z-30 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)] px-4 py-2 text-center border-l border-surface-border w-36 min-w-[150px] font-bold text-text-primary align-middle"
+                      >
+                        Condición Final
+                      </th>
+                    </tr>
+                  )}
+                </thead>
+
+                <tbody className="divide-y divide-surface-border">
+                  {visibleMatrixData.map((item, idx) => (
+                    <GradeRow
+                      key={item.estudiante.id}
+                      item={item}
+                      idx={idx}
+                      mainEvaluations={mainEvaluations}
+                      evaluaciones={evaluaciones}
+                      flashingGradeKey={flashingGradeKey}
+                      studentRisk={studentRiskMap.get(item.estudiante.id)}
+                      getNotaValue={getNotaValue}
+                      getNotaEstado={getNotaEstado}
+                      getCondBadgeVariant={getCondBadgeVariant}
+                      onOpenEditNota={handleOpenEditNota}
+                      notas={notas}
+                      density={density}
+                      evaluationGroups={evaluationGroups}
+                      collapsedGroups={collapsedGroups}
+                      hasSuperHeaders={hasSuperHeaders}
+                    />
+                  ))}
+                </tbody>
+              </table>
+
+              {filteredMatrixData.length > visibleRowsCount && (
+                <div className="p-3 text-center border-t border-surface-border bg-slate-50/50 dark:bg-slate-800/50">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setVisibleRowsCount(c => c + 50)}
+                  >
+                    Mostrar más estudiantes ({filteredMatrixData.length - visibleRowsCount} restantes)
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Modal / Bottom Sheet Editar Nota */}
@@ -2385,6 +2737,19 @@ export default function GradesTab({
           docenteNombre: user?.user_metadata?.nombre_completo || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Docente Titular',
           printConfig
         }}
+      />
+
+      {/* Diálogo de Confirmación Accesible para Eliminar Evaluación */}
+      <ConfirmDialog
+        isOpen={!!evalToDelete}
+        onClose={() => setEvalToDelete(null)}
+        onConfirm={confirmDeleteEvaluacion}
+        title={`¿Eliminar "${evalToDelete?.titulo}"?`}
+        description="Esta acción eliminará de forma permanente la evaluación y todas las notas y recuperatorios asociados para todos los estudiantes."
+        confirmText="Sí, eliminar evaluación"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={deletingEval}
       />
 
       {/* Botón Flotante de Guardado Rápido (Quick Action FAB) reactivo con Ctrl + S */}
