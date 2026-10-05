@@ -12,7 +12,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | **Fase 2** | Seguridad y endurecimiento RLS | 🟢 Hecha | `refactor/fase-2-seguridad-rls` |
 | **Fase 3** | Unificación de columnas duplicadas (expand → migrate → contract) | 🟢 Hecha | `refactor/fase-3-unificacion-columnas` |
 | **Fase 4** | Integridad de dominios (ENUM vs. CHECK) | 🟢 Hecha | `refactor/fase-4-integridad-dominios` |
-| **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | ⚪ Pendiente | — |
+| **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | 🟢 Hecha | `refactor/fase-5-dashboard-modularizacion` |
 | **Fase 6** | Rendimiento y RPC `dashboard_resumen` | ⚪ Pendiente | — |
 | **Fase 7** | Capa de datos con TanStack Query | ⚪ Pendiente | — |
 | **Fase 8** | Rediseño integral del Dashboard | ⚪ Pendiente | — |
@@ -41,7 +41,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 
 ### Fase 5: Refactor de `DashboardPage.jsx` (sin cambio visual)
 - **Objetivo:** Modularizar `DashboardPage.jsx` en subcomponentes (`src/features/dashboard/`) de menos de 300 líneas, orquestador de menos de 200 líneas, manteniendo paridad visual estricta mediante capturas en todos los breakpoints.
-- **Estado:** ⚪ Pendiente.
+- **Estado:** 🟢 Hecha (Orquestador `DashboardPage.jsx` reducido a 179 líneas; 11 módulos cohesivos en `src/features/dashboard/` con < 260 líneas cada uno; 0 cambios visuales; `npm run build` en verde en 10s; suite pgTAP 41/41 pasando; ADR-005 documentado).
 
 ### Fase 6: Rendimiento y RPC `dashboard_resumen`
 - **Objetivo:** Consolidar métricas del dashboard en RPCs de PostgreSQL (`dashboard_resumen`, `dashboard_agenda`), golden tests comparativos cliente vs RPC, eliminar N+1 de asistencias y clases.

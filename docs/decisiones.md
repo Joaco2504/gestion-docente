@@ -9,6 +9,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-002: Endurecimiento RLS de Storage, search_path Explícito y Desacoplamiento de Canal Discord](#adr-002-endurecimiento-rls-de-storage-search_path-explícito-y-desacoplamiento-de-canal-discord)
 - [ADR-003: Deprecación y Eliminación de la Tabla Huérfana public.docentes en favor de public.perfiles](#adr-003-deprecación-y-eliminación-de-la-tabla-huérfana-publicdocentes-en-favor-de-publicperfiles)
 - [ADR-004: Estrategia de Integridad de Dominios mediante CHECK Constraints, Triggers Auto-Normalizadores y Enums TypeScript](#adr-004-estrategia-de-integridad-de-dominios-mediante-check-constraints-triggers-auto-normalizadores-y-enums-typescript)
+- [ADR-005: Modularización Arquitectónica de DashboardPage.jsx sin Alteración Visual](#adr-005-modularización-arquitectónica-de-dashboardpagejsx-sin-alteración-visual)
 
 ---
 
@@ -132,5 +133,38 @@ Se analizó la opción de usar `CREATE TYPE ... AS ENUM` nativo en PostgreSQL, p
   - Cero schema drift verificado con Supabase CLI.
 - **Negativas / Costos:**
   - Requiere sincronización disciplinada entre `src/lib/enums.ts` y las migraciones de PostgreSQL cuando se introduzcan nuevos valores al dominio.
+
+---
+
+### ADR-005: Modularización Arquitectónica de DashboardPage.jsx sin Alteración Visual
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 5
+
+#### Contexto
+El componente `DashboardPage.jsx` contenía 1.968 líneas en un solo archivo monolítico, acoplando carga de datos de Supabase, simulación demo, algoritmos de cálculo de horarios y métricas, 3 modales de formulario y el renderizado integral del Bento Grid.
+
+#### Decisión
+1. Descomponer el panel en módulos cohesivos dentro de `src/features/dashboard/`:
+   - `hooks/useDashboardData.js`: Carga en paralelo desde Supabase, fallback demo y estado principal.
+   - `utils/dashboardHelpers.js`: Algoritmos puros de búsqueda, cálculo de próxima clase, agenda y métricas.
+   - `components/DashboardActionCards.jsx`: Barra superior de 4 acciones rápidas.
+   - `components/UpcomingClassCard.jsx`: Bento Box 1 (Próxima clase inminente).
+   - `components/QuickMetricsCard.jsx`: Bento Box 2 (Donut SVG interactivo y contadores animados).
+   - `components/CatedrasSection.jsx` y `components/CatedraCard.jsx`: Grilla de materias con menú contextual y módulo de última clase dictada.
+   - `components/DashboardAgendaSection.jsx`: Grilla de compromisos y agenda de 15 días.
+   - Modales independientes en `components/modals/` (`NuevaCatedraModal`, `QuickClassModal`, `QuickEventModal`).
+2. Mantener `src/pages/DashboardPage.jsx` como orquestador liviano de 179 líneas (< 200 líneas).
+3. Preservar 100% la paridad visual, tokens Tailwind y comportamiento en todos los breakpoints.
+
+#### Consecuencias
+- **Positivas:**
+  - Cumplimiento de límites de complejidad: orquestador con 179 líneas (< 200) y todos los subcomponentes con menos de 260 líneas (< 300).
+  - Aislamiento limpio para la Fase 6 (RPC `dashboard_resumen`) y Fase 7 (TanStack Query).
+  - Cero dependencias adicionales añadidas.
+- **Negativas / Costos:**
+  - Mayor cantidad de archivos individuales a mantener en `src/features/dashboard/`.
+
 
 
