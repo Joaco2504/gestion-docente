@@ -73,4 +73,33 @@ Todas las dependencias deben ser **100 % gratuitas y Open Source** bajo licencia
   - `exceljs`: Descartado porque carece de soporte para el formato binario `.xls` (BIFF8 utilizado frecuentemente en sistemas educativos provinciales), e introduce sobrecarga de dependencias de streams/Node polyfills en el navegador.
   - Conservar `xlsx@0.18.5`: Descartado por fallar auditorías de seguridad con 2 vulnerabilidades críticas sin remediación en el registro npm público.
 
+---
+
+### Fase 10 (Sub-mejora 10.2): Formularios Tipados con `react-hook-form` y `zod`
+
+#### 5. `react-hook-form` (`dependencies`)
+- **Versión:** `^7.89.0`
+- **Licencia:** MIT (100 % Open Source, gratuita y permisiva).
+- **Tamaño en bundle de producción:** Aislado en el chunk dedicado `vendor-forms` (~119 kB / 36.7 kB gzipped).
+- **Propósito:** Manejo declarativo, performante y accesible de estados de formulario:
+  - Elimina re-renderizados innecesarios del modal completo ante cada pulsación de tecla.
+  - Gestión nativa de accesibilidad: atributos `aria-invalid` y `aria-describedby` conectados a mensajes de error con `role="alert"`.
+  - Integración fluida con componentes controlados (`CustomSelect` mediante `Controller`).
+
+#### 6. `zod` (`dependencies`)
+- **Versión:** `^4.6.5`
+- **Licencia:** MIT (100 % Open Source, gratuita y permisiva).
+- **Tamaño en bundle de producción:** Aislado en el chunk `vendor-forms`.
+- **Propósito:** Declaración de esquemas de validación tipados, inmutables y reutilizables (`src/schemas/dashboardForms.js`) para cátedras, clases rápidas y eventos de agenda.
+
+#### 7. `@hookform/resolvers` (`dependencies`)
+- **Versión:** `^5.9.1`
+- **Licencia:** MIT (100 % Open Source, gratuita y permisiva).
+- **Tamaño en bundle de producción:** Aislado en el chunk `vendor-forms`.
+- **Propósito:** Puente oficial entre `react-hook-form` y el resolver de validación de esquemas de `zod` (`zodResolver`).
+
+- **Alternativas descartadas:**
+  - `formik` + `yup`: Descartado por excesivos re-renderizados globales en el árbol de componentes y mayor peso en bundle.
+  - Validación manual con `useState` disperso: Descartado por código repetitivo, fragilidad ante nuevos campos y falta de consistencia en accesibilidad ARIA.
+
 

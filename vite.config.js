@@ -16,7 +16,8 @@ export default defineConfig({
           'vendor-query': ['@tanstack/react-query'],
           'vendor-charts': ['recharts'],
           'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-excel': ['xlsx']
+          'vendor-excel': ['xlsx'],
+          'vendor-forms': ['react-hook-form', 'zod']
         }
       }
     }

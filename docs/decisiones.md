@@ -15,6 +15,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-008: Rediseño Integral del Dashboard con Jerarquía Orientada al Día (Hoy), Alerta Temprana, Tarjetas Unificadas y Accesibilidad AA](#adr-008-rediseño-integral-del-dashboard-con-jerarquía-orientada-al-día-hoy-alerta-temprana-tarjetas-unificadas-y-accesibilidad-aa)
 - [ADR-009: Visualización de Datos Accesible con Recharts, Tokens de Diseño y Aislamiento de Bundle](#adr-009-visualización-de-datos-accesible-con-recharts-tokens-de-diseño-y-aislamiento-de-bundle)
 - [ADR-010: Reemplazo Seguro de Excel, Saneamiento de Vulnerabilidades y Mitigación de Archivos No Confiables](#adr-010-reemplazo-seguro-de-excel-saneamiento-de-vulnerabilidades-y-mitigación-de-archivos-no-confiables)
+- [ADR-011: Estandarización de Formularios con React Hook Form, Validación Tipada Zod y Accesibilidad ARIA](#adr-011-estandarización-de-formularios-con-react-hook-form-validación-tipada-zod-y-accesibilidad-aria)
 
 ---
 
@@ -327,3 +328,30 @@ La versión `xlsx@0.18.5` en el registro npm contenía dos vulnerabilidades crí
   - Cero breaking changes en componentes consumidores.
 - **Negativas / Costos:**
   - Dependencia de un archivo tarball seguro servido desde `cdn.sheetjs.com`.
+
+---
+
+### ADR-011: Estandarización de Formularios con React Hook Form, Validación Tipada Zod y Accesibilidad ARIA
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 10 (Sub-mejora 10.2)
+
+#### Contexto
+Los modales operativos del Dashboard (`NuevaCatedraModal`, `QuickClassModal`, `QuickEventModal`) gestionaban estados dispersos con `useState`, provocando re-renderizados completos en cada tecla, carecían de esquemas tipados reutilizables y no vinculaban programáticamente los errores con los campos (`aria-invalid` y `aria-describedby` ausentes).
+
+#### Decisión
+1. Adoptar `react-hook-form` + `zod` con `@hookform/resolvers/zod` (100% MIT, open source).
+2. Aislar las dependencias en el chunk dedicado `vendor-forms` en `vite.config.js`.
+3. Centralizar esquemas declarativos en `src/schemas/dashboardForms.js` (`nuevaCatedraSchema`, `quickClassSchema`, `quickEventSchema`).
+4. Refactorizar los 3 modales operativos con validación en tiempo de envío, control de componentes personalizados (`CustomSelect`) con `Controller` y mensajes accesibles con `role="alert"` y foco visual claro.
+5. Mantener los componentes bajo el límite estricto de 300 líneas (290, 196 y 254 líneas respectivamente).
+
+#### Consecuencias
+- **Positivas:**
+  - Rendimiento óptimo sin re-evaluaciones innecesarias del modal.
+  - Validación tipada y consistente antes de enviar datos al servidor.
+  - Conformidad con WCAG 2.1 AA en accesibilidad de formularios.
+  - Esquemas puros y testeables de forma unitaria.
+- **Negativas / Costos:**
+  - Incorporación de dependencias de formularios, mitigadas por el chunk dedicado `vendor-forms`.
