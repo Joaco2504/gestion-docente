@@ -38,9 +38,16 @@ export function formatFechaDMY(dateInput) {
     return `${day}-${month}-${year}`;
   }
 
-  // Si viene como YYYY-MM-DD o ISO con hora
+  // Si viene como YYYY-MM-DD o ISO con hora (parseo local estricto sin desfasaje UTC)
   if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(str)) {
     const cleanDate = str.split('T')[0];
+    const match = cleanDate.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+    if (match) {
+      const year = match[1];
+      const month = match[2];
+      const day = match[3];
+      return `${day}-${month}-${year}`;
+    }
     const parsed = parseISO(cleanDate);
     if (isValid(parsed)) {
       return format(parsed, 'dd-MM-yyyy');

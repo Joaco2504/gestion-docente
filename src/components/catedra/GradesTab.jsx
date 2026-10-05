@@ -56,6 +56,12 @@ import NuevaEvaluacionModal from './modals/NuevaEvaluacionModal';
 import GradeCell from './GradeCell';
 import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
 import { 
+  getEvaluacionesCatedra, 
+  saveEvaluacion, 
+  normalizeEvaluacion, 
+  EVALUACIONES_COLUMNS 
+} from '../../services/evaluacionesService';
+import { 
   TIPO_EVALUACION, 
   LABELS_TIPO_EVALUACION, 
   normalizeTipoEvaluacion,
@@ -394,18 +400,14 @@ export default function GradesTab({
         // Round 1: Carga paralela de estudiantes, evaluaciones, clases, inasistencias, criterios y ciclo
         const [
           estList,
-          evalRes,
+          evalList,
           clsRes,
           inasistRes,
           critRes,
           catRes
         ] = await Promise.all([
           getEstudiantesCatedra(catedraId, { supabase, isDemo }),
-          supabase
-            .from('evaluaciones')
-            .select('id, catedra_id, titulo, tipo, evaluacion_origen_id, fecha_entrega, archivo_url, created_at')
-            .eq('catedra_id', catedraId)
-            .order('created_at', { ascending: true }),
+          getEvaluacionesCatedra(catedraId, { supabase, isDemo }),
           supabase
             .from('clases')
             .select('id, catedra_id, fecha, tema')
@@ -426,30 +428,7 @@ export default function GradesTab({
             .maybeSingle()
         ]);
 
-        const localKey = `evaluaciones_${catedraId}`;
-        let localEvals = [];
-        try {
-          localEvals = JSON.parse(localStorage.getItem(localKey) || '[]');
-        } catch {
-          localEvals = [];
-        }
-
-        const combinedMap = new Map();
-        (evalRes.data || []).forEach(e => combinedMap.set(e.id, e));
-        localEvals.forEach(localEv => {
-          if (!combinedMap.has(localEv.id)) {
-            const match = (evalRes.data || []).find(e => 
-              e.titulo?.trim().toLowerCase() === localEv.titulo?.trim().toLowerCase() &&
-              String(e.catedra_id) === String(localEv.catedra_id)
-            );
-            if (!match) {
-              combinedMap.set(localEv.id, localEv);
-            }
-          }
-        });
-
-        const mergedEvals = Array.from(combinedMap.values());
-        localStorage.setItem(localKey, JSON.stringify(mergedEvals));
+        const mergedEvals = evalList;
 
         const cList = clsRes.data || [];
         const inasistList = inasistRes.data || [];
@@ -540,12 +519,7 @@ export default function GradesTab({
 
         let estList = await getEstudiantesCatedra(catedraId, { isDemo: true });
 
-        let evalList = storedEval ? JSON.parse(storedEval) : [
-          { id: 'eval-1', catedra_id: catedraId, titulo: 'TP N° 1 - Arquitectura', tipo: 'TP' },
-          { id: 'eval-2', catedra_id: catedraId, titulo: 'Parcial 1', tipo: 'PARCIAL' },
-          { id: 'eval-3', catedra_id: catedraId, titulo: 'Recuperatorio Parcial 1', tipo: 'RECUPERATORIO', evaluacion_origen_id: 'eval-2' },
-          { id: 'eval-4', catedra_id: catedraId, titulo: 'Parcial 2', tipo: 'PARCIAL' }
-        ];
+        let evalList = await getEvaluacionesCatedra(catedraId, { isDemo: true });
 
         let notasList = storedNotas ? JSON.parse(storedNotas) : [
           { evaluacion_id: 'eval-1', estudiante_id: 'est-1', valor: 9 },
@@ -829,109 +803,29 @@ export default function GradesTab({
       }
 
       const rawFecha = payloadData.fecha_entrega || payloadData.fecha;
-      const isoFechaEntrega = rawFecha ? (rawFecha.includes('-') ? rawFecha : parseDMYtoYMD(rawFecha)) : null;
-      const localId = 'eval-' + Date.now();
+      const isoFechaEntrega = rawFecha ? (rawFecha.includes('T') ? rawFecha.split('T')[0] : (rawFecha.includes('-') && /^\d{4}-\d{2}-\d{2}$/.test(rawFecha) ? rawFecha : parseDMYtoYMD(rawFecha))) : null;
+      const tipoCanonico = normalizeTipoEvaluacion(payloadData.tipo);
+      const isRecup = tipoCanonico === 'RECUPERATORIO' || String(payloadData.tipo).toLowerCase().includes('recup');
 
-      const newEvalObj = {
-        id: localId,
+      const savedRow = await saveEvaluacion({
         catedra_id: catedraId,
         periodo_id: payloadData.periodo_id || null,
         titulo: payloadData.titulo,
-        nombre: payloadData.nombre || payloadData.titulo,
-        tipo: payloadData.tipo,
-        formato: payloadData.formato || 'Escrito',
-        evaluacion_origen_id: (String(payloadData.tipo).toLowerCase().includes('recup') && payloadData.evaluacion_origen_id) ? payloadData.evaluacion_origen_id : null,
+        tipo: tipoCanonico,
+        evaluacion_origen_id: isRecup ? (payloadData.evaluacion_origen_id || null) : null,
         fecha: isoFechaEntrega,
         fecha_entrega: isoFechaEntrega,
-        ponderacion: 1,
-        recurso_id: recursoId,
         archivo_url: archivoUrl,
-        link_consigna: archivoUrl,
         archivo_nombre: archivoNombre,
-        created_at: new Date().toISOString()
-      };
+        ponderacion: 1
+      }, { catedraId, supabase, isDemo });
 
-      // 1. Guardar de forma inmediata y síncrona en estado y localStorage
-      const updatedList = [...evaluaciones, newEvalObj];
+      const updatedList = [...evaluaciones, savedRow];
       setEvaluaciones(updatedList);
       localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedList));
       catedraCache.update(catedraId, { evaluaciones: updatedList });
 
-      // 2. Intentar guardar y sincronizar con Supabase si está disponible
-      if (isSupabaseConfigured && !isDemo) {
-        try {
-          const insertPayload = {
-            catedra_id: catedraId,
-            periodo_id: newEvalObj.periodo_id,
-            titulo: newEvalObj.titulo,
-            nombre: newEvalObj.nombre,
-            tipo: newEvalObj.tipo,
-            formato: newEvalObj.formato,
-            fecha: newEvalObj.fecha,
-            fecha_entrega: newEvalObj.fecha_entrega,
-            ponderacion: 1,
-            evaluacion_origen_id: newEvalObj.evaluacion_origen_id,
-            recurso_id: newEvalObj.recurso_id,
-            archivo_url: newEvalObj.archivo_url,
-            link_consigna: newEvalObj.link_consigna,
-            archivo_nombre: newEvalObj.archivo_nombre
-          };
-
-          const { data, error } = await supabase
-            .from('evaluaciones')
-            .insert(insertPayload)
-            .select()
-            .single();
-
-          if (error) {
-            // Fallback defensivo si faltan columnas o tipo requiere legacy mapping
-            let mappedTipo = newEvalObj.tipo;
-            const tUpper = String(newEvalObj.tipo || '').toUpperCase();
-            if (tUpper.includes('PARCIAL')) mappedTipo = 'PARCIAL';
-            else if (tUpper.includes('TRABAJO') || tUpper.includes('TP')) mappedTipo = 'TP';
-            else if (tUpper.includes('RECUP')) mappedTipo = 'RECUPERATORIO';
-
-            const baseObj = {
-              catedra_id: catedraId,
-              periodo_id: newEvalObj.periodo_id,
-              titulo: newEvalObj.titulo,
-              tipo: mappedTipo,
-              evaluacion_origen_id: newEvalObj.evaluacion_origen_id,
-              fecha_entrega: newEvalObj.fecha_entrega,
-              archivo_url: newEvalObj.archivo_url,
-              archivo_nombre: newEvalObj.archivo_nombre
-            };
-            const fallbackRes = await supabase
-              .from('evaluaciones')
-              .insert(baseObj)
-              .select()
-              .single();
-
-            if (!fallbackRes.error && fallbackRes.data) {
-              const synced = {
-                ...fallbackRes.data,
-                formato: newEvalObj.formato,
-                fecha_entrega: isoFechaEntrega,
-                archivo_url: archivoUrl,
-                archivo_nombre: archivoNombre
-              };
-              const refreshed = updatedList.map(e => e.id === localId ? synced : e);
-              setEvaluaciones(refreshed);
-              localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(refreshed));
-              catedraCache.update(catedraId, { evaluaciones: refreshed });
-            }
-          } else if (data) {
-            const refreshed = updatedList.map(e => e.id === localId ? data : e);
-            setEvaluaciones(refreshed);
-            localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(refreshed));
-            catedraCache.update(catedraId, { evaluaciones: refreshed });
-          }
-        } catch (dbErr) {
-          console.warn('Evaluación preservada localmente. Aviso Supabase:', dbErr);
-        }
-      }
-
-      toast.success(`Evaluación "${newEvalObj.titulo}" guardada correctamente.`);
+      toast.success(`Evaluación "${savedRow.titulo}" guardada correctamente.`);
       
       // Notificar reactivamente a otros componentes (Libro de Temas, Recursos, etc.)
       window.dispatchEvent(new CustomEvent('evaluaciones_updated', {
@@ -1001,85 +895,45 @@ export default function GradesTab({
     setEditEvalTipo(normalizeTipoEvaluacion(ev.tipo));
 
     setEditEvalFormato(ev.formato || 'Escrito');
-    setEditEvalFechaEntrega(ev.fecha_entrega ? ev.fecha_entrega.split('T')[0] : (ev.fecha ? ev.fecha.split('T')[0] : ''));
+    const rawFec = ev.fecha_entrega || ev.fecha || '';
+    const cleanFec = rawFec ? (rawFec.includes('T') ? rawFec.split('T')[0] : (rawFec.includes('-') && /^\d{4}-\d{2}-\d{2}$/.test(rawFec) ? rawFec : parseDMYtoYMD(rawFec))) : '';
+    setEditEvalFechaEntrega(cleanFec);
     setEditEvalDriveUrl(ev.archivo_url || '');
     setIsEditEvalModalOpen(true);
   };
 
-  // Guardar Edición de Evaluación
+  // Guardar Edición de Evaluación con función unificada
   const handleSaveEditEvaluacion = async (e) => {
     e.preventDefault();
     if (!editingEval || !editEvalTitulo.trim()) return;
 
     setSavingEditEval(true);
     try {
-      const isoFechaEntrega = editEvalFechaEntrega ? parseDMYtoYMD(editEvalFechaEntrega) : null;
+      const isoFechaEntrega = editEvalFechaEntrega ? (editEvalFechaEntrega.includes('T') ? editEvalFechaEntrega.split('T')[0] : (editEvalFechaEntrega.includes('-') && /^\d{4}-\d{2}-\d{2}$/.test(editEvalFechaEntrega) ? editEvalFechaEntrega : parseDMYtoYMD(editEvalFechaEntrega))) : null;
       const driveUrl = editEvalDriveUrl.trim() || null;
       const driveNombre = driveUrl ? 'Consignas en Google Drive' : null;
       const tipoCanonico = normalizeTipoEvaluacion(editEvalTipo);
 
-      const updatedObj = {
+      const savedRow = await saveEvaluacion({
         ...editingEval,
         titulo: editEvalTitulo.trim(),
-        nombre: editEvalTitulo.trim(),
         tipo: tipoCanonico,
-        formato: editEvalFormato || 'Escrito',
         fecha: isoFechaEntrega,
         fecha_entrega: isoFechaEntrega,
         archivo_url: driveUrl,
-        archivo_nombre: driveNombre,
-        updated_at: new Date().toISOString()
-      };
+        archivo_nombre: driveNombre
+      }, { catedraId, supabase, isDemo });
 
-      if (isSupabaseConfigured && !isDemo && !String(editingEval.id).startsWith('eval-')) {
-        try {
-          const { error } = await supabase
-            .from('evaluaciones')
-            .update({
-              titulo: updatedObj.titulo,
-              nombre: updatedObj.nombre,
-              tipo: updatedObj.tipo,
-              formato: updatedObj.formato,
-              fecha: updatedObj.fecha,
-              fecha_entrega: updatedObj.fecha_entrega,
-              archivo_url: updatedObj.archivo_url,
-              archivo_nombre: updatedObj.archivo_nombre
-            })
-            .eq('id', editingEval.id);
-
-          if (error) {
-            // Fallback con tipos legacy y columnas base
-            let mappedTipo = updatedObj.tipo;
-            const tUpper = String(updatedObj.tipo || '').toUpperCase();
-            if (tUpper.includes('PARCIAL')) mappedTipo = 'PARCIAL';
-            else if (tUpper.includes('TRABAJO') || tUpper.includes('TP')) mappedTipo = 'TP';
-            else if (tUpper.includes('RECUP')) mappedTipo = 'RECUPERATORIO';
-
-            await supabase
-              .from('evaluaciones')
-              .update({
-                titulo: updatedObj.titulo,
-                tipo: mappedTipo,
-                fecha_entrega: updatedObj.fecha_entrega,
-                archivo_url: updatedObj.archivo_url,
-                archivo_nombre: updatedObj.archivo_nombre
-              })
-              .eq('id', editingEval.id);
-          }
-        } catch (dbErr) {
-          console.warn('Evaluación actualizada localmente. Aviso Supabase:', dbErr);
-        }
-      }
-
-      const updatedList = evaluaciones.map(ev => ev.id === editingEval.id ? updatedObj : ev);
+      const updatedList = evaluaciones.map(ev => ev.id === editingEval.id ? savedRow : ev);
       setEvaluaciones(updatedList);
       localStorage.setItem(`evaluaciones_${catedraId}`, JSON.stringify(updatedList));
       catedraCache.update(catedraId, { evaluaciones: updatedList });
 
-      toast.success(`Evaluación "${updatedObj.titulo}" actualizada correctamente.`);
+      toast.success(`Evaluación "${savedRow.titulo}" actualizada correctamente.`);
       setIsEditEvalModalOpen(false);
       setEditingEval(null);
     } catch (err) {
+      toast.error(`Error al actualizar evaluación: ${err.message || 'No se pudo guardar los cambios'}`);
       handleAppError(err, 'GradesTab / Actualizar Evaluación', user);
     } finally {
       setSavingEditEval(false);
@@ -1641,9 +1495,9 @@ export default function GradesTab({
                       <div className="space-y-1.5 text-xs">
                         <div className="flex items-center gap-1.5 text-text-muted">
                           <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                          {ev.fecha_entrega ? (
+                          {ev.fecha_entrega || ev.fecha ? (
                             <span className="font-mono">
-                              Entrega: <strong className="text-text-primary">{formatFechaDMY(ev.fecha_entrega)}</strong>
+                              Entrega: <strong className="text-text-primary">{formatFechaDMY(ev.fecha_entrega || ev.fecha)}</strong>
                             </span>
                           ) : (
                             <span className="italic text-[11px]">Sin fecha límite de entrega</span>
@@ -1904,10 +1758,10 @@ export default function GradesTab({
                                     )}
                                   </div>
 
-                                  {ev.fecha_entrega && (
+                                  {(ev.fecha_entrega || ev.fecha) && (
                                     <div className="text-[11px] font-mono text-text-muted flex items-center gap-1 mt-1">
                                       <Clock className="w-3 h-3 text-primary/70 shrink-0" />
-                                      <span>Entrega: {formatFechaDMY(ev.fecha_entrega)}</span>
+                                      <span>Entrega: {formatFechaDMY(ev.fecha_entrega || ev.fecha)}</span>
                                     </div>
                                   )}
 
@@ -2037,8 +1891,8 @@ export default function GradesTab({
                         </div>
 
                         {/* Línea 2: Fecha de entrega */}
-                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" title={ev.fecha_entrega ? `Entrega: ${formatFechaDMY(ev.fecha_entrega)}` : 'Sin fecha asignada'}>
-                          {ev.fecha_entrega ? `Entrega: ${formatFechaDMY(ev.fecha_entrega)}` : 'Sin fecha'}
+                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" title={(ev.fecha_entrega || ev.fecha) ? `Entrega: ${formatFechaDMY(ev.fecha_entrega || ev.fecha)}` : 'Sin fecha asignada'}>
+                          {(ev.fecha_entrega || ev.fecha) ? `Entrega: ${formatFechaDMY(ev.fecha_entrega || ev.fecha)}` : 'Sin fecha'}
                         </div>
 
                         {/* Botones de acción inferiores: Editar, Calificar, Borrar (Touch Target 44x44px) */}

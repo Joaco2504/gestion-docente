@@ -461,5 +461,42 @@ A pesar de contar con tipos generados para Supabase (`database.types.ts`) y cons
 - **Negativas / Costos:**
   - Ninguna; interoperabilidad 100% transparente con JavaScript y TypeScript existentes.
 
+---
+
+### ADR-016: Servicio Unificado de Evaluaciones y Coexistencia Bidireccional de Fechas (fecha / fecha_entrega)
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado (Fase de transición / pre-unificación de esquema)
+- **Fase:** Bloque A (Corrección de Bugs Funcionales - Bug A2)
+
+#### Contexto
+En la tabla `public.evaluaciones` conviven históricamente dos columnas de fecha:
+1. `fecha DATE`: Columna originaria del esquema baseline (`20261004220000_baseline.sql`) con valor por defecto `CURRENT_DATE`.
+2. `fecha_entrega DATE`: Columna introducida para soportar fechas límite de entrega en consignas y trabajos prácticos.
+
+A pesar de que la migración `20261005020000_fase3_expand_evaluaciones.sql` incorporó el trigger de sincronización `trg_sync_evaluaciones_fechas`, en la capa frontend se manifestaban discrepancias severas:
+- `GradesTab.jsx` realizaba `select` omitiendo `fecha` (solicitaba únicamente `fecha_entrega`), y su renderizado dependía exclusivamente de `ev.fecha_entrega`.
+- Componentes como `StudentsTab.jsx` seleccionaban únicamente `fecha`.
+- Las mutaciones de actualización enviaban columnas fantasma inexistentes (`nombre`, `formato`), provocando errores PostgreSQL `42703` cuyo fallback silencioso no capturaba ni retornaba la fila actualizada.
+- Al recargar la página (F5), la consulta remota sobreescribía el almacenamiento local con valores nulos, causando que la "Fecha estipulada" volviera a "Sin fecha".
+
+#### Decisión
+1. **No alterar el esquema de base de datos en esta fase:** Mantener intactas ambas columnas (`fecha` y `fecha_entrega`) y el trigger `trg_sync_evaluaciones_fechas` en PostgreSQL. La consolidación a una única columna canónica se posterga formalmente para una fase de migración dedicada.
+2. **Crear `src/services/evaluacionesService.js`:**
+   - Centralizar la constante compartida `EVALUACIONES_COLUMNS` con ambas columnas (`fecha`, `fecha_entrega`).
+   - Implementar `normalizeEvaluacion(row)` garantizando que en el cliente ambas propiedades tengan siempre el mismo valor ISO (`YYYY-MM-DD`), formateado de forma estrictamente local sin desfasaje por conversión UTC.
+   - Proveer la función unificada de lectura `getEvaluacionesCatedra(catedraId, options)` con tolerancia a fallos y soporte en modo demo.
+   - Proveer la función unificada de escritura `saveEvaluacion(evalData, options)` que sanitiza el payload enviando únicamente columnas válidas de `evaluaciones`, actualiza simultáneamente `fecha` y `fecha_entrega`, ejecuta `.select(EVALUACIONES_COLUMNS).single()`, actualiza el estado local y lanza errores explícitos para retroalimentación con toast en caso de fallos.
+3. **Refactorizar `GradesTab.jsx`:** Delegar la lectura y escritura al nuevo servicio y normalizar la presentación en cabeceras y modales evaluando `ev.fecha_entrega || ev.fecha`.
+
+#### Consecuencias
+- **Positivas:**
+  - Persistencia garantizada de fechas estipuladas tras recargas de página (F5), tanto en evaluaciones nuevas como editadas.
+  - Eliminación de errores 42703 por columnas inexistentes en peticiones `update` e `insert`.
+  - Cero desfasajes de día provocados por conversiones UTC en husos horarios locales (ej. GMT-3).
+  - Deuda técnica debidamente encapsulada en un único servicio frontend hasta la consolidación definitiva del backend.
+- **Negativas / Costos:**
+  - Coexistencia temporal de columnas redundantes en la base de datos hasta la fase de deprecación y unificación del esquema.
+
 
 
