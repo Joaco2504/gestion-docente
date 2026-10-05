@@ -200,13 +200,13 @@ isOneToOne: false
                   ]
                 },"configuracion_sistema": {
                   Row: {
-                    "banner_activo": boolean | null,"banner_mensaje": string | null,"id": string,"modo_mantenimiento": boolean | null,"permitir_nuevos_registros": boolean | null,"updated_at": string | null
+                    "banner_activo": boolean | null,"banner_mensaje": string | null,"discord_canal_recordatorios": string | null,"id": string,"modo_mantenimiento": boolean | null,"permitir_nuevos_registros": boolean | null,"updated_at": string | null
                   }
                   Insert: {
-                    "banner_activo"?: boolean | null,"banner_mensaje"?: string | null,"id"?: string,"modo_mantenimiento"?: boolean | null,"permitir_nuevos_registros"?: boolean | null,"updated_at"?: string | null
+                    "banner_activo"?: boolean | null,"banner_mensaje"?: string | null,"discord_canal_recordatorios"?: string | null,"id"?: string,"modo_mantenimiento"?: boolean | null,"permitir_nuevos_registros"?: boolean | null,"updated_at"?: string | null
                   }
                   Update: {
-                    "banner_activo"?: boolean | null,"banner_mensaje"?: string | null,"id"?: string,"modo_mantenimiento"?: boolean | null,"permitir_nuevos_registros"?: boolean | null,"updated_at"?: string | null
+                    "banner_activo"?: boolean | null,"banner_mensaje"?: string | null,"discord_canal_recordatorios"?: string | null,"id"?: string,"modo_mantenimiento"?: boolean | null,"permitir_nuevos_registros"?: boolean | null,"updated_at"?: string | null
                   }
                   Relationships: [
                     
@@ -438,6 +438,19 @@ isOneToOne: false
       referencedRelation: "ciclos_lectivos"
       referencedColumns: ["id"]
     }
+                  ]
+                },"recordatorios_enviados": {
+                  Row: {
+                    "created_at": string,"destinatario_canal": string,"enviado_en": string,"error": string | null,"estado": string,"evento_id": string,"evento_origen": string,"evento_uuid": string | null,"id": string,"intentos": number,"payload_hash": string | null,"tipo_aviso": string,"tipo_evento": string,"updated_at": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"destinatario_canal": string,"enviado_en"?: string,"error"?: string | null,"estado"?: string,"evento_id": string,"evento_origen"?: string,"evento_uuid"?: string | null,"id"?: string,"intentos"?: number,"payload_hash"?: string | null,"tipo_aviso": string,"tipo_evento": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"destinatario_canal"?: string,"enviado_en"?: string,"error"?: string | null,"estado"?: string,"evento_id"?: string,"evento_origen"?: string,"evento_uuid"?: string | null,"id"?: string,"intentos"?: number,"payload_hash"?: string | null,"tipo_aviso"?: string,"tipo_evento"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
                   ]
                 },"recursos": {
                   Row: {
