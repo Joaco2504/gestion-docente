@@ -34,14 +34,21 @@ import { handleAppError } from '../../utils/handleAppError';
 import { supabase, isSupabaseConfigured, uploadCatedraFile } from '../../lib/supabase';
 import { formatFechaDMY } from '../../lib/dateUtils';
 import { useAuth } from '../../context/AuthContext';
+import { 
+  CATEGORIA_RECURSO, 
+  TIPO_ORIGEN_RECURSO, 
+  TIPO_EVALUACION, 
+  normalizeCategoriaRecurso, 
+  normalizeTipoEvaluacion 
+} from '../../lib/enums';
 
 const CATEGORIES = [
   { id: 'ALL', label: 'Todos' },
-  { id: 'APUNTE', label: 'Apuntes', icon: BookOpen },
-  { id: 'TP', label: 'Trabajos Prácticos', icon: FileCheck },
-  { id: 'PARCIAL', label: 'Parciales y Exámenes', icon: FileText },
-  { id: 'PLANIFICACION', label: 'Planificación Anual', icon: FileCode },
-  { id: 'BIBLIOGRAFIA', label: 'Bibliografía', icon: FolderOpen }
+  { id: CATEGORIA_RECURSO.APUNTE, label: 'Apuntes', icon: BookOpen },
+  { id: CATEGORIA_RECURSO.TP, label: 'Trabajos Prácticos', icon: FileCheck },
+  { id: CATEGORIA_RECURSO.PARCIAL, label: 'Parciales y Exámenes', icon: FileText },
+  { id: CATEGORIA_RECURSO.PLANIFICACION, label: 'Planificación Anual', icon: FileCode },
+  { id: CATEGORIA_RECURSO.BIBLIOGRAFIA, label: 'Bibliografía', icon: FolderOpen }
 ];
 
 export default function ResourcesTab({ catedraId, catedraName }) {
@@ -82,10 +89,10 @@ export default function ResourcesTab({ catedraId, catedraName }) {
   const [editingEval, setEditingEval] = useState(null);
 
   // Form state para nuevo recurso general
-  const [originType, setOriginType] = useState('LOCAL'); // 'LOCAL' | 'GOOGLE_LINK'
+  const [originType, setOriginType] = useState(TIPO_ORIGEN_RECURSO.LOCAL);
   const [selectedFile, setSelectedFile] = useState(null);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('APUNTE');
+  const [category, setCategory] = useState(CATEGORIA_RECURSO.APUNTE);
   const [externalUrl, setExternalUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -289,7 +296,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
 
       const newResource = {
         catedra_id: catedraId,
-        categoria: category,
+        categoria: normalizeCategoriaRecurso(category),
         tipo_origen: originType,
         titulo: finalTitle,
         url_o_path: finalUrl,
@@ -429,13 +436,7 @@ export default function ResourcesTab({ catedraId, catedraName }) {
   // Helper para concordancia de categorías de recursos
   const matchesMaterialCategory = (r, catId) => {
     if (catId === 'ALL') return true;
-    const cat = r.categoria;
-    if (catId === 'APUNTE') return cat === 'APUNTE' || cat === 'Apunte de Cátedra' || cat === 'General';
-    if (catId === 'TP') return cat === 'TP' || cat === 'Trabajo Práctico';
-    if (catId === 'PARCIAL') return cat === 'PARCIAL' || cat === 'Parcial' || cat === 'Evaluaciones';
-    if (catId === 'PLANIFICACION') return cat === 'PLANIFICACION' || cat === 'Planificación';
-    if (catId === 'BIBLIOGRAFIA') return cat === 'BIBLIOGRAFIA' || cat === 'Bibliografía';
-    return cat === catId;
+    return normalizeCategoriaRecurso(r.categoria) === catId;
   };
 
   // Filtrado de materiales
@@ -444,12 +445,12 @@ export default function ResourcesTab({ catedraId, catedraName }) {
     : resources.filter(r => matchesMaterialCategory(r, selectedCategory));
 
   const matchesEvalCategory = (e, cat) => {
-    const t = String(e.tipo || '').toUpperCase();
     if (cat === 'ALL') return true;
-    if (cat === 'PARCIAL') return (t.includes('PARCIAL') || t === 'PRUEBA') && !t.includes('RECUP');
-    if (cat === 'TP') return t.includes('TP') || t.includes('TRABAJO');
-    if (cat === 'RECUPERATORIO') return t.includes('RECUP');
-    return t === cat;
+    const normalized = normalizeTipoEvaluacion(e.tipo);
+    if (cat === CATEGORIA_RECURSO.PARCIAL || cat === TIPO_EVALUACION.PARCIAL) {
+      return normalized === TIPO_EVALUACION.PARCIAL || normalized === TIPO_EVALUACION.PRUEBA;
+    }
+    return normalized === cat;
   };
 
   // Filtrado de evaluaciones

@@ -16,6 +16,13 @@ import CustomSelect from '../../common/CustomSelect';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
 import { toast } from 'sonner';
+import { 
+  TIPO_EVALUACION, 
+  FORMATO_EVALUACION, 
+  LABELS_TIPO_EVALUACION, 
+  CATEGORIA_RECURSO, 
+  normalizeTipoEvaluacion 
+} from '../../../lib/enums';
 
 export function NuevaEvaluacionModal({
   isOpen,
@@ -31,8 +38,8 @@ export function NuevaEvaluacionModal({
 
   // Estados del formulario principal
   const [titulo, setTitulo] = useState('');
-  const [tipo, setTipo] = useState('Parcial');
-  const [formato, setFormato] = useState('Escrito');
+  const [tipo, setTipo] = useState(TIPO_EVALUACION.PARCIAL);
+  const [formato, setFormato] = useState(FORMATO_EVALUACION.ESCRITO);
   const [fecha, setFecha] = useState('');
   const [periodoId, setPeriodoId] = useState('');
   const [evalOrigenId, setEvalOrigenId] = useState('');
@@ -91,8 +98,8 @@ export function NuevaEvaluacionModal({
   useEffect(() => {
     if (isOpen) {
       setTitulo('');
-      setTipo('Parcial');
-      setFormato('Escrito');
+      setTipo(TIPO_EVALUACION.PARCIAL);
+      setFormato(FORMATO_EVALUACION.ESCRITO);
       setFecha('');
       setPeriodoId('');
       setEvalOrigenId('');
@@ -135,8 +142,8 @@ export function NuevaEvaluacionModal({
 
       // Alta automática en la tabla recursos de la cátedra si está tildado
       if (autoGuardarEnRecursos && catedraId) {
-        const isTP = tipo === 'Trabajo Práctico' || tipo === 'TP';
-        const categoriaAuto = isTP ? 'Trabajo Práctico' : 'Evaluaciones';
+        const isTP = normalizeTipoEvaluacion(tipo) === TIPO_EVALUACION.TP;
+        const categoriaAuto = isTP ? CATEGORIA_RECURSO.TP : CATEGORIA_RECURSO.PARCIAL;
         const isDrive = urlConsignaFinal.includes('drive.google.com') || urlConsignaFinal.includes('docs.google.com');
 
         const nuevoRecursoPayload = {
@@ -207,14 +214,15 @@ export function NuevaEvaluacionModal({
       }
     }
 
+    const tipoCanonico = normalizeTipoEvaluacion(tipo);
     const payloadEvaluacion = {
       titulo: titulo.trim(),
-      tipo,
+      tipo: tipoCanonico,
       formato,
       fecha: fecha || null,
       fecha_entrega: fecha || null,
       periodo_id: periodoId || null,
-      evaluacion_origen_id: tipo === 'Recuperatorio' ? (evalOrigenId || null) : null,
+      evaluacion_origen_id: tipoCanonico === TIPO_EVALUACION.RECUPERATORIO ? (evalOrigenId || null) : null,
       drive_url: urlConsignaFinal,
       archivo_url: urlConsignaFinal,
       link_consigna: urlConsignaFinal,
@@ -272,9 +280,12 @@ export function NuevaEvaluacionModal({
               onChange={(e) => setTipo(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
             >
-              <option value="Parcial">Parcial</option>
-              <option value="Trabajo Práctico">Trabajo Práctico</option>
-              <option value="Recuperatorio">Recuperatorio</option>
+              <option value={TIPO_EVALUACION.PARCIAL}>{LABELS_TIPO_EVALUACION.PARCIAL}</option>
+              <option value={TIPO_EVALUACION.TP}>{LABELS_TIPO_EVALUACION.TP}</option>
+              <option value={TIPO_EVALUACION.RECUPERATORIO}>{LABELS_TIPO_EVALUACION.RECUPERATORIO}</option>
+              <option value={TIPO_EVALUACION.PRUEBA}>{LABELS_TIPO_EVALUACION.PRUEBA}</option>
+              <option value={TIPO_EVALUACION.FINAL}>{LABELS_TIPO_EVALUACION.FINAL}</option>
+              <option value={TIPO_EVALUACION.COLOQUIO}>{LABELS_TIPO_EVALUACION.COLOQUIO}</option>
             </select>
           </div>
 
@@ -287,8 +298,8 @@ export function NuevaEvaluacionModal({
               onChange={(e) => setFormato(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
             >
-              <option value="Escrito">Escrito</option>
-              <option value="Oral">Oral</option>
+              <option value={FORMATO_EVALUACION.ESCRITO}>{FORMATO_EVALUACION.ESCRITO}</option>
+              <option value={FORMATO_EVALUACION.ORAL}>{FORMATO_EVALUACION.ORAL}</option>
             </select>
           </div>
         </div>
@@ -296,7 +307,7 @@ export function NuevaEvaluacionModal({
         {/* Fecha con etiqueta dinámica */}
         <div>
           <label className="block text-xs font-mono uppercase font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-            {tipo === 'Trabajo Práctico' || tipo === 'TP'
+            {normalizeTipoEvaluacion(tipo) === TIPO_EVALUACION.TP
               ? 'Fecha de Entrega'
               : 'Fecha Estipulada'}
           </label>
@@ -330,7 +341,7 @@ export function NuevaEvaluacionModal({
         )}
 
         {/* Vinculación al Parcial Original si es Recuperatorio */}
-        {tipo === 'Recuperatorio' && (
+        {normalizeTipoEvaluacion(tipo) === TIPO_EVALUACION.RECUPERATORIO && (
           <div>
             <label className="block text-xs font-mono uppercase font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Vincular al Parcial Original (Opcional)

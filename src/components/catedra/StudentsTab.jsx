@@ -48,6 +48,7 @@ import {
 } from '../../services/catedraEstudiantesService';
 import { handleAppError } from '../../utils/handleAppError';
 import { catedraCache } from '../../services/catedraCache';
+import { ESTADO_ACADEMICO } from '../../lib/enums';
 
 /**
  * Normalización de texto reactiva:
@@ -698,9 +699,9 @@ export default function StudentsTab({
         ]);
 
         const list = (rawList || []).map(ins => {
-          const condicion = ins.condicion || ins.estado_academico || 'REGULAR';
+          const condicion = ins.condicion || ins.estado_academico || ESTADO_ACADEMICO.REGULAR;
           const notaFinal = ins.nota_final ?? ins.nota_final_acreditacion ?? null;
-          const estado = ins.estado_academico ?? ins.condicion ?? 'CURSANDO';
+          const estado = ins.estado_academico ?? ins.condicion ?? ESTADO_ACADEMICO.CURSANDO;
           return {
             ...ins,
             condicion,
@@ -764,10 +765,10 @@ export default function StudentsTab({
         const rawList = await getEstudiantesCatedra(catedraId, { supabase, isDemo });
         const list = (rawList || []).map(ins => ({
           ...ins,
-          condicion: ins.condicion || ins.estado_academico || 'REGULAR',
+          condicion: ins.condicion || ins.estado_academico || ESTADO_ACADEMICO.REGULAR,
           nota_final: ins.nota_final ?? ins.nota_final_acreditacion ?? null,
           nota_final_acreditacion: ins.nota_final ?? ins.nota_final_acreditacion ?? null,
-          estado_academico: ins.estado_academico ?? ins.condicion ?? 'CURSANDO'
+          estado_academico: ins.estado_academico ?? ins.condicion ?? ESTADO_ACADEMICO.CURSANDO
         }));
         setEstudiantes(list);
 
@@ -860,15 +861,15 @@ export default function StudentsTab({
         st
       );
 
-      map.set(st.id, res?.condicion || 'REGULAR');
+      map.set(st.id, res?.condicion || ESTADO_ACADEMICO.REGULAR);
     });
     return map;
   }, [estudiantes, asistencias, clases.length, inasistenciasDocente.length, evaluaciones, notas, criterios, academicLevel, modalidad, catedraId]);
 
   // Obtener condición académica con acceso O(1)
   const getStudentCondition = (studentId) => {
-    if (!studentId) return 'REGULAR';
-    return studentConditionsMap.get(studentId) || 'REGULAR';
+    if (!studentId) return ESTADO_ACADEMICO.REGULAR;
+    return studentConditionsMap.get(studentId) || ESTADO_ACADEMICO.REGULAR;
   };
 
   // Mapa reactivo del Semáforo de Riesgo por estudiante
@@ -962,11 +963,11 @@ export default function StudentsTab({
   const getCondBadgeVariant = (cond) => {
     switch (cond) {
       case 'ACREDITADA_EQUIVALENCIA': return 'promo';
-      case 'PROMOCIONAL': return 'promo';
-      case 'REGULAR': return 'regular';
-      case 'LIBRE': return 'libre';
-      case 'APROBADO': return 'promo';
-      case 'DESAPROBADO': return 'libre';
+      case ESTADO_ACADEMICO.PROMOCIONAL: return 'promo';
+      case ESTADO_ACADEMICO.REGULAR: return 'regular';
+      case ESTADO_ACADEMICO.LIBRE: return 'libre';
+      case ESTADO_ACADEMICO.APROBADO: return 'promo';
+      case ESTADO_ACADEMICO.DESAPROBADO: return 'libre';
       case 'REINCORPORADO': return 'info';
       case 'OYENTE': return 'default';
       default: return 'default';

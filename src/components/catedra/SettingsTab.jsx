@@ -26,34 +26,26 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { handleAppError } from '../../utils/handleAppError';
+import { normalizeTipoPeriodo, TIPO_PERIODO } from '../../lib/enums';
 
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 const normalizePeriodTipo = (tipo, nombre = '', index = 0) => {
-  const norm = String(tipo || '').toUpperCase().trim();
-  if (norm === 'PRIMER_CUATRIMESTRE' || norm === '1_CUATRIMESTRE' || norm === '1ER_CUATRIMESTRE') {
-    return 'PRIMER_CUATRIMESTRE';
-  }
-  if (norm === 'RECESO_INVERNAL' || norm === 'RECESO' || norm === 'INVIERNO') {
-    return 'RECESO_INVERNAL';
-  }
-  if (norm === 'SEGUNDO_CUATRIMESTRE' || norm === '2_CUATRIMESTRE' || norm === '2DO_CUATRIMESTRE') {
-    return 'SEGUNDO_CUATRIMESTRE';
+  if (tipo) {
+    const norm = normalizeTipoPeriodo(tipo);
+    if (norm !== TIPO_PERIODO.OTRO) return norm;
   }
   const n = String(nombre).toLowerCase();
   if (n.includes('receso') || n.includes('invernal') || n.includes('invierno')) {
-    return 'RECESO_INVERNAL';
+    return TIPO_PERIODO.RECESO_INVERNAL;
   }
   if (n.includes('1') || n.includes('primer')) {
-    return 'PRIMER_CUATRIMESTRE';
+    return TIPO_PERIODO.PRIMER_CUATRIMESTRE;
   }
   if (n.includes('2') || n.includes('segundo')) {
-    return 'SEGUNDO_CUATRIMESTRE';
+    return TIPO_PERIODO.SEGUNDO_CUATRIMESTRE;
   }
-  if (index === 0) return 'PRIMER_CUATRIMESTRE';
-  if (index === 1) return 'RECESO_INVERNAL';
-  if (index === 2) return 'SEGUNDO_CUATRIMESTRE';
-  return norm || 'PRIMER_CUATRIMESTRE';
+  return index === 0 ? TIPO_PERIODO.PRIMER_CUATRIMESTRE : index === 1 ? TIPO_PERIODO.RECESO_INVERNAL : index === 2 ? TIPO_PERIODO.SEGUNDO_CUATRIMESTRE : TIPO_PERIODO.OTRO;
 };
 
 const formatToIsoDate = (dateVal) => {

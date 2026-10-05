@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Pencil, Link2, FileText, Globe, X, Check, Eye } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { toast } from 'sonner';
+import { CATEGORIA_RECURSO, TIPO_ORIGEN_RECURSO, normalizeCategoriaRecurso } from '../../../lib/enums';
 
 export function EditarRecursoModal({ isOpen, onClose, recurso, onResourceUpdated }) {
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [url, setUrl] = useState('');
   const [tipo, setTipo] = useState('enlace');
-  const [categoria, setCategoria] = useState('General');
+  const [categoria, setCategoria] = useState(CATEGORIA_RECURSO.APUNTE);
   const [visibleAlumnos, setVisibleAlumnos] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -18,16 +19,8 @@ export function EditarRecursoModal({ isOpen, onClose, recurso, onResourceUpdated
       setTitulo(recurso.titulo || recurso.nombre || '');
       setDescripcion(recurso.descripcion || '');
       setUrl(recurso.url || recurso.url_o_path || recurso.link || '');
-      setTipo(recurso.tipo || (recurso.tipo_origen === 'GOOGLE_LINK' ? 'drive' : 'enlace'));
-
-      // Normalizar categoría previa si viene en formato legado
-      const catOrig = recurso.categoria || 'General';
-      if (catOrig === 'APUNTE') setCategoria('Apunte de Cátedra');
-      else if (catOrig === 'BIBLIOGRAFIA') setCategoria('Bibliografía');
-      else if (catOrig === 'TP') setCategoria('Trabajo Práctico');
-      else if (catOrig === 'PLANIFICACION') setCategoria('Planificación');
-      else setCategoria(catOrig);
-
+      setTipo(recurso.tipo || (recurso.tipo_origen === TIPO_ORIGEN_RECURSO.GOOGLE_LINK ? 'drive' : 'enlace'));
+      setCategoria(normalizeCategoriaRecurso(recurso.categoria));
       setVisibleAlumnos(recurso.visible_alumnos ?? recurso.es_publico ?? true);
     }
   }, [recurso]);
@@ -44,22 +37,15 @@ export function EditarRecursoModal({ isOpen, onClose, recurso, onResourceUpdated
     setIsSubmitting(true);
     try {
       const cleanUrl = url.trim();
-      const catCompat = (() => {
-        if (categoria === 'General' || categoria === 'Apunte de Cátedra') return 'APUNTE';
-        if (categoria === 'Bibliografía') return 'BIBLIOGRAFIA';
-        if (categoria === 'Trabajo Práctico') return 'TP';
-        if (categoria === 'Planificación') return 'PLANIFICACION';
-        if (categoria === 'Parciales y Exámenes') return 'PARCIAL';
-        return categoria || 'APUNTE';
-      })();
+      const catNormalizada = normalizeCategoriaRecurso(categoria);
 
       const payload = {
         titulo: titulo.trim(),
         url: cleanUrl,
         url_o_path: cleanUrl,
-        tipo_origen: tipo === 'drive' || tipo === 'enlace' ? 'GOOGLE_LINK' : 'LOCAL',
+        tipo_origen: tipo === 'drive' || tipo === 'enlace' ? TIPO_ORIGEN_RECURSO.GOOGLE_LINK : TIPO_ORIGEN_RECURSO.LOCAL,
         tipo,
-        categoria: catCompat,
+        categoria: catNormalizada,
         visible_alumnos: visibleAlumnos
       };
 
@@ -171,11 +157,11 @@ export function EditarRecursoModal({ isOpen, onClose, recurso, onResourceUpdated
                 onChange={(e) => setCategoria(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
               >
-                <option value="General">General</option>
-                <option value="Bibliografía">Bibliografía Obligatoria</option>
-                <option value="Trabajo Práctico">Trabajo Práctico</option>
-                <option value="Apunte de Cátedra">Apunte de Cátedra</option>
-                <option value="Planificación">Programa / Planificación</option>
+                <option value={CATEGORIA_RECURSO.APUNTE}>Apunte de Cátedra</option>
+                <option value={CATEGORIA_RECURSO.BIBLIOGRAFIA}>Bibliografía Obligatoria</option>
+                <option value={CATEGORIA_RECURSO.TP}>Trabajo Práctico</option>
+                <option value={CATEGORIA_RECURSO.PLANIFICACION}>Programa / Planificación</option>
+                <option value={CATEGORIA_RECURSO.PARCIAL}>Parciales y Exámenes</option>
               </select>
             </div>
 

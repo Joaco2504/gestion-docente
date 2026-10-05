@@ -8,6 +8,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-001: Línea Base Consolidada y Adopción de Migraciones Versionadas con Timestamp](#adr-001-línea-base-consolidada-y-adopción-de-migraciones-versionadas-con-timestamp)
 - [ADR-002: Endurecimiento RLS de Storage, search_path Explícito y Desacoplamiento de Canal Discord](#adr-002-endurecimiento-rls-de-storage-search_path-explícito-y-desacoplamiento-de-canal-discord)
 - [ADR-003: Deprecación y Eliminación de la Tabla Huérfana public.docentes en favor de public.perfiles](#adr-003-deprecación-y-eliminación-de-la-tabla-huérfana-publicdocentes-en-favor-de-publicperfiles)
+- [ADR-004: Estrategia de Integridad de Dominios mediante CHECK Constraints, Triggers Auto-Normalizadores y Enums TypeScript](#adr-004-estrategia-de-integridad-de-dominios-mediante-check-constraints-triggers-auto-normalizadores-y-enums-typescript)
 
 ---
 
@@ -104,4 +105,32 @@ Durante la auditoría del esquema de base de datos se detectó la coexistencia d
   - Mantenimiento enfocado en una única tabla de perfiles.
 - **Negativas / Costos:**
   - Ninguna identificada.
+
+---
+
+### ADR-004: Estrategia de Integridad de Dominios mediante CHECK Constraints, Triggers Auto-Normalizadores y Enums TypeScript
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 4
+
+#### Contexto
+Inconsistencias históricas en strings de dominio (`evaluaciones.tipo`, `periodos_academicos.tipo`, `asistencias.estado`, `inscripciones.estado_academico`, `recursos.categoria` y `tipo_origen`) ponían en riesgo la integridad referencial y producían fallas en componentes frontend ante strings libres ("strings mágicos").
+Se analizó la opción de usar `CREATE TYPE ... AS ENUM` nativo en PostgreSQL, pero PostgreSQL restringe `ALTER TYPE ... ADD VALUE` fuera de transacciones, bloqueando las suites de prueba pgTAP transaccionales y los rollbacks atómicos.
+
+#### Decisión
+1. Adoptar **CHECK constraints** con listas canónicas sobre columnas `TEXT`.
+2. Implementar triggers defensivos `BEFORE INSERT OR UPDATE` (`trg_normalize_*`) que transforman y sanean variantes descriptivas históricas hacia el valor canónico antes de evaluar el constraint.
+3. Centralizar todos los dominios del sistema en `src/lib/enums.ts` mediante constantes `as const`, tipos TypeScript, labels y funciones de normalización pura.
+4. Refactorizar modales y componentes (`NuevaEvaluacionModal`, `GradesTab`, `SettingsTab`, `EditarRecursoModal`, `ResourcesTab`, `AttendanceTab`, `StudentsTab`) eliminando strings mágicos.
+
+#### Consecuencias
+- **Positivas:**
+  - 100% transaccionalidad y compatibilidad con pgTAP y rollbacks.
+  - Tolerancia a fallos: clientes antiguos o respuestas cacheadas se auto-sanean en el motor sin arrojar errores al usuario.
+  - Tipado de extremo a extremo y autocompletado en frontend.
+  - Cero schema drift verificado con Supabase CLI.
+- **Negativas / Costos:**
+  - Requiere sincronización disciplinada entre `src/lib/enums.ts` y las migraciones de PostgreSQL cuando se introduzcan nuevos valores al dominio.
+
 

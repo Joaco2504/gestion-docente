@@ -55,6 +55,12 @@ import { catedraCache } from '../../services/catedraCache';
 import NuevaEvaluacionModal from './modals/NuevaEvaluacionModal';
 import GradeCell from './GradeCell';
 import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
+import { 
+  TIPO_EVALUACION, 
+  LABELS_TIPO_EVALUACION, 
+  normalizeTipoEvaluacion,
+  ESTADO_NOTA 
+} from '../../lib/enums';
 
 /**
  * DebouncedGradeInput - Input de nota con debounce configurable (default 300ms)
@@ -324,7 +330,7 @@ export default function GradesTab({
   const [isEditEvalModalOpen, setIsEditEvalModalOpen] = useState(false);
   const [editingEval, setEditingEval] = useState(null);
   const [editEvalTitulo, setEditEvalTitulo] = useState('');
-  const [editEvalTipo, setEditEvalTipo] = useState('Parcial');
+  const [editEvalTipo, setEditEvalTipo] = useState(TIPO_EVALUACION.PARCIAL);
   const [editEvalFormato, setEditEvalFormato] = useState('Escrito');
   const [editEvalFechaEntrega, setEditEvalFechaEntrega] = useState('');
   const [editEvalDriveUrl, setEditEvalDriveUrl] = useState('');
@@ -992,16 +998,7 @@ export default function GradesTab({
     setEditEvalTitulo(ev.titulo || ev.nombre || '');
     
     // Normalizar tipo de evaluación
-    const tUpper = String(ev.tipo || '').toUpperCase();
-    if (tUpper.includes('PARCIAL') || tUpper === 'PRUEBA') {
-      setEditEvalTipo('Parcial');
-    } else if (tUpper.includes('TP') || tUpper.includes('TRABAJO')) {
-      setEditEvalTipo('Trabajo Práctico');
-    } else if (tUpper.includes('RECUP')) {
-      setEditEvalTipo('Recuperatorio');
-    } else {
-      setEditEvalTipo(ev.tipo || 'Parcial');
-    }
+    setEditEvalTipo(normalizeTipoEvaluacion(ev.tipo));
 
     setEditEvalFormato(ev.formato || 'Escrito');
     setEditEvalFechaEntrega(ev.fecha_entrega ? ev.fecha_entrega.split('T')[0] : (ev.fecha ? ev.fecha.split('T')[0] : ''));
@@ -1019,12 +1016,13 @@ export default function GradesTab({
       const isoFechaEntrega = editEvalFechaEntrega ? parseDMYtoYMD(editEvalFechaEntrega) : null;
       const driveUrl = editEvalDriveUrl.trim() || null;
       const driveNombre = driveUrl ? 'Consignas en Google Drive' : null;
+      const tipoCanonico = normalizeTipoEvaluacion(editEvalTipo);
 
       const updatedObj = {
         ...editingEval,
         titulo: editEvalTitulo.trim(),
         nombre: editEvalTitulo.trim(),
-        tipo: editEvalTipo,
+        tipo: tipoCanonico,
         formato: editEvalFormato || 'Escrito',
         fecha: isoFechaEntrega,
         fecha_entrega: isoFechaEntrega,
@@ -2337,9 +2335,12 @@ export default function GradesTab({
                 onChange={(e) => setEditEvalTipo(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
               >
-                <option value="Parcial">Parcial</option>
-                <option value="Trabajo Práctico">Trabajo Práctico</option>
-                <option value="Recuperatorio">Recuperatorio</option>
+                <option value={TIPO_EVALUACION.PARCIAL}>{LABELS_TIPO_EVALUACION.PARCIAL}</option>
+                <option value={TIPO_EVALUACION.TP}>{LABELS_TIPO_EVALUACION.TP}</option>
+                <option value={TIPO_EVALUACION.RECUPERATORIO}>{LABELS_TIPO_EVALUACION.RECUPERATORIO}</option>
+                <option value={TIPO_EVALUACION.PRUEBA}>{LABELS_TIPO_EVALUACION.PRUEBA}</option>
+                <option value={TIPO_EVALUACION.FINAL}>{LABELS_TIPO_EVALUACION.FINAL}</option>
+                <option value={TIPO_EVALUACION.COLOQUIO}>{LABELS_TIPO_EVALUACION.COLOQUIO}</option>
               </select>
             </div>
 

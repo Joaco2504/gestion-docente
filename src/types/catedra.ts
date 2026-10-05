@@ -3,11 +3,22 @@
  * Ubicación centralizada para evitar dependencias circulares entre CatedraDetailPage y sus componentes hijos.
  */
 
-export type NivelEducativo = 'SECUNDARIO' | 'TERCIARIO' | 'UNIVERSITARIO' | 'PRIMARIO';
-export type ModalidadCursado = 'ANUAL' | 'CUATRIMESTRAL' | 'BIMESTRAL';
-export type CondicionEstudiante = 'PROMOCIONAL' | 'REGULAR' | 'LIBRE' | 'APROBADO' | 'DESAPROBADO';
-export type EstadoAsistencia = 'PRESENTE' | 'AUSENTE' | 'JUSTIFICADO';
-export type TipoEvaluacion = 'PARCIAL' | 'RECUPERATORIO' | 'TP' | 'FINAL' | 'COLOQUIO';
+import {
+  type NivelEducativo,
+  type ModalidadCursado,
+  type EstadoAcademico,
+  type EstadoAsistencia,
+  type TipoEvaluacion
+} from '../lib/enums';
+
+export type {
+  NivelEducativo,
+  ModalidadCursado,
+  EstadoAsistencia,
+  TipoEvaluacion
+};
+
+export type CondicionEstudiante = EstadoAcademico;
 
 export type CatedraTabId = 
   | 'alumnos' 

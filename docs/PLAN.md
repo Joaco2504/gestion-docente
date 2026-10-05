@@ -11,7 +11,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | **Fase 1** | Línea base y saneamiento del *schema drift* | 🟢 Hecha | `refactor/fase-1-schema-baseline` |
 | **Fase 2** | Seguridad y endurecimiento RLS | 🟢 Hecha | `refactor/fase-2-seguridad-rls` |
 | **Fase 3** | Unificación de columnas duplicadas (expand → migrate → contract) | 🟢 Hecha | `refactor/fase-3-unificacion-columnas` |
-| **Fase 4** | Integridad de dominios (ENUM vs. CHECK) | ⚪ Pendiente | — |
+| **Fase 4** | Integridad de dominios (ENUM vs. CHECK) | 🟢 Hecha | `refactor/fase-4-integridad-dominios` |
 | **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | ⚪ Pendiente | — |
 | **Fase 6** | Rendimiento y RPC `dashboard_resumen` | ⚪ Pendiente | — |
 | **Fase 7** | Capa de datos con TanStack Query | ⚪ Pendiente | — |
@@ -36,8 +36,8 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 - **Estado:** 🟢 Hecha (5 sub-entregas expand aplicadas y verificadas con 34/34 tests pgTAP pasando, 0 schema drift, build en verde; contratos pendientes archivados en `supabase/contract_pending/`; ADR-003 presentado para decisión Go / No-Go).
 
 ### Fase 4: Integridad de dominios (ENUM vs. CHECK)
-- **Objetivo:** Clasificar dominios estables vs crecientes, crear ENUMs y tablas de referencia, generar tipos y constantes en `src/lib/enums.ts`, eliminar strings mágicos.
-- **Estado:** ⚪ Pendiente.
+- **Objetivo:** Clasificar dominios estables vs crecientes, crear constantes canónicas y tipos TypeScript en `src/lib/enums.ts`, implementar CHECK constraints y triggers auto-normalizadores (`BEFORE INSERT OR UPDATE`) en PostgreSQL, eliminar strings mágicos en componentes frontend, crear rollback y tests pgTAP dedicados.
+- **Estado:** 🟢 Hecha (Migración `20261005070000_fase4_integridad_dominios.sql` aplicada, suite pgTAP `07_fase4_dominios_integrity.sql` con 7/7 tests y 41/41 globales en verde, 0 drift en `npm run db:diff`, build en verde, ADR-004 documentado).
 
 ### Fase 5: Refactor de `DashboardPage.jsx` (sin cambio visual)
 - **Objetivo:** Modularizar `DashboardPage.jsx` en subcomponentes (`src/features/dashboard/`) de menos de 300 líneas, orquestador de menos de 200 líneas, manteniendo paridad visual estricta mediante capturas en todos los breakpoints.

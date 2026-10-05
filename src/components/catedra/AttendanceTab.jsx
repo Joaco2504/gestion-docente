@@ -56,6 +56,7 @@ import { catedraCache } from '../../services/catedraCache';
 import RegistrarFaltaDocenteModal from './modals/RegistrarFaltaDocenteModal';
 import { guardarAsistenciasBlindado } from '../../lib/errorHandler';
 import { getEstudiantesCatedra } from '../../services/catedraEstudiantesService';
+import { ESTADO_ASISTENCIA } from '../../lib/enums';
 
 // Comparador memoizado para tarjeta táctil mobile
 function areAttendanceCardPropsEqual(prev, next) {
@@ -83,8 +84,8 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
   onToggle,
   disabled = false
 }) {
-  const isPresente = estado === 'PRESENTE';
-  const isAusente = estado === 'AUSENTE';
+  const isPresente = estado === ESTADO_ASISTENCIA.PRESENTE;
+  const isAusente = estado === ESTADO_ASISTENCIA.AUSENTE;
   const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
   const minThreshold = est.tiene_certificado_trabajo ? 60 : 75;
 
@@ -136,7 +137,7 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => !disabled && onToggle(est.id, 'PRESENTE')}
+          onClick={() => !disabled && onToggle(est.id, ESTADO_ASISTENCIA.PRESENTE)}
           className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
             isPresente
               ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-extrabold'
@@ -150,7 +151,7 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => !disabled && onToggle(est.id, 'AUSENTE')}
+          onClick={() => !disabled && onToggle(est.id, ESTADO_ASISTENCIA.AUSENTE)}
           className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all touch-target-44 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
             isAusente
               ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-extrabold'
@@ -191,8 +192,8 @@ const AttendanceRow = React.memo(function AttendanceRow({
   onToggle,
   disabled = false
 }) {
-  const isPresente = estado === 'PRESENTE';
-  const isAusente = estado === 'AUSENTE';
+  const isPresente = estado === ESTADO_ASISTENCIA.PRESENTE;
+  const isAusente = estado === ESTADO_ASISTENCIA.AUSENTE;
 
   return (
     <tr
@@ -230,7 +231,7 @@ const AttendanceRow = React.memo(function AttendanceRow({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => !disabled && onToggle(est.id, 'PRESENTE')}
+            onClick={() => !disabled && onToggle(est.id, ESTADO_ASISTENCIA.PRESENTE)}
             className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
               isPresente
                 ? 'bg-emerald-600 text-white shadow-xs font-bold'
@@ -244,7 +245,7 @@ const AttendanceRow = React.memo(function AttendanceRow({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => !disabled && onToggle(est.id, 'AUSENTE')}
+            onClick={() => !disabled && onToggle(est.id, ESTADO_ASISTENCIA.AUSENTE)}
             className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-transform duration-100 touch-target-44 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
               isAusente
                 ? 'bg-rose-600 text-white shadow-xs font-bold'
