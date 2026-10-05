@@ -57,4 +57,20 @@ Todas las dependencias deben ser **100 % gratuitas y Open Source** bajo licencia
   - `visx`: Descartado por requerir excesivo código boilerplate y primitivas de bajo nivel para necesidades directas de barras y donas académicas.
   - SVG caseros manuales: Descartados por dificultad de mantenimiento, problemas de escalabilidad en diferentes relaciones de aspecto y falta de soporte para ejes y tooltips accesibles.
 
+---
+
+### Fase 10 (Sub-mejora 10.1): Reemplazo seguro de Excel y saneamiento de dependencias
+
+#### 4. `xlsx` (`dependencies`, distribución oficial segura vía `cdn.sheetjs.com`)
+- **Versión:** `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (v0.20.3)
+- **Licencia:** Apache-2.0 (100 % Open Source, gratuita y permisiva).
+- **Tamaño en bundle de producción:** ~500 kB (163.1 kB gzipped), aislado en el chunk dedicado `vendor-excel` mediante `rollupOptions.output.manualChunks`. Se carga bajo demanda únicamente cuando el usuario importa o exporta una planilla.
+- **Propósito:** Procesamiento seguro de planillas de cálculo académicas (.xlsx, .xls y .csv):
+  - Remediación definitiva de las vulnerabilidades críticas reportadas en `npm audit` para la versión desatendida de npm `xlsx@0.18.5` (Prototype Pollution GHSA-4r6h-8v6p-xvw6 y ReDoS GHSA-5pgg-2g8v-p4x9).
+  - Soporte integral de formatos admitidos: archivos antiguos `.xls` (BIFF8), planillas modernas `.xlsx` y archivos `.csv`.
+  - Tratamiento estricto de archivos externos como no confiables: límite máximo de 5 MB, límite defensivo de 5.000 filas y sanitización preventiva contra Prototype Pollution (`__proto__`, `constructor`, `prototype`).
+- **Alternativas descartadas:**
+  - `exceljs`: Descartado porque carece de soporte para el formato binario `.xls` (BIFF8 utilizado frecuentemente en sistemas educativos provinciales), e introduce sobrecarga de dependencias de streams/Node polyfills en el navegador.
+  - Conservar `xlsx@0.18.5`: Descartado por fallar auditorías de seguridad con 2 vulnerabilidades críticas sin remediación en el registro npm público.
+
 

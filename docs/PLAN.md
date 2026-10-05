@@ -17,7 +17,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | **Fase 7** | Capa de datos con TanStack Query | 🟢 Hecha | `refactor/fase-7-tanstack-query` |
 | **Fase 8** | Rediseño integral del Dashboard | 🟢 Hecha | `refactor/fase-8-dashboard-redisenio` |
 | **Fase 9** | Gráficos accesibles con Recharts / Visx | 🟢 Hecha | `refactor/fase-9-graficos-recharts` |
-| **Fase 10** | Mejoras modulares opcionales | ⚪ Pendiente | — |
+| **Fase 10** | Mejoras modulares opcionales | 🟡 En progreso (10.1 Hecha) | `refactor/fase-10-excel-seguro` |
 
 ---
 
@@ -60,5 +60,6 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 - **Estado:** 🟢 Hecha (Instalación de `recharts@^3.10.1` 100% MIT; chunk `vendor-charts` aislado en `vite.config.js`; tokens semánticos y función de contraste en `chartTokens.ts`; `InteractiveBarChart.jsx` y `InteractiveDonutChart.jsx` accesibles con `role="img"`, `aria-label` descriptivos y tooltips accesibles; gauge de asistencia accesible `AttendanceGaugeChart.jsx` en `QuickMetricsCard.jsx`; 0 schema drift; 50/50 tests pgTAP pasando; build limpio en Vite; ADR-009 documentado).
 
 ### Fase 10: Mejoras modulares opcionales
-- **Objetivo:** Mejoras aprobadas una por una: `react-hook-form` + `zod`, `@tanstack/react-table`, `date-fns`, `shadcn/ui`, `exceljs`, tipado TypeScript progresivo.
-- **Estado:** ⚪ Pendiente.
+- **Objetivo:** Mejoras aprobadas una por una: `react-hook-form` + `zod`, `@tanstack/react-table`, `date-fns`, `shadcn/ui`, `exceljs` / SheetJS seguro, tipado TypeScript progresivo.
+- **Sub-mejora 10.1 (Excel Seguro y Saneamiento de Dependencias):** 🟢 Hecha (Actualización a SheetJS v0.20.3 oficial vía `cdn.sheetjs.com` con licencia Apache-2.0, remediando las vulnerabilidades críticas de Prototype Pollution y ReDoS de npm audit; tratamiento defensivo de archivos no confiables con límite de 5 MB, 5.000 filas y sanitización contra Prototype Pollution; pre-validación en `ExcelImporter.jsx`; preservación total de la API pública en `src/lib/excel.js`; ADR-010 documentado).
+- **Sub-mejoras siguientes (10.2 a 10.6):** ⚪ Pendientes de aprobación una por una.

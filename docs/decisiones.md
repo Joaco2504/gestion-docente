@@ -14,6 +14,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-007: Implementación de Capa de Datos con TanStack Query, Tipado de Supabase y Adaptador de Caché](#adr-007-implementación-de-capa-de-datos-con-tanstack-query-tipado-de-supabase-y-adaptador-de-caché)
 - [ADR-008: Rediseño Integral del Dashboard con Jerarquía Orientada al Día (Hoy), Alerta Temprana, Tarjetas Unificadas y Accesibilidad AA](#adr-008-rediseño-integral-del-dashboard-con-jerarquía-orientada-al-día-hoy-alerta-temprana-tarjetas-unificadas-y-accesibilidad-aa)
 - [ADR-009: Visualización de Datos Accesible con Recharts, Tokens de Diseño y Aislamiento de Bundle](#adr-009-visualización-de-datos-accesible-con-recharts-tokens-de-diseño-y-aislamiento-de-bundle)
+- [ADR-010: Reemplazo Seguro de Excel, Saneamiento de Vulnerabilidades y Mitigación de Archivos No Confiables](#adr-010-reemplazo-seguro-de-excel-saneamiento-de-vulnerabilidades-y-mitigación-de-archivos-no-confiables)
 
 ---
 
@@ -299,3 +300,30 @@ La visualización de métricas académicas (distribución de calificaciones, con
   - Aislamiento de código que garantiza carga ultrarrápida del resto de la aplicación.
 - **Negativas / Costos:**
   - Incorporación de `recharts` al proyecto, mitigada mediante el chunk Rollup dedicado (`vendor-charts`).
+
+---
+
+### ADR-010: Reemplazo Seguro de Excel, Saneamiento de Vulnerabilidades y Mitigación de Archivos No Confiables
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 10 (Sub-mejora 10.1)
+
+#### Contexto
+La versión `xlsx@0.18.5` en el registro npm contenía dos vulnerabilidades críticas no resueltas (Prototype Pollution GHSA-4r6h-8v6p-xvw6 y ReDoS GHSA-5pgg-2g8v-p4x9), dado que los autores descontinuaron la publicación en npm en 2022. Además, las rutinas de importación de planillas de alumnos carecían de límites defensivos de tamaño y de protección contra inyección de propiedades maliciosas.
+
+#### Decisión
+1. Actualizar hacia la distribución canónica segura de SheetJS (`"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"`, Apache-2.0, 100% gratuita), eliminando las alertas de npm audit y manteniendo soporte para `.xlsx`, `.xls` y `.csv`.
+2. Conservar el aislamiento Rollup en `vite.config.js` (`vendor-excel`), garantizando carga bajo demanda (*lazy*).
+3. Establecer límite estricto de tamaño de archivo (máx. 5 MB) y límite de filas (máx. 5.000 filas por planilla) en `src/lib/excel.js` y `ExcelImporter.jsx`.
+4. Sanitizar metódicamente los objetos de fila para prevenir Prototype Pollution (`__proto__`, `constructor`, `prototype`).
+5. Preservar íntegramente la API pública de `src/lib/excel.js`.
+
+#### Consecuencias
+- **Positivas:**
+  - Cero vulnerabilidades activas en npm audit para dependencias de planillas.
+  - Protección robusta contra archivos excesivos o malformados provistos por usuarios.
+  - Compatibilidad completa con planillas de cálculo escolares (.xlsx, .xls y .csv).
+  - Cero breaking changes en componentes consumidores.
+- **Negativas / Costos:**
+  - Dependencia de un archivo tarball seguro servido desde `cdn.sheetjs.com`.

@@ -1,4 +1,4 @@
-import { formatFechaDMY } from './dateUtils';
+import { formatFechaDMY } from './dateUtils.js';
 
 /**
  * Carga diferida de XLSX solo al momento de procesar un archivo
@@ -9,11 +9,58 @@ async function getXLSX() {
 }
 
 /**
- * Procesa un archivo Excel (.xlsx, .xls) o CSV en el navegador usando SheetJS.
+ * Constantes de seguridad para archivos externos no confiables
+ */
+export const MAX_EXCEL_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+export const MAX_ROWS_LIMIT = 5000;
+const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
+
+/**
+ * Valida un archivo provisto por el usuario contra límites de seguridad y tipo
+ * @param {File} file
+ */
+function validateUntrustedFile(file) {
+  if (!file) {
+    throw new Error('No se ha proporcionado un archivo válido.');
+  }
+  if (file.size === 0) {
+    throw new Error('El archivo seleccionado está vacío (0 bytes).');
+  }
+  if (file.size > MAX_EXCEL_FILE_SIZE) {
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    throw new Error(`El archivo supera el tamaño máximo permitido de 5 MB (${sizeMb} MB).`);
+  }
+  const name = (file.name || '').toLowerCase();
+  const hasValidExt = ALLOWED_EXTENSIONS.some(ext => name.endsWith(ext));
+  if (!hasValidExt) {
+    throw new Error('Formato de archivo no admitido. Utilice planillas .xlsx, .xls o .csv.');
+  }
+}
+
+/**
+ * Sanitiza un objeto de fila eliminando vectores de Prototype Pollution
+ * @param {Object} rawObj
+ * @returns {Object}
+ */
+function sanitizeRowObject(rawObj) {
+  if (!rawObj || typeof rawObj !== 'object') return {};
+  const safeObj = {};
+  for (const [key, val] of Object.entries(rawObj)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      continue;
+    }
+    safeObj[key] = typeof val === 'string' ? val.trim() : val;
+  }
+  return safeObj;
+}
+
+/**
+ * Procesa un archivo Excel (.xlsx, .xls) o CSV en el navegador usando SheetJS de forma segura.
  * @param {File} file - Archivo proveniente de input file o drag & drop
  * @returns {Promise<{ rows: Array, headers: Array }>}
  */
 export async function parseExcelOrCsv(file) {
+  validateUntrustedFile(file);
   const XLSX = await getXLSX();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -23,6 +70,11 @@ export async function parseExcelOrCsv(file) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          resolve({ rows: [], headers: [] });
+          return;
+        }
+
         // Tomar la primera hoja
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
@@ -35,22 +87,30 @@ export async function parseExcelOrCsv(file) {
           return;
         }
 
-        const headers = Object.keys(rawJson[0]);
-        resolve({ rows: rawJson, headers });
+        if (rawJson.length > MAX_ROWS_LIMIT) {
+          throw new Error(`El archivo contiene demasiadas filas (${rawJson.length}). El límite máximo por planilla es de ${MAX_ROWS_LIMIT} filas.`);
+        }
+
+        const sanitizedRows = rawJson.map(sanitizeRowObject);
+        const rawHeaders = Object.keys(sanitizedRows[0] || {});
+        const safeHeaders = rawHeaders.filter(h => h !== '__proto__' && h !== 'constructor' && h !== 'prototype');
+
+        resolve({ rows: sanitizedRows, headers: safeHeaders });
       } catch (err) {
         reject(new Error('Error al procesar el archivo Excel/CSV: ' + err.message));
       }
     };
 
-    reader.onerror = (err) => reject(err);
+    reader.onerror = (err) => reject(new Error('Error al leer el archivo en el navegador: ' + (err?.message || 'desconocido')));
     reader.readAsArrayBuffer(file);
   });
 }
 
 /**
- * Función genérica de parseo de Excel
+ * Función genérica de parseo de Excel con validación segura
  */
 export async function parseExcelFile(file) {
+  validateUntrustedFile(file);
   const XLSX = await getXLSX();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -58,14 +118,22 @@ export async function parseExcelFile(file) {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          resolve([]);
+          return;
+        }
         const sheetName = workbook.SheetNames[0];
-        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-        resolve(json);
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
+        if (json.length > MAX_ROWS_LIMIT) {
+          throw new Error(`El archivo contiene demasiadas filas (${json.length}). El límite máximo por planilla es de ${MAX_ROWS_LIMIT} filas.`);
+        }
+        const safeRows = json.map(sanitizeRowObject);
+        resolve(safeRows);
       } catch (err) {
-        reject(err);
+        reject(new Error('Error al procesar el archivo Excel: ' + err.message));
       }
     };
-    reader.onerror = reject;
+    reader.onerror = (err) => reject(new Error('Error al leer el archivo: ' + (err?.message || 'desconocido')));
     reader.readAsArrayBuffer(file);
   });
 }

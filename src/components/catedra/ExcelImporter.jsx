@@ -32,6 +32,23 @@ export default function ExcelImporter({ onImportSuccess, onStudentsImported, cat
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
+    // Validación defensiva previa de tamaño (máx 5MB)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      toast.error('El archivo supera el tamaño máximo permitido de 5 MB.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Validación de extensiones admitidas
+    const validExtensions = ['.xlsx', '.xls', '.csv'];
+    const lowerName = (selectedFile.name || '').toLowerCase();
+    if (!validExtensions.some(ext => lowerName.endsWith(ext))) {
+      toast.error('Formato no admitido. Seleccione un archivo .xlsx, .xls o .csv.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const { rows, headers: detectedHeaders } = await parseExcelOrCsv(selectedFile);
