@@ -15,7 +15,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | 🟢 Hecha | `refactor/fase-5-dashboard-modularizacion` |
 | **Fase 6** | Rendimiento y RPC `dashboard_resumen` | 🟢 Hecha | `refactor/fase-6-rpc-dashboard-resumen` |
 | **Fase 7** | Capa de datos con TanStack Query | 🟢 Hecha | `refactor/fase-7-tanstack-query` |
-| **Fase 8** | Rediseño integral del Dashboard | ⚪ Pendiente | — |
+| **Fase 8** | Rediseño integral del Dashboard | 🟢 Hecha | `refactor/fase-8-dashboard-redisenio` |
 | **Fase 9** | Gráficos accesibles con Recharts / Visx | ⚪ Pendiente | — |
 | **Fase 10** | Mejoras modulares opcionales | ⚪ Pendiente | — |
 
@@ -53,7 +53,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 
 ### Fase 8: Rediseño integral del Dashboard
 - **Objetivo:** Jerarquía docente orientada al día ("Hoy", alertas de riesgo, agenda de 15 días, métricas, grilla), tarjetas unificadas en `Card.jsx`, accesibilidad AA en 320–1024px.
-- **Estado:** ⚪ Pendiente.
+- **Estado:** 🟢 Hecha (Componente `DashboardTodayFocus.jsx` con saludo contextual, fecha en español, indicador de ciclo lectivo y estado en vivo de clases; motor de alerta temprana para asistencia crítica < 75% y materias sin clases; tarjetas unificadas sobre `Card.jsx` en Bento Grid; accesibilidad táctil WCAG AA con touch targets >= 44px; orquestador `DashboardPage.jsx` conservado en 189 líneas; 0 drift; build en verde; ADR-008 documentado).
 
 ### Fase 9: Gráficos accesibles con Recharts / Visx
 - **Objetivo:** Reemplazar gráficos SVG caseros por wrappers Recharts/Visx lazy-loaded con chunk dedicado y paleta de tokens.

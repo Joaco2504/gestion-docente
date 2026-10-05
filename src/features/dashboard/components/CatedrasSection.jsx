@@ -20,7 +20,7 @@ export default function CatedrasSection({
   onOpenNewCatedra
 }) {
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" aria-label="Sección de cátedras activas">
       {/* Cabecera de Cátedras con Filtros y Buscador */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
         <div className="flex items-center gap-2.5">
@@ -28,10 +28,10 @@ export default function CatedrasSection({
             <BookOpen className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-text-primary tracking-tight">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
               Mis Cátedras Activas
             </h2>
-            <p className="text-[11px] text-text-muted font-mono">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
               {searchQuery.trim()
                 ? `Mostrando ${filteredCatedras.length} de ${totalCatedrasCount} materias`
                 : `${filteredCatedras.length} de ${totalCatedrasCount} materias visibles`
@@ -58,7 +58,7 @@ export default function CatedrasSection({
               <button
                 type="button"
                 onClick={() => onSearchChange('')}
-                className="p-0.5 hover:bg-primary/20 rounded-full transition-colors text-primary ml-0.5 cursor-pointer"
+                className="p-1 hover:bg-primary/20 rounded-full transition-colors text-primary ml-0.5 cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
                 title="Limpiar búsqueda"
                 aria-label="Limpiar búsqueda"
               >
@@ -72,33 +72,36 @@ export default function CatedrasSection({
             <button
               type="button"
               onClick={() => onLevelFilterChange('ALL')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer min-h-[36px] sm:min-h-[28px] ${
                 levelFilter === 'ALL'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
+                  ? 'bg-white dark:bg-slate-900 text-primary shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
+              aria-label="Mostrar todas las cátedras"
             >
               Todas ({totalCatedrasCount})
             </button>
             <button
               type="button"
               onClick={() => onLevelFilterChange('TERCIARIO')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer min-h-[36px] sm:min-h-[28px] ${
                 levelFilter === 'TERCIARIO'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
+                  ? 'bg-white dark:bg-slate-900 text-primary shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
+              aria-label="Filtrar por nivel terciario"
             >
               Terciario
             </button>
             <button
               type="button"
               onClick={() => onLevelFilterChange('SECUNDARIO')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer min-h-[36px] sm:min-h-[28px] ${
                 levelFilter === 'SECUNDARIO'
-                  ? 'bg-surface text-primary shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
+                  ? 'bg-white dark:bg-slate-900 text-primary shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
+              aria-label="Filtrar por nivel secundario"
             >
               Secundario
             </button>

@@ -12,6 +12,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-005: Modularización Arquitectónica de DashboardPage.jsx sin Alteración Visual](#adr-005-modularización-arquitectónica-de-dashboardpagejsx-sin-alteración-visual)
 - [ADR-006: Consolidación de Métricas de Dashboard en RPCs PostgreSQL (dashboard_resumen y dashboard_agenda)](#adr-006-consolidación-de-métricas-de-dashboard-en-rpcs-postgresql-dashboard_resumen-y-dashboard_agenda)
 - [ADR-007: Implementación de Capa de Datos con TanStack Query, Tipado de Supabase y Adaptador de Caché](#adr-007-implementación-de-capa-de-datos-con-tanstack-query-tipado-de-supabase-y-adaptador-de-caché)
+- [ADR-008: Rediseño Integral del Dashboard con Jerarquía Orientada al Día (Hoy), Alerta Temprana, Tarjetas Unificadas y Accesibilidad AA](#adr-008-rediseño-integral-del-dashboard-con-jerarquía-orientada-al-día-hoy-alerta-temprana-tarjetas-unificadas-y-accesibilidad-aa)
 
 ---
 
@@ -239,6 +240,38 @@ El panel de inicio y las pestañas de cátedras presentaban parpadeos de recarga
   - Cero breaking changes: los componentes existentes siguen funcionando con total normalidad.
 - **Negativas / Costos:**
   - Añade la dependencia `@tanstack/react-query` (~14.4 kB gzipped en chunk aislado).
+
+---
+
+### ADR-008: Rediseño Integral del Dashboard con Jerarquía Orientada al Día (Hoy), Alerta Temprana, Tarjetas Unificadas y Accesibilidad AA
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 8
+
+#### Contexto
+El panel principal carecía de un foco operativo inmediato para la jornada del día, las alertas de asistencia crítica o materias sin clases requerían navegación manual por cátedra, existía heterogeneidad en el estilado de contenedores y algunos objetivos táctiles en móviles pequeños (320px–480px) no alcanzaban las pautas WCAG 2.1 AA.
+
+#### Decisión
+1. **Jerarquía Orientada al Día ("Hoy"):**
+   - Incorporación de `DashboardTodayFocus.jsx` con saludo contextual, fecha en español, indicador de ciclo lectivo y estado en vivo de clases programadas para el día.
+2. **Motor de Alerta Temprana:**
+   - Detección en memoria de materias con asistencia crítica (< 75%), cátedras sin clases registradas y eventos en las próximas 48 horas, con banner desplegable y acciones directas.
+3. **Unificación Estricta en `Card.jsx`:**
+   - Estandarización de `UpcomingClassCard`, `QuickMetricsCard`, `CatedraCard`, `DashboardAgendaSection` y `DashboardTodayFocus` sobre el componente canónico `Card.jsx`.
+4. **Ergonomía y Accesibilidad WCAG 2.1 AA:**
+   - Objetivos táctiles mínimos de 44x44 px (y 52 px en acciones rápidas), contrastes simétricos claro/oscuro y soporte sin desbordes para 320px–1024px+.
+5. **Control de Límites de Código:**
+   - Orquestador `DashboardPage.jsx` conservado en 189 líneas (< 200) y submódulos < 280 líneas (< 300).
+
+#### Consecuencias
+- **Positivas:**
+  - Mayor agilidad operativa para el docente al comenzar su jornada.
+  - Detección preventiva de riesgos de regularidad de alumnos.
+  - Estética Bento Grid consistente y 100% accesible en cualquier dispositivo móvil o de escritorio.
+- **Negativas / Costos:**
+  - Ninguna identificada.
+
 
 
 

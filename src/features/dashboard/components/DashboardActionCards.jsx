@@ -27,60 +27,64 @@ export default function DashboardActionCards({ onOpenNewCatedra, upcomingClass, 
   };
 
   return (
-    <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3" aria-label="Acciones rápidas del panel">
       <button
         type="button"
         onClick={onOpenNewCatedra}
-        className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer"
+        className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        aria-label="Crear nueva cátedra"
       >
         <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform shrink-0">
           <Plus className="w-4 h-4" />
         </div>
         <div className="min-w-0">
-          <span className="text-xs font-semibold text-text-primary block truncate">+ Nueva Cátedra</span>
-          <span className="hidden sm:block text-[10px] text-text-muted truncate">Crear asignatura</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">+ Nueva Cátedra</span>
+          <span className="hidden sm:block text-[10px] text-slate-500 dark:text-slate-400 truncate">Crear asignatura</span>
         </div>
       </button>
 
       <button
         type="button"
         onClick={() => navigate('/calendario')}
-        className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer"
+        className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        aria-label="Abrir calendario y cronograma de mesas"
       >
         <div className="p-2 sm:p-2.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform shrink-0">
           <CalendarIcon className="w-4 h-4" />
         </div>
         <div className="min-w-0">
-          <span className="text-xs font-semibold text-text-primary block truncate">Calendario y Mesas</span>
-          <span className="hidden sm:block text-[10px] text-text-muted truncate">Cronograma</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">Calendario y Mesas</span>
+          <span className="hidden sm:block text-[10px] text-slate-500 dark:text-slate-400 truncate">Cronograma</span>
         </div>
       </button>
 
       <button
         type="button"
         onClick={handleLicenciasClick}
-        className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer"
+        className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        aria-label="Gestionar licencia docente y artículos de inasistencia"
       >
         <div className="p-2 sm:p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform shrink-0">
           <ShieldAlert className="w-4 h-4" />
         </div>
         <div className="min-w-0">
-          <span className="text-xs font-semibold text-text-primary block truncate">Licencia Docente</span>
-          <span className="hidden sm:block text-[10px] text-text-muted truncate">Artículos y partes</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">Licencia Docente</span>
+          <span className="hidden sm:block text-[10px] text-slate-500 dark:text-slate-400 truncate">Artículos y partes</span>
         </div>
       </button>
 
       <button
         type="button"
         onClick={handleRecursosClick}
-        className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer"
+        className="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xs transition-all flex items-center gap-2.5 sm:gap-3 text-left group cursor-pointer min-h-[52px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        aria-label="Abrir repositorio de recursos y archivos de cátedra"
       >
         <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform shrink-0">
           <ExternalLink className="w-4 h-4" />
         </div>
         <div className="min-w-0">
-          <span className="text-xs font-semibold text-text-primary block truncate">Recursos y Drive</span>
-          <span className="hidden sm:block text-[10px] text-text-muted truncate">Repositorio de cátedra</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">Recursos y Drive</span>
+          <span className="hidden sm:block text-[10px] text-slate-500 dark:text-slate-400 truncate">Repositorio docente</span>
         </div>
       </button>
     </section>

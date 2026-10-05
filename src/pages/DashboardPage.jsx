@@ -3,11 +3,8 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData';
-import { 
-  calculateUpcomingClass, 
-  normalizeSearchText, 
-  calculateDisplayedMetrics 
-} from '../features/dashboard/utils/dashboardHelpers';
+import { calculateUpcomingClass, normalizeSearchText, calculateDisplayedMetrics } from '../features/dashboard/utils/dashboardHelpers';
+import DashboardTodayFocus from '../features/dashboard/components/DashboardTodayFocus';
 import DashboardActionCards from '../features/dashboard/components/DashboardActionCards';
 import UpcomingClassCard from '../features/dashboard/components/UpcomingClassCard';
 import QuickMetricsCard from '../features/dashboard/components/QuickMetricsCard';
@@ -26,12 +23,8 @@ export default function DashboardPage() {
 
   // 1. Data Hook
   const {
-    loading,
-    catedrasList,
-    setCatedrasList,
-    agendaItems,
-    setAgendaItems,
-    fetchDashboardData
+    loading, catedrasList, setCatedrasList,
+    agendaItems, setAgendaItems, fetchDashboardData
   } = useDashboardData(user, isDemo, activeCiclo);
 
   // 2. Filters & Selection State
@@ -54,7 +47,6 @@ export default function DashboardPage() {
   const filteredCatedras = useMemo(() => {
     const rawQuery = searchQuery.trim();
     const normalizedQuery = normalizeSearchText(rawQuery);
-
     return catedrasList.filter(cat => {
       if (levelFilter !== 'ALL' && cat.nivel !== levelFilter) return false;
       if (selectedInstFilter !== 'ALL' && cat.institucion_id !== selectedInstFilter) return false;
@@ -84,14 +76,23 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Acciones Rápidas Superiores */}
+      {/* 1. Jerarquía del Día "Hoy" y Alertas Tempranas */}
+      <DashboardTodayFocus
+        user={user}
+        upcomingClass={upcomingClass}
+        catedrasList={catedrasList}
+        agendaItems={agendaItems}
+        activeCiclo={activeCiclo}
+      />
+
+      {/* 2. Acciones Rápidas Superiores */}
       <DashboardActionCards
         onOpenNewCatedra={() => setIsNewCatedraModalOpen(true)}
         upcomingClass={upcomingClass}
         firstCatedraId={catedrasList[0]?.id}
       />
 
-      {/* 2. Monitoreo Operativo Bento 50/50 */}
+      {/* 3. Monitoreo Operativo Bento 50/50 */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-stretch">
         <UpcomingClassCard upcomingClass={upcomingClass} />
         <QuickMetricsCard
@@ -103,7 +104,7 @@ export default function DashboardPage() {
         />
       </section>
 
-      {/* 3. Mis Cátedras Activas */}
+      {/* 4. Mis Cátedras Activas */}
       <CatedrasSection
         loading={loading}
         searchQuery={searchQuery}
@@ -122,14 +123,14 @@ export default function DashboardPage() {
         onOpenNewCatedra={() => setIsNewCatedraModalOpen(true)}
       />
 
-      {/* 4. Agenda Crítica & Fechas Importantes */}
+      {/* 5. Agenda Crítica & Fechas Importantes */}
       <DashboardAgendaSection
         loading={loading}
         agendaItems={agendaItems}
         onOpenNewEventModal={() => setIsNewEventModalOpen(true)}
       />
 
-      {/* 5. Modales */}
+      {/* 6. Modales */}
       <NuevaCatedraModal
         isOpen={isNewCatedraModalOpen}
         onClose={() => setIsNewCatedraModalOpen(false)}
@@ -141,11 +142,8 @@ export default function DashboardPage() {
         ciclosLectivos={ciclosLectivos}
         refreshData={refreshData}
         onCatedraCreated={async (newCat) => {
-          if (isDemo || !user) {
-            setCatedrasList(prev => [newCat, ...prev]);
-          } else {
-            await fetchDashboardData();
-          }
+          if (isDemo || !user) setCatedrasList(prev => [newCat, ...prev]);
+          else await fetchDashboardData();
         }}
       />
 
@@ -156,11 +154,8 @@ export default function DashboardPage() {
         user={user}
         isDemo={isDemo}
         onClassCreated={async (localClass) => {
-          if (localClass) {
-            setCatedrasList(prev => prev.map(c => c.id === targetCatedraForClass?.id ? { ...c, ultima_clase: localClass } : c));
-          } else {
-            await fetchDashboardData();
-          }
+          if (localClass) setCatedrasList(prev => prev.map(c => c.id === targetCatedraForClass?.id ? { ...c, ultima_clase: localClass } : c));
+          else await fetchDashboardData();
         }}
       />
 
@@ -170,11 +165,8 @@ export default function DashboardPage() {
         user={user}
         isDemo={isDemo}
         onEventCreated={async (localEvent) => {
-          if (localEvent) {
-            setAgendaItems(prev => [localEvent, ...prev].sort((a, b) => a.fecha.localeCompare(b.fecha)));
-          } else {
-            await fetchDashboardData();
-          }
+          if (localEvent) setAgendaItems(prev => [localEvent, ...prev].sort((a, b) => a.fecha.localeCompare(b.fecha)));
+          else await fetchDashboardData();
         }}
       />
 

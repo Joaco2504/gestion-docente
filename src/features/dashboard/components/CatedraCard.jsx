@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
+import Card from '../../../components/common/Card';
 import { formatFechaLegible, getTodayYMD } from '../../../lib/dateUtils';
 
 export default function CatedraCard({
@@ -31,7 +32,7 @@ export default function CatedraCard({
   const isMenuOpen = activeMenuCatedraId === cat.id;
 
   return (
-    <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs hover:shadow-md hover:-translate-y-1 hover:border-primary/40 transition-all duration-200 flex flex-col justify-between group">
+    <Card hover={true} className="flex flex-col justify-between group">
       <div className="space-y-4">
         {/* Encabezado: Badges Nivel + Modalidad + Botones de Acción */}
         <div className="flex items-center justify-between gap-2">
@@ -261,11 +262,12 @@ export default function CatedraCard({
           size="sm"
           icon={ArrowRight}
           onClick={() => navigate(`/catedra/${cat.id}`)}
-          className="text-xs shadow-xs rounded-xl"
+          className="text-xs shadow-xs rounded-xl min-h-[44px] sm:min-h-[36px]"
+          aria-label={`Ingresar a la cátedra ${cat.nombre}`}
         >
           Ingresar
         </Button>
       </div>
-    </div>
+    </Card>
   );
 }
