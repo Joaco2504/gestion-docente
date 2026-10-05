@@ -40,8 +40,33 @@ try {
 }
 
 const TIMEZONE = TEMPLATES_CONFIG.timezone || 'America/Argentina/Catamarca';
-const DEFAULT_GUILD_ID = TEMPLATES_CONFIG.guild_id || '1430396981095960600';
-const DEFAULT_CHANNEL_ID = TEMPLATES_CONFIG.channel_id || '1556366651296055357';
+const DEFAULT_GUILD_ID = process.env.DISCORD_GUILD_ID || TEMPLATES_CONFIG.guild_id || '1430396981095960600';
+let DEFAULT_CHANNEL_ID = process.env.DISCORD_CHANNEL_ID || TEMPLATES_CONFIG.channel_id || '1556366651296055357';
+
+/**
+ * Resuelve el canal de Discord desde configuracion_sistema, env o plantilla
+ */
+export async function resolveDiscordChannel(supabaseClient = null) {
+  if (process.env.DISCORD_CHANNEL_ID) {
+    return process.env.DISCORD_CHANNEL_ID;
+  }
+  if (supabaseClient) {
+    try {
+      const { data } = await supabaseClient
+        .from('configuracion_sistema')
+        .select('discord_canal_recordatorios')
+        .limit(1)
+        .single();
+      if (data?.discord_canal_recordatorios) {
+        DEFAULT_CHANNEL_ID = data.discord_canal_recordatorios;
+        return data.discord_canal_recordatorios;
+      }
+    } catch (e) {
+      // Usar fallback si configuracion_sistema no responde
+    }
+  }
+  return DEFAULT_CHANNEL_ID;
+}
 
 /**
  * Convierte código HEX a entero decimal para embeds de Discord

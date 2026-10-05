@@ -101,7 +101,7 @@
     {
       "parameters": {
         "guildId": "1430396981095960600",
-        "channelId": "1556366651296055357",
+        "channelId": "={{ $env.DISCORD_CHANNEL_ID || $json.canal_id || '1556366651296055357' }}",
         "content": "",
         "embeds": [
           {
@@ -133,7 +133,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO public.recordatorios_enviados (evento_id, tipo_evento, tipo_aviso, destinatario_canal, estado, intentos, enviado_en) VALUES ($1, $2, $3, '1556366651296055357', 'ENVIADO', 1, NOW()) ON CONFLICT (evento_id, tipo_aviso) DO UPDATE SET estado = 'ENVIADO', enviado_en = NOW();",
+        "query": "INSERT INTO public.recordatorios_enviados (evento_id, tipo_evento, tipo_aviso, destinatario_canal, estado, intentos, enviado_en) VALUES ($1, $2, $3, COALESCE((SELECT discord_canal_recordatorios FROM public.configuracion_sistema LIMIT 1), '1556366651296055357'), 'ENVIADO', 1, NOW()) ON CONFLICT (evento_id, tipo_aviso) DO UPDATE SET estado = 'ENVIADO', enviado_en = NOW();",
         "options": {
           "queryReplacement": "={{ [$('Evaluar Ventana de Aviso e Idempotencia').item.json.evento_id, $('Evaluar Ventana de Aviso e Idempotencia').item.json.tipo_evento, $('Evaluar Ventana de Aviso e Idempotencia').item.json.tipo_aviso] }}"
         }
