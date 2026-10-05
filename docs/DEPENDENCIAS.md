@@ -160,6 +160,18 @@ Todas las dependencias deben ser **100 % gratuitas y Open Source** bajo licencia
   - `headlessui`: Descartado por menor granularidad en primitivas compuestas de menús y tooltips, y menor adopción en el ecosistema actual de React/Tailwind.
   - Implementaciones caseras con listeners globales: Descartadas por riesgo de fugas de memoria, bugs en trampas de foco de teclado y falta de aislamiento ARIA estándar.
 
+---
+
+### Fase 10 (Sub-mejora 10.6): Tipado TypeScript Progresivo en Modelos Clave y Utilitarios
+
+- **Nuevas Dependencias de Producción:** **0** (Uso exclusivo de tipos nativos de TypeScript ya presentes en el proyecto).
+- **Tamaño en bundle de producción:** 0 kB (las interfaces y tipos son eliminados completamente durante el paso de transpilación de Vite/esbuild).
+- **Propósito:** Creación de un sistema unificado y tipado de modelos de dominio en `src/types/`:
+  - `src/types/academic.ts`: Interfaces para cálculo de porcentajes de asistencia, condiciones académicas RAM y semáforo de alerta temprana (`EarlyWarningRisk`).
+  - `src/types/dashboard.ts`: Interfaces para RPCs de PostgreSQL (`dashboard_resumen`, `dashboard_agenda`), agenda en vivo y métricas del panel docente.
+  - `src/types/index.ts`: Barril centralizado de exportación para consumo consistente en toda la base de código.
+
+
 
 
 

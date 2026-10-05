@@ -436,4 +436,30 @@ Los diálogos y modales de la aplicación dependían de una implementación manu
 - **Negativas / Costos:**
   - Nuevas dependencias unstyled, mitigadas por aislamiento en el chunk `vendor-radix` y cero bloqueo en la carga inicial.
 
+---
+
+### ADR-015: Tipado TypeScript Progresivo en Modelos Clave, Utilitarios y Barril Central
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 10 (Sub-mejora 10.6)
+
+#### Contexto
+A pesar de contar con tipos generados para Supabase (`database.types.ts`) y constantes canónicas (`enums.ts`), no existía un barril centralizado de exportación (`index.ts`) ni definiciones de tipo para contratos complejos de alto nivel como el cálculo de condición final RAM, opciones de asistencia y respuestas de RPCs de PostgreSQL.
+
+#### Decisión
+1. Crear `src/types/academic.ts` (109 líneas) con tipos estructurados para el cálculo de regularidad, opciones de presentismo, semáforo `EarlyWarningRisk`, modelo enriquecido `EstudianteCatedra` y re-exportación de contratos desde `ramCalculator.ts`.
+2. Crear `src/types/dashboard.ts` (84 líneas) modelando formalmente los retornos de RPCs de PostgreSQL (`DashboardResumenRPCResponse`, `DashboardAgendaRPCResponse`), agenda en vivo y métricas del panel docente.
+3. Centralizar todo el subsistema en `src/types/index.ts` (9 líneas) como barril unificado de exportación.
+
+#### Consecuencias
+- **Positivas:**
+  - Importaciones limpias y centralizadas desde `@/types` o `../types`.
+  - Autocompletado, chequeo estático y documentación de contratos para desarrolladores y herramientas de IA.
+  - Cero impacto en el bundle de producción (0 kB agregados al runtime).
+  - Cumplimiento de la restricción de modularidad (< 300 líneas por módulo).
+- **Negativas / Costos:**
+  - Ninguna; interoperabilidad 100% transparente con JavaScript y TypeScript existentes.
+
+
 

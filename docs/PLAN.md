@@ -16,8 +16,8 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | **Fase 6** | Rendimiento y RPC `dashboard_resumen` | 🟢 Hecha | `refactor/fase-6-rpc-dashboard-resumen` |
 | **Fase 7** | Capa de datos con TanStack Query | 🟢 Hecha | `refactor/fase-7-tanstack-query` |
 | **Fase 8** | Rediseño integral del Dashboard | 🟢 Hecha | `refactor/fase-8-dashboard-redisenio` |
-| **Fase 9** | Gráficos accesibles con Recharts / Visx | 🟢 Hecha | `refactor/fase-9-graficos-recharts` |
-| **Fase 10** | Mejoras modulares opcionales | 🟡 En progreso (10.1 a 10.5 Hechas) | `refactor/fase-10-radix-primitives` |
+| **Fase 10** | Mejoras modulares opcionales | 🟢 Hecha | `refactor/fase-10-typescript-progresivo` |
+
 
 ---
 
@@ -66,4 +66,4 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 - **Sub-mejora 10.3 (Manejo Robusto de Fechas con date-fns y Locale es):** 🟢 Hecha (Instalación de `date-fns` v4 con chunk dedicado `vendor-dates` en Vite; refactorización de `src/lib/dateUtils.js` y `src/utils/feriadosAcademicos.ts` eliminando bugs de desfase por huso horario y parsing manual; formateo idiomático en español y verificación inmutable de intervalos; 0 schema drift; 50/50 tests pgTAP pasando; build en verde; ADR-012 documentado).
 - **Sub-mejora 10.4 (Tablas Avanzadas con TanStack Table):** 🟢 Hecha (Instalación de `@tanstack/react-table` v8 con chunk dedicado `vendor-table`; factoría de columnas en `studentColumns.jsx` y tabla headless accesible `StudentsDataTable.jsx` con primera columna fija *sticky DNI*, ordenamiento con `aria-sort` y paginación navegable; integración en `StudentsTab.jsx` reduciendo más de 360 líneas de código acoplado; 0 schema drift; 50/50 tests pgTAP pasando; build en verde; ADR-013 documentado).
 - **Sub-mejora 10.5 (Primitivas Accesibles con Radix UI):** 🟢 Hecha (Instalación de `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu` y `@radix-ui/react-tooltip` con chunk dedicado `vendor-radix`; refactorización de `Modal.jsx` con trampa de foco nativa WAI-ARIA, portaling y preservación del gesto mobile swipe-down; creación de `DropdownMenu.jsx`; `TooltipProvider` en `App.jsx` y refactorización de `RiskBadge.jsx` con detección de colisión; 0 schema drift; 50/50 tests pgTAP pasando; build en verde; ADR-014 documentado).
-- **Sub-mejora final (10.6):** ⚪ Tipado TypeScript progresivo en modelos clave y utilitarios.
+- **Sub-mejora 10.6 (Tipado TypeScript Progresivo en Modelos Clave):** 🟢 Hecha (Modelos académicos centralizados en `src/types/academic.ts` y métricas del dashboard en `src/types/dashboard.ts`; barril canónico `src/types/index.ts` re-exportando tipos de la base de datos `database.types.ts` y contratos RAM de `ramCalculator.ts`; 0 overhead en runtime [transpilación nativa por Vite/esbuild]; 0 schema drift; 50/50 tests pgTAP pasando; build en verde; ADR-015 documentado).
