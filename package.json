@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "db:types": "supabase gen types typescript --local > src/types/database.types.ts",
-    "db:diff": "supabase db diff --local --schema public"
+    "db:diff": "supabase db diff --local --schema public",
+    "db:test": "supabase test db"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
