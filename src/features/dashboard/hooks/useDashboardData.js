@@ -104,7 +104,112 @@ export function useDashboardData(user, isDemo, activeCiclo) {
   }, []);
 
   /**
-   * Carga y optimización de datos en paralelo desde Supabase
+   * Fallback de consultas en paralelo desde el cliente ante ausencia o error del RPC
+   */
+  const fetchClientFallback = useCallback(async (todayIso, next15Days) => {
+    const [catedrasRes, eventsRes, periodsRes] = await Promise.all([
+      supabase
+        .from('catedras')
+        .select(`*, instituciones(id, nombre, nivel), ciclos_lectivos(id, anio, activo)`)
+        .eq('docente_id', user.id)
+        .order('nombre', { ascending: true }),
+      supabase
+        .from('eventos_calendario')
+        .select('*')
+        .eq('docente_id', user.id)
+        .gte('fecha_inicio', todayIso + 'T00:00:00')
+        .lte('fecha_inicio', next15Days + 'T23:59:59')
+        .order('fecha_inicio', { ascending: true }),
+      supabase.from('periodos_academicos').select('*').order('fecha_inicio', { ascending: true })
+    ]);
+
+    const rawCatedras = catedrasRes.data || [];
+    const catedraIds = rawCatedras.map(c => c.id);
+    let inscripcionesByCat = {};
+    let latestClaseByCat = {};
+    let attendancePctByCat = {};
+    let clasesCountByCat = {};
+
+    if (catedraIds.length > 0) {
+      const [inscRes, clasesRes] = await Promise.all([
+        supabase.from('inscripciones').select('id, catedra_id, estudiante_id, estado_academico').in('catedra_id', catedraIds),
+        supabase.from('clases').select('id, catedra_id, fecha, tema').in('catedra_id', catedraIds).order('fecha', { ascending: false })
+      ]);
+
+      (inscRes.data || []).forEach(row => {
+        inscripcionesByCat[row.catedra_id] = (inscripcionesByCat[row.catedra_id] || 0) + 1;
+      });
+
+      const allClases = clasesRes.data || [];
+      clasesCountByCat = (allClases || []).reduce((acc, c) => {
+        acc[c.catedra_id] = (acc[c.catedra_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      allClases.forEach(c => {
+        if (!latestClaseByCat[c.catedra_id]) {
+          latestClaseByCat[c.catedra_id] = { ...c };
+        }
+      });
+
+      const allClaseIds = allClases.map(c => c.id);
+      if (allClaseIds.length > 0) {
+        const { data: allAsistData } = await supabase
+          .from('asistencias')
+          .select('id, clase_id, estudiante_id, estado')
+          .in('clase_id', allClaseIds);
+
+        const asistMap = {};
+        const claseToCat = {};
+        allClases.forEach(c => { claseToCat[c.id] = c.catedra_id; });
+        const totalByCat = {};
+        const presentesByCat = {};
+
+        (allAsistData || []).forEach(a => {
+          if (!asistMap[a.clase_id]) asistMap[a.clase_id] = { presentes: 0, total: 0 };
+          asistMap[a.clase_id].total += 1;
+          if (a.estado === 'PRESENTE') asistMap[a.clase_id].presentes += 1;
+
+          const catId = claseToCat[a.clase_id];
+          if (catId) {
+            totalByCat[catId] = (totalByCat[catId] || 0) + 1;
+            if (a.estado === 'PRESENTE') presentesByCat[catId] = (presentesByCat[catId] || 0) + 1;
+          }
+        });
+
+        Object.keys(latestClaseByCat).forEach(catId => {
+          const cls = latestClaseByCat[catId];
+          if (cls && asistMap[cls.id]) {
+            cls.presentes = asistMap[cls.id].presentes;
+            cls.totalAsist = asistMap[cls.id].total;
+          }
+        });
+
+        catedraIds.forEach(catId => {
+          const tot = totalByCat[catId] || 0;
+          const pres = presentesByCat[catId] || 0;
+          attendancePctByCat[catId] = tot > 0 ? Number(((pres / tot) * 100).toFixed(1)) : null;
+        });
+      }
+    }
+
+    const agenda = processAgendaItems(eventsRes.data || [], periodsRes.data || [], todayIso, next15Days);
+    const enriched = rawCatedras.map(c => ({
+      ...c,
+      institucion_nombre: c.instituciones?.nombre || 'Institución',
+      institucion_nivel: c.instituciones?.nivel || c.nivel,
+      estudiantes_count: inscripcionesByCat[c.id] ?? 0,
+      clases_count: clasesCountByCat?.[c.id] ?? 0,
+      ultima_clase: latestClaseByCat[c.id] || null,
+      asistencia_promedio: attendancePctByCat[c.id] ?? null
+    }));
+
+    setCatedrasList(enriched);
+    setAgendaItems(agenda);
+  }, [user]);
+
+  /**
+   * Carga de datos optimizada mediante RPC con fallback automático
    */
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -113,148 +218,20 @@ export function useDashboardData(user, isDemo, activeCiclo) {
         const todayIso = new Date().toISOString().split('T')[0];
         const next15Days = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
 
-        // 1. Cátedras globales del docente (sin filtrar por instituto) + Eventos y Períodos
-        const [catedrasRes, eventsRes, periodsRes] = await Promise.all([
-          supabase
-            .from('catedras')
-            .select(`
-              *,
-              instituciones (
-                id,
-                nombre,
-                nivel
-              ),
-              ciclos_lectivos (
-                id,
-                anio,
-                activo
-              )
-            `)
-            .eq('docente_id', user.id)
-            .order('nombre', { ascending: true }),
-
-          supabase
-            .from('eventos_calendario')
-            .select('*')
-            .eq('docente_id', user.id)
-            .gte('fecha_inicio', todayIso + 'T00:00:00')
-            .lte('fecha_inicio', next15Days + 'T23:59:59')
-            .order('fecha_inicio', { ascending: true }),
-
-          supabase
-            .from('periodos_academicos')
-            .select('*')
-            .order('fecha_inicio', { ascending: true })
+        // 1. Intentar llamadas optimizadas a RPCs
+        const [resumenRes, agendaRes] = await Promise.all([
+          supabase.rpc('dashboard_resumen', { p_docente_id: user.id }),
+          supabase.rpc('dashboard_agenda', { p_docente_id: user.id, p_dias: 15 })
         ]);
 
-        const rawCatedras = catedrasRes.data || [];
-        const catedraIds = rawCatedras.map(c => c.id);
-
-        let inscripcionesByCat = {};
-        let latestClaseByCat = {};
-        let attendancePctByCat = {};
-        let clasesCountByCat = {};
-
-        if (catedraIds.length > 0) {
-          // 2. Consultar inscripciones y todas las clases en paralelo
-          const [inscRes, clasesRes] = await Promise.all([
-            supabase
-              .from('inscripciones')
-              .select('id, catedra_id, estudiante_id, estado_academico')
-              .in('catedra_id', catedraIds),
-
-            supabase
-              .from('clases')
-              .select('id, catedra_id, fecha, tema')
-              .in('catedra_id', catedraIds)
-              .order('fecha', { ascending: false })
-          ]);
-
-          // Conteo de inscriptos por cátedra
-          (inscRes.data || []).forEach(row => {
-            inscripcionesByCat[row.catedra_id] = (inscripcionesByCat[row.catedra_id] || 0) + 1;
-          });
-
-          // Obtener la clase más reciente de cada cátedra y conteo total de clases por cátedra
-          const allClases = clasesRes.data || [];
-          
-          clasesCountByCat = (allClases || []).reduce((acc, c) => {
-            const catId = c.catedra_id;
-            acc[catId] = (acc[catId] || 0) + 1;
-            return acc;
-          }, {});
-
-          allClases.forEach(c => {
-            if (!latestClaseByCat[c.catedra_id]) {
-              latestClaseByCat[c.catedra_id] = { ...c };
-            }
-          });
-
-          // 3. Consulta unificada y atómica de asistencias para todas las clases de las cátedras
-          const allClaseIds = allClases.map(c => c.id);
-          if (allClaseIds.length > 0) {
-            const { data: allAsistData } = await supabase
-              .from('asistencias')
-              .select('id, clase_id, estudiante_id, estado')
-              .in('clase_id', allClaseIds);
-
-            const asistMap = {};
-            const claseToCat = {};
-            allClases.forEach(c => { claseToCat[c.id] = c.catedra_id; });
-
-            const totalByCat = {};
-            const presentesByCat = {};
-
-            (allAsistData || []).forEach(a => {
-              if (!asistMap[a.clase_id]) {
-                asistMap[a.clase_id] = { presentes: 0, total: 0 };
-              }
-              asistMap[a.clase_id].total += 1;
-              if (a.estado === 'PRESENTE') {
-                asistMap[a.clase_id].presentes += 1;
-              }
-
-              const catId = claseToCat[a.clase_id];
-              if (catId) {
-                totalByCat[catId] = (totalByCat[catId] || 0) + 1;
-                if (a.estado === 'PRESENTE') {
-                  presentesByCat[catId] = (presentesByCat[catId] || 0) + 1;
-                }
-              }
-            });
-
-            // Asignar presentes a la última clase
-            Object.keys(latestClaseByCat).forEach(catId => {
-              const cls = latestClaseByCat[catId];
-              if (cls && asistMap[cls.id]) {
-                cls.presentes = asistMap[cls.id].presentes;
-                cls.totalAsist = asistMap[cls.id].total;
-              }
-            });
-
-            // Calcular porcentaje promedio de asistencia por cátedra
-            catedraIds.forEach(catId => {
-              const tot = totalByCat[catId] || 0;
-              const pres = presentesByCat[catId] || 0;
-              attendancePctByCat[catId] = tot > 0 ? Number(((pres / tot) * 100).toFixed(1)) : null;
-            });
-          }
+        if (!resumenRes.error && resumenRes.data?.catedras) {
+          setCatedrasList(resumenRes.data.catedras);
+          setAgendaItems(agendaRes.data || []);
+        } else {
+          // 2. Si el RPC no está disponible o falla, ejecutar fallback transparente
+          console.info('[Dashboard] Ejecutando consulta fallback por queries cliente...');
+          await fetchClientFallback(todayIso, next15Days);
         }
-
-        const agenda = processAgendaItems(eventsRes.data || [], periodsRes.data || [], todayIso, next15Days);
-
-        const enriched = rawCatedras.map(c => ({
-          ...c,
-          institucion_nombre: c.instituciones?.nombre || 'Institución',
-          institucion_nivel: c.instituciones?.nivel || c.nivel,
-          estudiantes_count: inscripcionesByCat[c.id] ?? 0,
-          clases_count: clasesCountByCat?.[c.id] ?? 0,
-          ultima_clase: latestClaseByCat[c.id] || null,
-          asistencia_promedio: attendancePctByCat[c.id] ?? null
-        }));
-
-        setCatedrasList(enriched);
-        setAgendaItems(agenda);
       } else {
         loadDemoData();
       }
@@ -263,7 +240,7 @@ export function useDashboardData(user, isDemo, activeCiclo) {
     } finally {
       setLoading(false);
     }
-  }, [user, isDemo, loadDemoData]);
+  }, [user, isDemo, loadDemoData, fetchClientFallback]);
 
   useEffect(() => {
     fetchDashboardData();

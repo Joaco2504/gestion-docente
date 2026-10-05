@@ -10,6 +10,7 @@ Este documento registra las decisiones técnicas tomadas a lo largo de las disti
 - [ADR-003: Deprecación y Eliminación de la Tabla Huérfana public.docentes en favor de public.perfiles](#adr-003-deprecación-y-eliminación-de-la-tabla-huérfana-publicdocentes-en-favor-de-publicperfiles)
 - [ADR-004: Estrategia de Integridad de Dominios mediante CHECK Constraints, Triggers Auto-Normalizadores y Enums TypeScript](#adr-004-estrategia-de-integridad-de-dominios-mediante-check-constraints-triggers-auto-normalizadores-y-enums-typescript)
 - [ADR-005: Modularización Arquitectónica de DashboardPage.jsx sin Alteración Visual](#adr-005-modularización-arquitectónica-de-dashboardpagejsx-sin-alteración-visual)
+- [ADR-006: Consolidación de Métricas de Dashboard en RPCs PostgreSQL (dashboard_resumen y dashboard_agenda)](#adr-006-consolidación-de-métricas-de-dashboard-en-rpcs-postgresql-dashboard_resumen-y-dashboard_agenda)
 
 ---
 
@@ -165,6 +166,42 @@ El componente `DashboardPage.jsx` contenía 1.968 líneas en un solo archivo mon
   - Cero dependencias adicionales añadidas.
 - **Negativas / Costos:**
   - Mayor cantidad de archivos individuales a mantener en `src/features/dashboard/`.
+
+---
+
+### ADR-006: Consolidación de Métricas de Dashboard en RPCs PostgreSQL (`dashboard_resumen` y `dashboard_agenda`)
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 6
+
+#### Contexto
+En el flujo previo, para computar métricas de cátedras (alumnos inscriptos, clases, asistencia promedio general y por cátedra, y última clase dictada con conteo de presentes), el frontend realizaba múltiples consultas a la base de datos descargando miles de registros detallados de asistencias y clases para reducirlos en memoria del navegador, incurriendo en sobre-descarga de red y problemas de N+1. La agenda docente realizaba descargas completas de calendarios y períodos académicos para filtrarlos en el cliente.
+
+#### Decisión
+1. **RPC `public.dashboard_resumen(p_docente_id UUID)`:**
+   - Función `SECURITY DEFINER` con `SET search_path = public` explícito.
+   - Validación defensiva de aislamiento multi-inquilino (`auth.uid() = p_docente_id` o `public.es_superadmin()`).
+   - CTEs de alto rendimiento (`cte_catedras`, `cte_inscriptos`, `cte_clases`, `cte_asistencias_catedra`, `cte_ultima_clase`) para calcular en un único escaneo métricas globales, métricas por cátedra y última clase dictada con presentes.
+   - Retorno en formato estructurado `JSONB` compacto (< 5 KB).
+2. **RPC `public.dashboard_agenda(p_docente_id UUID, p_dias INT DEFAULT 15)`:**
+   - Función `SECURITY DEFINER` con `SET search_path = public`.
+   - Agregación unificada cronológica de `eventos_calendario` y `periodos_academicos` en ventana de `p_dias`.
+3. **Frontend con Fallback Transparente:**
+   - Invocación en paralelo en `src/features/dashboard/hooks/useDashboardData.js`.
+   - Manejo de excepciones y fallback automático transparente hacia queries tradicionales de cliente si los RPCs fallan o no están disponibles.
+4. **Verificación y Cobertura:**
+   - Suite pgTAP `08_fase6_rpc_dashboard.sql` con 9 asserts dedicados (50/50 tests globales pasando al 100%).
+   - Script de rollback atómico en `supabase/rollbacks/20261005080000_fase6_rpc_dashboard_rollback.sql`.
+
+#### Consecuencias
+- **Positivas:**
+  - Eliminación del patrón N+1 y sobre-descarga de datos en red (de cientos/miles de registros a un payload < 5 KB).
+  - Reducción sustancial del tiempo de carga inicial y menor consumo en dispositivos móviles.
+  - Computación consistente e idéntica de métricas docentes en base de datos.
+  - Fallback transparente que garantiza alta resiliencia y disponibilidad continua.
+- **Negativas / Costos:**
+  - Las reglas de agregación de métricas de cátedras ahora residen en PostgreSQL y deben mantenerse sincronizadas con el esquema.
 
 
 

@@ -13,7 +13,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 | **Fase 3** | Unificación de columnas duplicadas (expand → migrate → contract) | 🟢 Hecha | `refactor/fase-3-unificacion-columnas` |
 | **Fase 4** | Integridad de dominios (ENUM vs. CHECK) | 🟢 Hecha | `refactor/fase-4-integridad-dominios` |
 | **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | 🟢 Hecha | `refactor/fase-5-dashboard-modularizacion` |
-| **Fase 6** | Rendimiento y RPC `dashboard_resumen` | ⚪ Pendiente | — |
+| **Fase 6** | Rendimiento y RPC `dashboard_resumen` | 🟢 Hecha | `refactor/fase-6-rpc-dashboard-resumen` |
 | **Fase 7** | Capa de datos con TanStack Query | ⚪ Pendiente | — |
 | **Fase 8** | Rediseño integral del Dashboard | ⚪ Pendiente | — |
 | **Fase 9** | Gráficos accesibles con Recharts / Visx | ⚪ Pendiente | — |
@@ -45,7 +45,7 @@ Este documento registra el progreso y estado de las 10 fases del plan de refacto
 
 ### Fase 6: Rendimiento y RPC `dashboard_resumen`
 - **Objetivo:** Consolidar métricas del dashboard en RPCs de PostgreSQL (`dashboard_resumen`, `dashboard_agenda`), golden tests comparativos cliente vs RPC, eliminar N+1 de asistencias y clases.
-- **Estado:** ⚪ Pendiente.
+- **Estado:** 🟢 Hecha (Funciones `dashboard_resumen` y `dashboard_agenda` creadas con `SECURITY DEFINER` y `SET search_path = public`; rollback en `supabase/rollbacks/20261005080000_fase6_rpc_dashboard_rollback.sql`; suite pgTAP `08_fase6_rpc_dashboard.sql` con 50/50 tests globales en verde; fallback transparente en `useDashboardData.js`; 0 drift en `npm run db:diff`; build limpio en Vite; ADR-006 documentado).
 
 ### Fase 7: Capa de datos con TanStack Query
 - **Objetivo:** Implementar `@tanstack/react-query`, reemplazar gradualmente `catedraCache.js`, tipar llamadas Supabase con `Database`.
