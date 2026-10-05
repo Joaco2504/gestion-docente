@@ -19,7 +19,8 @@ export default defineConfig({
           'vendor-excel': ['xlsx'],
           'vendor-forms': ['react-hook-form', 'zod'],
           'vendor-dates': ['date-fns'],
-          'vendor-table': ['@tanstack/react-table']
+          'vendor-table': ['@tanstack/react-table'],
+          'vendor-radix': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tooltip']
         }
       }
     }

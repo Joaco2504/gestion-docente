@@ -33,6 +33,7 @@ import GlobalNoticeBanner from './components/layout/GlobalNoticeBanner';
 import ScrollToTop from './components/common/ScrollToTop';
 import { GraduationCap } from 'lucide-react';
 import { NotificationProvider } from './context/NotificationContext';
+import { TooltipProvider } from './components/common/Tooltip';
 
 function AsistenciaRedirect() {
   const { catedras } = useApp();
@@ -160,31 +161,33 @@ export default function App() {
 
   return (
     <NotificationProvider>
-      <BrowserRouter>
-        {/* Scroll restoration helper: resets scroll to top on every navigation */}
-        <ScrollToTop />
+      <TooltipProvider>
+        <BrowserRouter>
+          {/* Scroll restoration helper: resets scroll to top on every navigation */}
+          <ScrollToTop />
 
-        {/* Sonner Floating Notifications */}
-        <Toaster 
-          richColors 
-          closeButton 
-          position="top-right" 
-          theme={theme === 'system' ? undefined : theme} 
-        />
+          {/* Sonner Floating Notifications */}
+          <Toaster 
+            richColors 
+            closeButton 
+            position="top-right" 
+            theme={theme === 'system' ? undefined : theme} 
+          />
 
-        <Suspense fallback={<RouteLoadingSpinner mensaje="Iniciando portal..." />}>
-          <Routes>
-            {/* Ruta Pública del Estudiante: Accesible sin autenticación */}
-            <Route path="/consulta/:catedraId" element={<ConsultaAlumnoPage />} />
+          <Suspense fallback={<RouteLoadingSpinner mensaje="Iniciando portal..." />}>
+            <Routes>
+              {/* Ruta Pública del Estudiante: Accesible sin autenticación */}
+              <Route path="/consulta/:catedraId" element={<ConsultaAlumnoPage />} />
 
-            {/* Ruta Explícita de Autenticación / Login */}
-            <Route path="/login" element={<Login />} />
+              {/* Ruta Explícita de Autenticación / Login */}
+              <Route path="/login" element={<Login />} />
 
-            {/* Rutas del Sistema Docente */}
-            <Route path="/*" element={<AuthenticatedDocenteShell />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+              {/* Rutas del Sistema Docente */}
+              <Route path="/*" element={<AuthenticatedDocenteShell />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </TooltipProvider>
     </NotificationProvider>
   );
 }

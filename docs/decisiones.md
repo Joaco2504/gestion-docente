@@ -410,3 +410,30 @@ Las tablas de gestión académica (`StudentsTab.jsx`, `GradesTab.jsx`) contenía
 - **Negativas / Costos:**
   - Nueva dependencia de runtime, mitigada por aislamiento en chunk `vendor-table` y carga diferida.
 
+---
+
+### ADR-014: Primitivas Accesibles de Interfaz con Radix UI (@radix-ui/react-dialog, dropdown-menu, tooltip) y Aislamiento en Bundle
+
+- **Fecha:** 2026-10-05
+- **Estado:** Aceptado
+- **Fase:** Fase 10 (Sub-mejora 10.5)
+
+#### Contexto
+Los diálogos y modales de la aplicación dependían de una implementación manual en `Modal.jsx` sin trampa de foco WAI-ARIA, permitiendo que usuarios con tecnología asistiva o navegación por teclado perdieran el foco fuera de la ventana modal. Además, los tooltips flotantes en `RiskBadge.jsx` sufrían recortes visuales dentro de contenedores con `overflow-hidden`.
+
+#### Decisión
+1. Adoptar **Radix UI Primitives** (`@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-tooltip`) bajo licencia 100% MIT.
+2. Aislar las 3 dependencias en el chunk dedicado `vendor-radix` en `vite.config.js` (~74.8 kB / 25.9 kB gzipped).
+3. Refactorizar `src/components/common/Modal.jsx` (148 líneas) integrando `Dialog.Root`, `Dialog.Portal`, `Dialog.Overlay`, `Dialog.Content`, `Dialog.Title`, `Dialog.Description` y `Dialog.Close`, garantizando trampa de foco nativa, cierre por `Escape` y retorno de foco al elemento disparador, preservando el gesto táctil de arrastre hacia abajo (*swipe-down*) en móviles.
+4. Crear `DropdownMenu.jsx` (66 líneas) para menús contextuales accesibles con navegación por flechas de teclado y detección automática de colisión con los bordes de la pantalla.
+5. Crear `Tooltip.jsx` (48 líneas) con `TooltipProvider` global en `App.jsx`, y refactorizar `RiskBadge.jsx` (114 líneas) para proyectar su panel informativo a través de portales, eliminando recortes visuales.
+
+#### Consecuencias
+- **Positivas:**
+  - Conformidad estricta con WAI-ARIA Dialog (Modal) en todos los más de 20 modales del sistema.
+  - Cero roturas de API en los componentes consumidores de `Modal.jsx`.
+  - Tooltips libres de problemas de desbordamiento y totalmente accesibles para lectores de pantalla.
+- **Negativas / Costos:**
+  - Nuevas dependencias unstyled, mitigadas por aislamiento en el chunk `vendor-radix` y cero bloqueo en la carga inicial.
+
+

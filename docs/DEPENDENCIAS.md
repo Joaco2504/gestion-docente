@@ -138,5 +138,28 @@ Todas las dependencias deben ser **100 % gratuitas y Open Source** bajo licencia
   - `ag-grid`: Descartado por requerir licencias comerciales de pago para funciones clave y por su excesivo peso en bundle (>500 kB).
   - Tablas manuales con `<table>` y estado de ordenamiento casero: Descartado por duplicación de lógica en múltiples pestañas, complejidad de mantenimiento y falta de estandarización en accesibilidad ARIA para lectores de pantalla.
 
+---
+
+### Fase 10 (Sub-mejora 10.5): Primitivas Accesibles de Interfaz con Radix UI
+
+#### 10. `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-tooltip` (`dependencies`)
+- **Versiones:**
+  - `@radix-ui/react-dialog`: `^1.1.15`
+  - `@radix-ui/react-dropdown-menu`: `^2.1.16`
+  - `@radix-ui/react-tooltip`: `^1.2.8`
+- **Licencia:** MIT (100 % Open Source, gratuita y permisiva).
+- **Tamaño en bundle de producción:** Aisladas en el chunk dedicado `vendor-radix` (~74.8 kB / 25.9 kB gzipped).
+- **Propósito:** Componentes sin estilos (*unstyled primitives*) con conformidad certificada WAI-ARIA:
+  - `Modal.jsx` refactorizado con `Dialog.Root`, `Dialog.Portal`, `Dialog.Overlay`, `Dialog.Content`, `Dialog.Title`, `Dialog.Description` y `Dialog.Close`:
+    - Trampa de foco nativa (*focus trap*) que impide fugas de foco fuera del modal.
+    - Cierre con tecla Escape y bloqueo de desplazamiento de fondo automáticos.
+    - Preservación integral del gesto táctil de arrastre (*swipe-down*) en dispositivos móviles.
+  - `DropdownMenu.jsx`: Primitiva reutilizable para menús contextuales y acciones con navegación por flechas de teclado, selección con Enter/Espacio y detección automática de colisiones con los bordes de la pantalla.
+  - `Tooltip.jsx` y `RiskBadge.jsx`: Tooltips flotantes accesibles montados mediante portal que resuelven recortes por `overflow-hidden` y proveen `aria-describedby` automático para lectores de pantalla.
+- **Alternativas descartadas:**
+  - `headlessui`: Descartado por menor granularidad en primitivas compuestas de menús y tooltips, y menor adopción en el ecosistema actual de React/Tailwind.
+  - Implementaciones caseras con listeners globales: Descartadas por riesgo de fugas de memoria, bugs en trampas de foco de teclado y falta de aislamiento ARIA estándar.
+
+
 
 
