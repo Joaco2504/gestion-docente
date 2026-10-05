@@ -44,15 +44,23 @@ export function EditarRecursoModal({ isOpen, onClose, recurso, onResourceUpdated
     setIsSubmitting(true);
     try {
       const cleanUrl = url.trim();
+      const catCompat = (() => {
+        if (categoria === 'General' || categoria === 'Apunte de Cátedra') return 'APUNTE';
+        if (categoria === 'Bibliografía') return 'BIBLIOGRAFIA';
+        if (categoria === 'Trabajo Práctico') return 'TP';
+        if (categoria === 'Planificación') return 'PLANIFICACION';
+        if (categoria === 'Parciales y Exámenes') return 'PARCIAL';
+        return categoria || 'APUNTE';
+      })();
+
       const payload = {
         titulo: titulo.trim(),
-        descripcion: descripcion.trim(),
         url: cleanUrl,
         url_o_path: cleanUrl,
+        tipo_origen: tipo === 'drive' || tipo === 'enlace' ? 'GOOGLE_LINK' : 'LOCAL',
         tipo,
-        categoria,
-        visible_alumnos: visibleAlumnos,
-        updated_at: new Date().toISOString()
+        categoria: catCompat,
+        visible_alumnos: visibleAlumnos
       };
 
       let updatedData = { ...recurso, ...payload };

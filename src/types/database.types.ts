@@ -454,13 +454,13 @@ isOneToOne: false
                   ]
                 },"recursos": {
                   Row: {
-                    "catedra_id": string,"categoria": string,"created_at": string | null,"id": string,"tipo_origen": string,"titulo": string,"url_o_path": string
+                    "catedra_id": string,"categoria": string,"created_at": string | null,"id": string,"tipo": string | null,"tipo_origen": string,"titulo": string,"url": string | null,"url_o_path": string,"visible_alumnos": boolean
                   }
                   Insert: {
-                    "catedra_id": string,"categoria": string,"created_at"?: string | null,"id"?: string,"tipo_origen": string,"titulo": string,"url_o_path": string
+                    "catedra_id": string,"categoria": string,"created_at"?: string | null,"id"?: string,"tipo"?: string | null,"tipo_origen": string,"titulo": string,"url"?: string | null,"url_o_path": string,"visible_alumnos"?: boolean
                   }
                   Update: {
-                    "catedra_id"?: string,"categoria"?: string,"created_at"?: string | null,"id"?: string,"tipo_origen"?: string,"titulo"?: string,"url_o_path"?: string
+                    "catedra_id"?: string,"categoria"?: string,"created_at"?: string | null,"id"?: string,"tipo"?: string | null,"tipo_origen"?: string,"titulo"?: string,"url"?: string | null,"url_o_path"?: string,"visible_alumnos"?: boolean
                   }
                   Relationships: [
                     {
