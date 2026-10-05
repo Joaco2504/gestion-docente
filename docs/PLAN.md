@@ -1,0 +1,64 @@
+# Plan de Refactorización Integral - Korum
+
+Este documento registra el progreso y estado de las 10 fases del plan de refactorización integral de Korum.
+
+---
+
+## Estado General de las Fases
+
+| Fase | Título | Estado | Rama |
+|---|---|---|---|
+| **Fase 1** | Línea base y saneamiento del *schema drift* | 🟢 Hecha | `refactor/fase-1-schema-baseline` |
+| **Fase 2** | Seguridad y endurecimiento RLS | ⚪ Pendiente | — |
+| **Fase 3** | Unificación de columnas duplicadas (expand → migrate → contract) | ⚪ Pendiente | — |
+| **Fase 4** | Integridad de dominios (ENUM vs. CHECK) | ⚪ Pendiente | — |
+| **Fase 5** | Refactor de `DashboardPage.jsx` (sin cambio visual) | ⚪ Pendiente | — |
+| **Fase 6** | Rendimiento y RPC `dashboard_resumen` | ⚪ Pendiente | — |
+| **Fase 7** | Capa de datos con TanStack Query | ⚪ Pendiente | — |
+| **Fase 8** | Rediseño integral del Dashboard | ⚪ Pendiente | — |
+| **Fase 9** | Gráficos accesibles con Recharts / Visx | ⚪ Pendiente | — |
+| **Fase 10** | Mejoras modulares opcionales | ⚪ Pendiente | — |
+
+---
+
+## Detalle de Fases
+
+### Fase 1: Línea base y saneamiento del *schema drift*
+- **Objetivo:** Comparar el dump real de Supabase contra `schema.sql` y las migraciones históricas, documentar el drift en `docs/db/DRIFT_REPORT.md`, generar una migración baseline consolidada con timestamp (`supabase/migrations/20261004220000_baseline.sql`), archivar migraciones viejas en `supabase/legacy/`, y generar tipos TypeScript (`src/types/database.types.ts`).
+- **Estado:** 🟢 Hecha (Verificado con `npm run db:diff` vacío, `npm run db:types` y `npm run build` sin errores).
+
+### Fase 2: Seguridad y endurecimiento RLS
+- **Objetivo:** Auditar y restringir Storage `archivos-docentes` por `{docente_id}/{catedra_id}`, remover canales Discord hardcodeados hacia `configuracion_sistema` o env, resolver recursión de políticas en `perfiles`, asegurar `search_path` en funciones `SECURITY DEFINER` y suites pgTAP.
+- **Estado:** ⚪ Pendiente.
+
+### Fase 3: Unificación de columnas duplicadas
+- **Objetivo:** Proceso expand → migrate → contract para unificar columnas (`notas.valor`/`nota`, `evaluaciones.titulo`/`nombre`/`fecha`, `recursos.url_o_path`/`url`, `inscripciones.estado_ram`/`estado_academico`, etc.). ADR para `docentes` vs `perfiles`.
+- **Estado:** ⚪ Pendiente.
+
+### Fase 4: Integridad de dominios (ENUM vs. CHECK)
+- **Objetivo:** Clasificar dominios estables vs crecientes, crear ENUMs y tablas de referencia, generar tipos y constantes en `src/lib/enums.ts`, eliminar strings mágicos.
+- **Estado:** ⚪ Pendiente.
+
+### Fase 5: Refactor de `DashboardPage.jsx` (sin cambio visual)
+- **Objetivo:** Modularizar `DashboardPage.jsx` en subcomponentes (`src/features/dashboard/`) de menos de 300 líneas, orquestador de menos de 200 líneas, manteniendo paridad visual estricta mediante capturas en todos los breakpoints.
+- **Estado:** ⚪ Pendiente.
+
+### Fase 6: Rendimiento y RPC `dashboard_resumen`
+- **Objetivo:** Consolidar métricas del dashboard en RPCs de PostgreSQL (`dashboard_resumen`, `dashboard_agenda`), golden tests comparativos cliente vs RPC, eliminar N+1 de asistencias y clases.
+- **Estado:** ⚪ Pendiente.
+
+### Fase 7: Capa de datos con TanStack Query
+- **Objetivo:** Implementar `@tanstack/react-query`, reemplazar gradualmente `catedraCache.js`, tipar llamadas Supabase con `Database`.
+- **Estado:** ⚪ Pendiente.
+
+### Fase 8: Rediseño integral del Dashboard
+- **Objetivo:** Jerarquía docente orientada al día ("Hoy", alertas de riesgo, agenda de 15 días, métricas, grilla), tarjetas unificadas en `Card.jsx`, accesibilidad AA en 320–1024px.
+- **Estado:** ⚪ Pendiente.
+
+### Fase 9: Gráficos accesibles con Recharts / Visx
+- **Objetivo:** Reemplazar gráficos SVG caseros por wrappers Recharts/Visx lazy-loaded con chunk dedicado y paleta de tokens.
+- **Estado:** ⚪ Pendiente.
+
+### Fase 10: Mejoras modulares opcionales
+- **Objetivo:** Mejoras aprobadas una por una: `react-hook-form` + `zod`, `@tanstack/react-table`, `date-fns`, `shadcn/ui`, `exceljs`, tipado TypeScript progresivo.
+- **Estado:** ⚪ Pendiente.
