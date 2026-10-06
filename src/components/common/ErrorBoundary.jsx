@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { AlertTriangle, RefreshCw, ArrowLeft, ShieldAlert } from 'lucide-react';
 import Button from './Button';
+import { notificarErrorDiscord } from '../../services/discordLogger';
 
 /**
  * ErrorBoundary - Captura excepciones no controladas en el árbol de componentes
@@ -12,24 +13,56 @@ export default class ErrorBoundary extends Component {
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
+      isChunkError: false
     };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    const isChunkError = Boolean(
+      error &&
+      (error.name === 'ChunkLoadError' ||
+        /Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+          error.message || ''
+        ))
+    );
+    return { hasError: true, error, isChunkError };
   }
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary capturó un error crítico:', error, errorInfo);
-    this.setState({ errorInfo });
+    const isChunkError = Boolean(
+      error &&
+      (error.name === 'ChunkLoadError' ||
+        /Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+          error.message || ''
+        ))
+    );
+    this.setState({ errorInfo, isChunkError });
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
+    }
+
+    // Telemetría automática a Discord
+    try {
+      notificarErrorDiscord({
+        codigoError: isChunkError ? 'ERR-CHUNK-LOAD' : 'ERR-REACT-RENDER',
+        mensajeUsuario: isChunkError
+          ? 'Error al descargar módulo dinámico (versión desactualizada o corte de red)'
+          : 'Excepción crítica no capturada en interfaz de usuario',
+        errorTecnico: error,
+        contexto: `ErrorBoundary: ${this.props.title || 'Módulo'}`,
+        usuario: null
+      }).catch(err => {
+        console.warn('[ErrorBoundary] No se pudo enviar reporte a Discord:', err);
+      });
+    } catch (e) {
+      console.warn('[ErrorBoundary] Error invocando notificarErrorDiscord:', e);
     }
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
+    this.setState({ hasError: false, error: null, errorInfo: null, isChunkError: false });
     if (this.props.onReset) {
       this.props.onReset();
     }
@@ -44,21 +77,29 @@ export default class ErrorBoundary extends Component {
         });
       }
 
+      const isChunk = this.state.isChunkError;
+
       return (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-rose-500/20 backdrop-blur-xl shadow-lg my-6 text-center animate-fadeIn max-w-2xl mx-auto">
-          <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4 border border-rose-500/20 shadow-xs">
-            <ShieldAlert className="w-6 h-6" />
+        <div className="p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-rose-500/20 backdrop-blur-xl shadow-xl my-6 text-center animate-fadeIn max-w-2xl mx-auto">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 border shadow-xs ${
+            isChunk 
+              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20' 
+              : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/20'
+          }`}>
+            {isChunk ? <RefreshCw className="w-6 h-6 animate-spin" /> : <ShieldAlert className="w-6 h-6" />}
           </div>
 
           <h3 className="text-base sm:text-lg font-black text-text-primary tracking-tight mb-1">
-            {this.props.title || 'Error al cargar este módulo'}
+            {isChunk ? 'Actualización disponible' : (this.props.title || 'Error al cargar este módulo')}
           </h3>
 
           <p className="text-xs text-text-muted max-w-md mx-auto mb-5 leading-relaxed">
-            Se detectó un problema en el procesamiento de datos. Los registros locales y en base de datos permanecen seguros.
+            {isChunk
+              ? 'Se ha desplegado una nueva versión de la plataforma o se interrumpió temporalmente la conexión. Recarga la página para sincronizar.'
+              : 'Se detectó un problema en el procesamiento de datos. Los registros locales y en base de datos permanecen seguros.'}
           </p>
 
-          {this.state.error && (
+          {this.state.error && !isChunk && (
             <div className="p-3 mb-5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-white/5 text-left font-mono text-[11px] text-rose-700 dark:text-rose-400 overflow-x-auto max-h-32">
               <span className="font-bold block mb-1">Detalle técnico:</span>
               {this.state.error.message || String(this.state.error)}
@@ -66,15 +107,31 @@ export default class ErrorBoundary extends Component {
           )}
 
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Button
-              variant="primary"
-              size="sm"
-              icon={RefreshCw}
-              onClick={this.handleRetry}
-              className="text-xs font-bold shadow-xs"
-            >
-              Reintentar Carga
-            </Button>
+            {isChunk ? (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={RefreshCw}
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.reload();
+                  }
+                }}
+                className="text-xs font-bold shadow-xs"
+              >
+                Recargar página
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={RefreshCw}
+                onClick={this.handleRetry}
+                className="text-xs font-bold shadow-xs"
+              >
+                Reintentar
+              </Button>
+            )}
 
             <Button
               variant="outline"
@@ -87,7 +144,7 @@ export default class ErrorBoundary extends Component {
               }}
               className="text-xs font-semibold"
             >
-              Volver al Dashboard
+              Volver al inicio
             </Button>
           </div>
         </div>

@@ -53,7 +53,11 @@ export default function Button({
     >
       {loading ? (
         <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-      ) : Icon ? (
+      ) : React.isValidElement(Icon) ? (
+        <span className="shrink-0 transition-transform duration-150 [@media(hover:hover)]:group-hover:scale-110 flex items-center justify-center">
+          {Icon}
+        </span>
+      ) : Icon && (typeof Icon === 'function' || (typeof Icon === 'object' && ('render' in Icon || '$$typeof' in Icon))) ? (
         <Icon className="w-4 h-4 shrink-0 transition-transform duration-150 [@media(hover:hover)]:group-hover:scale-110" />
       ) : null}
       {children ? <span>{children}</span> : null}

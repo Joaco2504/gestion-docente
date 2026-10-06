@@ -10,6 +10,8 @@ import {
   Users, 
   Trash2, 
   AlertCircle,
+  AlertTriangle,
+  RefreshCw,
   CheckCircle2, 
   Filter, 
   ChevronLeft, 
@@ -69,6 +71,21 @@ const MONTH_NAMES = [
 const HOURS_24 = Array.from({ length: 17 }, (_, i) => i + 7);
 const HOUR_ROW_HEIGHT = 80; // px por hora
 
+/**
+ * Convierte de forma robusta cualquier valor de fecha a cadena ISO YYYY-MM-DD.
+ * Si la fecha es nula, indefinida o no válida, devuelve el fallback sin arrojar excepción.
+ */
+function safeIsoDate(d, fallback = '') {
+  if (!d) return fallback;
+  const dateObj = d instanceof Date ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return fallback;
+  try {
+    return dateObj.toISOString().split('T')[0];
+  } catch (_) {
+    return fallback;
+  }
+}
+
 export default function CalendarPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -108,6 +125,7 @@ export default function CalendarPage() {
   const [periodos, setPeriodos] = useState([]);
   const [mesas, setMesas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   // Filtros reactivos de cátedras y categorías
   const [catFilters, setCatFilters] = useState({});
@@ -194,6 +212,7 @@ export default function CalendarPage() {
 
   const fetchAllCalendarData = async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       if (isSupabaseConfigured && !isDemo && user) {
         // 1. Eventos registrados en Supabase
@@ -259,6 +278,7 @@ export default function CalendarPage() {
       }
     } catch (err) {
       handleAppError(err, 'CalendarPage / Cargar datos calendario');
+      setFetchError(err);
     } finally {
       setLoading(false);
     }
@@ -519,7 +539,10 @@ export default function CalendarPage() {
 
     // Revisar eventos fijados
     allFilteredEvents.forEach(ev => {
-      const evDate = new Date(ev.fecha_inicio || ev.fecha);
+      const rawDate = ev.fecha_inicio || ev.fecha;
+      if (!rawDate) return;
+      const evDate = new Date(rawDate);
+      if (isNaN(evDate.getTime())) return;
       if (evDate >= now) {
         candidates.push({
           id: ev.id,
@@ -615,13 +638,23 @@ export default function CalendarPage() {
 
     const isMesa = item.tipo === 'TRIBUNAL_EXAMEN' || item.isMesa;
     const catObj = item.catedra_id ? (catedras || []).find(c => c.id === item.catedra_id) : null;
-    const catColor = item.catedra_color || catObj?.color || DEFAULT_CURATED_COLORS[0].value;
+    const fallbackColor = DEFAULT_CURATED_COLORS[0].value;
+
+    const rawCatColor = item.catedra_color || catObj?.color;
+    const catColor = (typeof rawCatColor === 'string' && rawCatColor.trim().startsWith('#'))
+      ? rawCatColor.trim()
+      : fallbackColor;
+
+    const rawItemColor = item.color;
+    const validItemColor = (typeof rawItemColor === 'string' && rawItemColor.trim().startsWith('#'))
+      ? rawItemColor.trim()
+      : null;
 
     // Las mesas tienen su propio color reservado (DEFAULT_MESA_COLOR) o editado
     // Los demás eventos heredan el color de su cátedra
     const bgColor = isMesa
-      ? (item.color || DEFAULT_MESA_COLOR)
-      : (item.color || catColor);
+      ? (validItemColor || DEFAULT_MESA_COLOR)
+      : (validItemColor || catColor);
 
     const textColor = getContrastTextColor(bgColor);
 
@@ -811,6 +844,87 @@ export default function CalendarPage() {
 
   const docenteNombre = user?.user_metadata?.nombre_completo || 'Prof. Pacheco E. Joaquín';
 
+  // Soporte para verificación de Error Boundary mediante simulación controlada
+  if (typeof window !== 'undefined' && (window.__FORCE_CALENDAR_CRASH__ || new URLSearchParams(window.location.search).get('crash') === 'true')) {
+    throw new Error('Simulated Calendar Crash for ErrorBoundary Verification');
+  }
+
+  // 1. Estado de carga: Skeleton completo estructurado (Dashboard lateral + Matriz de calendario)
+  if (loading) {
+    return (
+      <div 
+        className="w-full max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6 min-h-[calc(100vh-5rem)] font-sans antialiased animate-pulse"
+        data-testid="calendar-loading-skeleton"
+      >
+        {/* Skeleton Sidebar (lg:col-span-4 xl:col-span-3) */}
+        <aside className="hidden lg:flex lg:col-span-4 xl:col-span-3 flex-col gap-5">
+          <div className="p-5 rounded-3xl bg-surface border border-slate-200/80 dark:border-slate-800 space-y-4">
+            <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-800 shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded" />
+              </div>
+            </div>
+            <div className="h-52 bg-slate-100 dark:bg-slate-800/60 rounded-2xl" />
+            <div className="h-28 bg-slate-100 dark:bg-slate-800/60 rounded-2xl" />
+          </div>
+        </aside>
+
+        {/* Skeleton Main Calendar Matrix */}
+        <main className="lg:col-span-8 xl:col-span-9 flex flex-col gap-5">
+          <div className="p-4 sm:p-5 rounded-3xl bg-surface border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+            <div className="h-8 w-44 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+            <div className="h-8 w-60 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+          </div>
+          <div className="p-6 rounded-3xl bg-surface border border-slate-200/80 dark:border-slate-800 min-h-[500px] flex flex-col gap-4">
+            <div className="grid grid-cols-7 gap-2">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="h-9 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+              ))}
+            </div>
+            <div className="flex-1 min-h-[360px] bg-slate-100/70 dark:bg-slate-800/40 rounded-2xl" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // 2. Estado de error en la sincronización de datos con acción de reintento
+  if (fetchError) {
+    return (
+      <div 
+        className="w-full max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-surface border border-rose-500/20 shadow-xl my-12 text-center"
+        data-testid="calendar-error-state"
+      >
+        <div className="w-14 h-14 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
+          <AlertTriangle className="w-7 h-7" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">
+          Error al cargar el calendario
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
+          No pudimos sincronizar los eventos y mesas de examen. Verifica tu conexión o reintenta la carga.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            variant="primary"
+            onClick={fetchAllCalendarData}
+            icon={RefreshCw}
+          >
+            Reintentar carga
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/dashboard')}
+          >
+            Volver al inicio
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6 min-h-[calc(100vh-5rem)] font-sans antialiased text-slate-800 dark:text-slate-100">
       
@@ -898,7 +1012,7 @@ export default function CalendarPage() {
                 if (!d) return <div key={`empty-min-${i}`} className="h-7 w-7" />;
                 const isSelected = d.toDateString() === currentDate.toDateString();
                 const isToday = d.toDateString() === new Date().toDateString();
-                const dStr = d.toISOString().split('T')[0];
+                const dStr = safeIsoDate(d);
                 const hasEvent = allFilteredEvents.some(e => (e.fecha_inicio || e.fecha || '').startsWith(dStr));
 
                 return (
@@ -937,7 +1051,7 @@ export default function CalendarPage() {
               </span>
               {nextUpcomingItem && (
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                  {getRelativeDateLabel(nextUpcomingItem.date.toISOString().split('T')[0])}
+                  {getRelativeDateLabel(safeIsoDate(nextUpcomingItem.date, getTodayYMD()))}
                 </span>
               )}
             </div>
@@ -957,7 +1071,7 @@ export default function CalendarPage() {
                 </div>
 
                 {(() => {
-                  const nextItemDateStr = nextUpcomingItem.date ? nextUpcomingItem.date.toISOString().split('T')[0] : null;
+                  const nextItemDateStr = nextUpcomingItem.date ? safeIsoDate(nextUpcomingItem.date) : null;
                   const nextItemFeriado = nextItemDateStr ? (feriadosMap.get(nextItemDateStr) || obtenerFeriado(nextItemDateStr)) : null;
 
                   return (
@@ -1302,7 +1416,7 @@ export default function CalendarPage() {
                   onClick={handlePrev}
                   title="Anterior"
                   aria-label="Anterior"
-                  icon={<ChevronLeft className="w-4 h-4" />}
+                  icon={ChevronLeft}
                 />
                 <Button
                   variant="secondary"
@@ -1317,7 +1431,7 @@ export default function CalendarPage() {
                   onClick={handleNext}
                   title="Siguiente"
                   aria-label="Siguiente"
-                  icon={<ChevronRight className="w-4 h-4" />}
+                  icon={ChevronRight}
                 />
               </div>
 
@@ -1325,7 +1439,7 @@ export default function CalendarPage() {
                 variant="secondary"
                 size="sm"
                 onClick={() => setIsLegendOpen(true)}
-                icon={<Tag className="w-3.5 h-3.5 text-primary" />}
+                icon={Tag}
                 title="Ver Leyenda y Código de Colores"
               >
                 Leyenda
@@ -1335,7 +1449,7 @@ export default function CalendarPage() {
                 variant="secondary"
                 size="sm"
                 onClick={() => setIsSyncModalOpen(true)}
-                icon={<Download className="w-3.5 h-3.5" />}
+                icon={Download}
                 title="Exportar a Google Calendar / iCal"
               >
                 <span className="hidden sm:inline">.ics</span>
@@ -1345,7 +1459,7 @@ export default function CalendarPage() {
                 variant="primary"
                 size="sm"
                 onClick={() => setIsNewEventModalOpen(true)}
-                icon={<Plus className="w-4 h-4" />}
+                icon={Plus}
               >
                 Agregar Compromiso
               </Button>
@@ -1354,7 +1468,7 @@ export default function CalendarPage() {
 
           {/* 2. VISTA DINÁMICA: SEMANA / MES / DÍA */}
           <div
-            key={`${viewMode}-${currentDate.toISOString().slice(0, 10)}`}
+            key={`${viewMode}-${safeIsoDate(currentDate, getTodayYMD())}`}
             className="w-full overflow-hidden cal-view-transition"
           >
 
@@ -1376,7 +1490,7 @@ export default function CalendarPage() {
                       {weekDays.map((d, idx) => {
                         const dayName = DAYS_OF_WEEK[idx];
                         const isToday = d.toDateString() === new Date().toDateString();
-                        const dayStr = d.toISOString().split('T')[0];
+                        const dayStr = safeIsoDate(d);
                         const feriado = feriadosMap.get(dayStr);
 
                         return (
@@ -1447,7 +1561,7 @@ export default function CalendarPage() {
                                 className="border-l border-slate-100/80 dark:border-slate-800/40 h-full relative group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors"
                                 onClick={() => {
                                   const targetDate = weekDays[dayIdx];
-                                  setFecha(targetDate.toISOString().split('T')[0]);
+                                  setFecha(safeIsoDate(targetDate, getTodayYMD()));
                                   setHoraInicio(`${String(hour).padStart(2, '0')}:00`);
                                   setHoraFin(`${String(hour + 2).padStart(2, '0')}:00`);
                                   setIsNewEventModalOpen(true);
@@ -1461,7 +1575,7 @@ export default function CalendarPage() {
                       {/* EVENTOS ACADÉMICOS POSICIONADOS EN LA MATRIZ */}
                       {weekDays.map((dayDate, dayIdx) => {
                         const dayName = DAYS_OF_WEEK[dayIdx];
-                        const dayStr = dayDate.toISOString().split('T')[0];
+                        const dayStr = safeIsoDate(dayDate);
 
                         // Clases regulares correspondientes a este día
                         const dayRegularClasses = regularClassesList.filter(c => c.dia_semana === dayName);
@@ -1597,7 +1711,7 @@ export default function CalendarPage() {
                     {mainCalMonthDays.map((d, idx) => {
                       if (!d) return <div key={`empty-m-${idx}`} className="min-h-[88px] bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl" />;
 
-                      const dStr = d.toISOString().split('T')[0];
+                      const dStr = safeIsoDate(d);
                       const isToday = d.toDateString() === new Date().toDateString();
                       const isSelected = d.toDateString() === currentDate.toDateString();
                       const feriado = feriadosMap.get(dStr);
@@ -1703,7 +1817,7 @@ export default function CalendarPage() {
                         Horarios de ingreso, dictado y cierre en orden cronológico
                       </p>
                       {(() => {
-                        const diaStr = currentDate.toISOString().split('T')[0];
+                        const diaStr = safeIsoDate(currentDate, getTodayYMD());
                         const feriadoDia = feriadosMap.get(diaStr) || obtenerFeriado(diaStr);
                         if (!feriadoDia) return null;
                         const esProv = (feriadoDia.tipo || '').toLowerCase() === 'provincial';
@@ -1723,10 +1837,10 @@ export default function CalendarPage() {
                       variant="primary"
                       size="sm"
                       onClick={() => {
-                        setFecha(currentDate.toISOString().split('T')[0]);
+                        setFecha(safeIsoDate(currentDate, getTodayYMD()));
                         setIsNewEventModalOpen(true);
                       }}
-                      icon={<Plus className="w-3.5 h-3.5" />}
+                      icon={Plus}
                     >
                       Agregar a esta jornada
                     </Button>
@@ -1735,7 +1849,7 @@ export default function CalendarPage() {
                   {/* Lista cronológica del día */}
                   <div className="space-y-3">
                     {(() => {
-                      const currIso = currentDate.toISOString().split('T')[0];
+                      const currIso = safeIsoDate(currentDate, getTodayYMD());
                       const currDayName = DAYS_OF_WEEK[(currentDate.getDay() + 6) % 7];
 
                       const dayClasses = regularClassesList
@@ -1829,7 +1943,7 @@ export default function CalendarPage() {
 
                             <div className="flex items-center gap-2 shrink-0">
                               {(() => {
-                                const diaStr = currentDate.toISOString().split('T')[0];
+                                const diaStr = safeIsoDate(currentDate, getTodayYMD());
                                 const feriadoDia = feriadosMap.get(diaStr) || obtenerFeriado(diaStr);
 
                                 if (feriadoDia) {
@@ -2017,7 +2131,7 @@ export default function CalendarPage() {
                 {(() => {
                   const eventDateStr = selectedEventForDetail.fecha || 
                     (selectedEventForDetail.fecha_inicio ? selectedEventForDetail.fecha_inicio.substring(0, 10) : null) || 
-                    (selectedEventForDetail.date ? selectedEventForDetail.date.toISOString().split('T')[0] : null);
+                    (selectedEventForDetail.date ? safeIsoDate(selectedEventForDetail.date) : null);
                   const eventFeriado = eventDateStr ? (feriadosMap.get(eventDateStr) || obtenerFeriado(eventDateStr)) : null;
 
                   if (eventFeriado) {
