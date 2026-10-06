@@ -118,7 +118,7 @@ export default function ColorPickerPopover({
         aria-expanded={isOpen}
         aria-label={`${title}: actual ${currentColor}`}
         title={`${title} (Clic para modificar)`}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl border border-surface-border bg-surface hover:bg-surface-hover text-xs font-semibold text-text-primary transition-all shadow-xs cursor-pointer min-h-[44px] touch-target-44 active:scale-98"
+        className="flex items-center gap-2 px-3 py-2 rounded-xl border border-surface-border bg-surface hover:bg-surface-hover text-xs font-semibold text-text-primary transition-[transform,background-color,border-color,box-shadow] duration-150 shadow-xs cursor-pointer min-h-[44px] touch-target-44 active:scale-98"
       >
         <span 
           className="w-5 h-5 rounded-lg border border-black/15 dark:border-white/20 shrink-0 shadow-xs flex items-center justify-center transition-transform"
@@ -169,7 +169,7 @@ export default function ColorPickerPopover({
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800/80 space-y-2">
               {/* Chip en Modo Sol */}
               <div 
-                className={`p-2.5 rounded-xl transition-all flex items-center justify-between gap-2 ${
+                className={`p-2.5 rounded-xl transition-colors duration-150 flex items-center justify-between gap-2 ${
                   isMesa 
                     ? 'border-2 border-dashed shadow-xs' 
                     : 'border-l-4 shadow-2xs'
@@ -236,7 +236,7 @@ export default function ColorPickerPopover({
                     onClick={() => handleSelectPalette(palColor)}
                     title={colorName}
                     aria-label={`Seleccionar color ${colorName} (${palColor})`}
-                    className={`relative w-9 h-9 rounded-xl transition-all cursor-pointer flex items-center justify-center hover:scale-110 active:scale-95 shadow-xs border ${
+                    className={`relative w-9 h-9 rounded-xl transition-[transform,border-color,box-shadow] duration-150 cursor-pointer flex items-center justify-center [@media(hover:hover)]:hover:scale-110 active:scale-95 shadow-xs border ${
                       isSelected 
                         ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-900 border-white/40' 
                         : 'border-black/10 dark:border-white/10 hover:border-black/30'

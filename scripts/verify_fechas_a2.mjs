@@ -83,18 +83,31 @@ async function runTests() {
     // -------------------------------------------------------------------------
     console.log('>>> [TEST 1] Evaluación sin fecha previa:');
     
+    // Helper para abrir el modal de edición de una evaluación en la cabecera rediseñada
+    async function openEditEvalModal(thElement) {
+      // Si tiene el botón + Fecha, puede hacer clic directamente
+      const plusDateBtn = thElement.locator('button:has-text("+ Fecha")');
+      if (await plusDateBtn.isVisible()) {
+        await plusDateBtn.click();
+      } else {
+        const menuBtn = thElement.locator('button[title="Opciones de la evaluación"]');
+        await menuBtn.click();
+        await page.waitForTimeout(300);
+        const editOption = page.locator('[role="menuitem"]:has-text("Editar"), button:has-text("Editar evaluación y fecha")').first();
+        await editOption.click();
+      }
+      await page.waitForTimeout(500);
+    }
+
     // Localizar primera columna de evaluación
-    const thCols = page.locator('th[scope="col"]');
-    const firstEvalTh = page.locator('th:has(button[title*="Editar datos de"])').first();
-    const evalTitle = (await firstEvalTh.locator('.font-semibold').innerText()).trim();
-    const dateLabelBefore = (await firstEvalTh.locator('.text-xs').innerText()).trim();
+    const firstEvalTh = page.locator('th:has(button[title="Opciones de la evaluación"])').first();
+    const evalTitle = (await firstEvalTh.innerText()).split('\n')[0].trim();
+    const dateLabelBefore = (await firstEvalTh.innerText()).trim();
     console.log(`  - Evaluación seleccionada: "${evalTitle}"`);
     console.log(`  - Estado inicial de cabecera: "${dateLabelBefore}"`);
 
     // Abrir modal de edición
-    const editBtn = firstEvalTh.locator('button[title*="Editar datos de"]');
-    await editBtn.click();
-    await page.waitForTimeout(500);
+    await openEditEvalModal(firstEvalTh);
 
     const dialog = page.locator('[role="dialog"]');
     const dateInput = dialog.locator('input[type="date"]');
@@ -112,7 +125,7 @@ async function runTests() {
     await page.waitForTimeout(1000);
 
     // Verificar en cabecera antes de F5
-    const dateLabelAfterSave = (await firstEvalTh.locator('.text-xs').innerText()).trim();
+    const dateLabelAfterSave = (await firstEvalTh.innerText()).trim();
     console.log(`  - Cabecera tras Guardar: "${dateLabelAfterSave}"`);
     const immediateMatch = dateLabelAfterSave.includes('25-10-2026');
 
@@ -122,15 +135,13 @@ async function runTests() {
     await page.waitForTimeout(2000);
 
     // Verificar en cabecera TRAS F5
-    const firstEvalThAfterF5 = page.locator('th:has(button[title*="Editar datos de"])').first();
-    const dateLabelAfterF5 = (await firstEvalThAfterF5.locator('.text-xs').innerText()).trim();
+    const firstEvalThAfterF5 = page.locator('th:has(button[title="Opciones de la evaluación"])').first();
+    const dateLabelAfterF5 = (await firstEvalThAfterF5.innerText()).trim();
     console.log(`  - Cabecera TRAS F5: "${dateLabelAfterF5}"`);
     const f5HeaderMatch = dateLabelAfterF5.includes('25-10-2026');
 
     // Reabrir modal tras F5 para comprobar el campo input
-    const editBtnAfterF5 = firstEvalThAfterF5.locator('button[title*="Editar datos de"]');
-    await editBtnAfterF5.click();
-    await page.waitForTimeout(500);
+    await openEditEvalModal(firstEvalThAfterF5);
 
     const dialogAfterF5 = page.locator('[role="dialog"]');
     const dateInputAfterF5 = dialogAfterF5.locator('input[type="date"]');
@@ -152,8 +163,7 @@ async function runTests() {
     console.log('>>> [TEST 2] Evaluación con fecha previa (Re-edición):');
 
     // Reabrir modal
-    await editBtnAfterF5.click();
-    await page.waitForTimeout(500);
+    await openEditEvalModal(firstEvalThAfterF5);
 
     const dialog2 = page.locator('[role="dialog"]');
     const dateInput2 = dialog2.locator('input[type="date"]');
@@ -167,7 +177,7 @@ async function runTests() {
     await dialog2.locator('button[type="submit"]:has-text("Guardar")').click();
     await page.waitForTimeout(1000);
 
-    const dateLabelEdited = (await firstEvalThAfterF5.locator('.text-xs').innerText()).trim();
+    const dateLabelEdited = (await firstEvalThAfterF5.innerText()).trim();
     console.log(`  - Cabecera tras Guardar nueva fecha: "${dateLabelEdited}"`);
 
     // RECARGA TOTAL (F5)
@@ -176,14 +186,13 @@ async function runTests() {
     await page.waitForTimeout(2000);
 
     // Verificar en cabecera TRAS segundo F5
-    const firstEvalThAfterF5_2 = page.locator('th:has(button[title*="Editar datos de"])').first();
-    const dateLabelAfterF5_2 = (await firstEvalThAfterF5_2.locator('.text-xs').innerText()).trim();
+    const firstEvalThAfterF5_2 = page.locator('th:has(button[title="Opciones de la evaluación"])').first();
+    const dateLabelAfterF5_2 = (await firstEvalThAfterF5_2.innerText()).trim();
     console.log(`  - Cabecera TRAS segundo F5: "${dateLabelAfterF5_2}"`);
     const f5HeaderMatch2 = dateLabelAfterF5_2.includes('15-11-2026');
 
     // Reabrir modal tras F5 para comprobar el campo input
-    await firstEvalThAfterF5_2.locator('button[title*="Editar datos de"]').click();
-    await page.waitForTimeout(500);
+    await openEditEvalModal(firstEvalThAfterF5_2);
 
     const dialogAfterF5_2 = page.locator('[role="dialog"]');
     const dateInputAfterF5_2 = dialogAfterF5_2.locator('input[type="date"]');
@@ -243,13 +252,18 @@ async function runTests() {
     process.exitCode = 1;
   } finally {
     if (browser) await browser.close();
-    if (server) {
+    if (server && server.pid) {
       try {
-        server.kill();
-        process.kill(server.pid);
+        if (process.platform === 'win32') {
+          spawn('taskkill', ['/pid', server.pid.toString(), '/f', '/t']);
+        } else {
+          server.kill('SIGTERM');
+        }
       } catch (_) {}
     }
-    process.exit(allPassed ? 0 : 1);
+    setTimeout(() => {
+      process.exit(allPassed ? 0 : 1);
+    }, 500);
   }
 }
 

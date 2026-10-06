@@ -51,7 +51,7 @@ export function QuickSaveFab({
       style={{
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)'
       }}
-      className={`fixed right-6 z-50 group select-none transition-all duration-300 ease-out origin-bottom-right md:!bottom-6 ${
+      className={`fixed right-6 z-50 group select-none transition-[transform,opacity] duration-300 ease-out origin-bottom-right md:!bottom-6 ${
         isDirtyState
           ? 'scale-100 opacity-100 pointer-events-auto'
           : 'scale-0 opacity-0 pointer-events-none'
@@ -63,7 +63,7 @@ export function QuickSaveFab({
         disabled={isDisabled}
         title={tooltipText}
         aria-label={ariaLabel}
-        className="h-14 w-14 rounded-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-2xl shadow-emerald-600/40 border-2 border-white/20 flex items-center justify-center transition-all duration-300 hover:scale-110 cursor-pointer disabled:opacity-60 relative"
+        className="h-14 w-14 rounded-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-2xl shadow-emerald-600/40 border-2 border-white/20 flex items-center justify-center transition-[transform,background-color,box-shadow] duration-200 [@media(hover:hover)]:hover:scale-105 cursor-pointer disabled:opacity-60 relative"
       >
         {/* Distintivo indicador de cambios pendientes */}
         <span className="absolute -top-1 -right-1 flex h-4 w-4">

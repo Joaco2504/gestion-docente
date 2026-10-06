@@ -1519,7 +1519,7 @@ export default function GradesTab({
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`p-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
+              className={`p-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors duration-150 touch-target-44 cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-surface text-primary shadow-xs'
                   : 'text-text-muted hover:text-text-primary'
@@ -1532,7 +1532,7 @@ export default function GradesTab({
             <button
               type="button"
               onClick={() => setViewMode('cards')}
-              className={`p-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
+              className={`p-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors duration-150 touch-target-44 cursor-pointer ${
                 viewMode === 'cards'
                   ? 'bg-surface text-primary shadow-xs'
                   : 'text-text-muted hover:text-text-primary'
@@ -1545,7 +1545,7 @@ export default function GradesTab({
             <button
               type="button"
               onClick={() => setViewMode('evaluaciones')}
-              className={`p-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
+              className={`p-1.5 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors duration-150 touch-target-44 cursor-pointer ${
                 viewMode === 'evaluaciones'
                   ? 'bg-surface text-primary shadow-xs'
                   : 'text-text-muted hover:text-text-primary'
@@ -1574,50 +1574,50 @@ export default function GradesTab({
 
           {/* Exportación: Excel & CSV */}
           <div className="inline-flex items-center gap-1.5">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Printer}
               onClick={() => setIsPrintConfigModalOpen(true)}
               disabled={estudiantes.length === 0}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               title="Abrir configuración de impresión y PDF oficial de la sábana de notas"
             >
-              <Printer className="w-4 h-4 text-emerald-500" />
               <span className="hidden sm:inline">Imprimir / PDF</span>
               <span className="sm:hidden">PDF</span>
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={FileSpreadsheet}
               onClick={handleExportExcel}
               disabled={estudiantes.length === 0}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               title="Descargar sábana completa en Excel (.xlsx)"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
               <span><span className="hidden md:inline">Exportar </span>Excel</span>
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={FileText}
               onClick={handleExportCsv}
               disabled={estudiantes.length === 0}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               title="Descargar calificaciones en CSV (.csv)"
             >
-              <FileText className="w-4 h-4 text-emerald-500" />
               <span>CSV</span>
-            </button>
+            </Button>
           </div>
 
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Plus}
             onClick={() => setIsNewEvalModalOpen(true)}
             disabled={cursadaFinalizada}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
-            <Plus className="w-4 h-4" />
             <span>Nueva Eval.</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1634,14 +1634,15 @@ export default function GradesTab({
                 Supervisa fechas de entrega, consignas en Google Drive, califica alumnos o elimina registros.
               </p>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
               onClick={() => setIsNewEvalModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+              className="self-start sm:self-auto"
             >
-              <Plus className="w-4 h-4" />
               <span>Nueva Evaluación</span>
-            </button>
+            </Button>
           </div>
 
           {evaluaciones.length === 0 ? (
@@ -1777,7 +1778,7 @@ export default function GradesTab({
                         </div>
                         <div className="w-full bg-surface-hover rounded-full h-2 overflow-hidden mb-2">
                           <div
-                            className="h-full bg-primary rounded-full transition-all duration-300"
+                            className="h-full bg-primary rounded-full transition-[width] duration-300"
                             style={{ width: `${gradedPct}%` }}
                           />
                         </div>
@@ -1872,7 +1873,7 @@ export default function GradesTab({
               const gradedCount = mainEvaluations.filter(ev => getNotaValue(est.id, ev.id) !== null).length;
 
               return (
-                <Card key={est.id} className="p-4 sm:p-5 flex flex-col justify-between space-y-4 border border-surface-border hover:shadow-md transition-all">
+                <Card key={est.id} className="p-4 sm:p-5 flex flex-col justify-between space-y-4 border border-surface-border hover:shadow-md transition-[box-shadow,border-color] duration-200">
                   {/* Student Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -1930,7 +1931,7 @@ export default function GradesTab({
                     {!est.es_equivalencia && (
                       <div className="w-full bg-surface rounded-full h-1.5 overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${
+                          className={`h-full rounded-full transition-[width] duration-300 ${
                             item.asistenciaPct < (est.tiene_certificado_trabajo ? 60 : 70) ? 'bg-rose-500' : 'bg-emerald-500'
                           }`}
                           style={{ width: `${Math.min(100, item.asistenciaPct)}%` }}
@@ -2028,7 +2029,7 @@ export default function GradesTab({
                                   <button
                                     type="button"
                                     onClick={() => handleOpenEditNota(est, ev)}
-                                    className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 active:scale-95 duration-100 ${
+                                    className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-[transform,background-color,border-color] duration-150 border touch-target-44 flex items-center justify-center gap-2 active:scale-[0.97] cursor-pointer ${
                                       flashingGradeKey === `${est.id}_${ev.id}` ? 'animate-flash-success' : ''
                                     } ${
                                       estadoOriginal === 'NO_ENTREGO'
@@ -2065,7 +2066,7 @@ export default function GradesTab({
                                     <button
                                       type="button"
                                       onClick={() => handleOpenEditNota(est, recup)}
-                                      className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-all border touch-target-44 flex items-center justify-center gap-2 active:scale-95 duration-100 ${
+                                      className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-sm font-mono font-bold transition-[transform,background-color,border-color] duration-150 border touch-target-44 flex items-center justify-center gap-2 active:scale-[0.97] cursor-pointer ${
                                         flashingGradeKey === `${est.id}_${recup.id}` ? 'animate-flash-success' : ''
                                       } ${
                                         estadoRecup === 'AUSENTE'
@@ -2390,7 +2391,7 @@ export default function GradesTab({
                           setInputNotaValor('');
                         }
                       }}
-                      className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                      className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
                         selectedEstadoNota === 'NO_ENTREGO'
                           ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-white shadow-sm ring-2 ring-slate-400/40'
                           : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/70'
@@ -2420,7 +2421,7 @@ export default function GradesTab({
                           setInputNotaValor('');
                         }
                       }}
-                      className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                      className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
                         selectedEstadoNota === 'AUSENTE'
                           ? 'bg-rose-600 text-white border-rose-600 dark:bg-rose-600 shadow-sm ring-2 ring-rose-400/40'
                           : 'bg-rose-50/60 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/40 hover:bg-rose-100/70 dark:hover:bg-rose-950/40'
@@ -2527,7 +2528,7 @@ export default function GradesTab({
               required
               value={editEvalTitulo}
               onChange={(e) => setEditEvalTitulo(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all font-medium"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-colors duration-150 font-medium"
             />
           </div>
 
@@ -2539,7 +2540,7 @@ export default function GradesTab({
               <select
                 value={editEvalTipo}
                 onChange={(e) => setEditEvalTipo(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-colors duration-150 cursor-pointer font-medium"
               >
                 <option value={TIPO_EVALUACION.PARCIAL}>{LABELS_TIPO_EVALUACION.PARCIAL}</option>
                 <option value={TIPO_EVALUACION.TP}>{LABELS_TIPO_EVALUACION.TP}</option>
@@ -2557,7 +2558,7 @@ export default function GradesTab({
               <select
                 value={editEvalFormato}
                 onChange={(e) => setEditEvalFormato(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-colors duration-150 cursor-pointer font-medium"
               >
                 <option value="Escrito">Escrito</option>
                 <option value="Oral">Oral</option>
@@ -2582,7 +2583,7 @@ export default function GradesTab({
               type="date"
               value={editEvalFechaEntrega}
               onChange={(e) => setEditEvalFechaEntrega(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm font-mono focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm font-mono focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-colors duration-150"
             />
           </div>
 

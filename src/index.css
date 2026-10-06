@@ -49,13 +49,15 @@
     --table-sticky-shadow: 2px 0 5px -2px rgb(0 0 0 / 0.08);
     --table-sticky-shadow-right: -2px 0 5px -2px rgb(0 0 0 / 0.08);
 
-    /* Tokens de Movimiento & Resortes (Korum Motion System) */
+    /* Tokens de Movimiento & Resortes (Korum Motion System - Emil Kowalski Craft) */
     --duration-fast: 120ms;
     --duration-normal: 200ms;
     --duration-slow: 320ms;
     --duration-sheet: 280ms;
     --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 
     /* Tipografía Fluida & Escala Dinámica */
     --text-display: clamp(1.5rem, 1.2rem + 1.2vw, 2.25rem);
@@ -438,12 +440,21 @@
   transition: background-color 200ms ease-out, border-color 200ms ease-out !important;
 }
 
-/* Reduced motion safety */
+/* Reduced motion safety (WCAG 2.2 AA) */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-sheet-up,
+  .animate-sheet-down,
+  .animate-dock-pop,
+  .animate-flash-success,
+  .cell-saved-feedback {
+    animation: none !important;
+    transform: none !important;
   }
 }
 
@@ -652,6 +663,31 @@
 .animate-dock-pop {
   animation: dockPopIn var(--duration-fast) var(--ease-spring) forwards;
 }
+
+/* Feedback visual discreto tras guardar nota o asistencia */
+@keyframes cellSavePulse {
+  0% {
+    background-color: rgba(16, 185, 129, 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-flash-success,
+.cell-saved-feedback {
+  animation: cellSavePulse 300ms var(--ease-out) forwards;
+}
+
+/* Entrada escalonada sutil para colecciones de tarjetas iniciales (máximo 8 elementos) */
+.stagger-1 { animation-delay: 25ms; }
+.stagger-2 { animation-delay: 50ms; }
+.stagger-3 { animation-delay: 75ms; }
+.stagger-4 { animation-delay: 100ms; }
+.stagger-5 { animation-delay: 125ms; }
+.stagger-6 { animation-delay: 150ms; }
+.stagger-7 { animation-delay: 175ms; }
+.stagger-8 { animation-delay: 200ms; }
 
 .pb-mobile-main {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem);

@@ -56,7 +56,7 @@ export default function RiskBadge({ risk, compact = false, className = '' }) {
     </button>
   ) : (
     <div
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-all cursor-pointer select-none shadow-xs ${config.bg} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-colors duration-150 cursor-pointer select-none shadow-xs ${config.bg} ${className}`}
     >
       <span className="relative flex h-2 w-2 shrink-0">
         {(isCritical || isWarning) && (

@@ -188,7 +188,7 @@ export default function CustomSelect({
         aria-expanded={isOpen}
         className={`
           w-full flex items-center justify-between gap-2 px-3 py-2 text-xs sm:text-sm font-medium
-          rounded-xl border transition-all duration-150 cursor-pointer select-none
+          rounded-xl border transition-[background-color,border-color,box-shadow] duration-150 cursor-pointer select-none
           bg-surface text-text-primary border-surface-border
           hover:bg-surface-hover hover:border-primary/40
           focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary
@@ -369,7 +369,7 @@ export default function CustomSelect({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar..."
-                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-surface-hover/80 text-text-primary rounded-lg border border-transparent focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-text-muted"
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-surface-hover/80 text-text-primary rounded-lg border border-transparent focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 transition-colors duration-150 placeholder:text-text-muted"
                 />
                 {search && (
                   <button

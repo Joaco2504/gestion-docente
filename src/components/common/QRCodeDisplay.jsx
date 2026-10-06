@@ -138,12 +138,12 @@ export default function QRCodeDisplay({
   const { matrix, size } = generateQRCodeMatrix(url || 'https://planilladocente.com');
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-colors duration-300 ${
       isFullscreen ? 'bg-slate-950 p-6 sm:p-12' : 'bg-slate-950/70 backdrop-blur-md'
     }`}>
       <div 
         ref={modalRef}
-        className={`relative w-full max-w-md backdrop-blur-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-white/10 shadow-2xl overflow-hidden transition-all duration-300 flex flex-col items-center text-center p-6 sm:p-8 ${
+        className={`relative w-full max-w-md backdrop-blur-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-white/10 shadow-2xl overflow-hidden transition-[max-width,transform] duration-300 ease-out flex flex-col items-center text-center p-6 sm:p-8 ${
           isFullscreen ? 'max-w-2xl scale-105' : ''
         }`}
       >

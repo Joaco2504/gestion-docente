@@ -117,7 +117,7 @@ export default function Modal({
                 handleRequestClose();
               }
             }}
-            className={`pointer-events-auto modal-sheet modal-shell relative w-full sm:w-auto ${maxWidth} max-w-[100vw] sm:max-w-xl md:max-w-2xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden max-h-[90dvh] sm:max-h-[85vh] flex flex-col pb-safe focus:outline-hidden data-[state=open]:animate-sheet-up sm:data-[state=open]:animate-scaleIn`}
+            className={`pointer-events-auto modal-sheet modal-shell relative w-full sm:w-auto ${maxWidth} max-w-[100vw] sm:max-w-xl md:max-w-2xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden max-h-[90dvh] sm:max-h-[85vh] flex flex-col pb-safe focus:outline-hidden data-[state=open]:animate-sheet-up sm:data-[state=open]:animate-scaleIn data-[state=closed]:animate-sheet-down sm:data-[state=closed]:animate-modalOut`}
           >
             {/* Cabecera táctil deslizable con Pointer Events */}
             <div

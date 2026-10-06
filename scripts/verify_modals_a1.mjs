@@ -37,6 +37,7 @@ async function runTests() {
   let server;
   let browser;
   const testResults = [];
+  let allPassed = true;
 
   try {
     server = await startServer();
@@ -123,8 +124,11 @@ async function runTests() {
     await page.goto(`${BASE_URL}/catedra/${catedraId}?tab=calificaciones`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
     await testModalCloseMechanisms('Editar Evaluación (GradesTab)', async () => {
-      const btn = page.locator('th button[title*="Editar datos"]').first();
-      await btn.click();
+      const menuBtn = page.locator('th button[title="Opciones de la evaluación"]').first();
+      await menuBtn.click();
+      await page.waitForTimeout(300);
+      const editBtn = page.locator('[role="menuitem"]:has-text("Editar"), button:has-text("Editar evaluación y fecha")').first();
+      await editBtn.click();
     });
 
     // TEST 2: Modal "Editar Clase" (LibroTemasTab)
@@ -204,7 +208,7 @@ async function runTests() {
     console.log('\n========================================================================');
     console.log('                    RESUMEN DE RESULTADOS BLOQUE A1                   ');
     console.log('========================================================================');
-    let allPassed = true;
+    allPassed = true;
     for (const r of testResults) {
       const pass = r.closeBtn && r.escape && r.backdrop;
       if (!pass) allPassed = false;
@@ -220,11 +224,22 @@ async function runTests() {
 
   } catch (err) {
     console.error('Error durante ejecución de pruebas:', err);
-    process.exitCode = 1;
+    allPassed = false;
   } finally {
-    if (browser) await browser.close();
-    if (server) server.kill('SIGTERM');
+    if (browser) await browser.close().catch(() => {});
+    if (server && server.pid) {
+      console.log('[Preview Server] Deteniendo servidor...');
+      if (process.platform === 'win32') {
+        spawn('taskkill', ['/pid', server.pid.toString(), '/f', '/t']);
+      } else {
+        server.kill('SIGTERM');
+      }
+    }
   }
+
+  setTimeout(() => {
+    process.exit(allPassed ? 0 : 1);
+  }, 500);
 }
 
 runTests();
