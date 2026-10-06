@@ -119,13 +119,19 @@ async function runVisualVerification() {
     console.error('Error durante la verificación visual:', err);
     process.exitCode = 1;
   } finally {
-    if (browser) await browser.close();
-    if (serverProcess) {
-      serverProcess.kill();
+    if (browser) {
       try {
-        spawn('cmd.exe', ['/c', `for /f "tokens=5" %a in ('netstat -aon ^| find ":${PORT}" ^| find "LISTENING"') do taskkill /f /pid %a`], { shell: true });
+        await browser.close();
       } catch (_) {}
     }
+    if (serverProcess && serverProcess.pid) {
+      try {
+        spawn('taskkill', ['/pid', serverProcess.pid, '/f', '/t']);
+      } catch (_) {}
+    }
+    setTimeout(() => {
+      process.exit(process.exitCode || 0);
+    }, 500);
   }
 }
 
