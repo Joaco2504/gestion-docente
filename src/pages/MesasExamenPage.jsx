@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
+import Card from '../components/common/Card';
+import SectionHeader from '../components/common/SectionHeader';
 import EmptyState from '../components/common/EmptyState';
 import AnimatedSearchBar from '../components/common/AnimatedSearchBar';
 import ConstituirMesaModal from '../components/mesas/ConstituirMesaModal';
@@ -329,47 +331,39 @@ export default function MesasExamenPage() {
         ========================================================================= */
         <div className="space-y-6 animate-fadeIn">
           
-          {/* Cabecera Hero */}
-          <div className="backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-6 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 rounded-2xl bg-primary/10 text-primary">
-                  <GraduationCap className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                    Mesas de Examen & Actas de Acreditación
-                  </h1>
-                  <p className="text-xs text-text-muted">
-                    Registro histórico de exámenes finales y acreditaciones por cohorte.
-                  </p>
-                </div>
+          {/* Cabecera Hero con SectionHeader */}
+          <SectionHeader
+            title="Mesas de Examen & Actas de Acreditación"
+            subtitle="Registro histórico de exámenes finales y acreditaciones por cohorte."
+            icon={GraduationCap}
+            actions={
+              <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                <Link to="/guias?section=mesas-examen">
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    icon={BookMarked}
+                    title="Ver Guía de Uso de Mesas de Examen y Actas"
+                  >
+                    <span className="hidden xs:inline">Guía Paso a Paso</span>
+                  </Button>
+                </Link>
+
+                <Button
+                  variant="primary"
+                  size="md"
+                  icon={Plus}
+                  onClick={() => setIsConstituirModalOpen(true)}
+                  className="whitespace-nowrap flex-1 sm:flex-initial"
+                >
+                  Nueva Mesa de Examen
+                </Button>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-stretch sm:self-auto">
-              <Link
-                to="/guias?section=mesas-examen"
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-text-secondary hover:text-text-primary text-xs font-bold transition-all min-h-[44px] cursor-pointer shrink-0"
-                title="Ver Guía de Uso de Mesas de Examen y Actas"
-              >
-                <BookMarked className="w-4 h-4 text-primary" />
-                <span className="hidden xs:inline">Guía Paso a Paso</span>
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => setIsConstituirModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Nueva Mesa de Examen</span>
-              </button>
-            </div>
-          </div>
+            }
+          />
 
           {/* Barra de Filtros Bento */}
-          <div className="p-4 rounded-3xl bg-white/75 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 shadow-xs space-y-3">
+          <Card variant="default" padding="sm" className="space-y-3">
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
               
               {/* Buscador Rápido */}
@@ -415,7 +409,7 @@ export default function MesasExamenPage() {
               <button
                 type="button"
                 onClick={() => setSelectedCondicionFilter('TODAS')}
-                className={`px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap transition-colors duration-150 cursor-pointer ${
                   selectedCondicionFilter === 'TODAS'
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-white/5'
@@ -427,7 +421,7 @@ export default function MesasExamenPage() {
               <button
                 type="button"
                 onClick={() => setSelectedCondicionFilter('PROMOCIONAL')}
-                className={`px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap transition-colors duration-150 cursor-pointer flex items-center gap-1.5 ${
                   selectedCondicionFilter === 'PROMOCIONAL'
                     ? 'bg-emerald-500 text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-white/5'
@@ -439,7 +433,7 @@ export default function MesasExamenPage() {
               <button
                 type="button"
                 onClick={() => setSelectedCondicionFilter('REGULAR')}
-                className={`px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap transition-colors duration-150 cursor-pointer flex items-center gap-1.5 ${
                   selectedCondicionFilter === 'REGULAR'
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-white/5'
@@ -451,7 +445,7 @@ export default function MesasExamenPage() {
               <button
                 type="button"
                 onClick={() => setSelectedCondicionFilter('LIBRE')}
-                className={`px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap transition-colors duration-150 cursor-pointer flex items-center gap-1.5 ${
                   selectedCondicionFilter === 'LIBRE'
                     ? 'bg-purple-600 text-white shadow-xs'
                     : 'text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-white/5'
@@ -460,7 +454,7 @@ export default function MesasExamenPage() {
                 <span>🔓 Libres</span>
               </button>
             </div>
-          </div>
+          </Card>
 
           {/* Grilla Bento de Mesas Constituidas */}
           {loading ? (
@@ -497,10 +491,12 @@ export default function MesasExamenPage() {
                 const instName = m.catedras?.instituciones?.nombre || 'Instituto de Educación Superior';
 
                 return (
-                  <div
+                  <Card
                     key={m.id}
+                    variant="interactive"
+                    padding="md"
                     onClick={() => setSelectedMesa(m)}
-                    className={`group cursor-pointer backdrop-blur-xl bg-white/75 dark:bg-slate-900/60 rounded-3xl border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md ${style.cardBorder} transition-all duration-200 flex flex-col justify-between gap-4`}
+                    className={`flex flex-col justify-between gap-4 ${style.cardBorder}`}
                   >
                     <div className="space-y-3">
                       {/* Fila 1: Badge Condición y Fecha */}
@@ -604,7 +600,7 @@ export default function MesasExamenPage() {
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>

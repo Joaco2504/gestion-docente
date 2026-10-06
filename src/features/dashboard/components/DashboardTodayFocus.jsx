@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
+import Button from '../../../components/common/Button';
 
 export default function DashboardTodayFocus({
   user,
@@ -101,56 +102,52 @@ export default function DashboardTodayFocus({
   const warningCount = alerts.filter(a => a.type === 'WARNING').length;
 
   return (
-    <Card className="p-4 sm:p-6 space-y-4 relative overflow-hidden" aria-label="Resumen del día">
+    <Card variant="bento" padding="md" className="space-y-4 relative overflow-hidden" aria-label="Resumen del día">
       {/* Cabecera Principal "Hoy" */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 dark:text-slate-400 font-medium">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap text-xs text-text-muted font-medium">
             <span className="flex items-center gap-1.5 text-primary font-semibold">
               <Calendar className="w-3.5 h-3.5" />
               <span>{formattedToday}</span>
             </span>
             <span>•</span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-medium">
+            <Badge variant="secondary" size="xs">
               {activeCiclo ? (activeCiclo.nombre || `Ciclo ${activeCiclo.anio}`) : 'Ciclo Activo'}
-            </span>
+            </Badge>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2">
             <span>{greeting}, {docenteName}</span>
             <Sparkles className="w-5 h-5 text-amber-400 shrink-0" />
           </h1>
         </div>
 
         {/* Estado Operativo Inmediato del Día */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {upcomingClass?.isToday ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
-              <span className="flex h-2 w-2 relative shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>Clase programada para hoy</span>
-            </div>
+            <Badge variant="promo" size="md" dot={true}>
+              Clase programada para hoy
+            </Badge>
           ) : (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-white/5 text-slate-600 dark:text-slate-300 text-xs font-medium">
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
-              <span>Hoy sin clases fijas en horario</span>
-            </div>
+            <Badge variant="secondary" size="md">
+              <Clock className="w-3.5 h-3.5 text-text-muted mr-1" />
+              Hoy sin clases fijas en horario
+            </Badge>
           )}
         </div>
       </div>
 
       {/* Banner de Alerta Temprana y Riesgo Académico */}
       {alerts.length > 0 ? (
-        <div className={`rounded-xl border transition-all ${
+        <div className={`rounded-2xl border transition-[background-color,border-color] duration-150 p-3.5 sm:p-4 ${
           criticalCount > 0 
-            ? 'bg-rose-500/10 border-rose-500/20 text-rose-800 dark:text-rose-300' 
-            : 'bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-300'
-        } p-3 sm:p-3.5`}>
+            ? 'bg-rose-500/[0.06] border-rose-500/25 text-rose-900 dark:text-rose-200' 
+            : 'bg-amber-500/[0.06] border-amber-500/25 text-amber-900 dark:text-amber-200'
+        }`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-1.5 rounded-lg bg-white/80 dark:bg-slate-900/80 shrink-0">
+              <div className="p-2 rounded-xl bg-surface shadow-xs shrink-0">
                 {criticalCount > 0 ? (
                   <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                 ) : (
@@ -158,44 +155,45 @@ export default function DashboardTodayFocus({
                 )}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold leading-tight truncate">
+                <p className="text-xs sm:text-sm font-bold leading-tight truncate">
                   {criticalCount > 0 
                     ? `${criticalCount} cátedra${criticalCount > 1 ? 's' : ''} en riesgo de regularidad o atención urgente` 
                     : `${warningCount} materia${warningCount > 1 ? 's' : ''} pendiente${warningCount > 1 ? 's' : ''} de inicio de clases o compromisos próximos`}
                 </p>
-                <p className="text-[11px] opacity-80 truncate hidden sm:block">
-                  Haz clic para ver las materias y tomar acciones preventivas.
+                <p className="text-[11px] text-text-muted truncate hidden sm:block mt-0.5">
+                  Revisá las materias para tomar acciones preventivas reglamentarias.
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setShowAlertsDetail(prev => !prev)}
-              className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-white/60 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-900 transition-colors shrink-0 cursor-pointer min-h-[36px]"
               aria-expanded={showAlertsDetail}
-              aria-label="Ver detalle de alertas tempranas"
+              className="text-xs font-semibold shrink-0"
             >
               <span>{showAlertsDetail ? 'Ocultar' : 'Revisar'} ({alerts.length})</span>
-              {showAlertsDetail ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            </button>
+              {showAlertsDetail ? <ChevronDown className="w-3.5 h-3.5 ml-1" /> : <ChevronRight className="w-3.5 h-3.5 ml-1" />}
+            </Button>
           </div>
 
           {/* Desplegable con detalle de alertas */}
           {showAlertsDetail && (
-            <div className="mt-3 pt-3 border-t border-rose-500/20 dark:border-amber-500/20 space-y-2 animate-fadeIn">
+            <div className="mt-3 pt-3 border-t border-surface-border/60 space-y-2 animate-fadeIn">
               {alerts.map((al) => (
                 <div 
                   key={al.id}
-                  className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-slate-800 dark:text-slate-200"
+                  className="p-3 rounded-xl bg-surface border border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-text-primary shadow-xs"
                 >
                   <div className="min-w-0">
                     <p className="text-xs font-bold truncate">{al.title}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{al.description}</p>
+                    <p className="text-[11px] text-text-muted">{al.description}</p>
                   </div>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="xs"
                     onClick={() => {
                       if (al.url) {
                         navigate(al.url);
@@ -203,20 +201,20 @@ export default function DashboardTodayFocus({
                         navigate(`/catedra/${al.catedraId}?tab=${al.tab || 'asistencias'}`);
                       }
                     }}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline shrink-0 cursor-pointer min-h-[32px]"
+                    className="text-xs font-bold text-primary hover:text-primary-hover shrink-0 self-end sm:self-center"
                   >
                     <span>{al.actionLabel}</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
+                    <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  </Button>
                 </div>
               ))}
             </div>
           )}
         </div>
       ) : (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-medium">
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-medium">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span>Trayectorias académicas al día: todas las cátedras cumplen con los parámetros de asistencia y planificación.</span>
+          <span>Trayectorias académicas al día: todas las cátedras cumplen con los parámetros reglamentarios.</span>
         </div>
       )}
     </Card>

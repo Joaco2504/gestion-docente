@@ -1210,8 +1210,8 @@ export default function StudentsTab({
       ) : (
         /* View Mode: Students List View */
         <>
-          {/* Top Control Bar */}
-          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-surface p-4 rounded-2xl border border-surface-border shadow-xs">
+          {/* Top Control Bar con Primitivas Korum */}
+          <Card variant="default" padding="sm" className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center shrink-0">
                 <Users className="w-5 h-5" />
@@ -1223,7 +1223,8 @@ export default function StudentsTab({
                   </h3>
                   <Badge 
                     variant={searchQuery.trim() ? "primary" : "default"} 
-                    className="font-mono text-[11px] transition-all"
+                    size="sm"
+                    className="font-mono text-[11px]"
                   >
                     {searchQuery.trim() 
                       ? `Mostrando ${filteredAndSortedStudents.length} de ${estudiantes.length} alumnos`
@@ -1238,33 +1239,35 @@ export default function StudentsTab({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="md"
+                icon={FileSpreadsheet}
                 onClick={() => setViewMode('import-excel')}
-                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer flex-1 sm:flex-initial"
+                className="flex-1 sm:flex-initial"
               >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                <span>Importar Excel / CSV</span>
-              </button>
-              <button
-                type="button"
+                Importar Excel / CSV
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                icon={UserPlus}
                 onClick={() => setIsManualModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer flex-1 sm:flex-initial"
+                className="flex-1 sm:flex-initial"
               >
-                <UserPlus className="w-4 h-4" />
-                <span>+ Nuevo Alumno (Manual)</span>
-              </button>
+                Nuevo Alumno
+              </Button>
             </div>
-          </div>
+          </Card>
 
           {/* Segmented Control de Vistas: Cursantes Activos / Acreditados por Equivalencia / Todos */}
           <div className="flex items-center gap-1.5 p-1 bg-surface rounded-2xl border border-surface-border shadow-xs overflow-x-auto no-scrollbar max-w-full shrink-0">
             <button
               type="button"
               onClick={() => setStudentListFilter('activos')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.98] flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap select-none ${
                 studentListFilter === 'activos'
-                  ? 'bg-primary text-white shadow-sm'
+                  ? 'bg-primary text-white shadow-xs'
                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/60'
               }`}
             >
@@ -1281,9 +1284,9 @@ export default function StudentsTab({
             <button
               type="button"
               onClick={() => setStudentListFilter('equivalencias')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.98] flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap select-none ${
                 studentListFilter === 'equivalencias'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-primary text-white shadow-xs'
                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/60'
               }`}
             >
@@ -1292,7 +1295,7 @@ export default function StudentsTab({
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                 studentListFilter === 'equivalencias'
                   ? 'bg-white/20 text-white'
-                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-primary/10 text-primary'
               }`}>
                 {totalEquivalencias}
               </span>
@@ -1301,9 +1304,9 @@ export default function StudentsTab({
             <button
               type="button"
               onClick={() => setStudentListFilter('todos')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.98] flex items-center gap-2 cursor-pointer shrink-0 whitespace-nowrap select-none ${
                 studentListFilter === 'todos'
-                  ? 'bg-slate-700 dark:bg-slate-700 text-white shadow-sm'
+                  ? 'bg-slate-700 dark:bg-slate-700 text-white shadow-xs'
                   : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover/60'
               }`}
             >
@@ -1311,7 +1314,7 @@ export default function StudentsTab({
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                 studentListFilter === 'todos'
                   ? 'bg-white/20 text-white'
-                  : 'bg-slate-500/10 text-text-muted'
+                  : 'bg-surface-hover text-text-muted'
               }`}>
                 {totalInscriptos}
               </span>

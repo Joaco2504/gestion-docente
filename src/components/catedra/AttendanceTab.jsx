@@ -1668,38 +1668,38 @@ export default function AttendanceTab({
                 Todos Presentes
               </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Plus}
                 onClick={() => setIsModalOpen(true)}
                 disabled={cursadaFinalizada}
-                className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/60 font-semibold text-xs shadow-2xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Crear nueva sesión de clase"
               >
-                <Plus className="w-3.5 h-3.5 text-emerald-500" />
-                <span>+ Clase</span>
-              </button>
+                + Clase
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={FileSpreadsheet}
                 onClick={handleExportExcel}
                 disabled={estudiantes.length === 0}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/60 font-medium text-xs shadow-2xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Exportar asistencias a Excel (.xlsx)"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Excel</span>
-              </button>
+                Excel
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Printer}
                 onClick={() => setIsPrintModalOpen(true)}
                 disabled={estudiantes.length === 0}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/60 font-medium text-xs shadow-2xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Imprimir / Exportar a PDF"
               >
-                <Printer className="w-3.5 h-3.5 text-emerald-500" />
-                <span>PDF</span>
-              </button>
+                PDF
+              </Button>
 
               <Button
                 variant={inasistenciaActual ? 'secondary' : 'outline'}

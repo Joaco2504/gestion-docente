@@ -692,26 +692,28 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
 
         {/* Acciones principales de cabecera */}
         <div className="flex items-center gap-2 w-full md:w-auto flex-wrap sm:flex-nowrap">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="md"
+            icon={Printer}
             onClick={() => setIsPrintModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 hover:bg-emerald-50/40 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium shadow-sm active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial"
+            className="whitespace-nowrap shrink-0 flex-1 sm:flex-initial"
             title="Generar formato membretado oficial para firma"
           >
-            <Printer className="w-4 h-4 text-emerald-500" />
-            <span className="hidden sm:inline">Exportar Libro (PDF / Imprimir)</span>
-            <span className="sm:hidden">🖨️ Libro</span>
-          </button>
+            <span className="hidden sm:inline">Exportar Libro (PDF)</span>
+            <span className="sm:hidden">Libro</span>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="md"
+            icon={Plus}
             onClick={handleOpenCreate}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-lg shadow-emerald-600/20 active:scale-95 transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial"
+            className="whitespace-nowrap shrink-0 flex-1 sm:flex-initial"
           >
-            <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Registrar Clase</span>
             <span className="sm:hidden">+ Clase</span>
-          </button>
+          </Button>
         </div>
       </div>
 

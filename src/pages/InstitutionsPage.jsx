@@ -17,6 +17,7 @@ import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import CustomSelect from '../components/common/CustomSelect';
+import SectionHeader from '../components/common/SectionHeader';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -309,46 +310,40 @@ export default function InstitutionsPage() {
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface p-6 rounded-2xl border border-surface-border shadow-sm">
-        <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-text-muted block mb-1">
-            Configuración Estructural
-          </span>
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-            Instituciones y Ciclos Lectivos
-          </h1>
-          <p className="text-xs text-text-secondary mt-0.5">
-            Administra los colegios o institutos donde dictas clases y los periodos académicos activos.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            icon={Plus}
-            onClick={() => {
-              setErrorMsg('');
-              setIsInstModalOpen(true);
-            }}
-            className="touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0 text-xs sm:text-sm"
-          >
-            <span className="hidden sm:inline">Nueva Institución</span>
-            <span className="sm:hidden">+ Institución</span>
-          </Button>
-          <Button
-            variant="outline"
-            icon={Calendar}
-            onClick={() => {
-              setErrorMsg('');
-              setIsCicloModalOpen(true);
-            }}
-            className="touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0 text-xs sm:text-sm"
-          >
-            <span className="hidden sm:inline">Nuevo Ciclo</span>
-            <span className="sm:hidden">+ Ciclo</span>
-          </Button>
-        </div>
-      </div>
+      <SectionHeader
+        badge="Configuración Estructural"
+        title="Instituciones y Ciclos Lectivos"
+        subtitle="Administra los colegios o institutos donde dictas clases y los periodos académicos activos."
+        icon={Building}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => {
+                setErrorMsg('');
+                setIsInstModalOpen(true);
+              }}
+              className="touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0 text-xs sm:text-sm"
+            >
+              <span className="hidden sm:inline">Nueva Institución</span>
+              <span className="sm:hidden">+ Institución</span>
+            </Button>
+            <Button
+              variant="secondary"
+              icon={Calendar}
+              onClick={() => {
+                setErrorMsg('');
+                setIsCicloModalOpen(true);
+              }}
+              className="touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0 text-xs sm:text-sm"
+            >
+              <span className="hidden sm:inline">Nuevo Ciclo</span>
+              <span className="sm:hidden">+ Ciclo</span>
+            </Button>
+          </div>
+        }
+      />
 
       {errorMsg && (
         <div className="p-4 bg-danger/10 border border-danger/30 text-danger text-xs rounded-xl flex items-center gap-2">
@@ -374,7 +369,8 @@ export default function InstitutionsPage() {
               return (
                 <Card 
                   key={inst.id} 
-                  className={`p-5 transition-all relative ${
+                  variant={isSelected ? 'highlight' : 'default'}
+                  className={`p-5 transition-[border-color,background-color,box-shadow] duration-200 relative ${
                     isSelected ? 'ring-2 ring-primary border-primary bg-primary/5 dark:bg-primary/10' : 'hover:border-surface-border'
                   }`}
                 >
@@ -448,7 +444,7 @@ export default function InstitutionsPage() {
               return (
                 <div
                   key={ciclo.id}
-                  className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                  className={`p-3 rounded-xl border flex items-center justify-between transition-colors duration-150 ${
                     isSelected 
                       ? 'border-primary bg-primary/5 dark:bg-primary/10' 
                       : 'border-surface-border hover:bg-surface-hover'

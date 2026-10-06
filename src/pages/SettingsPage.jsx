@@ -22,6 +22,7 @@ import Button from '../components/common/Button';
 import CustomSelect from '../components/common/CustomSelect';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
+import SectionHeader from '../components/common/SectionHeader';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -395,19 +396,12 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 animate-fadeIn pb-16">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <Settings className="w-4 h-4" />
-          </div>
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-            Configuración del Sistema
-          </h1>
-        </div>
-        <p className="text-xs sm:text-sm text-text-muted">
-          Personaliza la gama de colores, ajusta los límites de períodos del ciclo lectivo y define criterios de aprobación.
-        </p>
-      </div>
+      <SectionHeader
+        badge="Ajustes Generales"
+        title="Configuración del Sistema"
+        subtitle="Personaliza la gama de colores, ajusta los límites de períodos del ciclo lectivo y define criterios de aprobación."
+        icon={Settings}
+      />
 
       {/* SECCIÓN 1: PERSONALIZACIÓN Y COLORES */}
       <Card className="p-5 sm:p-6 space-y-6">
@@ -441,7 +435,7 @@ export default function SettingsPage() {
                     setColorPalette(p.id);
                     toast.success(`Paleta cambiada a "${p.name}".`);
                   }}
-                  className={`flex items-center gap-3.5 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                  className={`flex items-center gap-3.5 p-3.5 rounded-2xl border text-left transition-[border-color,background-color,box-shadow] duration-200 cursor-pointer ${
                     isSelected
                       ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-xs'
                       : 'border-surface-border bg-surface hover:bg-surface-hover/80'
@@ -488,7 +482,7 @@ export default function SettingsPage() {
                 setTheme('light');
                 toast.success('Modo Claro activado.');
               }}
-              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-bold gap-2 transition-all ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-bold gap-2 transition-colors duration-150 ${
                 theme === 'light'
                   ? 'border-primary ring-2 ring-primary/20 bg-primary/5 text-primary'
                   : 'border-surface-border text-text-secondary hover:bg-surface-hover'
@@ -504,7 +498,7 @@ export default function SettingsPage() {
                 setTheme('dark');
                 toast.success('Modo Oscuro activado.');
               }}
-              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-bold gap-2 transition-all ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-bold gap-2 transition-colors duration-150 ${
                 theme === 'dark'
                   ? 'border-primary ring-2 ring-primary/20 bg-primary/5 text-primary'
                   : 'border-surface-border text-text-secondary hover:bg-surface-hover'
@@ -520,7 +514,7 @@ export default function SettingsPage() {
                 setTheme('system');
                 toast.success('Modo Automático del Sistema activado.');
               }}
-              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-bold gap-2 transition-all ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-bold gap-2 transition-colors duration-150 ${
                 theme === 'system'
                   ? 'border-primary ring-2 ring-primary/20 bg-primary/5 text-primary'
                   : 'border-surface-border text-text-secondary hover:bg-surface-hover'
@@ -567,7 +561,7 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2 shrink-0">
             <div
               aria-label={isPeriodsOpen ? "Colapsar sección" : "Desplegar sección"}
-              className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface group-hover:bg-primary/10 group-hover:text-primary transition-all duration-200 shrink-0 shadow-xs"
+              className="w-9 h-9 rounded-full flex items-center justify-center border border-slate-200/80 dark:border-white/10 bg-surface group-hover:bg-primary/10 group-hover:text-primary transition-[background-color,color] duration-200 shrink-0 shadow-xs"
             >
               <ChevronDown
                 className={`w-4 h-4 transition-transform duration-300 ease-in-out transform ${
@@ -610,7 +604,7 @@ export default function SettingsPage() {
               {periodos.map((p, index) => (
                 <div 
                   key={p.id || index}
-                  className={`p-4 rounded-2xl border transition-all ${
+                  className={`p-4 rounded-2xl border transition-colors duration-150 ${
                     p.tipo === 'RECESO' || p.tipo === 'RECESO_INVERNAL'
                       ? 'bg-amber-500/5 border-amber-500/20'
                       : 'bg-surface border-surface-border'
@@ -682,14 +676,14 @@ export default function SettingsPage() {
 
                     {/* Remove button */}
                     <div className="flex items-end justify-end">
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={Trash2}
                         onClick={() => handleRemovePeriod(index)}
-                        className="p-2 text-text-muted hover:text-danger hover:bg-danger/10 rounded-xl transition-all touch-target-44 cursor-pointer"
+                        className="touch-target-44 p-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
                         title="Eliminar este período"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      />
                     </div>
                   </div>
                 </div>

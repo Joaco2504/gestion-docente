@@ -8,17 +8,20 @@ import {
   ShieldCheck, 
   Target, 
   Globe, 
-  BarChart3,
-  Flag,
-  Lock,
-  Unlock,
-  Pencil,
-  ChevronDown,
-  ChevronUp,
-  Settings,
-  SlidersHorizontal,
-  Layers
+  BarChart3, 
+  Flag, 
+  Lock, 
+  Unlock, 
+  Pencil, 
+  ChevronDown, 
+  ChevronUp, 
+  Settings, 
+  SlidersHorizontal, 
+  Layers 
 } from 'lucide-react';
+import Card from '../common/Card';
+import Badge from '../common/Badge';
+import Button from '../common/Button';
 
 /**
  * Formatea la lista de horarios semanales agrupando días con mismo horario y aula
@@ -88,7 +91,7 @@ function formatModalidadLabel(mod) {
 /**
  * Mini medidor circular SVG para micro-KPIs
  */
-function MiniCircularGauge({ percentage, size = 42, strokeWidth = 4, color = "stroke-emerald-500", label }) {
+function MiniCircularGauge({ percentage, size = 44, strokeWidth = 4.5, color = "stroke-emerald-500", label }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const safePercentage = Math.min(100, Math.max(0, percentage));
@@ -101,14 +104,14 @@ function MiniCircularGauge({ percentage, size = 42, strokeWidth = 4, color = "st
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          className="stroke-slate-200 dark:stroke-slate-700/80 fill-none"
+          className="stroke-surface-border fill-none"
           strokeWidth={strokeWidth}
         />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          className={`${color} fill-none transition-all duration-700 ease-out`}
+          className={`${color} fill-none transition-[stroke-dashoffset] duration-700 ease-out`}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
@@ -116,7 +119,7 @@ function MiniCircularGauge({ percentage, size = 42, strokeWidth = 4, color = "st
         />
       </svg>
       {label && (
-        <span className="absolute text-[10px] font-extrabold text-slate-700 dark:text-slate-200 select-none">
+        <span className="absolute text-[10px] font-extrabold text-text-primary select-none">
           {label}
         </span>
       )}
@@ -169,7 +172,7 @@ export default function CatedraHeader({
   const notaMinReg = Number(criterios?.nota_min_reg) || 4;
 
   return (
-    <div className="relative w-full bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm mb-6 transition-all overflow-visible">
+    <Card variant="bento" padding="lg" className="relative w-full mb-6 overflow-visible">
       {/* Luz ambiental sutil Korum (decoración superior) */}
       <div className="absolute top-0 right-1/4 w-96 h-28 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
@@ -177,31 +180,31 @@ export default function CatedraHeader({
         {/* ========================================================= */}
         {/* BLOQUE IZQUIERDO: TÍTULO, IDENTIDAD Y MICRO-KPIS (lg:col-span-7) */}
         {/* ========================================================= */}
-        <div className="lg:col-span-7 flex flex-col justify-between space-y-5">
+        <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
           {/* Eyebrow & Badges de contexto */}
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="text-[10px] sm:text-xs uppercase font-bold tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] sm:text-xs uppercase font-bold tracking-widest text-primary flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 Cátedra Dashboard
               </span>
 
               {cursadaFinalizada && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                  <Lock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                <Badge variant="warning" size="xs">
+                  <Lock className="w-3 h-3 mr-1" />
                   Cursado Cerrado
-                </span>
+                </Badge>
               )}
             </div>
 
             {/* Nombre de la materia principal con tipografía fluida y protección de desborde */}
-            <h1 className="font-fluid-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight min-w-0 break-words" title={catedra?.nombre}>
+            <h1 className="font-fluid-display font-extrabold tracking-tight text-text-primary leading-tight min-w-0 break-words" title={catedra?.nombre}>
               {catedra?.nombre ?? 'Cátedra'}
             </h1>
 
             {/* Meta-datos institucionales en texto compacto sin cortes */}
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex flex-wrap items-center gap-1.5 min-w-0">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">{institucionNombre}</span>
+            <div className="text-xs text-text-muted mt-2 flex flex-wrap items-center gap-1.5 min-w-0">
+              <span className="font-semibold text-text-secondary">{institucionNombre}</span>
               <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
               <span>{nivelLabel}</span>
               <span className="text-slate-300 dark:text-slate-700 select-none">·</span>
@@ -214,7 +217,7 @@ export default function CatedraHeader({
           {/* Micro-KPIs incrustados Bento */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             {/* KPI 1: Asistencia RAM */}
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/80 shadow-2xs">
+            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-surface-hover/70 border border-surface-border shadow-xs">
               <MiniCircularGauge
                 percentage={minAsistReg}
                 size={44}
@@ -223,20 +226,20 @@ export default function CatedraHeader({
                 label={`${minAsistReg}%`}
               />
               <div className="min-w-0">
-                <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+                <p className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
                   Asistencia RAM
                 </p>
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate mt-0.5">
+                <p className="text-xs font-bold text-text-primary truncate mt-0.5">
                   {minAsistReg}% Reg. · {minAsistPromo}% Promo
                 </p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                <p className="text-[10px] text-text-muted truncate">
                   Exigencia institucional
                 </p>
               </div>
             </div>
 
             {/* KPI 2: Aprobación de Parciales */}
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/80 shadow-2xs">
+            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-surface-hover/70 border border-surface-border shadow-xs">
               <MiniCircularGauge
                 percentage={(notaMinReg / 10) * 100}
                 size={44}
@@ -245,13 +248,13 @@ export default function CatedraHeader({
                 label={`${notaMinReg}+`}
               />
               <div className="min-w-0">
-                <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+                <p className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
                   Aprobación RAM
                 </p>
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate mt-0.5">
+                <p className="text-xs font-bold text-text-primary truncate mt-0.5">
                   Mínimo {notaMinReg} / 10
                 </p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                <p className="text-[10px] text-text-muted truncate">
                   Escala de acreditación
                 </p>
               </div>
@@ -264,60 +267,60 @@ export default function CatedraHeader({
         {/* ========================================================= */}
         <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
           {/* Card colapsable: Aula / Horarios */}
-          <div className="bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl p-3.5 transition-all shadow-2xs">
+          <div className="bg-surface-hover/80 border border-surface-border rounded-2xl p-3.5 shadow-xs transition-[border-color] duration-150">
             <button
               type="button"
               onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}
-              className="w-full flex items-center justify-between gap-2 text-left cursor-pointer group"
+              className="w-full flex items-center justify-between gap-2 text-left cursor-pointer group select-none min-h-[44px]"
               title="Clic para ver todos los horarios y aulas"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
                     Aula y Horarios
                   </p>
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  <p className="text-xs font-semibold text-text-primary truncate group-hover:text-primary transition-colors">
                     {schedulesList.length > 0 ? schedulesList[0].text : 'Sin horarios asignados'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200">
+              <div className="flex items-center gap-1.5 shrink-0 text-text-muted group-hover:text-text-primary">
                 {schedulesList.length > 1 && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                  <Badge variant="secondary" size="xs">
                     +{schedulesList.length - 1}
-                  </span>
+                  </Badge>
                 )}
                 {isScheduleExpanded ? (
-                  <ChevronUp className="w-4 h-4 transition-transform" />
+                  <ChevronUp className="w-4 h-4 transition-transform duration-150" />
                 ) : (
-                  <ChevronDown className="w-4 h-4 transition-transform" />
+                  <ChevronDown className="w-4 h-4 transition-transform duration-150" />
                 )}
               </div>
             </button>
 
             {/* Lista desplegada de horarios si está abierto */}
             {isScheduleExpanded && (
-              <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-700/50 space-y-2 animate-fadeIn">
+              <div className="mt-3 pt-3 border-t border-surface-border space-y-2 animate-fadeIn">
                 {schedulesList.length > 0 ? (
                   schedulesList.map((slot, idx) => (
                     <div 
                       key={idx} 
-                      className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800"
+                      className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-surface border border-surface-border shadow-xs"
                     >
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      <span className="font-semibold text-text-secondary">
                         {slot.dias} ({slot.time})
                       </span>
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-bold">
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
                         {slot.aula}
                       </span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-400 italic">No hay horarios registrados para esta cátedra.</p>
+                  <p className="text-xs text-text-muted italic">No hay horarios registrados para esta cátedra.</p>
                 )}
               </div>
             )}
@@ -329,49 +332,48 @@ export default function CatedraHeader({
             <button
               type="button"
               onClick={onOpenPortal}
-              className={`flex-1 sm:flex-initial flex items-center justify-between sm:justify-start gap-2.5 px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-xs ${
+              className={`flex-1 sm:flex-initial flex items-center justify-between sm:justify-start gap-2.5 px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-[background-color,border-color,transform] duration-150 active:scale-[0.98] cursor-pointer shadow-xs min-h-[44px] ${
                 isPortalActive
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15'
-                  : 'bg-slate-100/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70'
+                  ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/15'
+                  : 'bg-surface border-surface-border text-text-secondary hover:bg-surface-hover'
               }`}
               title="Configurar y compartir el portal público para alumnos"
             >
               <div className="flex items-center gap-2">
-                <Globe className={`w-4 h-4 shrink-0 ${isPortalActive ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} />
+                <Globe className={`w-4 h-4 shrink-0 ${isPortalActive ? 'text-primary animate-pulse' : 'text-text-muted'}`} />
                 <span>Portal Alumnos</span>
               </div>
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase transition-colors shrink-0 ${
-                isPortalActive
-                  ? 'bg-emerald-500 text-white shadow-xs'
-                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isPortalActive ? 'bg-white' : 'bg-slate-400'}`} />
-                <span>{isPortalActive ? 'ON' : 'OFF'}</span>
-              </span>
+              <Badge
+                variant={isPortalActive ? "promo" : "secondary"}
+                size="xs"
+                dot={true}
+              >
+                {isPortalActive ? 'ON' : 'OFF'}
+              </Badge>
             </button>
 
             {/* Botón rápido: Estadísticas */}
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="md"
+              icon={BarChart3}
               onClick={onOpenStats}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/60 text-xs font-semibold shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
               title="Ver métricas de asistencia, notas y rendimiento"
             >
-              <BarChart3 className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>Estadísticas</span>
-            </button>
+              Estadísticas
+            </Button>
 
             {/* Menú Desplegable Unificado: Cátedra Acciones ▾ */}
             <div className="relative">
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
                 onClick={() => setIsActionsOpen(!isActionsOpen)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-600/20 active:scale-[0.98] transition-all cursor-pointer"
                 title="Menú de gestión y operaciones de cátedra"
               >
                 <span>Acciones</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isActionsOpen ? 'rotate-180' : ''}`} />
-              </button>
+                <ChevronDown className={`w-3.5 h-3.5 ml-1 transition-transform duration-150 ${isActionsOpen ? 'rotate-180' : ''}`} />
+              </Button>
 
               {/* Overlay para click outside */}
               {isActionsOpen && (
@@ -383,7 +385,7 @@ export default function CatedraHeader({
 
               {/* Menú Flotante */}
               {isActionsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-surface border border-slate-200 dark:border-slate-800 shadow-xl z-50 py-1.5 animate-fadeIn">
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-surface border border-surface-border shadow-xl z-50 py-1.5 animate-fadeIn space-y-0.5">
                   {/* Opción: Editar Cátedra */}
                   {onEditCatedra && (
                     <button
@@ -392,9 +394,9 @@ export default function CatedraHeader({
                         setIsActionsOpen(false);
                         onEditCatedra();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-text-primary hover:text-primary hover:bg-primary/10 rounded-xl transition-colors text-left cursor-pointer"
                     >
-                      <Pencil className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <Pencil className="w-4 h-4 text-primary shrink-0" />
                       <span>Editar Cátedra</span>
                     </button>
                   )}
@@ -407,7 +409,7 @@ export default function CatedraHeader({
                         setIsActionsOpen(false);
                         if (onFinalizarCursada) onFinalizarCursada();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-xl transition-colors text-left cursor-pointer"
                     >
                       <Flag className="w-4 h-4 text-amber-500 shrink-0" />
                       <span>Finalizar Cursado</span>
@@ -419,14 +421,14 @@ export default function CatedraHeader({
                         setIsActionsOpen(false);
                         if (onReabrirCursada) onReabrirCursada();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl transition-colors text-left cursor-pointer"
                     >
                       <Unlock className="w-4 h-4 text-emerald-500 shrink-0" />
                       <span>Reabrir Cursado</span>
                     </button>
                   )}
 
-                  <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+                  <div className="border-t border-surface-border my-1" />
 
                   {/* Opción: Configuración / Criterios RAM */}
                   <button
@@ -435,9 +437,9 @@ export default function CatedraHeader({
                       setIsActionsOpen(false);
                       if (onNavigateToConfig) onNavigateToConfig();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-xl transition-colors text-left cursor-pointer"
                   >
-                    <Settings className="w-4 h-4 text-slate-400 shrink-0" />
+                    <Settings className="w-4 h-4 text-text-muted shrink-0" />
                     <span>Configuración / RAM</span>
                   </button>
                 </div>
@@ -446,6 +448,6 @@ export default function CatedraHeader({
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

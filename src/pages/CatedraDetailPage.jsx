@@ -488,7 +488,7 @@ export default function CatedraDetailPage() {
         {/* ========================================================
             PARTE 3: BARRA DE PESTAÑAS SEGMENTADAS (TABS)
            ======================================================== */}
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-6 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2 border-b border-surface-border pb-3 mb-6 overflow-x-auto scrollbar-none">
           {TABS_CONFIG.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -497,10 +497,10 @@ export default function CatedraDetailPage() {
                 key={tab.id}
                 type="button"
                 onClick={(e) => handleTabChange(tab.id, e)}
-                className={`min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                className={`min-h-[44px] px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.98] flex items-center gap-2 cursor-pointer whitespace-nowrap select-none ${
                   isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    ? 'bg-primary text-white shadow-xs dark:shadow-primary/20'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
