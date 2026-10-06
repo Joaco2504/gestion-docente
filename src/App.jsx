@@ -1,13 +1,12 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuth } from './context/AuthContext';
 import { useApp } from './context/AppContext';
 import { useTheme } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
-import DualSidebar from './components/layout/DualSidebar';
+import AppSidebar from './components/layout/AppSidebar';
 import BottomNav from './components/layout/BottomNav';
-import TeacherQuickDock from './components/layout/TeacherQuickDock';
 import HeaderSelector from './components/layout/HeaderSelector';
 import Footer from './components/layout/Footer';
 import CreateCatedraModal from './components/common/CreateCatedraModal';
@@ -95,6 +94,39 @@ function AuthenticatedDocenteShell() {
   const { user, loading } = useAuth();
   const { openNewCatedraModal, setOpenNewCatedraModal, refreshCatedras } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Estado colapsado del riel de escritorio (persistido con try/catch)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('korum_sidebar_collapsed') === 'true';
+    } catch (_) {
+      return false;
+    }
+  });
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('korum_sidebar_collapsed', String(next));
+      } catch (_) {}
+      return next;
+    });
+  };
+
+  // Atajo de teclado global Ctrl+B / Cmd+B para alternar colapso de sidebar
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        toggleSidebarCollapse();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   if (loading) {
     return (
@@ -125,10 +157,12 @@ function AuthenticatedDocenteShell() {
 
   return (
     <div className="flex min-h-dvh w-full bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary relative overflow-x-clip">
-      {/* 1. Barra Lateral Anclada a Altura Completa */}
-      <DualSidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
+      {/* 1. Barra Lateral Anclada a Altura Completa (Colapsable y con Etiquetas) */}
+      <AppSidebar 
+        isMobileOpen={sidebarOpen} 
+        onCloseMobile={() => setSidebarOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapse}
       />
 
       {/* 2. Área de Trabajo Principal (Scroll a nivel de documento, sin capturas intermedias) */}
@@ -178,11 +212,8 @@ function AuthenticatedDocenteShell() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (Hidden on lg and up) */}
+      {/* Mobile Bottom Navigation Bar (Hidden on md and up) */}
       <BottomNav />
-
-      {/* Teacher Quick Dock (FAB 48x48 para atajos de aula, hidden on lg and up) */}
-      <TeacherQuickDock />
 
       {/* Modal Global para Crear Nueva Cátedra */}
       <CreateCatedraModal 

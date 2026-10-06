@@ -1,882 +1,239 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { 
+  Menu, 
+  Search, 
+  ChevronRight, 
+  ChevronDown, 
+  BookOpen, 
+  Home,
+  Check
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { useNotifications } from '../../context/NotificationContext';
-import { 
-  GraduationCap, 
-  Menu, 
-  Bell, 
-  Trash2, 
-  AlertCircle, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Info,
-  X,
-  BookMarked,
-  ShieldAlert,
-  ArrowRight,
-  CheckCheck,
-  RefreshCw,
-  Search,
-  ChevronDown,
-  BookOpen,
-  CalendarCheck,
-  Award,
-  FileSpreadsheet,
-  Settings,
-  Users,
-  User,
-  CornerDownLeft
-} from 'lucide-react';
-import SunMoonThemeToggle from '../common/SunMoonThemeToggle';
-import { useTheme } from '../../context/ThemeContext';
-import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-
-function formatTimestamp(date) {
-  if (!date) return '';
-  const d = date instanceof Date ? date : new Date(date);
-  if (isNaN(d.getTime())) return '';
-  const now = new Date();
-  const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
-
-  if (diffSec < 60 && diffSec >= -60) return 'Hace un instante';
-  if (diffSec >= 60 && diffSec < 3600) return `Hace ${Math.floor(diffSec / 60)} min`;
-  if (diffSec >= 3600 && diffSec < 86400) return `Hace ${Math.floor(diffSec / 3600)} h`;
-  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
-}
+import CommandPalette from './CommandPalette';
+import NotificationPanel from './NotificationPanel';
+import UserMenu from './UserMenu';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from '../common/DropdownMenu';
 
 export default function Navbar({ onToggleSidebar }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, esSuperadmin } = useAuth();
   const { catedras } = useApp();
-  const { isDark, toggleTheme } = useTheme();
-  const { 
-    notificaciones, 
-    unreadCount, 
-    loading,
-    marcarLeida,
-    marcarTodasLeidas, 
-    limpiarNotificaciones,
-    descartarNotificacion,
-    recargarNotificaciones 
-  } = useNotifications();
-  
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [isCatedraDropdownOpen, setIsCatedraDropdownOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [matchedStudents, setMatchedStudents] = useState([]);
-  const [searchingStudents, setSearchingStudents] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const notifRef = useRef(null);
-  const catedraDropdownRef = useRef(null);
-
-  // Determinar cátedra activa según URL o primera de la lista
-  const match = location.pathname.match(/\/catedra\/([^/?#]+)/);
-  const currentUrlCatedraId = match ? match[1] : null;
-  const activeCatedra = (catedras || []).find(c => String(c.id) === String(currentUrlCatedraId)) || catedras?.[0] || null;
-
-  // Bloqueo de scroll de fondo y reseteo al abrir/cerrar Command Palette
-  useEffect(() => {
-    if (isCommandPaletteOpen) {
-      document.body.style.overflow = 'hidden';
-      setSelectedIndex(0);
-    } else {
-      document.body.style.overflow = '';
-      setSearchQuery('');
-      setMatchedStudents([]);
-      setSelectedIndex(0);
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isCommandPaletteOpen]);
-
-  // Búsqueda reactiva de estudiantes (por DNI o Nombre/Apellido)
-  useEffect(() => {
-    const q = searchQuery.trim();
-    if (!q || q.length < 2) {
-      setMatchedStudents([]);
-      return;
-    }
-
-    let isMounted = true;
-    const cleanDni = q.replace(/\D/g, '');
-
-    const runSearch = async () => {
-      setSearchingStudents(true);
-      try {
-        let found = [];
-        if (isSupabaseConfigured && supabase && user?.id) {
-          let query = supabase
-            .from('estudiantes')
-            .select('id, nombre, apellido, dni')
-            .limit(8);
-
-          if (cleanDni && cleanDni.length >= 2) {
-            query = query.or(`dni.ilike.%${cleanDni}%,nombre.ilike.%${q}%,apellido.ilike.%${q}%`);
-          } else {
-            query = query.or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%`);
-          }
-
-          const { data, error } = await query;
-          if (!error && data) {
-            found = data;
-          }
-        }
-
-        // Fallback a localStorage (modo demo o complementario)
-        if (found.length === 0) {
-          const localList = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && k.startsWith('estudiantes_')) {
-              try {
-                const parsed = JSON.parse(localStorage.getItem(k) || '[]');
-                if (Array.isArray(parsed)) localList.push(...parsed);
-              } catch (_) {}
-            }
-          }
-          const lowerQ = q.toLowerCase();
-          found = localList.filter(s => {
-            const fullName = `${s.apellido || ''} ${s.nombre || ''}`.toLowerCase();
-            const matchName = fullName.includes(lowerQ);
-            const matchDni = cleanDni && String(s.dni || '').replace(/\D/g, '').includes(cleanDni);
-            return matchName || matchDni;
-          }).slice(0, 8);
-        }
-
-        if (isMounted) {
-          setMatchedStudents(found);
-          setSelectedIndex(0);
-        }
-      } catch (err) {
-        console.warn('CommandPalette student search error:', err);
-      } finally {
-        if (isMounted) setSearchingStudents(false);
-      }
-    };
-
-    const timer = setTimeout(runSearch, 120);
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [searchQuery, user?.id]);
-
-  // Cerrar dropdowns al hacer clic fuera
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (notifRef.current && !notifRef.current.contains(event.target)) {
-        setShowNotifications(false);
-      }
-      if (catedraDropdownRef.current && !catedraDropdownRef.current.contains(event.target)) {
-        setIsCatedraDropdownOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Atajo de teclado global: Ctrl + K / Cmd + K para abrir Command Palette
+  // Escuchar atajo global Ctrl+K / Cmd+K
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setIsCommandPaletteOpen(prev => !prev);
-      } else if (e.key === 'Escape' && isCommandPaletteOpen) {
-        setIsCommandPaletteOpen(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCommandPaletteOpen]);
+  }, []);
 
-  const toggleNotifications = () => {
-    if (!showNotifications && unreadCount > 0) {
-      marcarTodasLeidas();
+  // Analizar ruta actual para Breadcrumb
+  const path = location.pathname;
+  const catedraMatch = path.match(/^\/catedra\/([^/?#]+)/);
+  const currentCatedraId = catedraMatch ? catedraMatch[1] : null;
+  const currentCatedra = currentCatedraId 
+    ? (catedras || []).find(c => String(c.id) === String(currentCatedraId)) 
+    : null;
+
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get('tab');
+
+  const getTabLabel = (tab) => {
+    switch (tab) {
+      case 'asistencias': return 'Asistencias';
+      case 'calificaciones': return 'Calificaciones';
+      case 'libro-temas': return 'Libro de Temas';
+      case 'alumnos': return 'Estudiantes';
+      case 'recursos': return 'Recursos y Drive';
+      case 'unidades': return 'Planificación';
+      default: return null;
     }
-    setShowNotifications(!showNotifications);
   };
 
-  const teacherName = 
-    user?.perfil?.nombre || 
-    user?.user_metadata?.nombre || 
-    user?.email?.split('@')[0] || 
-    'Docente';
-
-  // Acciones y accesos directos para la Command Palette
-  const quickActions = [
-    {
-      id: 'calificaciones',
-      titulo: 'Planilla de Calificaciones',
-      subtitulo: activeCatedra ? `Abrir sábana de notas de ${activeCatedra.nombre}` : 'Consultar calificaciones',
-      icon: GraduationCap,
-      action: () => {
-        if (activeCatedra) navigate(`/catedra/${activeCatedra.id}?tab=calificaciones`);
-        else navigate('/dashboard');
-      }
-    },
-    {
-      id: 'asistencias',
-      titulo: 'Registro de Asistencias',
-      subtitulo: activeCatedra ? `Toma de presentes de ${activeCatedra.nombre}` : 'Control de asistencias',
-      icon: CalendarCheck,
-      action: () => {
-        if (activeCatedra) navigate(`/catedra/${activeCatedra.id}?tab=asistencias`);
-        else navigate('/dashboard');
-      }
-    },
-    {
-      id: 'mesas',
-      titulo: 'Mesas de Examen & Actas',
-      subtitulo: 'Actas volantes y turnos oficiales de examen',
-      icon: Award,
-      action: () => navigate('/mesas-examen')
-    },
-    {
-      id: 'libro-temas',
-      titulo: 'Libro de Temas y Clases',
-      subtitulo: 'Planificación y registro de contenidos dictados',
-      icon: FileSpreadsheet,
-      action: () => {
-        if (activeCatedra) navigate(`/catedra/${activeCatedra.id}?tab=libro-temas`);
-        else navigate('/guias');
-      }
-    },
-    {
-      id: 'alumnos',
-      titulo: 'Nómina de Estudiantes Matriculados',
-      subtitulo: 'Ver legajos, DNI y estado regular',
-      icon: Users,
-      action: () => {
-        if (activeCatedra) navigate(`/catedra/${activeCatedra.id}?tab=alumnos`);
-        else navigate('/dashboard');
-      }
-    }
-  ];
-
-  const filteredCatedras = (catedras || []).filter(c => 
-    !searchQuery || 
-    c.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.institucion_nombre?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredActions = quickActions.filter(a =>
-    !searchQuery ||
-    a.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.subtitulo.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const getStaticTitle = () => {
+    if (path === '/dashboard' || path === '/') return 'Inicio';
+    if (path.startsWith('/calendario')) return 'Calendario Académico';
+    if (path.startsWith('/mesas-examen') || path.startsWith('/mesas')) return 'Mesas de Examen';
+    if (path.startsWith('/instituciones')) return 'Instituciones';
+    if (path.startsWith('/configuracion')) return 'Configuración';
+    if (path.startsWith('/guias')) return 'Guías y Recursos';
+    if (path.startsWith('/soporte')) return 'Soporte Técnico';
+    if (path.startsWith('/admin')) return 'Panel de Administración';
+    return 'Korum';
+  };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-surface/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 relative shadow-xs overflow-x-clip">
-      {/* Animated top shimmer beam */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-80 animate-pulseGlow" />
-
-      <div className="w-full px-2.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-1.5 sm:gap-4 relative z-10">
-        
-        {/* Brand & Mobile Drawer Button (solo visible en pantallas móviles / tablet < lg) */}
-        <div className="flex items-center gap-2 lg:hidden shrink-0">
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            className="min-w-[44px] min-h-[44px] p-1 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-transform duration-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center group"
-            title="Abrir menú de navegación"
-            aria-label="Abrir menú"
-          >
-            <img
-              src="/dashboard-logo.png"
-              alt="Korum"
-              className="w-8 h-8 object-contain rounded-xl drop-shadow-xs group-hover:drop-shadow-[0_0_8px_rgba(16,185,129,0.3)] transition-all"
-            />
-          </button>
-
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white hidden min-[360px]:inline">
-              Korum
-            </span>
-            <span className="text-[11px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono hidden min-[400px]:inline">
-              v2.0
-            </span>
-          </div>
-        </div>
-
-        {/* =========================================================================
-            SELECTOR DE CÁTEDRA (ESCRITORIO >= lg)
-           ========================================================================= */}
-        <div className="hidden lg:flex items-center gap-3">
-          {/* Selector Rápido de Cátedra Activa */}
-          <div className="relative" ref={catedraDropdownRef}>
+    <>
+      <header className="sticky top-0 z-30 h-14 sm:h-16 w-full bg-surface/90 backdrop-blur-md border-b border-border/50 text-text-primary px-3 sm:px-6 transition-all">
+        <div className="h-full flex items-center justify-between gap-3 max-w-7xl 2xl:max-w-[96rem] mx-auto">
+          
+          {/* ============================================================
+              1. LADO IZQUIERDO: MENÚ HAMBURGUESA + BREADCRUMB JERÁRQUICO
+             ============================================================ */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
+            {/* Botón de apertura de barra lateral en móvil/tablet */}
             <button
               type="button"
-              onClick={() => setIsCatedraDropdownOpen(prev => !prev)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs font-semibold text-slate-800 dark:text-slate-100 hover:border-emerald-500/40 transition-all cursor-pointer max-w-[170px] xl:max-w-[260px] truncate"
-              title="Conmutar cátedra activa"
+              onClick={onToggleSidebar}
+              aria-label="Abrir barra lateral de navegación"
+              className="lg:hidden p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden transition-colors cursor-pointer active:scale-95"
             >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-              <span className="truncate flex-1 text-left">
-                {activeCatedra?.nombre 
-                  ? `${activeCatedra.nombre}${activeCatedra.anio ? ` (${activeCatedra.anio}° año)` : ''}${activeCatedra.regimen ? ` · ${activeCatedra.regimen}` : (activeCatedra.comision ? ` · ${activeCatedra.comision}` : '')}`
-                  : 'Cátedra Activa'
-                }
-              </span>
-              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-150 ${isCatedraDropdownOpen ? 'rotate-180' : ''}`} />
+              <Menu className="w-5 h-5" />
             </button>
 
-            {/* Dropdown flotante (z-50) con las cátedras asignadas */}
-            {isCatedraDropdownOpen && (
-              <div className="absolute left-0 mt-2 w-80 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl py-1 z-50 animate-fadeIn">
-                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                  <span>Cátedras Asignadas ({catedras.length})</span>
-                  <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400">Cambio Inmediato</span>
-                </div>
-                <div className="max-h-64 overflow-y-auto py-1 divide-y divide-slate-100 dark:divide-slate-800/40">
-                  {catedras.length === 0 ? (
-                    <div className="p-3 text-xs text-slate-400 text-center">Sin cátedras activas</div>
-                  ) : (
-                    catedras.map((c) => {
-                      const isCurrent = String(c.id) === String(activeCatedra?.id);
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            navigate(`/catedra/${c.id}`);
-                            setIsCatedraDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer ${
-                            isCurrent ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold' : 'text-slate-700 dark:text-slate-200'
-                          }`}
-                        >
-                          <div className="truncate flex-1">
-                            <p className="truncate font-semibold">{c.nombre}</p>
-                            <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                              {c.institucion_nombre ? `${c.institucion_nombre} · ` : ''}{c.anio ? `${c.anio}° año` : ''} {c.regimen ? `· ${c.regimen}` : ''}
-                            </p>
-                          </div>
-                          {isCurrent && (
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 shadow-xs" />
-                          )}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+            {/* Breadcrumb contextual */}
+            <nav aria-label="Ruta de navegación" className="flex items-center gap-1.5 text-xs font-medium min-w-0">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="text-text-muted hover:text-text-primary transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                title="Ir al Inicio"
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Inicio</span>
+              </button>
 
-        {/* =========================================================================
-            MÓDULO 3: COMMAND PALETTE BAR (BUSCADOR CENTRAL ⌘K)
-           ========================================================================= */}
-        {/* En móvil (<sm): botón táctil compacto de 44x44px */}
-        <button
-          type="button"
-          onClick={() => setIsCommandPaletteOpen(true)}
-          className="sm:hidden min-w-[44px] min-h-[44px] p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 flex items-center justify-center cursor-pointer transition-colors shrink-0"
-          title="Buscar estudiante o DNI (⌘K)"
-          aria-label="Buscar en Korum"
-        >
-          <Search className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-        </button>
+              {currentCatedra ? (
+                <>
+                  <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0" />
+                  <span className="hidden sm:inline text-text-muted">Cátedras</span>
+                  <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0 hidden sm:inline" />
 
-        {/* En tablet y desktop (>=sm): barra ancha con shortcut ⌘K */}
-        <div className="hidden sm:flex items-center">
-          <button
-            type="button"
-            onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center gap-2 w-36 md:w-48 lg:w-56 xl:w-72 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-400 hover:border-emerald-500/40 cursor-pointer transition-all"
-            title="Abrir buscador rápido (⌘K o Ctrl+K)"
-            aria-label="Buscar en Korum"
-          >
-            <Search className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-            <span className="flex-1 text-left truncate">Buscar estudiante o DNI...</span>
-            <kbd className="font-mono text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-300 select-none">
-              ⌘K
-            </kbd>
-          </button>
-        </div>
+                  {/* SELECTOR CONTEXTUAL DE CÁTEDRA (solo visible aquí) */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/15 font-bold transition-all text-xs truncate max-w-[140px] sm:max-w-[200px] cursor-pointer"
+                        title={`Cátedra actual: ${currentCatedra.nombre}`}
+                      >
+                        <span 
+                          className="w-2 h-2 rounded-full shrink-0" 
+                          style={{ backgroundColor: currentCatedra.color || '#10B981' }}
+                        />
+                        <span className="truncate">{currentCatedra.nombre}</span>
+                        <ChevronDown className="w-3 h-3 shrink-0 opacity-70" />
+                      </button>
+                    </DropdownMenuTrigger>
 
-        {/* =========================================================================
-            MÓDULO 4: PILL DE PERFIL DOCENTE CON ROL + TEMA Y NOTIFICACIONES
-           ========================================================================= */}
-        <div className="flex items-center gap-1 sm:gap-2 ml-auto shrink-0">
-          {/* MÓDULO 4: Pill de Perfil Docente con Rol (Desktop) */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
-            <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate max-w-[90px] lg:max-w-[130px] xl:max-w-[180px] select-none">
-              {teacherName}
-            </span>
-            <span className="hidden lg:inline ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 select-none">
-              {esSuperadmin ? 'Superadmin' : 'Docente Titular'}
-            </span>
-          </div>
+                    <DropdownMenuContent align="start" className="w-64 max-h-72 overflow-y-auto">
+                      <DropdownMenuLabel>Cambiar de Cátedra</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {(catedras || []).map((cat) => {
+                        const isSelected = String(cat.id) === String(currentCatedra.id);
+                        return (
+                          <DropdownMenuItem
+                            key={cat.id}
+                            onClick={() => {
+                              const tabQuery = activeTab ? `?tab=${activeTab}` : '';
+                              navigate(`/catedra/${cat.id}${tabQuery}`);
+                            }}
+                            className="flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <span 
+                                className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20" 
+                                style={{ backgroundColor: cat.color || '#10B981' }}
+                              />
+                              <span className={`truncate ${isSelected ? 'font-bold text-primary' : ''}`}>
+                                {cat.nombre}
+                              </span>
+                            </div>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-          {/* Botón de Perfil Móvil (44x44 px) - Solo en pantallas medianas móviles >=380px para evitar overflow en 320/360px */}
-          <div className="hidden min-[380px]:flex sm:hidden items-center justify-center">
-            <button
-              type="button"
-              onClick={() => navigate('/settings')}
-              className="min-w-[44px] min-h-[44px] p-1 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 flex items-center justify-center cursor-pointer transition-colors"
-              title={`Perfil de ${teacherName}`}
-              aria-label="Perfil Docente"
-            >
-              <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center border border-emerald-500/20">
-                {teacherName?.charAt(0)?.toUpperCase() || 'D'}
-              </div>
-            </button>
-          </div>
-
-          {/* Botón de Tema (Sol / Luna con máscara SVG en contenedor 44x44 px) */}
-          <div className="min-w-[44px] min-h-[44px] flex items-center justify-center">
-            <SunMoonThemeToggle isDark={isDark} onToggle={toggleTheme} />
-          </div>
-
-          {/* Notificaciones con Campana (44x44 px) */}
-          <div className="relative" ref={notifRef}>
-            <button
-              type="button"
-              onClick={toggleNotifications}
-              className={`relative p-2.5 min-w-[44px] min-h-[44px] rounded-xl border transition-all cursor-pointer touch-target-44 flex items-center justify-center ${
-                showNotifications
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
-                  : 'border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-              }`}
-              title="Notificaciones y alertas"
-              aria-label="Notificaciones"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white font-mono text-[11px] font-black rounded-full flex items-center justify-center shadow-xs animate-scaleIn">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
-
-            {/* Popover Desplegable de Notificaciones */}
-            {showNotifications && (
-              <div className="fixed left-4 right-4 top-16 sm:absolute sm:right-0 sm:left-auto sm:top-auto sm:mt-2 sm:w-[420px] max-h-app overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-2xl z-50 animate-scaleIn">
-                <div className="p-3.5 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-slate-800/50 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-primary" />
-                    <span className="font-bold text-xs text-text-primary">Notificaciones</span>
-                    {notificaciones.length > 0 && (
-                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
-                        {notificaciones.length}
+                  {/* Pestaña interna de la cátedra */}
+                  {activeTab && getTabLabel(activeTab) && (
+                    <>
+                      <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0 hidden md:inline" />
+                      <span className="font-semibold text-text-primary hidden md:inline truncate">
+                        {getTabLabel(activeTab)}
                       </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => recargarNotificaciones()}
-                      className="p-1 text-text-muted hover:text-text-primary rounded-lg transition-colors cursor-pointer"
-                      title="Actualizar notificaciones"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-
-                    {unreadCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={marcarTodasLeidas}
-                        className="text-[11px] text-text-muted hover:text-primary flex items-center gap-1 transition-colors cursor-pointer px-1.5 py-0.5 rounded"
-                        title="Marcar todas como leídas"
-                      >
-                        <CheckCheck className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Leídas</span>
-                      </button>
-                    )}
-
-                    {notificaciones.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={limpiarNotificaciones}
-                        className="text-[11px] text-text-muted hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer px-1.5 py-0.5 rounded"
-                        title="Limpiar todas las notificaciones"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        <span className="hidden sm:inline">Limpiar</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5">
-                  {notificaciones.length === 0 ? (
-                    <div className="p-8 text-center text-text-muted space-y-1.5">
-                      <Bell className="w-8 h-8 mx-auto opacity-30 text-text-muted" />
-                      <p className="text-xs font-semibold text-text-primary">Sin notificaciones pendientes</p>
-                      <p className="text-[11px] leading-relaxed">
-                        Los avisos de próximas mesas de examen, clases semanales y alertas de asistencia aparecerán aquí automáticamente.
-                      </p>
-                    </div>
-                  ) : (
-                    notificaciones.map((n) => {
-                      const isError = n.tipo === 'error';
-                      const isSuccess = n.tipo === 'success';
-                      const isWarning = n.tipo === 'warning';
-                      const isMesa = n.categoria === 'mesa';
-                      const isClase = n.categoria === 'clase';
-                      const isAsist = n.categoria === 'asistencia';
-
-                      return (
-                        <div
-                          key={n.id}
-                          onClick={() => {
-                            if (n.link) {
-                              marcarLeida(n.id);
-                              navigate(n.link);
-                              setShowNotifications(false);
-                            } else {
-                              marcarLeida(n.id);
-                            }
-                          }}
-                          className={`p-3 text-xs transition-colors group relative ${
-                            n.link ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.04]' : ''
-                          } ${
-                            !n.leida ? 'bg-primary/[0.03] dark:bg-primary/[0.06]' : ''
-                          }`}
-                        >
-                          <div className="flex items-start gap-2.5">
-                            {/* Icono por Categoría / Tipo */}
-                            <div className="mt-0.5 shrink-0">
-                              {isMesa ? (
-                                <div className="p-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                                  <BookMarked className="w-4 h-4" />
-                                </div>
-                              ) : isClase ? (
-                                <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                                  <GraduationCap className="w-4 h-4" />
-                                </div>
-                              ) : isAsist ? (
-                                <div className="p-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
-                                  <ShieldAlert className="w-4 h-4" />
-                                </div>
-                              ) : isError ? (
-                                <AlertCircle className="w-4 h-4 text-rose-500" />
-                              ) : isSuccess ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                              ) : isWarning ? (
-                                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                              ) : (
-                                <Info className="w-4 h-4 text-primary" />
-                              )}
-                            </div>
-
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1.5 truncate">
-                                  <span className="font-bold text-text-primary truncate">
-                                    {n.titulo}
-                                  </span>
-                                  {!n.leida && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-1 shrink-0">
-                                  {n.codigo && (
-                                    <span className={`font-mono text-[11px] px-2 py-0.5 rounded font-bold ${
-                                      isError || isAsist
-                                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                                        : isWarning || isMesa
-                                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                        : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                                    }`}>
-                                      {n.codigo}
-                                    </span>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      descartarNotificacion(n.id);
-                                    }}
-                                    className="p-1 text-text-muted hover:text-rose-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                    title="Descartar aviso"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-
-                              <p className="text-[11px] text-text-secondary leading-relaxed">
-                                {n.mensaje}
-                              </p>
-
-                              <div className="flex items-center justify-between pt-0.5 text-[10px] text-text-muted">
-                                <span className="font-mono">
-                                  {formatTimestamp(n.fecha)}
-                                </span>
-                                {n.link && (
-                                  <span className="flex items-center gap-0.5 text-primary font-medium hover:underline">
-                                    <span>Ir al módulo</span>
-                                    <ArrowRight className="w-3 h-3" />
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
+                    </>
                   )}
-                </div>
-              </div>
-            )}
+                </>
+              ) : (
+                <>
+                  <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0" />
+                  <span className="font-bold text-text-primary truncate">
+                    {getStaticTitle()}
+                  </span>
+                </>
+              )}
+            </nav>
           </div>
-        </div>
-      </div>
 
-      {/* DIÁLOGO MODAL COMMAND PALETTE (⌘K) MONTADO POR PORTAL */}
-      {isCommandPaletteOpen && typeof document !== 'undefined' && createPortal(
-        <div 
-          className="fixed inset-0 z-[100] flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn"
-          onClick={() => setIsCommandPaletteOpen(false)}
-        >
-          <div 
-            className="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-scaleIn"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Cabecera del Buscador */}
-            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
-              <Search className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  const total = matchedStudents.length + filteredCatedras.length + filteredActions.length;
-                  if (total === 0) return;
-
-                  if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    setSelectedIndex(prev => (prev + 1) % total);
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    setSelectedIndex(prev => (prev - 1 + total) % total);
-                  } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    let currentIdx = 0;
-                    // Check students
-                    if (selectedIndex < matchedStudents.length) {
-                      const s = matchedStudents[selectedIndex];
-                      if (activeCatedra) navigate(`/catedra/${activeCatedra.id}?tab=alumnos`);
-                      else if (catedras?.[0]) navigate(`/catedra/${catedras[0].id}?tab=alumnos`);
-                      else navigate('/dashboard');
-                      setIsCommandPaletteOpen(false);
-                      return;
-                    }
-                    currentIdx += matchedStudents.length;
-                    // Check catedras
-                    if (selectedIndex < currentIdx + filteredCatedras.length) {
-                      const c = filteredCatedras[selectedIndex - currentIdx];
-                      navigate(`/catedra/${c.id}`);
-                      setIsCommandPaletteOpen(false);
-                      return;
-                    }
-                    currentIdx += filteredCatedras.length;
-                    // Check actions
-                    if (selectedIndex < currentIdx + filteredActions.length) {
-                      const a = filteredActions[selectedIndex - currentIdx];
-                      a.action();
-                      setIsCommandPaletteOpen(false);
-                      return;
-                    }
-                  }
-                }}
-                placeholder="Buscar estudiante, DNI, cátedra o acción..."
-                autoFocus
-                className="flex-1 bg-transparent border-none outline-none text-base text-slate-900 dark:text-white placeholder:text-slate-400"
-              />
-              {searchingStudents && (
-                <span className="w-4 h-4 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin shrink-0" />
-              )}
-              {searchQuery && !searchingStudents && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              <kbd className="hidden sm:inline-block font-mono text-[10px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-slate-500 select-none">
-                ESC
+          {/* ============================================================
+              2. CENTRO: PALETA DE COMANDOS (⌘K / Ctrl+K)
+             ============================================================ */}
+          <div className="flex items-center justify-center">
+            {/* Botón trigger para pantallas medianas y grandes */}
+            <button
+              type="button"
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="hidden sm:inline-flex items-center gap-2.5 px-3.5 py-1.5 w-60 md:w-80 lg:w-96 rounded-xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 text-xs text-text-muted hover:text-text-primary hover:border-primary/40 hover:bg-surface transition-all cursor-pointer shadow-2xs group active:scale-[0.99]"
+            >
+              <Search className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors shrink-0" />
+              <span className="truncate flex-1 text-left font-medium">
+                Buscar alumnos, cátedras, acciones...
+              </span>
+              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-surface border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-text-muted font-bold shadow-2xs">
+                ⌘K
               </kbd>
-            </div>
-
-            {/* Lista de Resultados */}
-            <div className="max-h-80 overflow-y-auto p-2 divide-y divide-slate-100 dark:divide-slate-800/40">
-              {/* Sección Estudiantes / DNI */}
-              {matchedStudents.length > 0 && (
-                <div className="py-2 first:pt-0">
-                  <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center justify-between font-mono">
-                    <span>Estudiantes / DNI ({matchedStudents.length})</span>
-                    <span className="text-[11px] text-slate-400">Saltar a legajo</span>
-                  </div>
-                  {matchedStudents.map((s, idx) => {
-                    const isSelected = selectedIndex === idx;
-                    const cleanDni = String(s.dni || '').replace(/\D/g, '');
-                    const formattedDni = cleanDni.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-                    return (
-                      <button
-                        key={s.id || idx}
-                        type="button"
-                        onClick={() => {
-                          if (activeCatedra) navigate(`/catedra/${activeCatedra.id}?tab=alumnos`);
-                          else if (catedras?.[0]) navigate(`/catedra/${catedras[0].id}?tab=alumnos`);
-                          else navigate('/dashboard');
-                          setIsCommandPaletteOpen(false);
-                        }}
-                        className={`w-full min-h-[44px] flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
-                          isSelected 
-                            ? 'bg-emerald-500/15 dark:bg-emerald-950/60 ring-1 ring-emerald-500/30' 
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/80'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <div className="truncate">
-                            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
-                              {s.apellido}, {s.nombre}
-                            </p>
-                            <p className="text-[11px] text-slate-400 truncate font-mono">
-                              DNI: <strong className="text-slate-600 dark:text-slate-300">{formattedDni}</strong>
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 shrink-0">
-                          Ver Alumno
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Sección Cátedras */}
-              {filteredCatedras.length > 0 && (
-                <div className="py-2 first:pt-0">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Cátedras
-                  </div>
-                  {filteredCatedras.map((cat, idx) => {
-                    const globalIdx = matchedStudents.length + idx;
-                    const isSelected = selectedIndex === globalIdx;
-
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => {
-                          navigate(`/catedra/${cat.id}`);
-                          setIsCommandPaletteOpen(false);
-                        }}
-                        className={`w-full min-h-[44px] flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
-                          isSelected 
-                            ? 'bg-emerald-500/15 dark:bg-emerald-950/60 ring-1 ring-emerald-500/30' 
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/80'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <BookOpen className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
-                          <div className="truncate">
-                            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
-                              {cat.nombre}
-                            </p>
-                            <p className="text-[11px] text-slate-400 truncate font-mono">
-                              {cat.institucion_nombre || ''} {cat.anio ? `· ${cat.anio}° año` : ''} {cat.regimen ? `· ${cat.regimen}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <CornerDownLeft className={`w-3.5 h-3.5 text-slate-400 transition-opacity ${isSelected ? 'opacity-100 text-emerald-500' : 'opacity-0 group-hover:opacity-100'}`} />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Sección Acciones Rápidas */}
-              {filteredActions.length > 0 && (
-                <div className="py-2">
-                  <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Navegación & Acciones
-                  </div>
-                  {filteredActions.map((action, idx) => {
-                    const globalIdx = matchedStudents.length + filteredCatedras.length + idx;
-                    const isSelected = selectedIndex === globalIdx;
-                    const ActionIcon = action.icon;
-
-                    return (
-                      <button
-                        key={action.id}
-                        type="button"
-                        onClick={() => {
-                          action.action();
-                          setIsCommandPaletteOpen(false);
-                        }}
-                        className={`w-full min-h-[44px] flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-left transition-colors group cursor-pointer ${
-                          isSelected 
-                            ? 'bg-emerald-500/15 dark:bg-emerald-950/60 ring-1 ring-emerald-500/30' 
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/80'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <ActionIcon className={`w-4 h-4 shrink-0 transition-colors ${
-                            isSelected ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-400'
-                          }`} />
-                          <div className="truncate">
-                            <p className={`text-xs font-medium transition-colors truncate ${
-                              isSelected ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400'
-                            }`}>
-                              {action.titulo}
-                            </p>
-                            <p className="text-[11px] text-slate-400 truncate">
-                              {action.subtitulo}
-                            </p>
-                          </div>
-                        </div>
-                        <CornerDownLeft className={`w-3.5 h-3.5 text-slate-400 transition-opacity ${isSelected ? 'opacity-100 text-emerald-500' : 'opacity-0 group-hover:opacity-100'}`} />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {matchedStudents.length === 0 && filteredCatedras.length === 0 && filteredActions.length === 0 && (
-                <div className="p-8 text-center text-xs text-slate-400 space-y-1">
-                  <p className="font-semibold text-slate-700 dark:text-slate-300">Sin resultados encontrados</p>
-                  <p className="text-[11px]">Intenta buscar por cátedra, DNI, o módulo del sistema.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Footer con atajos de ayuda (Oculto en móvil) */}
-            <div className="hidden sm:flex px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 items-center justify-between font-mono">
-              <span>Navegar con teclado</span>
-              <div className="flex items-center gap-2">
-                <span>↵ Seleccionar</span>
-                <span>ESC Cerrar</span>
-              </div>
-            </div>
+            </button>
           </div>
-        </div>,
-        document.body
-      )}
-    </header>
+
+          {/* ============================================================
+              3. LADO DERECHO: BUSCADOR MÓVIL + NOTIFICACIONES + AVATAR
+             ============================================================ */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Lupa para disparar CommandPalette en móvil (<640px) */}
+            <button
+              type="button"
+              onClick={() => setIsCommandPaletteOpen(true)}
+              aria-label="Abrir buscador global"
+              className="sm:hidden p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer active:scale-95"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+
+            {/* Campana de Notificaciones & Agenda */}
+            <NotificationPanel />
+
+            {/* Divisor vertical sutil */}
+            <div className="h-5 w-px bg-border/60 mx-0.5" />
+
+            {/* Menú de Usuario Unificado */}
+            <UserMenu />
+          </div>
+
+        </div>
+      </header>
+
+      {/* Modal / Dialog de la Paleta de Comandos */}
+      <CommandPalette 
+        isOpen={isCommandPaletteOpen} 
+        onClose={() => setIsCommandPaletteOpen(false)} 
+      />
+    </>
   );
 }
