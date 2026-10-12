@@ -5,19 +5,15 @@
 
 import { traducirErrorTecnico } from '../lib/errorHandler';
 
-const DEFAULT_WEBHOOK_URL = 'https://discord.com/api/webhooks/1444417664805240873/f4ME1RVsAu5h1oKXgBNbpvf_459zLRLF0gXfCNkE4b1TeLKHa9T4C8kGiuCflTHvDsKT';
-
-function getDiscordWebhookUrl(): string {
+function getDiscordWebhookUrl(): string | null {
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DISCORD_WEBHOOK_URL) {
-      const url = import.meta.env.VITE_DISCORD_WEBHOOK_URL.trim();
+      const url = String(import.meta.env.VITE_DISCORD_WEBHOOK_URL || '').trim();
       if (url) return url;
     }
   } catch (_) {}
-  return DEFAULT_WEBHOOK_URL;
+  return null;
 }
-
-const DISCORD_WEBHOOK_URL = getDiscordWebhookUrl();
 
 export interface NotificarErrorDiscordParams {
   codigoError?: string;
@@ -45,9 +41,8 @@ export async function notificarErrorDiscord({
   const codigoFinal = codigoError || 'ERR-SYS';
   const mensajeFinal = mensajeUsuario || mensajeAmigable || 'Sin mensaje especificado';
   try {
-    const webhookUrl = DISCORD_WEBHOOK_URL || getDiscordWebhookUrl();
+    const webhookUrl = getDiscordWebhookUrl();
     if (!webhookUrl) {
-      console.warn('[discordLogger] DISCORD_WEBHOOK_URL no está configurada.');
       return false;
     }
 

@@ -1,0 +1,138 @@
+import React from 'react';
+import { Check, X, Clock, Briefcase } from 'lucide-react';
+import Badge from '../../common/Badge';
+import { ESTADO_ASISTENCIA } from '../../../lib/enums';
+
+export default function AttendanceDesktopTable({
+  filteredAlumnos,
+  asistenciasDiaMap,
+  asistenciaPorEstudiante,
+  onToggleEstado,
+  disabled = false
+}) {
+  return (
+    <div className="hidden lg:block overflow-x-auto rounded-2xl border border-surface-border bg-surface">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="border-b border-surface-border bg-slate-50/50 dark:bg-white/[0.02] text-[11px] font-bold uppercase tracking-wider text-text-muted">
+            <th className="py-3 px-4">Estudiante / Legajo</th>
+            <th className="py-3 px-4 text-center">Régimen RAM</th>
+            <th className="py-3 px-4 text-center">Asist. Acumulada</th>
+            <th className="py-3 px-4 text-center">Presente</th>
+            <th className="py-3 px-4 text-center">Ausente</th>
+            <th className="py-3 px-4 text-center">Justificado</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-surface-border text-sm">
+          {filteredAlumnos.map(est => {
+            const estadoActual = asistenciasDiaMap[est.id]?.estado || null;
+            const isPresente = estadoActual === ESTADO_ASISTENCIA.PRESENTE;
+            const isAusente = estadoActual === ESTADO_ASISTENCIA.AUSENTE;
+            const isJustificado = estadoActual === ESTADO_ASISTENCIA.JUSTIFICADO;
+
+            const studentStats = asistenciaPorEstudiante[est.id] || { porcentaje: 100, esLaboral: false };
+            const pct = Math.round(studentStats.porcentaje || 0);
+            const esLaboral = studentStats.esLaboral;
+            const umbral = esLaboral ? 60 : 70;
+            const estaEnRiesgo = pct < umbral;
+
+            return (
+              <tr key={est.id} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.01] transition-colors">
+                <td className="py-3.5 px-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-text-secondary">
+                      {(est.nombre || 'A')[0]}{(est.apellido || 'E')[0]}
+                    </div>
+                    <div>
+                      <p className="font-bold text-text-primary text-sm leading-tight">
+                        {est.apellido}, {est.nombre}
+                      </p>
+                      <p className="text-[11px] font-mono text-text-muted mt-0.5">
+                        DNI {est.dni || 'S/D'}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+
+                <td className="py-3 px-4 text-center">
+                  {esLaboral ? (
+                    <Badge variant="warning" className="inline-flex items-center gap-1 font-bold text-[10px]">
+                      <Briefcase className="w-3 h-3" />
+                      <span>Laboral (60%)</span>
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] text-text-muted">
+                      Regular (70%)
+                    </Badge>
+                  )}
+                </td>
+
+                <td className="py-3 px-4 text-center">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className={`font-mono font-bold text-xs ${estaEnRiesgo ? 'text-rose-500 font-black' : 'text-emerald-500'}`}>
+                      {pct}%
+                    </span>
+                    <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-300 ${estaEnRiesgo ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                        style={{ width: `${Math.min(100, pct)}%` }}
+                      />
+                    </div>
+                  </div>
+                </td>
+
+                <td className="py-3 px-4 text-center">
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onToggleEstado(est.id, ESTADO_ASISTENCIA.PRESENTE)}
+                    className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer min-h-[38px] ${
+                      isPresente
+                        ? 'bg-emerald-500 text-white shadow-xs font-black'
+                        : 'bg-slate-100 dark:bg-slate-800 text-text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20'
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Presente</span>
+                  </button>
+                </td>
+
+                <td className="py-3 px-4 text-center">
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onToggleEstado(est.id, ESTADO_ASISTENCIA.AUSENTE)}
+                    className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer min-h-[38px] ${
+                      isAusente
+                        ? 'bg-rose-600 text-white shadow-xs font-black'
+                        : 'bg-slate-100 dark:bg-slate-800 text-text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20'
+                    }`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Ausente</span>
+                  </button>
+                </td>
+
+                <td className="py-3 px-4 text-center">
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onToggleEstado(est.id, ESTADO_ASISTENCIA.JUSTIFICADO)}
+                    className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer min-h-[38px] ${
+                      isJustificado
+                        ? 'bg-amber-500 text-white shadow-xs font-black'
+                        : 'bg-slate-100 dark:bg-slate-800 text-text-muted hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Justificado</span>
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
