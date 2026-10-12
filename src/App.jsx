@@ -5,7 +5,6 @@ import { useAuth } from './context/AuthContext';
 import { useApp } from './context/AppContext';
 import { useTheme } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
-import AppSidebar from './components/layout/AppSidebar';
 import BottomNav from './components/layout/BottomNav';
 import AppLayout from './components/layout/AppLayout';
 import HeaderSelector from './components/layout/HeaderSelector';
@@ -93,41 +92,6 @@ function LibroTemasRedirect() {
  */
 function AuthenticatedDocenteShell() {
   const { user, loading } = useAuth();
-  const { openNewCatedraModal, setOpenNewCatedraModal, refreshCatedras } = useApp();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // Estado colapsado del riel de escritorio (persistido con try/catch)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem('korum_sidebar_collapsed') === 'true';
-    } catch (_) {
-      return false;
-    }
-  });
-
-  const toggleSidebarCollapse = () => {
-    setIsSidebarCollapsed(prev => {
-      const next = !prev;
-      try {
-        localStorage.setItem('korum_sidebar_collapsed', String(next));
-      } catch (_) {}
-      return next;
-    });
-  };
-
-  // Atajo de teclado global Ctrl+B / Cmd+B para alternar colapso de sidebar
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      const tag = document.activeElement?.tagName?.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
-        e.preventDefault();
-        toggleSidebarCollapse();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   if (loading) {
     return (

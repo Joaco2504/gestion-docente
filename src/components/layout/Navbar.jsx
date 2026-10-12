@@ -29,7 +29,7 @@ import {
   DropdownMenuSeparator
 } from '../common/DropdownMenu';
 
-export default function Navbar({ onToggleSidebar }) {
+export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { esSuperadmin } = useAuth();
@@ -85,16 +85,6 @@ export default function Navbar({ onToggleSidebar }) {
               1. LADO IZQUIERDO: LOGO SVG KORUM + SELECTOR DE CÁTEDRA ACTIVA
              ============================================================ */}
           <div className="flex items-center gap-3 min-w-0">
-            {/* Botón menú lateral en móvil */}
-            <button
-              type="button"
-              onClick={onToggleSidebar}
-              aria-label="Abrir menú de navegación"
-              className="lg:hidden p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer active:scale-95"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
             {/* Isotipo & Marca Korum */}
             <Link 
               to="/dashboard" 
@@ -195,7 +185,7 @@ export default function Navbar({ onToggleSidebar }) {
              ============================================================ */}
           <nav 
             aria-label="Navegación principal superior" 
-            className="hidden lg:flex items-center gap-1 bg-slate-100/60 dark:bg-slate-800/40 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800"
+            className="hidden lg:flex items-center gap-1 shrink-0 bg-slate-100/60 dark:bg-slate-800/40 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800"
           >
             {navLinks.map((link) => {
               const isCurrentActive = link.isActiveMatch !== undefined 
@@ -206,13 +196,13 @@ export default function Navbar({ onToggleSidebar }) {
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
                     isCurrentActive
-                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs font-extrabold'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/50 dark:hover:bg-slate-800/60'
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/60'
                   }`}
                 >
-                  <link.icon className={`w-3.5 h-3.5 ${isCurrentActive ? 'text-emerald-500' : 'opacity-70'}`} />
+                  <link.icon className={`w-3.5 h-3.5 shrink-0 ${isCurrentActive ? 'text-emerald-500' : 'opacity-70'}`} />
                   <span>{link.label}</span>
                 </NavLink>
               );

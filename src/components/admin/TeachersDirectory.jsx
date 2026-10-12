@@ -25,7 +25,6 @@ import {
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
-import ExpandableSearch from '../common/ExpandableSearch';
 import SupportHubModal from './SupportHubModal';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { formatFechaDMY } from '../../lib/dateUtils';
@@ -378,15 +377,26 @@ export default function TeachersDirectory({ isDemo = false }) {
 
         {/* Filter and Search Bar */}
         <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-          {/* Buscador animado */}
-          <div className="w-full sm:w-auto">
-            <ExpandableSearch
+          {/* Buscador integrado */}
+          <div className="relative w-full sm:w-80 md:w-96">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onClear={() => setSearchQuery('')}
-              placeholder="Buscar docente por nombre o correo electrónico..."
-              widthClass="w-full sm:w-80 md:w-96"
+              placeholder="Buscar docente por nombre o correo..."
+              className="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-md text-xs cursor-pointer transition-colors"
+                title="Limpiar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
