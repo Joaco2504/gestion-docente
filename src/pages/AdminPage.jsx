@@ -31,7 +31,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const { user, isDemo, toggleDemoRole, esSuperadmin, rol } = useAuth();
   const { modoMantenimiento, bannerActivo, isRealtimeConnected } = useSystemConfig();
-  const [activeTab, setActiveTab] = useState('configuracion'); // 'configuracion' | 'metricas' | 'directorio'
+  const [activeTab, setActiveTab] = useState('directorio'); // 'directorio' | 'configuracion' | 'metricas'
   const [isQAModalOpen, setIsQAModalOpen] = useState(false);
   const [isRunningDiagnostic, setIsRunningDiagnostic] = useState(false);
 
@@ -117,6 +117,20 @@ export default function AdminPage() {
       <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-surface-card border border-surface-border w-full sm:w-auto overflow-x-auto">
         <button
           type="button"
+          onClick={() => setActiveTab('directorio')}
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
+            activeTab === 'directorio'
+              ? 'bg-primary text-white shadow-sm shadow-primary/25'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span className="hidden sm:inline">Nómina de Docentes</span>
+          <span className="sm:hidden">Docentes</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('configuracion')}
           className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
             activeTab === 'configuracion'
@@ -141,20 +155,6 @@ export default function AdminPage() {
           <BarChart3 className="w-4 h-4" />
           <span className="hidden sm:inline">Métricas Globales del Sistema</span>
           <span className="sm:hidden">Métricas</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('directorio')}
-          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer touch-target-44 sm:touch-target-auto ${
-            activeTab === 'directorio'
-              ? 'bg-primary text-white shadow-sm shadow-primary/25'
-              : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span className="hidden sm:inline">Directorio de Docentes & Soporte</span>
-          <span className="sm:hidden">Directorio & Soporte</span>
         </button>
       </div>
 

@@ -87,7 +87,7 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
   const isPresente = estado === ESTADO_ASISTENCIA.PRESENTE;
   const isAusente = estado === ESTADO_ASISTENCIA.AUSENTE;
   const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
-  const minThreshold = est.tiene_certificado_trabajo ? 60 : 75;
+  const minThreshold = est.tiene_certificado_trabajo ? 60 : 70;
 
   return (
     <div
@@ -107,11 +107,11 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
               </h4>
               {est.tiene_certificado_trabajo && (
                 <span 
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 shrink-0" 
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 shrink-0" 
                   title="Régimen Laboral Acreditado: Meta de asistencia al 60%"
                 >
                   <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                  <span>60%</span>
+                  <span>💼 Cert. Laboral (Meta 60%)</span>
                 </span>
               )}
               <RiskBadge risk={risk} compact />
@@ -122,7 +122,7 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
           </div>
         </div>
 
-        <div className="text-right shrink-0">
+        <div className="text-right shrink-0 flex flex-col items-end gap-1">
           <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg border ${
             asistPct >= minThreshold
               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300/40'
@@ -130,6 +130,14 @@ const AttendanceMobileCard = React.memo(function AttendanceMobileCard({
           }`}>
             {asistPct}%
           </span>
+          <div className="w-16 bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div 
+              className={`h-full rounded-full transition-all duration-300 ${
+                asistPct >= minThreshold ? 'bg-emerald-500' : 'bg-rose-500'
+              }`}
+              style={{ width: `${Math.min(100, Math.max(0, asistPct))}%` }}
+            />
+          </div>
         </div>
       </div>
 
@@ -174,6 +182,7 @@ function areAttendanceRowPropsEqual(prev, next) {
     prev.est?.id === next.est?.id &&
     prev.estado === next.estado &&
     prev.isFlashing === next.isFlashing &&
+    prev.asistPct === next.asistPct &&
     prev.risk === next.risk &&
     prev.est?.apellido === next.est?.apellido &&
     prev.est?.nombre === next.est?.nombre &&
@@ -188,12 +197,14 @@ const AttendanceRow = React.memo(function AttendanceRow({
   index,
   estado,
   isFlashing,
+  asistPct = 100,
   risk,
   onToggle,
   disabled = false
 }) {
   const isPresente = estado === ESTADO_ASISTENCIA.PRESENTE;
   const isAusente = estado === ESTADO_ASISTENCIA.AUSENTE;
+  const minThreshold = est.tiene_certificado_trabajo ? 60 : 70;
 
   return (
     <tr
@@ -212,11 +223,11 @@ const AttendanceRow = React.memo(function AttendanceRow({
             </span>
             {est.tiene_certificado_trabajo && (
               <span 
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 shrink-0" 
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 shrink-0" 
                 title="Régimen Laboral Acreditado: Meta de asistencia al 60%"
               >
                 <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                <span>60%</span>
+                <span>💼 Cert. Laboral (Meta 60%)</span>
               </span>
             )}
           </div>
@@ -226,6 +237,29 @@ const AttendanceRow = React.memo(function AttendanceRow({
           DNI: {est.dni || 'S/D'}
         </div>
       </td>
+
+      {/* Porcentaje y Barra de Progreso de Asistencia */}
+      <td className="px-3 sm:px-4 py-3 text-center border-r border-slate-200/60 dark:border-slate-800/60 min-w-[130px]">
+        <div className="flex flex-col items-center justify-center gap-1">
+          <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg border ${
+            asistPct >= minThreshold
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300/40'
+              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300/40'
+          }`}>
+            {asistPct}%
+          </span>
+          <div className="w-20 bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div 
+              className={`h-full rounded-full transition-all duration-300 ${
+                asistPct >= minThreshold ? 'bg-emerald-500' : 'bg-rose-500'
+              }`}
+              style={{ width: `${Math.min(100, Math.max(0, asistPct))}%` }}
+            />
+          </div>
+        </div>
+      </td>
+
+      {/* Controles de Presente / Ausente */}
       <td className="px-3 sm:px-4 py-3">
         <div className="flex items-center justify-center gap-2">
           <button
@@ -1091,6 +1125,84 @@ export default function AttendanceTab({
     }
   };
 
+  const handleMarcarTodosAusentes = async () => {
+    if (cursadaFinalizada) {
+      toast.error('El cursado está finalizado. La asistencia no puede modificarse.');
+      return;
+    }
+    if (!activeClase || estudiantesCursantes.length === 0) return;
+    if (feriadoDetectado || (activeClase.fecha && obtenerFeriado(activeClase.fecha))) {
+      toast.error(`No es posible asentar asistencias el día ${formatFechaDMY(activeClase.fecha)}: Jornada de Feriado.`);
+      return;
+    }
+    triggerHapticFeedback();
+    setIsDirty(true);
+    setFlashingStudentId('ALL');
+    setTimeout(() => setFlashingStudentId(null), 800);
+
+    const previousState = [...asistencias];
+    const itemsToSave = estudiantesCursantes.map(e => {
+      const existing = (asistencias ?? []).find(
+        a => a.clase_id === activeClase.id && a.estudiante_id === e.id
+      );
+      return {
+        id: existing?.id,
+        clase_id: activeClase.id,
+        estudiante_id: e.id,
+        estado: 'AUSENTE'
+      };
+    });
+
+    const otherClases = asistencias.filter(a => a.clase_id !== activeClase.id);
+    const updated = [...otherClases, ...itemsToSave];
+    setAsistencias(updated);
+
+    try {
+      if (isSupabaseConfigured && !isDemo) {
+        if (!user?.id) {
+          throw new Error('Sesión requerida.');
+        }
+
+        const payload = itemsToSave.map(item => {
+          const registro = {
+            clase_id: activeClase.id,
+            estudiante_id: item.estudiante_id,
+            estado: 'AUSENTE',
+            updated_at: new Date().toISOString()
+          };
+          if (item.id && typeof item.id === 'string' && item.id.trim() !== '' && !item.id.startsWith('temp-')) {
+            registro.id = item.id;
+          }
+          return registro;
+        });
+
+        const { data, error } = await guardarAsistenciasBlindado(supabase, payload, activeClase.id);
+
+        if (error) {
+          handleAppError(error, 'AttendanceTab / Marcar Todos Ausentes', user);
+          return;
+        }
+
+        if (data && Array.isArray(data)) {
+          setAsistencias(prev => {
+            const others = (prev ?? []).filter(a => a.clase_id !== activeClase.id);
+            const nextAsist = [...others, ...data];
+            catedraCache.update(catedraId, { asistencias: nextAsist });
+            return nextAsist;
+          });
+        }
+      } else {
+        localStorage.setItem(`asistencias_${catedraId}`, JSON.stringify(updated));
+        catedraCache.update(catedraId, { asistencias: updated });
+      }
+
+      toast.info('Todos los estudiantes cursantes marcados como ausentes.');
+    } catch (err) {
+      setAsistencias(previousState);
+      handleAppError(err, 'AttendanceTab / Marcar Todos Ausentes', user);
+    }
+  };
+
   // Guardado rápido y sincronización de asistencias de la clase activa (FAB / Ctrl + S)
   const handleQuickSaveAttendance = async () => {
     if (cursadaFinalizada) {
@@ -1767,20 +1879,47 @@ export default function AttendanceTab({
               </div>
             )}
 
-            {/* Fila de métricas rápidas de la sesión */}
+            {/* Fila de métricas rápidas de la sesión + Acciones Masivas */}
             {activeClase && (
-              <div className="flex flex-wrap items-center gap-2 text-xs py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300">
-                <span className="font-semibold">
-                  Presentes: <strong className="text-emerald-600 dark:text-emerald-400">{presentesCount}</strong>
-                </span>
-                <span className="text-slate-300 dark:text-slate-700">·</span>
-                <span className="font-semibold">
-                  Ausentes: <strong className="text-rose-600 dark:text-rose-400">{ausentesCount}</strong>
-                </span>
-                <span className="text-slate-300 dark:text-slate-700">·</span>
-                <span className="font-semibold">
-                  Presentismo: <strong className="text-emerald-600 dark:text-emerald-400">{presentismoPct}%</strong>
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  <span className="font-semibold">
+                    Presentes: <strong className="text-emerald-600 dark:text-emerald-400">{presentesCount}</strong>
+                  </span>
+                  <span className="text-slate-300 dark:text-slate-700">·</span>
+                  <span className="font-semibold">
+                    Ausentes: <strong className="text-rose-600 dark:text-rose-400">{ausentesCount}</strong>
+                  </span>
+                  <span className="text-slate-300 dark:text-slate-700">·</span>
+                  <span className="font-semibold">
+                    Presentismo: <strong className="text-emerald-600 dark:text-emerald-400">{presentismoPct}%</strong>
+                  </span>
+                </div>
+
+                {/* Acciones en lote: Marcar Todos Presentes / Marcar Todos Ausentes */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleMarcarTodosPresentes}
+                    disabled={cursadaFinalizada || Boolean(feriadoDetectado)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Asignar presente a toda la nómina activa en un solo toque"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>✓ Marcar Todos Presentes</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleMarcarTodosAusentes}
+                    disabled={cursadaFinalizada || Boolean(feriadoDetectado)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Asignar ausente a toda la nómina activa en un solo toque"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>✕ Marcar Todos Ausentes</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1936,7 +2075,10 @@ export default function AttendanceTab({
                           <th scope="col" className="sticky left-0 top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-30 px-4 py-3 border-r border-slate-200/80 dark:border-slate-800 min-w-[220px]">
                             Estudiante / DNI
                           </th>
-                          <th scope="col" className="px-4 py-3 text-center min-w-[200px]">
+                          <th scope="col" className="px-4 py-3 text-center min-w-[130px] border-r border-slate-200/80 dark:border-slate-800">
+                            % Asistencia
+                          </th>
+                          <th scope="col" className="px-4 py-3 text-center min-w-[180px]">
                             Asistencia
                           </th>
                         </tr>
@@ -1949,6 +2091,7 @@ export default function AttendanceTab({
                             est={est}
                             estado={getEstado(est.id)}
                             isFlashing={flashingStudentId === est.id || flashingStudentId === 'ALL'}
+                            asistPct={studentStatsMap.get(est.id) ?? 100}
                             risk={studentRiskMap.get(est.id)}
                             onToggle={handleToggle}
                             disabled={cursadaFinalizada || Boolean(feriadoDetectado)}

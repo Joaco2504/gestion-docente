@@ -18,7 +18,9 @@ import {
   Award,
   AlertTriangle,
   Info,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Search,
+  X
 } from 'lucide-react';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
@@ -45,6 +47,7 @@ export default function MesaDetalleView({
   const { agregarNotificacion } = useNotifications();
 
   const [actasAlumnos, setActasAlumnos] = useState([]);
+  const [filtroEstudiante, setFiltroEstudiante] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isSelectAlumnosModalOpen, setIsSelectAlumnosModalOpen] = useState(false);
@@ -173,7 +176,7 @@ export default function MesaDetalleView({
         }
 
         if (data) {
-          const normalized = data.map(row => {
+          const normalized = data.map((row, idx) => {
             const student = row.estudiantes;
             let nombreCompleto = row.alumno_nombre_completo;
             if ((!nombreCompleto || nombreCompleto.trim() === '') && student) {
@@ -189,9 +192,11 @@ export default function MesaDetalleView({
               ? Number(row.nota_definitiva) 
               : null;
             const condicionPrevia = row.condicion_previa ?? row.condicion ?? mesa?.condicion_acta ?? 'REGULAR';
+            const id = row.id || `row-${idx}-${row.estudiante_id || dni || Date.now()}`;
 
             return {
               ...row,
+              id,
               alumno_nombre_completo: nombreCompleto || 'ALUMNO REGISTRADO',
               alumno_dni: dni || '',
               dictamen,
@@ -259,34 +264,67 @@ export default function MesaDetalleView({
     return { nota_definitiva: finalNota, dictamen };
   };
 
-  const handleGradeChange = (index, field, value) => {
-    const updated = [...actasAlumnos];
-    const item = { ...updated[index], [field]: value === '' ? null : value };
+  const handleGradeChange = (rowId, field, rawValue) => {
+    let value = rawValue;
 
-    // Si es regular o libre y cambia escrito u oral, recalcular nota definitiva y dictamen
-    if (!isPromocional && (field === 'nota_escrito' || field === 'nota_oral')) {
-      const calc = calculateNotaDefinitivaYDictamen(
-        field === 'nota_escrito' ? value : item.nota_escrito,
-        field === 'nota_oral' ? value : item.nota_oral,
-        item.condicion_previa || mesa.condicion_acta
-      );
-      item.nota_definitiva = calc.nota_definitiva;
-      item.dictamen = calc.dictamen;
-    } else if (field === 'nota_definitiva') {
-      const numVal = Number(value);
-      if (value !== '' && !isNaN(numVal)) {
-        item.dictamen = numVal >= (isPromocional ? 7 : 4) ? 'ACREDITADO' : 'DESAPROBADO';
+    // Validación escala 1-10 para campos de calificación numérica
+    if (['nota_escrito', 'nota_oral', 'nota_definitiva'].includes(field) && value !== '' && value !== null && value !== undefined) {
+      let num = parseFloat(value);
+      if (isNaN(num)) {
+        value = null;
+      } else {
+        if (num > 10) num = 10;
+        if (num < 1) num = 1;
+        value = Math.round(num * 10) / 10;
       }
     }
 
-    updated[index] = item;
-    setActasAlumnos(updated);
+    setActasAlumnos(prev => prev.map(item => {
+      if (item.id !== rowId) return item;
+      const updatedItem = { ...item, [field]: value === '' ? null : value };
+
+      // Si es regular o libre y cambia escrito u oral, recalcular nota definitiva y dictamen
+      if (!isPromocional && (field === 'nota_escrito' || field === 'nota_oral')) {
+        const calc = calculateNotaDefinitivaYDictamen(
+          field === 'nota_escrito' ? value : updatedItem.nota_escrito,
+          field === 'nota_oral' ? value : updatedItem.nota_oral,
+          updatedItem.condicion_previa || mesa.condicion_acta
+        );
+        updatedItem.nota_definitiva = calc.nota_definitiva;
+        updatedItem.dictamen = calc.dictamen;
+      } else if (field === 'nota_definitiva') {
+        const numVal = updatedItem.nota_definitiva !== null && updatedItem.nota_definitiva !== '' ? Number(updatedItem.nota_definitiva) : null;
+        if (numVal !== null && !isNaN(numVal)) {
+          const threshold = isPromocional ? 7 : 4;
+          updatedItem.dictamen = numVal >= threshold ? 'ACREDITADO' : 'DESAPROBADO';
+        } else {
+          updatedItem.dictamen = 'AUSENTE';
+        }
+      }
+
+      return updatedItem;
+    }));
   };
 
-  const handleDictamenChange = (index, dictamen) => {
-    const updated = [...actasAlumnos];
-    updated[index] = { ...updated[index], dictamen };
-    setActasAlumnos(updated);
+  const handleDictamenChange = (rowId, dictamen) => {
+    setActasAlumnos(prev => prev.map(item => {
+      if (item.id !== rowId) return item;
+      const updatedItem = { ...item, dictamen };
+
+      if (dictamen === 'AUSENTE') {
+        updatedItem.nota_definitiva = null;
+        if (!isPromocional) {
+          updatedItem.nota_escrito = null;
+          updatedItem.nota_oral = null;
+        }
+      } else if ((dictamen === 'ACREDITADO' || dictamen === 'APROBADO') && (updatedItem.nota_definitiva === null || updatedItem.nota_definitiva < (isPromocional ? 7 : 4))) {
+        updatedItem.nota_definitiva = isPromocional ? 7 : 4;
+      } else if (dictamen === 'DESAPROBADO' && (updatedItem.nota_definitiva === null || updatedItem.nota_definitiva >= (isPromocional ? 7 : 4))) {
+        updatedItem.nota_definitiva = 2;
+      }
+
+      return updatedItem;
+    }));
   };
 
   const handleAlumnosSelected = (selectedList, isPromo, averageMap) => {
@@ -330,9 +368,8 @@ export default function MesaDetalleView({
     toast.success(`Se agregaron ${toAdd.length} alumnos a la mesa de examen.`);
   };
 
-  const handleRemoveAlumno = (index) => {
-    const updated = actasAlumnos.filter((_, i) => i !== index);
-    setActasAlumnos(updated);
+  const handleRemoveAlumno = (rowId) => {
+    setActasAlumnos(prev => prev.filter(item => item.id !== rowId));
     toast.info('Alumno removido del acta (presiona Guardar Notas para asentar cambios).');
   };
 
@@ -477,6 +514,16 @@ export default function MesaDetalleView({
     const pct = presentes > 0 ? Math.round((acreditados / presentes) * 100) : 0;
     return { total, ausentes, presentes, acreditados, desaprobados, pct };
   }, [actasAlumnos]);
+
+  // Lista filtrada de estudiantes para búsqueda rápida por DNI o Apellido
+  const filteredActasAlumnos = useMemo(() => {
+    if (!filtroEstudiante.trim()) return actasAlumnos;
+    const q = filtroEstudiante.toLowerCase().trim();
+    return actasAlumnos.filter(a =>
+      (a.alumno_nombre_completo || '').toLowerCase().includes(q) ||
+      (a.alumno_dni || '').toLowerCase().includes(q)
+    );
+  }, [actasAlumnos, filtroEstudiante]);
 
   const catedraNombre = mesa?.catedras?.nombre || 'Cátedra';
   const institucionNombre = mesa?.catedras?.instituciones?.nombre || 'Institución de Educación Superior';
@@ -670,6 +717,45 @@ export default function MesaDetalleView({
           PLANILLA DE CALIFICACIONES INTERACTIVA
       ========================================================================= */}
       <Card className="overflow-hidden p-0">
+        {/* Barra de Búsqueda Rápida por DNI o Apellido */}
+        <div className="p-3.5 sm:p-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-800/40 backdrop-blur-sm">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+            <input
+              type="text"
+              value={filtroEstudiante}
+              onChange={(e) => setFiltroEstudiante(e.target.value)}
+              placeholder="Buscar por DNI o Apellido/Nombre..."
+              className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            {filtroEstudiante && (
+              <button
+                type="button"
+                onClick={() => setFiltroEstudiante('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1 rounded-md text-xs cursor-pointer"
+                title="Limpiar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center justify-between sm:justify-end gap-3 text-xs text-text-muted">
+            <span>
+              Mostrando <strong className="text-text-primary font-mono">{filteredActasAlumnos.length}</strong> de <strong className="text-text-primary font-mono">{actasAlumnos.length}</strong> alumnos
+            </span>
+            {filtroEstudiante && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => setFiltroEstudiante('')}
+                className="text-xs text-primary hover:underline h-7 px-2"
+              >
+                Restablecer
+              </Button>
+            )}
+          </div>
+        </div>
+
         <div className="overflow-x-auto touch-pan-x scrollbar-thin max-h-[75vh]">
           <table className="w-full text-left border-collapse text-xs table-fixed" aria-label="Planilla de Calificaciones de Mesa de Examen">
             <caption className="sr-only">Planilla de calificaciones de examen de la mesa</caption>
@@ -678,15 +764,15 @@ export default function MesaDetalleView({
                 <th scope="col" className="py-3 px-3 sticky left-0 top-0 z-30 bg-slate-50 dark:bg-slate-800/90 backdrop-blur border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-64 sm:w-72">
                   Estudiante (Nombre y DNI)
                 </th>
-                <th scope="col" className="py-3 px-3 text-center w-28">Condición</th>
+                <th scope="col" className="py-3 px-3 text-center w-28">Condición Previa</th>
                 {!isPromocional && (
                   <>
                     <th scope="col" className="py-3 px-3 text-center w-24">Escrito (1-10)</th>
                     <th scope="col" className="py-3 px-3 text-center w-24">Oral (1-10)</th>
                   </>
                 )}
-                <th scope="col" className="py-3 px-3 text-center w-28">Definitiva</th>
-                <th scope="col" className="py-3 px-3 text-center w-36">Dictamen</th>
+                <th scope="col" className="py-3 px-3 text-center w-28">Definitiva (1-10)</th>
+                <th scope="col" className="py-3 px-3 text-center w-40">Condición de Examen</th>
                 <th scope="col" className="py-3 px-3">Observaciones</th>
                 <th scope="col" className="py-3 px-3 text-center w-12"></th>
               </tr>
@@ -722,10 +808,30 @@ export default function MesaDetalleView({
                     </div>
                   </td>
                 </tr>
+              ) : filteredActasAlumnos.length === 0 ? (
+                <tr>
+                  <td colSpan={isPromocional ? 6 : 8} className="py-12 text-center text-text-muted">
+                    <div className="max-w-sm mx-auto space-y-2">
+                      <Search className="w-8 h-8 mx-auto text-text-muted/40" />
+                      <p className="font-semibold text-xs text-text-primary">
+                        No se encontraron estudiantes para "{filtroEstudiante}"
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => setFiltroEstudiante('')}
+                        className="mt-1"
+                      >
+                        Limpiar búsqueda
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               ) : (
-                actasAlumnos.map((alumno, idx) => {
+                filteredActasAlumnos.map((alumno, idx) => {
                   const isAcreditado = alumno.dictamen === 'ACREDITADO' || alumno.dictamen === 'APROBADO';
                   const isDesaprobado = alumno.dictamen === 'DESAPROBADO';
+                  const isAusente = !isAcreditado && !isDesaprobado;
 
                   return (
                     <tr key={alumno.id || idx} className="group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
@@ -744,7 +850,7 @@ export default function MesaDetalleView({
                         </div>
                       </td>
 
-                      {/* Condición */}
+                      {/* Condición Previa */}
                       <td className="py-2.5 px-3 text-center">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase ${
                           alumno.condicion_previa === 'PROMOCIONAL'
@@ -765,11 +871,11 @@ export default function MesaDetalleView({
                               type="number"
                               min="1"
                               max="10"
-                              step="1"
-                              inputMode="numeric"
+                              step="0.5"
+                              inputMode="decimal"
                               value={alumno.nota_escrito ?? ''}
                               placeholder="—"
-                              onChange={(e) => handleGradeChange(idx, 'nota_escrito', e.target.value)}
+                              onChange={(e) => handleGradeChange(alumno.id, 'nota_escrito', e.target.value)}
                               className="tbl-input w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px]"
                             />
                           </td>
@@ -779,27 +885,28 @@ export default function MesaDetalleView({
                               type="number"
                               min="1"
                               max="10"
-                              step="1"
-                              inputMode="numeric"
+                              step="0.5"
+                              inputMode="decimal"
                               value={alumno.nota_oral ?? ''}
                               placeholder="—"
-                              onChange={(e) => handleGradeChange(idx, 'nota_oral', e.target.value)}
+                              onChange={(e) => handleGradeChange(alumno.id, 'nota_oral', e.target.value)}
                               className="tbl-input w-16 text-center py-1.5 px-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px]"
                             />
                           </td>
                         </>
                       )}
 
-                      {/* Nota Definitiva */}
+                      {/* Nota Definitiva (1-10) */}
                       <td className="py-2.5 px-3 text-center">
                         <input
                           type="number"
                           min="1"
                           max="10"
-                          inputMode="numeric"
+                          step="0.5"
+                          inputMode="decimal"
                           value={alumno.nota_definitiva ?? ''}
                           placeholder="—"
-                          onChange={(e) => handleGradeChange(idx, 'nota_definitiva', e.target.value)}
+                          onChange={(e) => handleGradeChange(alumno.id, 'nota_definitiva', e.target.value)}
                           className={`tbl-input w-16 text-center py-1.5 px-2 rounded-xl border font-mono font-black text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px] min-w-[56px] ${
                             isAcreditado
                               ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
@@ -810,23 +917,29 @@ export default function MesaDetalleView({
                         />
                       </td>
 
-                      {/* Dictamen */}
+                      {/* Condición de Examen Derivada Automáticamente con selector directo */}
                       <td className="py-2.5 px-3 text-center">
-                        <select
-                          value={alumno.dictamen || 'AUSENTE'}
-                          onChange={(e) => handleDictamenChange(idx, e.target.value)}
-                          className={`text-[11px] font-black py-1.5 px-2.5 rounded-xl border transition-colors cursor-pointer focus:outline-none focus:ring-1 ${
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                             isAcreditado
-                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                              ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
                               : isDesaprobado
-                              ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30'
-                              : 'bg-slate-100 dark:bg-white/5 text-text-muted border-slate-200 dark:border-white/10'
-                          }`}
-                        >
-                          <option value="AUSENTE">AUSENTE</option>
-                          <option value="ACREDITADO">ACREDITADO</option>
-                          <option value="DESAPROBADO">DESAPROBADO</option>
-                        </select>
+                              ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30'
+                              : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                          }`}>
+                            {isAcreditado ? '✓ Aprobado' : isDesaprobado ? '✕ Desaprobado' : '— Ausente'}
+                          </span>
+                          <select
+                            value={alumno.dictamen || 'AUSENTE'}
+                            onChange={(e) => handleDictamenChange(alumno.id, e.target.value)}
+                            className="text-[10px] font-bold py-0.5 px-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-text-muted hover:text-text-primary transition-colors cursor-pointer focus:outline-none"
+                            aria-label={`Dictamen para ${alumno.alumno_nombre_completo}`}
+                          >
+                            <option value="AUSENTE">Ausente</option>
+                            <option value="ACREDITADO">Aprobado</option>
+                            <option value="DESAPROBADO">Desaprobado</option>
+                          </select>
+                        </div>
                       </td>
 
                       {/* Observaciones */}
@@ -835,7 +948,7 @@ export default function MesaDetalleView({
                           type="text"
                           placeholder="Observaciones reglamentarias..."
                           value={alumno.observaciones || ''}
-                          onChange={(e) => handleGradeChange(idx, 'observaciones', e.target.value)}
+                          onChange={(e) => handleGradeChange(alumno.id, 'observaciones', e.target.value)}
                           className="w-full py-1 px-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-[11px] text-text-secondary focus:outline-none focus:ring-1 focus:ring-primary"
                         />
                       </td>
@@ -844,7 +957,7 @@ export default function MesaDetalleView({
                       <td className="py-2.5 px-3 text-center">
                         <button
                           type="button"
-                          onClick={() => handleRemoveAlumno(idx)}
+                          onClick={() => handleRemoveAlumno(alumno.id)}
                           className="p-1.5 text-text-muted hover:text-danger rounded-lg hover:bg-danger/10 transition-colors cursor-pointer"
                           title="Remover alumno del acta"
                         >

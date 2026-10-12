@@ -147,6 +147,7 @@ const GradeRow = React.memo(function GradeRow({
   getNotaEstado,
   getCondBadgeVariant,
   onOpenEditNota,
+  onQuickSetGrade,
   notas,
   density = 'comfortable',
   evaluationGroups = [],
@@ -250,6 +251,7 @@ const GradeRow = React.memo(function GradeRow({
                 isFlashingOriginal={isFlashingOriginal}
                 isFlashingRecup={isFlashingRecup}
                 onOpenEditNota={onOpenEditNota}
+                onQuickSetGrade={onQuickSetGrade}
                 density={density}
                 rowIdx={idx}
                 colIdx={colIdx + grpIdx * 10}
@@ -280,6 +282,7 @@ const GradeRow = React.memo(function GradeRow({
               isFlashingOriginal={isFlashingOriginal}
               isFlashingRecup={isFlashingRecup}
               onOpenEditNota={onOpenEditNota}
+              onQuickSetGrade={onQuickSetGrade}
               density={density}
               rowIdx={idx}
               colIdx={colIdx}
@@ -882,6 +885,80 @@ export default function GradesTab({
     }
   };
 
+  const handleQuickSetGrade = React.useCallback(async (estudiante, evaluacion, { estado, nota }) => {
+    if (cursadaFinalizada) {
+      toast.error('El cursado está finalizado. No se pueden modificar calificaciones.');
+      return;
+    }
+    const valNum = nota !== null && nota !== undefined ? Number(nota) : null;
+    const finalEstado = estado || (valNum !== null ? 'CALIFICADO' : null);
+
+    // 1. Mutación optimista inmediata en estado local y caché
+    setNotas(prevNotas => {
+      const filtered = prevNotas.filter(
+        n => !(n.evaluacion_id === evaluacion.id && n.estudiante_id === estudiante.id)
+      );
+      const updatedRecord = {
+        evaluacion_id: evaluacion.id,
+        estudiante_id: estudiante.id,
+        valor: valNum,
+        nota: valNum,
+        estado: finalEstado,
+        updated_at: new Date().toISOString()
+      };
+      const nextList = [...filtered, updatedRecord];
+      try {
+        localStorage.setItem(`notas_${catedraId}`, JSON.stringify(nextList));
+        catedraCache.update(catedraId, { notas: nextList });
+      } catch (_) {}
+      return nextList;
+    });
+
+    // Indicador visual de éxito de escritura
+    setFlashingGradeKey(`${estudiante.id}_${evaluacion.id}`);
+    setTimeout(() => setFlashingGradeKey(null), 800);
+
+    // Feedback no intrusivo
+    if (finalEstado === 'NO_ENTREGO') {
+      toast.info(`N/E registrado para ${estudiante.apellido}`, { duration: 1500 });
+    } else if (finalEstado === 'AUSENTE') {
+      toast.info(`Ausente registrado para ${estudiante.apellido}`, { duration: 1500 });
+    } else if (valNum !== null) {
+      toast.success(`Nota ${valNum} para ${estudiante.apellido}`, { duration: 1500 });
+    }
+
+    // 2. Persistencia en Supabase
+    if (isSupabaseConfigured && !isDemo && !String(evaluacion.id).startsWith('eval-')) {
+      try {
+        const payloadCompleto = {
+          evaluacion_id: evaluacion.id,
+          estudiante_id: estudiante.id,
+          valor: valNum,
+          nota: valNum,
+          estado: finalEstado,
+          updated_at: new Date().toISOString()
+        };
+        const { error: upsertError } = await supabase
+          .from('notas')
+          .upsert(payloadCompleto, { onConflict: 'evaluacion_id,estudiante_id' });
+
+        if (upsertError) {
+          const fallbackPayload = {
+            evaluacion_id: evaluacion.id,
+            estudiante_id: estudiante.id,
+            valor: valNum,
+            estado: finalEstado
+          };
+          await supabase
+            .from('notas')
+            .upsert(fallbackPayload, { onConflict: 'evaluacion_id,estudiante_id' });
+        }
+      } catch (dbErr) {
+        console.warn('[GradesTab] Error de persistencia rápida en Supabase:', dbErr);
+      }
+    }
+  }, [cursadaFinalizada, catedraId, isSupabaseConfigured, isDemo]);
+
   const handleCreateEvaluacion = async (modalPayload) => {
     if (cursadaFinalizada) {
       toast.error('El cursado está finalizado. No se pueden agregar nuevas evaluaciones.');
@@ -1276,6 +1353,38 @@ export default function GradesTab({
 
   // Build matrix data
   const mainEvaluations = evaluaciones.filter(e => !String(e.tipo || '').toUpperCase().includes('RECUP'));
+
+  const evalMetricsMap = React.useMemo(() => {
+    const map = new Map();
+    (evaluaciones || []).forEach(ev => {
+      const evNotas = (notas || []).filter(n => n.evaluacion_id === ev.id);
+      const vals = evNotas
+        .map(n => n.valor !== null && n.valor !== undefined ? n.valor : n.nota)
+        .filter(v => v !== null && v !== undefined && !isNaN(Number(v)))
+        .map(Number);
+      
+      if (vals.length > 0) {
+        const sum = vals.reduce((acc, curr) => acc + curr, 0);
+        const avg = (sum / vals.length).toFixed(1);
+        const approved = vals.filter(v => v >= 4).length;
+        const passRate = Math.round((approved / vals.length) * 100);
+        map.set(ev.id, {
+          average: avg,
+          passRate,
+          approved,
+          totalGraded: vals.length
+        });
+      } else {
+        map.set(ev.id, {
+          average: '0.0',
+          passRate: 0,
+          approved: 0,
+          totalGraded: 0
+        });
+      }
+    });
+    return map;
+  }, [evaluaciones, notas]);
 
   const studentRiskMap = React.useMemo(() => {
     const map = new Map();
@@ -2222,6 +2331,7 @@ export default function GradesTab({
                               ev={ev}
                               index={idx}
                               density={density}
+                              metrics={evalMetricsMap.get(ev.id)}
                               onEdit={handleOpenEditEvaluacion}
                               onBatchGrade={handleOpenBatchGrade}
                               onDeleteRequest={handleRequestDeleteEvaluacion}
@@ -2252,6 +2362,7 @@ export default function GradesTab({
                           ev={ev}
                           index={idx}
                           density={density}
+                          metrics={evalMetricsMap.get(ev.id)}
                           onEdit={handleOpenEditEvaluacion}
                           onBatchGrade={handleOpenBatchGrade}
                           onDeleteRequest={handleRequestDeleteEvaluacion}
@@ -2282,6 +2393,7 @@ export default function GradesTab({
                       getNotaEstado={getNotaEstado}
                       getCondBadgeVariant={getCondBadgeVariant}
                       onOpenEditNota={handleOpenEditNota}
+                      onQuickSetGrade={handleQuickSetGrade}
                       notas={notas}
                       density={density}
                       evaluationGroups={evaluationGroups}

@@ -7,6 +7,7 @@ import { useTheme } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
 import AppSidebar from './components/layout/AppSidebar';
 import BottomNav from './components/layout/BottomNav';
+import AppLayout from './components/layout/AppLayout';
 import HeaderSelector from './components/layout/HeaderSelector';
 import Footer from './components/layout/Footer';
 import CreateCatedraModal from './components/common/CreateCatedraModal';
@@ -156,75 +157,34 @@ function AuthenticatedDocenteShell() {
   }
 
   return (
-    <div className="flex min-h-dvh w-full bg-canvas text-text-primary antialiased selection:bg-primary/20 selection:text-primary relative overflow-x-clip">
-      {/* 1. Barra Lateral Anclada a Altura Completa (Colapsable y con Etiquetas) */}
-      <AppSidebar 
-        isMobileOpen={sidebarOpen} 
-        onCloseMobile={() => setSidebarOpen(false)}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={toggleSidebarCollapse}
-      />
-
-      {/* 2. Área de Trabajo Principal (Scroll a nivel de documento, sin capturas intermedias) */}
-      <div className="flex flex-col flex-1 min-w-0 min-h-dvh">
-        {/* Header pegado arriba con sticky top-0 */}
-        <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-
-        {/* Global Notice Banner & Maintenance Alert (Realtime Broadcast) */}
-        <GlobalNoticeBanner />
-
-        {/* Contenido principal con padding inferior seguro para la barra de navegación */}
-        <main className="flex-1 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] lg:pb-10 w-full max-w-full">
-          <div className="max-w-7xl 2xl:max-w-[96rem] mx-auto space-y-6 transition-all duration-300">
-            {/* Global Context Bar: Institución y Ciclo Activo */}
-            <HeaderSelector />
-
-            <ErrorBoundary title="Error en el módulo docente">
-              <Suspense fallback={<RouteLoadingSpinner mensaje="Cargando módulo académico..." />}>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/catedra/:id" element={<CatedraDetailPage />} />
-                  <Route path="/mesas-examen" element={<MesasExamenPage />} />
-                  <Route path="/mesas" element={<Navigate to="/mesas-examen" replace />} />
-                  <Route path="/calendario" element={
-                    <ErrorBoundary title="Error en el Calendario Académico">
-                      <CalendarPage />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/instituciones" element={<InstitutionsPage />} />
-                  <Route path="/configuracion" element={<SettingsPage />} />
-                  <Route path="/guias" element={<GuidesPage />} />
-                  <Route path="/soporte" element={<SupportPage />} />
-                  <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
-                  <Route path="/asistencia" element={<AsistenciaRedirect />} />
-                  <Route path="/calificaciones" element={<CalificacionesRedirect />} />
-                  <Route path="/libro-temas" element={<LibroTemasRedirect />} />
-                  <Route path="/perfil" element={<Navigate to="/configuracion" replace />} />
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
-              </Suspense>
-            </ErrorBoundary>
-
-            {/* Institutional Footer & Dark Enterprise CTA Banner */}
-            <Footer />
-          </div>
-        </main>
-      </div>
-
-      {/* Mobile Bottom Navigation Bar (Hidden on md and up) */}
-      <BottomNav />
-
-      {/* Modal Global para Crear Nueva Cátedra */}
-      <CreateCatedraModal 
-        isOpen={openNewCatedraModal} 
-        onClose={() => setOpenNewCatedraModal(false)} 
-        onCreated={refreshCatedras} 
-      />
-
-      {/* Modal de Onboarding Asistido Korum */}
-      <OnboardingModal />
-    </div>
+    <AppLayout>
+      <ErrorBoundary title="Error en el módulo docente">
+        <Suspense fallback={<RouteLoadingSpinner mensaje="Cargando módulo académico..." />}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/catedra/:id" element={<CatedraDetailPage />} />
+            <Route path="/mesas-examen" element={<MesasExamenPage />} />
+            <Route path="/mesas" element={<Navigate to="/mesas-examen" replace />} />
+            <Route path="/calendario" element={
+              <ErrorBoundary title="Error en el Calendario Académico">
+                <CalendarPage />
+              </ErrorBoundary>
+            } />
+            <Route path="/instituciones" element={<InstitutionsPage />} />
+            <Route path="/configuracion" element={<SettingsPage />} />
+            <Route path="/guias" element={<GuidesPage />} />
+            <Route path="/soporte" element={<SupportPage />} />
+            <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+            <Route path="/asistencia" element={<AsistenciaRedirect />} />
+            <Route path="/calificaciones" element={<CalificacionesRedirect />} />
+            <Route path="/libro-temas" element={<LibroTemasRedirect />} />
+            <Route path="/perfil" element={<Navigate to="/configuracion" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+    </AppLayout>
   );
 }
 

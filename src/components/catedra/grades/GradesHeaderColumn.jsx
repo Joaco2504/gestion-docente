@@ -52,13 +52,14 @@ export function getShortEvaluationTitle(titulo, tipo, fallbackIndex = 0) {
 }
 
 /**
- * Cabecera compacta por columna de evaluación (≤ 56 px de altura).
- * Incluye nombre corto, fecha discreta, tooltip descriptivo y menú '⋯'.
+ * Cabecera compacta por columna de evaluación.
+ * Incluye nombre corto, fecha discreta, chip de métricas grupales en tiempo real y menú '⋯'.
  */
 export default function GradesHeaderColumn({
   ev,
   index = 0,
   density = 'comfortable',
+  metrics,
   onEdit,
   onBatchGrade,
   onDeleteRequest
@@ -73,12 +74,12 @@ export default function GradesHeaderColumn({
       scope="col"
       className={`border-l border-surface-border text-center align-middle transition-colors bg-slate-50/90 dark:bg-slate-800/90 hover:bg-slate-100/90 dark:hover:bg-slate-800 ${
         isCompact 
-          ? 'w-24 sm:w-28 min-w-[100px] max-w-[130px] px-2 py-1 h-[42px] max-h-[44px]' 
-          : 'w-28 sm:w-32 min-w-[115px] max-w-[150px] px-2.5 py-1 h-[46px] max-h-[48px]'
+          ? 'w-24 sm:w-28 min-w-[105px] max-w-[135px] px-2 py-1.5' 
+          : 'w-28 sm:w-32 min-w-[120px] max-w-[160px] px-2.5 py-2'
       }`}
     >
-      <div className="flex items-center justify-between gap-1 h-full max-h-[46px]">
-        {/* Contenedor de Texto y Fecha (Truncado seguro) */}
+      <div className="flex items-center justify-between gap-1">
+        {/* Contenedor de Texto, Fecha y Métricas en Tiempo Real */}
         <div className="flex-1 min-w-0 text-left pr-1">
           {/* Línea 1: Nombre Corto con Tooltip de Título Completo */}
           <Tooltip content={`Título completo: "${ev.titulo}" (${ev.tipo})`}>
@@ -110,6 +111,22 @@ export default function GradesHeaderColumn({
               </button>
             )}
           </div>
+
+          {/* Línea 3: Chip Compacto de Métricas (Promedio grupal y % de Aprobación) */}
+          {metrics && metrics.totalGraded > 0 ? (
+            <div 
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 mt-1 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[9px] font-mono font-bold leading-none select-none"
+              title={`Promedio grupal: ${metrics.average} | Aprobación: ${metrics.passRate}% (${metrics.approved}/${metrics.totalGraded})`}
+            >
+              <span>x̄ {metrics.average}</span>
+              <span className="opacity-40">•</span>
+              <span>{metrics.passRate}%</span>
+            </div>
+          ) : (
+            <span className="block text-[9px] font-mono text-slate-400 dark:text-slate-500 mt-1">
+              s/c
+            </span>
+          )}
         </div>
 
         {/* Menú Contextual '⋯' Accesible */}

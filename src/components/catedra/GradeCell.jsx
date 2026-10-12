@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useRef } from 'react';
 
 /**
  * GradeCell - Celda individual de nota de examen memoizada para la sábana de notas.
- * Soporta estados especiales contextuales:
- * - TP: 'NO_ENTREGO' (N/E)
- * - Parcial / Recuperatorio: 'AUSENTE' (Aus.)
- * - Calificación numérica estándar: 1.00 - 10.00
+ * Soporta navegación fluida por teclado tipo Canvas LMS / Univer:
+ * - Enter: Guarda y mueve el foco a la fila del siguiente estudiante (hacia abajo).
+ * - Flechas direccionales (↑, ↓, ←, →): Navegan horizontal y verticalmente.
+ * - Tecla N: Asigna automáticamente 'NO_ENTREGO' (N/E).
+ * - Tecla A: Asigna automáticamente 'AUSENTE' (Aus.).
+ * - Teclas numéricas 1-10: Carga numérica directa optimista (presionar '1' y luego '0' para 10).
  */
 export const GradeCell = React.memo(function GradeCell({
   est,
@@ -18,18 +20,95 @@ export const GradeCell = React.memo(function GradeCell({
   isFlashingOriginal,
   isFlashingRecup,
   onOpenEditNota,
+  onQuickSetGrade,
   density = 'comfortable',
   rowIdx = 0,
   colIdx = 0
 }) {
   const isCompact = density === 'compact';
+  const bufferRef = useRef({ char: '', timestamp: 0 });
+
+  const handleKeyDown = (e) => {
+    // 1. Enter avanza hacia abajo a la siguiente fila de estudiante
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const nextCell = document.querySelector(`[data-grade-cell="true"][data-row="${rowIdx + 1}"][data-col="${colIdx}"]`);
+      if (nextCell) {
+        nextCell.focus();
+      }
+      return;
+    }
+
+    // 2. Tab y flechas direccionales navegan horizontal/verticalmente
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextCell = document.querySelector(`[data-grade-cell="true"][data-row="${rowIdx + 1}"][data-col="${colIdx}"]`);
+      if (nextCell) nextCell.focus();
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevCell = document.querySelector(`[data-grade-cell="true"][data-row="${Math.max(0, rowIdx - 1)}"][data-col="${colIdx}"]`);
+      if (prevCell) prevCell.focus();
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const rightCell = document.querySelector(`[data-grade-cell="true"][data-row="${rowIdx}"][data-col="${colIdx + 1}"]`);
+      if (rightCell) rightCell.focus();
+      return;
+    }
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const leftCell = document.querySelector(`[data-grade-cell="true"][data-row="${rowIdx}"][data-col="${Math.max(0, colIdx - 1)}"]`);
+      if (leftCell) leftCell.focus();
+      return;
+    }
+
+    // 3. Hotkeys directos: N -> 'NO_ENTREGO' (N/E) y A -> 'AUSENTE' (Aus.)
+    if (e.key === 'n' || e.key === 'N') {
+      e.preventDefault();
+      if (onQuickSetGrade) {
+        onQuickSetGrade(est, ev, { estado: 'NO_ENTREGO', nota: null });
+      }
+      return;
+    }
+    if (e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      if (onQuickSetGrade) {
+        onQuickSetGrade(est, ev, { estado: 'AUSENTE', nota: null });
+      }
+      return;
+    }
+
+    // 4. Teclas numéricas 1 al 10 con buffer de soporte para "10"
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      const now = Date.now();
+      const prevChar = (now - bufferRef.current.timestamp < 900) ? bufferRef.current.char : '';
+      
+      let finalNum = null;
+      if (prevChar === '1' && e.key === '0') {
+        finalNum = 10;
+        bufferRef.current = { char: '', timestamp: 0 };
+      } else if (e.key >= '1' && e.key <= '9') {
+        finalNum = Number(e.key);
+        bufferRef.current = { char: e.key, timestamp: now };
+      }
+
+      if (finalNum !== null && onQuickSetGrade) {
+        onQuickSetGrade(est, ev, { estado: 'CALIFICADO', nota: finalNum });
+      }
+      return;
+    }
+  };
 
   const renderOriginalBadge = () => {
     if (estadoOriginal === 'NO_ENTREGO') {
       return (
         <span
           className={`${isCompact ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-xs'} rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-mono font-bold tracking-wider inline-flex items-center gap-1 shadow-2xs select-none`}
-          title="Trabajo Práctico no entregado"
+          title="Trabajo Práctico no entregado (N/E)"
         >
           N/E
         </span>
@@ -39,7 +118,7 @@ export const GradeCell = React.memo(function GradeCell({
       return (
         <span
           className={`${isCompact ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-xs'} rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-800 font-mono font-bold tracking-wider inline-flex items-center gap-1 shadow-2xs select-none`}
-          title="Ausente a la instancia de examen"
+          title="Ausente a la instancia de examen (Aus.)"
         >
           Aus.
         </span>
@@ -123,22 +202,24 @@ export const GradeCell = React.memo(function GradeCell({
 
   const originalAccessibleLabel = `Calificación de ${est.apellido}, ${est.nombre} en ${ev.titulo}: ${
     notaOriginal !== null ? notaOriginal : (estadoOriginal === 'NO_ENTREGO' ? 'No entregó' : (estadoOriginal === 'AUSENTE' ? 'Ausente' : 'Sin calificar'))
-  }`;
+  }. Presiona Enter para bajar, N para no entregó, A para ausente, 1 al 10 para nota`;
 
   return (
     <td className={`px-2 sm:px-3 ${isCompact ? 'py-1' : 'py-2.5'} text-center border-l border-surface-border align-middle`}>
       <div className="flex items-center justify-center gap-1">
         <button
           type="button"
+          tabIndex={0}
           data-grade-cell="true"
           data-row={rowIdx}
           data-col={colIdx}
           onClick={() => onOpenEditNota(est, ev)}
-          title={`Editar calificación de ${ev.titulo || ev.nombre || 'Evaluación'}`}
+          onKeyDown={handleKeyDown}
+          title={`Calificación de ${ev.titulo || 'Evaluación'}. Atajos: Enter (bajar de fila), Flechas (navegar), N (N/E), A (Aus.), 1-10 (calificar)`}
           aria-label={originalAccessibleLabel}
           className={`${
             isCompact ? 'min-h-[36px] min-w-[36px] p-0.5' : 'min-h-[44px] min-w-[44px] p-1'
-          } rounded-xl transition-all touch-target-44 flex items-center justify-center active:scale-95 duration-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
+          } rounded-xl transition-all touch-target-44 flex items-center justify-center active:scale-95 duration-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 dark:focus:ring-offset-slate-900 ${
             isFlashingOriginal ? 'animate-flash-success ring-2 ring-emerald-500 rounded-xl' : ''
           }`}
         >
@@ -148,6 +229,7 @@ export const GradeCell = React.memo(function GradeCell({
         {recup && (
           <button
             type="button"
+            tabIndex={0}
             onClick={() => onOpenEditNota(est, recup)}
             title={`Editar recuperatorio: ${recup.titulo || recup.nombre || 'Recuperatorio'}`}
             aria-label={`Recuperatorio de ${est.apellido}, ${est.nombre} en ${recup.titulo}: ${
@@ -155,7 +237,7 @@ export const GradeCell = React.memo(function GradeCell({
             }`}
             className={`${
               isCompact ? 'min-h-[36px] min-w-[32px] p-0.5' : 'min-h-[44px] min-w-[44px] p-1'
-            } rounded-xl transition-all touch-target-44 flex items-center justify-center active:scale-95 duration-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+            } rounded-xl transition-all touch-target-44 flex items-center justify-center active:scale-95 duration-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 dark:focus:ring-offset-slate-900 ${
               isFlashingRecup ? 'animate-flash-success ring-2 ring-purple-500 rounded-xl' : ''
             }`}
           >
@@ -177,7 +259,8 @@ export const GradeCell = React.memo(function GradeCell({
     prev.recup?.id === next.recup?.id &&
     prev.density === next.density &&
     prev.rowIdx === next.rowIdx &&
-    prev.colIdx === next.colIdx
+    prev.colIdx === next.colIdx &&
+    prev.onQuickSetGrade === next.onQuickSetGrade
   );
 });
 

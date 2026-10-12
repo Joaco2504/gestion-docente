@@ -115,6 +115,11 @@
     --table-sticky-shadow-right: -3px 0 8px -2px rgb(0 0 0 / 0.45);
   }
 
+  html {
+    scroll-behavior: smooth;
+    overscroll-behavior-y: auto;
+  }
+
   body {
     background-color: var(--canvas);
     color: var(--text-primary);
@@ -124,6 +129,8 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     min-height: 100vh;
     min-height: 100dvh;
+    overscroll-behavior-y: auto;
+    touch-action: manipulation;
     transition: background-color var(--duration-normal) ease, color var(--duration-normal) ease;
   }
 

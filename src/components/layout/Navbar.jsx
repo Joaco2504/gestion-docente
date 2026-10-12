@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, NavLink, Link } from 'react-router-dom';
 import { 
   Menu, 
   Search, 
@@ -7,13 +7,19 @@ import {
   ChevronDown, 
   BookOpen, 
   Home,
-  Check
+  Check,
+  LayoutGrid,
+  Calendar,
+  GraduationCap,
+  ShieldCheck,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import CommandPalette from './CommandPalette';
 import NotificationPanel from './NotificationPanel';
 import UserMenu from './UserMenu';
+import ThemeToggle from '../common/ThemeToggle';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -26,10 +32,11 @@ import {
 export default function Navbar({ onToggleSidebar }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { catedras } = useApp();
+  const { esSuperadmin } = useAuth();
+  const { catedras, setOpenNewCatedraModal } = useApp();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  // Escuchar atajo global Ctrl+K / Cmd+K
+  // Atajo global Ctrl+K / Cmd+K
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
@@ -42,194 +49,221 @@ export default function Navbar({ onToggleSidebar }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Analizar ruta actual para Breadcrumb
+  // Analizar ruta actual para estado de Cátedra activa
   const path = location.pathname;
   const catedraMatch = path.match(/^\/catedra\/([^/?#]+)/);
   const currentCatedraId = catedraMatch ? catedraMatch[1] : null;
-  const currentCatedra = currentCatedraId 
-    ? (catedras || []).find(c => String(c.id) === String(currentCatedraId)) 
-    : null;
+  const lastCatedraId = typeof window !== 'undefined' ? localStorage.getItem('last_active_catedra_id') : null;
+  const activeCatedraId = currentCatedraId || lastCatedraId || (catedras?.[0]?.id ? String(catedras[0].id) : null);
+
+  const currentCatedra = activeCatedraId 
+    ? (catedras || []).find(c => String(c.id) === String(activeCatedraId)) 
+    : (catedras?.[0] || null);
 
   const searchParams = new URLSearchParams(location.search);
   const activeTab = searchParams.get('tab');
 
-  const getTabLabel = (tab) => {
-    switch (tab) {
-      case 'asistencias': return 'Asistencias';
-      case 'calificaciones': return 'Calificaciones';
-      case 'libro-temas': return 'Libro de Temas';
-      case 'alumnos': return 'Estudiantes';
-      case 'recursos': return 'Recursos y Drive';
-      case 'unidades': return 'Planificación';
-      default: return null;
-    }
-  };
-
-  const getStaticTitle = () => {
-    if (path === '/dashboard' || path === '/') return 'Inicio';
-    if (path.startsWith('/calendario')) return 'Calendario Académico';
-    if (path.startsWith('/mesas-examen') || path.startsWith('/mesas')) return 'Mesas de Examen';
-    if (path.startsWith('/instituciones')) return 'Instituciones';
-    if (path.startsWith('/configuracion')) return 'Configuración';
-    if (path.startsWith('/guias')) return 'Guías y Recursos';
-    if (path.startsWith('/soporte')) return 'Soporte Técnico';
-    if (path.startsWith('/admin')) return 'Panel de Administración';
-    return 'Korum';
-  };
+  const navLinks = [
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
+    { 
+      to: currentCatedra ? `/catedra/${currentCatedra.id}` : '/dashboard', 
+      label: 'Cátedras', 
+      icon: BookOpen,
+      isActiveMatch: path.startsWith('/catedra')
+    },
+    { to: '/calendario', label: 'Calendario', icon: Calendar },
+    { to: '/mesas-examen', label: 'Mesas de Examen', icon: GraduationCap },
+    ...(esSuperadmin ? [{ to: '/admin', label: 'SuperAdmin', icon: ShieldCheck }] : [])
+  ];
 
   return (
     <>
-      <header className="sticky top-0 z-30 h-14 sm:h-16 w-full bg-surface/90 backdrop-blur-md border-b border-border/50 text-text-primary px-3 sm:px-6 transition-all">
+      <header className="sticky top-0 z-30 h-16 w-full backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 text-text-primary px-3 sm:px-6 transition-all shadow-xs">
         <div className="h-full flex items-center justify-between gap-3 max-w-7xl 2xl:max-w-[96rem] mx-auto">
           
           {/* ============================================================
-              1. LADO IZQUIERDO: MENÚ HAMBURGUESA + BREADCRUMB JERÁRQUICO
+              1. LADO IZQUIERDO: LOGO SVG KORUM + SELECTOR DE CÁTEDRA ACTIVA
              ============================================================ */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
-            {/* Botón de apertura de barra lateral en móvil/tablet */}
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Botón menú lateral en móvil */}
             <button
               type="button"
               onClick={onToggleSidebar}
-              aria-label="Abrir barra lateral de navegación"
-              className="lg:hidden p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden transition-colors cursor-pointer active:scale-95"
+              aria-label="Abrir menú de navegación"
+              className="lg:hidden p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer active:scale-95"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Breadcrumb contextual */}
-            <nav aria-label="Ruta de navegación" className="flex items-center gap-1.5 text-xs font-medium min-w-0">
-              <button
-                type="button"
-                onClick={() => navigate('/dashboard')}
-                className="text-text-muted hover:text-text-primary transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-                title="Ir al Inicio"
-              >
-                <Home className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Inicio</span>
-              </button>
-
-              {currentCatedra ? (
-                <>
-                  <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0" />
-                  <span className="hidden sm:inline text-text-muted">Cátedras</span>
-                  <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0 hidden sm:inline" />
-
-                  {/* SELECTOR CONTEXTUAL DE CÁTEDRA (solo visible aquí) */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/15 font-bold transition-all text-xs truncate max-w-[140px] sm:max-w-[200px] cursor-pointer"
-                        title={`Cátedra actual: ${currentCatedra.nombre}`}
-                      >
-                        <span 
-                          className="w-2 h-2 rounded-full shrink-0" 
-                          style={{ backgroundColor: currentCatedra.color || '#10B981' }}
-                        />
-                        <span className="truncate">{currentCatedra.nombre}</span>
-                        <ChevronDown className="w-3 h-3 shrink-0 opacity-70" />
-                      </button>
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent align="start" className="w-64 max-h-72 overflow-y-auto">
-                      <DropdownMenuLabel>Cambiar de Cátedra</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {(catedras || []).map((cat) => {
-                        const isSelected = String(cat.id) === String(currentCatedra.id);
-                        return (
-                          <DropdownMenuItem
-                            key={cat.id}
-                            onClick={() => {
-                              const tabQuery = activeTab ? `?tab=${activeTab}` : '';
-                              navigate(`/catedra/${cat.id}${tabQuery}`);
-                            }}
-                            className="flex items-center justify-between"
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              <span 
-                                className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20" 
-                                style={{ backgroundColor: cat.color || '#10B981' }}
-                              />
-                              <span className={`truncate ${isSelected ? 'font-bold text-primary' : ''}`}>
-                                {cat.nombre}
-                              </span>
-                            </div>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {/* Pestaña interna de la cátedra */}
-                  {activeTab && getTabLabel(activeTab) && (
-                    <>
-                      <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0 hidden md:inline" />
-                      <span className="font-semibold text-text-primary hidden md:inline truncate">
-                        {getTabLabel(activeTab)}
-                      </span>
-                    </>
-                  )}
-                </>
-              ) : (
-                <>
-                  <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0" />
-                  <span className="font-bold text-text-primary truncate">
-                    {getStaticTitle()}
+            {/* Isotipo & Marca Korum */}
+            <Link 
+              to="/dashboard" 
+              className="flex items-center gap-2.5 group shrink-0 focus-visible:outline-none"
+              title="Korum 2.0 - Plataforma Académica"
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                  <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                </svg>
+              </div>
+              <div className="hidden sm:flex flex-col">
+                <div className="flex items-center gap-1.5 leading-none">
+                  <span className="font-black text-lg tracking-tight text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    Korum
                   </span>
-                </>
-              )}
-            </nav>
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    2.0
+                  </span>
+                </div>
+              </div>
+            </Link>
+
+            {/* Divisor vertical sutil */}
+            <div className="hidden sm:block h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1" />
+
+            {/* Selector Dropdown de Cátedra Activa */}
+            {currentCatedra ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[150px] sm:max-w-[220px] md:max-w-[260px] cursor-pointer shadow-2xs group"
+                    title={`Cátedra activa: ${currentCatedra.nombre}`}
+                  >
+                    <span 
+                      className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-white dark:ring-slate-900" 
+                      style={{ backgroundColor: currentCatedra.color || '#10B981' }}
+                    />
+                    <span className="truncate">{currentCatedra.nombre}</span>
+                    <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="start" className="w-72 max-h-80 overflow-y-auto">
+                  <DropdownMenuLabel className="flex items-center justify-between text-xs text-text-muted">
+                    <span>Espacios Curriculares</span>
+                    <span className="text-[10px] font-mono font-normal">{(catedras || []).length} activas</span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {(catedras || []).map((cat) => {
+                    const isSelected = String(cat.id) === String(currentCatedra.id);
+                    return (
+                      <DropdownMenuItem
+                        key={cat.id}
+                        onClick={() => {
+                          const tabQuery = activeTab ? `?tab=${activeTab}` : '';
+                          navigate(`/catedra/${cat.id}${tabQuery}`);
+                        }}
+                        className="flex items-center justify-between py-2 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <span 
+                            className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20" 
+                            style={{ backgroundColor: cat.color || '#10B981' }}
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <span className={`text-xs truncate ${isSelected ? 'font-bold text-primary' : 'font-medium text-text-primary'}`}>
+                              {cat.nombre}
+                            </span>
+                            {cat.nivel && (
+                              <span className="text-[10px] text-text-muted truncate">
+                                {cat.nivel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setOpenNewCatedraModal(true)}
+                    className="flex items-center gap-2 text-primary font-bold text-xs py-2 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Crear Nueva Cátedra...</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
 
           {/* ============================================================
-              2. CENTRO: PALETA DE COMANDOS (⌘K / Ctrl+K)
+              2. CENTRO: ENLACES DIRECTOS ESTILO LINEAR / VERCEL UI (>= 1024px)
              ============================================================ */}
-          <div className="flex items-center justify-center">
-            {/* Botón trigger para pantallas medianas y grandes */}
+          <nav 
+            aria-label="Navegación principal superior" 
+            className="hidden lg:flex items-center gap-1 bg-slate-100/60 dark:bg-slate-800/40 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800"
+          >
+            {navLinks.map((link) => {
+              const isCurrentActive = link.isActiveMatch !== undefined 
+                ? link.isActiveMatch 
+                : location.pathname === link.to;
+
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    isCurrentActive
+                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs font-extrabold'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <link.icon className={`w-3.5 h-3.5 ${isCurrentActive ? 'text-emerald-500' : 'opacity-70'}`} />
+                  <span>{link.label}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+
+          {/* ============================================================
+              3. LADO DERECHO: COMMAND PALETTE + TEMA + NOTIF + USER MENU
+             ============================================================ */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Botón disparador de Command Palette (⌘K) en Desktop */}
             <button
               type="button"
               onClick={() => setIsCommandPaletteOpen(true)}
-              className="hidden sm:inline-flex items-center gap-2.5 px-3.5 py-1.5 w-60 md:w-80 lg:w-96 rounded-xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 text-xs text-text-muted hover:text-text-primary hover:border-primary/40 hover:bg-surface transition-all cursor-pointer shadow-2xs group active:scale-[0.99]"
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 text-xs text-text-muted hover:text-text-primary hover:border-emerald-500/40 hover:bg-surface transition-all cursor-pointer shadow-2xs group active:scale-[0.99]"
+              title="Abrir buscador global de Korum (Ctrl+K)"
             >
-              <Search className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors shrink-0" />
-              <span className="truncate flex-1 text-left font-medium">
-                Buscar alumnos, cátedras, acciones...
-              </span>
-              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-surface border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-text-muted font-bold shadow-2xs">
+              <Search className="w-3.5 h-3.5 text-text-muted group-hover:text-emerald-500 transition-colors shrink-0" />
+              <span className="hidden xl:inline font-medium text-text-secondary">Buscar alumnos, cátedras...</span>
+              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-text-muted font-bold shadow-2xs">
                 ⌘K
               </kbd>
             </button>
-          </div>
 
-          {/* ============================================================
-              3. LADO DERECHO: BUSCADOR MÓVIL + NOTIFICACIONES + AVATAR
-             ============================================================ */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Lupa para disparar CommandPalette en móvil (<640px) */}
             <button
               type="button"
               onClick={() => setIsCommandPaletteOpen(true)}
               aria-label="Abrir buscador global"
-              className="sm:hidden p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer active:scale-95"
+              className="sm:hidden p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer active:scale-95"
             >
               <Search className="w-5 h-5" />
             </button>
+
+            {/* Selector de Tema Oscuro / Claro */}
+            <ThemeToggle />
 
             {/* Campana de Notificaciones & Agenda */}
             <NotificationPanel />
 
             {/* Divisor vertical sutil */}
-            <div className="h-5 w-px bg-border/60 mx-0.5" />
+            <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
 
-            {/* Menú de Usuario Unificado */}
+            {/* Menú de Perfil Docente */}
             <UserMenu />
           </div>
 
         </div>
       </header>
 
-      {/* Modal / Dialog de la Paleta de Comandos */}
+      {/* Modal Dialog de la Paleta de Comandos */}
       <CommandPalette 
         isOpen={isCommandPaletteOpen} 
         onClose={() => setIsCommandPaletteOpen(false)} 
