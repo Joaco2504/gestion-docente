@@ -1182,7 +1182,7 @@ export default function StudentsTab({
   }, [estudiantes, searchQuery, sortField, sortDirection, studentConditionsMap, studentListFilter, studentAttendanceMap, studentAverageMap]);
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12 sm:pb-0">
+    <div className="w-full min-h-full flex flex-col overflow-y-auto overscroll-y-contain space-y-6 animate-fadeIn pb-24 md:pb-6">
       {/* View Mode: Excel Importer View */}
       {viewMode === 'import-excel' ? (
         <div className="space-y-4">

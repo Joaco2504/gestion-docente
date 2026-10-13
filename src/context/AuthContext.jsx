@@ -53,12 +53,12 @@ export function AuthProvider({ children }) {
         setPerfil(data);
         return data;
       } else if (error && error.code === 'PGRST116') {
-        // Registro no existe aún: crearlo con rol docente por defecto
+        // Registro no existe aún: crearlo con rol docente por defecto (blindaje SEC-04)
         const nuevoPerfil = {
           id: currentUser.id,
           nombre: currentUser.user_metadata?.nombre || currentUser.email?.split('@')[0] || '',
           email: currentUser.email || '',
-          rol: currentUser.user_metadata?.rol === 'superadmin' ? 'superadmin' : 'docente'
+          rol: currentUser.email === 'jooako7@gmail.com' ? 'superadmin' : 'docente'
         };
         const { data: created } = await supabase.from('perfiles').insert(nuevoPerfil).select().single();
         if (created) {
@@ -223,7 +223,12 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const esSuperadmin = Boolean(perfil?.rol === 'superadmin');
+  // Blindaje SEC-04: No confiar en user_metadata. Validar privilegios comprobando que el email sea 'jooako7@gmail.com' o consultando la tabla perfiles protegida por RLS
+  const esSuperadmin = Boolean(
+    isDemo
+      ? perfil?.rol === 'superadmin'
+      : (user?.email === 'jooako7@gmail.com' || perfil?.email === 'jooako7@gmail.com' || (perfil?.rol === 'superadmin' && perfil?.id === user?.id))
+  );
 
   const value = {
     user,

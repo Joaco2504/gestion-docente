@@ -12,6 +12,61 @@ import Button from '../../common/Button';
  * Renderizado de tabla matricial tipo hoja de cálculo para desktop (>= 1024px)
  * con navegación completa por teclado, chips de métricas y columnas fijas.
  */
+/**
+ * ConditionBadge
+ * Badge elástico ultra-compacto con Tooltip accesible de Radix UI (BUG-03).
+ * Evita desbordes en celdas de notebook (>=1024px) mostrando etiquetas
+ * estandarizadas (PROM, REG, REC, LIB, EQUIV) con detalle reglamentario emergente.
+ */
+function ConditionBadge({ condicion, isCompact = false }) {
+  const rawCond = String(condicion?.condicion || 'EN_CURSO').toUpperCase();
+
+  let label = 'CURSO';
+  let fullTitle = 'En Cursado Activo';
+  let variant = 'default';
+
+  if (rawCond === 'PROMOCIONAL' || rawCond === 'PROMO') {
+    label = 'PROM';
+    fullTitle = 'Promoción Directa';
+    variant = 'promo';
+  } else if (rawCond === 'REGULAR' || rawCond === 'REG') {
+    label = 'REG';
+    fullTitle = 'Alumno Regular';
+    variant = 'regular';
+  } else if (rawCond === 'RECUPERATORIO' || rawCond === 'REC') {
+    label = 'REC';
+    fullTitle = 'Recuperatorio Pendiente';
+    variant = 'warning';
+  } else if (rawCond === 'LIBRE' || rawCond === 'LIB') {
+    label = 'LIB';
+    fullTitle = 'Condición Libre';
+    variant = 'libre';
+  } else if (rawCond === 'ACREDITADA_EQUIVALENCIA' || rawCond === 'EQUIVALENCIA' || rawCond === 'EQUIV') {
+    label = 'EQUIV';
+    fullTitle = 'Acreditada por Equivalencia';
+    variant = 'promo';
+  }
+
+  const tooltipText = condicion?.motivo
+    ? `${fullTitle}: ${condicion.motivo}`
+    : fullTitle;
+
+  return (
+    <Tooltip content={tooltipText} side="left">
+      <span className="inline-flex">
+        <Badge
+          variant={variant}
+          className={`font-black tracking-wider uppercase font-mono cursor-help select-none ${
+            isCompact ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-2 py-0.5'
+          }`}
+        >
+          {label}
+        </Badge>
+      </span>
+    </Tooltip>
+  );
+}
+
 export default function GradeMatrixTable({
   studentRows = [],
   mainEvaluations = [],
@@ -198,20 +253,15 @@ export default function GradeMatrixTable({
 
                 {/* Condición Final Congelada Derecha */}
                 <td 
-                  className={`sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/80 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)] border-l border-slate-200/60 dark:border-white/10 px-3 ${
+                  className={`sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/80 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)] border-l border-slate-200/60 dark:border-white/10 px-2.5 ${
                     isCompact ? 'py-1.5' : 'py-2.5'
-                  } text-center w-36`}
+                  } text-center w-28 sm:w-32`}
                 >
                   <div className="flex flex-col items-center justify-center gap-0.5">
-                    <Badge 
-                      variant={getCondBadgeVariant(condicion?.condicion)}
-                      className="whitespace-nowrap text-[10px] font-black px-2 py-0.5"
-                    >
-                      {condicion?.condicion === 'ACREDITADA_EQUIVALENCIA' ? 'EQUIVALENCIA' : condicion?.condicion || 'EN CURSO'}
-                    </Badge>
+                    <ConditionBadge condicion={condicion} isCompact={isCompact} />
                     {condicion?.motivo && (
-                      <Tooltip content={condicion.motivo}>
-                        <span className="text-[10px] text-text-muted text-center line-clamp-1 max-w-[120px] leading-tight cursor-help select-none">
+                      <Tooltip content={condicion.motivo} side="left">
+                        <span className="text-[9px] font-mono text-text-muted text-center truncate max-w-[85px] leading-tight cursor-help select-none">
                           {condicion.motivo}
                         </span>
                       </Tooltip>

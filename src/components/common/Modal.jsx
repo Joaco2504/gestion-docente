@@ -88,7 +88,11 @@ export default function Modal({
       open={Boolean(isOpen)}
       onOpenChange={(open) => {
         if (!open) {
-          handleRequestClose();
+          if (hasUnsavedChanges) {
+            handleRequestClose();
+          } else {
+            onClose?.();
+          }
         }
       }}
     >
@@ -112,6 +116,10 @@ export default function Modal({
               }
             }}
             onPointerDownOutside={(e) => {
+              if (e.target?.closest?.('[role="combobox"], [data-radix-popper-content-wrapper], [role="listbox"], [data-radix-select-viewport]')) {
+                e.preventDefault();
+                return;
+              }
               if (hasUnsavedChanges) {
                 e.preventDefault();
                 handleRequestClose();
@@ -159,13 +167,6 @@ export default function Modal({
                 <Dialog.Close asChild>
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRequestClose();
-                    }}
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                    }}
                     className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors touch-target-44 min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer shrink-0"
                     title="Cerrar ventana"
                     aria-label="Cerrar ventana"

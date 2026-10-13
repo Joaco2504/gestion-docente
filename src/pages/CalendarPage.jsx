@@ -18,6 +18,8 @@ import {
   LegendModal 
 } from '../components/calendar/CalendarModals';
 
+import CalendarErrorBoundary from '../components/calendar/CalendarErrorBoundary';
+
 const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const HOURS_24 = Array.from({ length: 17 }, (_, i) => i + 7);
 const HOUR_ROW_HEIGHT = 80;
@@ -33,7 +35,7 @@ function safeIsoDate(d, fallback = '') {
   }
 }
 
-export default function CalendarPage() {
+function CalendarPageContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isDemo } = useAuth();
@@ -266,5 +268,13 @@ export default function CalendarPage() {
         catedras={catedras}
       />
     </div>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <CalendarErrorBoundary>
+      <CalendarPageContent />
+    </CalendarErrorBoundary>
   );
 }

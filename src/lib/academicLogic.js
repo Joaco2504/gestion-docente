@@ -117,12 +117,31 @@ export function calcularCondicionFinal(
   const estadosMap = new Map();
   studentNotas.forEach(n => {
     const evalId = n.evaluacion_id || n.id;
-    const val = n.valor !== undefined && n.valor !== null ? Number(n.valor) : (n.nota !== undefined && n.nota !== null ? Number(n.nota) : null);
-    if (val !== null && !isNaN(val)) {
-      notasMap.set(evalId, val);
+    const rawVal = n.valor !== undefined && n.valor !== null ? n.valor : (n.nota !== undefined && n.nota !== null ? n.nota : null);
+    
+    if (rawVal !== null && rawVal !== '') {
+      const parsedNum = Number(rawVal);
+      if (!isNaN(parsedNum)) {
+        notasMap.set(evalId, parsedNum);
+      } else {
+        const valStr = String(rawVal).trim().toUpperCase();
+        if (valStr === 'N/E' || valStr === 'NO ENTREGO' || valStr === 'NO_ENTREGA' || valStr === 'NO_ENTREGO') {
+          estadosMap.set(evalId, 'NO_ENTREGO');
+        } else if (valStr === 'AUS.' || valStr === 'AUS' || valStr === 'AUSENTE') {
+          estadosMap.set(evalId, 'AUSENTE');
+        }
+      }
     }
+
     if (n.estado) {
-      estadosMap.set(evalId, String(n.estado).toUpperCase());
+      const rawEst = String(n.estado).trim().toUpperCase();
+      let normalizedEst = rawEst;
+      if (rawEst === 'N/E' || rawEst === 'NO ENTREGO' || rawEst === 'NO_ENTREGA' || rawEst === 'NO_ENTREGO') {
+        normalizedEst = 'NO_ENTREGO';
+      } else if (rawEst === 'AUS.' || rawEst === 'AUS' || rawEst === 'AUSENTE') {
+        normalizedEst = 'AUSENTE';
+      }
+      estadosMap.set(evalId, normalizedEst);
     }
   });
 

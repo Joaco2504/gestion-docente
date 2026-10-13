@@ -38,13 +38,15 @@ export async function notificarErrorDiscord({
   contexto,
   usuario
 }: NotificarErrorDiscordParams): Promise<boolean> {
-  const codigoFinal = codigoError || 'ERR-SYS';
-  const mensajeFinal = mensajeUsuario || mensajeAmigable || 'Sin mensaje especificado';
   try {
     const webhookUrl = getDiscordWebhookUrl();
     if (!webhookUrl) {
+      // Silenciar completamente si la variable de entorno no está configurada (SEC-05)
       return false;
     }
+
+    const codigoFinal = codigoError || 'ERR-SYS';
+    const mensajeFinal = mensajeUsuario || mensajeAmigable || 'Sin mensaje especificado';
 
     // Formatear detalle técnico seguro (JSON indentado, limitado a 1000 caracteres)
     let detalleTecnicoStr = '';
@@ -84,7 +86,6 @@ export async function notificarErrorDiscord({
 
     const payload = {
       username: 'Korum Telemetría',
-      avatar_url: 'https://cdn-icons-png.flaticon.com/512/3135/3135755.png',
       embeds: [
         {
           title: `⚠️ ${traduccion.titulo}`,
@@ -110,8 +111,8 @@ export async function notificarErrorDiscord({
     });
 
     return res.ok;
-  } catch (err) {
-    console.warn('[discordLogger] Error al despachar telemetría a Discord:', err);
+  } catch (_) {
+    // Silenciado de errores para prevenir fugas de red o stacktraces en bundle del cliente (SEC-05)
     return false;
   }
 }

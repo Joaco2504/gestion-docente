@@ -18,6 +18,23 @@ import {
   Bell 
 } from 'lucide-react';
 import { getTodayYMD, formatFechaLegible } from '../lib/dateUtils';
+import { isValid, parseISO } from 'date-fns';
+
+function safeParseDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    return isValid(val) ? val : null;
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return null;
+    const isoParsed = parseISO(trimmed);
+    if (isValid(isoParsed)) return isoParsed;
+    const directDate = new Date(trimmed);
+    if (isValid(directDate)) return directDate;
+  }
+  return null;
+}
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -398,16 +415,16 @@ export function useCalendarEvents({
     allFilteredEvents.forEach(ev => {
       const rawDate = ev.fecha_inicio || ev.fecha;
       if (!rawDate) return;
-      const evDate = new Date(rawDate);
-      if (isNaN(evDate.getTime())) return;
+      const evDate = safeParseDate(rawDate);
+      if (!evDate) return;
       if (evDate >= now) {
         candidates.push({
           id: ev.id,
           titulo: ev.titulo,
           tipo: ev.tipo,
           date: evDate,
-          hora_inicio: ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : (ev.hora_inicio || '19:00'),
-          hora_fin: ev.fecha_fin ? ev.fecha_fin.substring(11, 16) : (ev.hora_fin || '21:05'),
+          hora_inicio: ev.fecha_inicio && ev.fecha_inicio.length >= 16 ? ev.fecha_inicio.substring(11, 16) : (ev.hora_inicio || '19:00'),
+          hora_fin: ev.fecha_fin && ev.fecha_fin.length >= 16 ? ev.fecha_fin.substring(11, 16) : (ev.hora_fin || '21:05'),
           aula: ev.aula || 'Aula 1',
           institucion: ev.institucion || 'I.E.S Belén',
           catedra_id: ev.catedra_id,
@@ -592,7 +609,8 @@ export function useCalendarEvents({
 
   // Fechas de la semana actual (Lunes a Domingo)
   const weekDays = useMemo(() => {
-    const d = new Date(currentDate);
+    const validCurrent = safeParseDate(currentDate) || new Date();
+    const d = new Date(validCurrent);
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(d.setDate(diff));
@@ -606,8 +624,9 @@ export function useCalendarEvents({
 
   // Mini Calendario Días
   const miniCalDays = useMemo(() => {
-    const year = miniCalDate.getFullYear();
-    const month = miniCalDate.getMonth();
+    const validMini = safeParseDate(miniCalDate) || new Date();
+    const year = validMini.getFullYear();
+    const month = validMini.getMonth();
     const firstDayIndex = new Date(year, month, 1).getDay();
     const totalDays = new Date(year, month + 1, 0).getDate();
     const offset = (firstDayIndex + 6) % 7;
@@ -620,8 +639,9 @@ export function useCalendarEvents({
 
   // Calendario Mensual Días
   const mainCalMonthDays = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+    const validCurrent = safeParseDate(currentDate) || new Date();
+    const year = validCurrent.getFullYear();
+    const month = validCurrent.getMonth();
     const firstDayIndex = new Date(year, month, 1).getDay();
     const totalDays = new Date(year, month + 1, 0).getDate();
     const offset = (firstDayIndex + 6) % 7;
@@ -633,10 +653,12 @@ export function useCalendarEvents({
   }, [currentDate]);
 
   const formattedHeaderRange = useMemo(() => {
-    if (viewMode === 'dia') return formatFechaLegible(currentDate);
-    if (viewMode === 'mensual') return `${MONTH_NAMES[currentDate.getMonth()]}, ${currentDate.getFullYear()}`;
+    const validCurrent = safeParseDate(currentDate) || new Date();
+    if (viewMode === 'dia') return formatFechaLegible(validCurrent);
+    if (viewMode === 'mensual') return `${MONTH_NAMES[validCurrent.getMonth()]}, ${validCurrent.getFullYear()}`;
     const mon = weekDays[0];
     const sun = weekDays[6];
+    if (!mon || !sun || !isValid(mon) || !isValid(sun)) return '';
     return `${mon.getDate()} de ${MONTH_NAMES[mon.getMonth()]} - ${sun.getDate()} de ${MONTH_NAMES[sun.getMonth()]}, ${sun.getFullYear()}`;
   }, [viewMode, currentDate, weekDays]);
 

@@ -42,10 +42,12 @@ export function normalizeEvaluacion(ev) {
   }
 
   const tipoNormalizado = ev.tipo ? normalizeTipoEvaluacion(ev.tipo) : 'PARCIAL';
+  const tituloLimpio = String(ev.titulo || ev.nombre || '').trim();
 
   return {
     ...ev,
-    titulo: ev.titulo || ev.nombre || '',
+    titulo: tituloLimpio,
+    nombre: tituloLimpio,
     tipo: tipoNormalizado,
     fecha: cleanDate,
     fecha_entrega: cleanDate

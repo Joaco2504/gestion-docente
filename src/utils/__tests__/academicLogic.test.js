@@ -138,6 +138,38 @@ describe('Suite de Pruebas Unitarias: academicLogic (RAM Catamarca & Régimen La
       expect(resultado.condicion).toBe('LIBRE');
       expect(resultado.motivo).not.toContain('NaN');
     });
+
+    it('Tolerancia a estados abreviados N/E y Aus. sin producir NaN ni detonar excepciones', () => {
+      const notas = [
+        { evaluacion_id: 'p1', valor: 'N/E', estado: 'N/E' },
+        { evaluacion_id: 'p2', valor: null, estado: 'Aus.' }
+      ];
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        asistenciaPct: 85,
+        evaluaciones,
+        studentNotas: notas
+      });
+
+      expect(resultado.condicion).toBe('LIBRE');
+      expect(resultado.motivo).not.toContain('NaN');
+    });
+
+    it('Tolerancia en Nivel Secundario con estados N/E y Aus. calculando promedio sin NaN', () => {
+      const notas = [
+        { evaluacion_id: 'p1', valor: 8 },
+        { evaluacion_id: 'p2', valor: 'Aus.', estado: 'Aus.' }
+      ];
+      const resultado = calcularCondicionFinal({
+        nivel: 'SECUNDARIO',
+        asistenciaPct: 75,
+        evaluaciones,
+        studentNotas: notas
+      });
+
+      expect(resultado.condicion).toBeDefined();
+      expect(resultado.motivo).not.toContain('NaN');
+    });
   });
 
   describe('4. Acreditación Automática por Equivalencia', () => {

@@ -84,7 +84,7 @@ export default function StudentsDataTable({
   return (
     <div className="space-y-3">
       {/* Contenedor de Tabla con Scroll Horizontal y Headers Sticky */}
-      <div className="overflow-x-auto overscroll-x-contain select-none" style={{ touchAction: 'pan-x pan-y' }}>
+      <div className="overflow-x-auto overscroll-x-contain select-none touch-pan-x" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
         <table
           className="w-full text-left text-xs sm:text-sm border-collapse"
           aria-label={isEquivalencias ? "Alumnos Acreditados por Equivalencia" : "Nómina Oficial de Estudiantes"}
