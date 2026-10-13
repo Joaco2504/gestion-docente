@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 
 function safeIsoDate(d, fallback = '') {
   if (!d) return fallback;
@@ -13,6 +13,7 @@ function safeIsoDate(d, fallback = '') {
 
 export default function CalendarWeekView({
   weekDays,
+  currentDate,
   DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
   HOURS_24 = Array.from({ length: 17 }, (_, i) => i + 7),
   HOUR_ROW_HEIGHT = 80,
@@ -25,11 +26,53 @@ export default function CalendarWeekView({
   onSelectDay,
   onNewEventAt
 }) {
+  const scrollContainerRef = useRef(null);
+  const autoScrolledWeekRef = useRef(null);
+
+  useEffect(() => {
+    if (!scrollContainerRef.current) return;
+
+    const targetDate = currentDate instanceof Date ? currentDate : new Date();
+    const currentWeekKey = `${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}`;
+    if (autoScrolledWeekRef.current === currentWeekKey) return;
+
+    const timer = setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const ahora = new Date();
+      const horaActual = ahora.getHours();
+      const minutosActuales = ahora.getMinutes();
+
+      // Altura del slot horario
+      const hourSlot = container.querySelector('[data-hour-row]');
+      const hourHeight = hourSlot ? hourSlot.getBoundingClientRect().height : HOUR_ROW_HEIGHT;
+
+      // Base: 07:00 hs (primer slot de HOURS_24). Margen superior: 30 min (0.5 hs)
+      const baseHour = HOURS_24[0] ?? 7;
+      const offsetHoras = Math.max(0, (horaActual - baseHour + minutosActuales / 60) - 0.5);
+      const targetScrollTop = offsetHoras * hourHeight;
+
+      container.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth'
+      });
+
+      autoScrolledWeekRef.current = currentWeekKey;
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [currentDate, weekDays, HOURS_24, HOUR_ROW_HEIGHT]);
+
   return (
-    <div className="w-full overflow-x-auto select-none" data-testid="calendar-week-view">
+    <div 
+      ref={scrollContainerRef}
+      className="w-full max-h-[660px] overflow-y-auto overflow-x-auto overscroll-contain select-none relative rounded-2xl" 
+      data-testid="calendar-week-view"
+    >
       <div className="min-w-[780px]">
-        {/* FRANJA DE DÍAS DE LA SEMANA */}
-        <div className="grid grid-cols-8 gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+        {/* FRANJA DE DÍAS DE LA SEMANA STICKY */}
+        <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md grid grid-cols-8 gap-2 pb-4 pt-1 border-b border-slate-100 dark:border-slate-800/80">
           {/* Espacio para la columna de horas */}
           <div className="w-16 text-right pr-3 font-mono text-xs text-slate-400 self-end pb-2">
             GMT-3
@@ -92,6 +135,7 @@ export default function CalendarWeekView({
             return (
               <div
                 key={hour}
+                data-hour-row="true"
                 style={{ height: `${HOUR_ROW_HEIGHT}px` }}
                 className="grid grid-cols-8 gap-2 border-b border-slate-100 dark:border-slate-800/60 relative"
               >

@@ -44,7 +44,7 @@ export default function CommandPalette({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // Búsqueda de alumnos en Supabase y localStorage
+  // Búsqueda de alumnos inscriptos en Supabase y localStorage
   useEffect(() => {
     const q = query.trim();
     if (!q || q.length < 2) {
@@ -59,25 +59,57 @@ export default function CommandPalette({ isOpen, onClose }) {
       setIsSearching(true);
       try {
         let found = [];
+        const catedraMap = new Map((catedras || []).map(c => [String(c.id), c]));
+        const catedraIds = (catedras || []).map(c => c.id).filter(Boolean);
+
         if (!isDemo && isSupabaseConfigured && supabase && user?.id) {
-          let req = supabase
-            .from('estudiantes')
-            .select('id, nombre, apellido, dni, catedra_id')
-            .limit(8);
+          try {
+            let req = supabase
+              .from('inscripciones')
+              .select(`
+                id,
+                estudiante_id,
+                catedra_id,
+                estudiantes ( id, nombre, apellido, dni )
+              `);
 
-          if (cleanDni && cleanDni.length >= 2) {
-            req = req.or(`dni.ilike.%${cleanDni}%,nombre.ilike.%${q}%,apellido.ilike.%${q}%`);
-          } else {
-            req = req.or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%`);
-          }
+            if (catedraIds.length > 0) {
+              req = req.in('catedra_id', catedraIds);
+            }
 
-          const { data, error } = await req;
-          if (!error && data) {
-            found = data;
+            const { data: inscripcionesData, error } = await req.limit(100);
+            if (!error && Array.isArray(inscripcionesData)) {
+              const lowerQ = q.toLowerCase();
+              found = inscripcionesData
+                .filter(item => {
+                  const est = item.estudiantes || item.estudiante;
+                  if (!est) return false;
+                  const fullName = `${est.apellido || ''} ${est.nombre || ''}`.toLowerCase();
+                  const dniStr = String(est.dni || '').replace(/\D/g, '');
+                  return fullName.includes(lowerQ) || (cleanDni && dniStr.includes(cleanDni));
+                })
+                .map(item => {
+                  const est = item.estudiantes || item.estudiante;
+                  const cat = catedraMap.get(String(item.catedra_id));
+                  return {
+                    id: est.id,
+                    inscripcion_id: item.id,
+                    nombre: est.nombre,
+                    apellido: est.apellido,
+                    dni: est.dni,
+                    catedra_id: item.catedra_id,
+                    catedra_nombre: cat?.nombre || 'Cátedra',
+                    catedra_color: cat?.color || '#10B981'
+                  };
+                })
+                .slice(0, 8);
+            }
+          } catch (fetchErr) {
+            console.warn('[CommandPalette] Error en consulta de inscripciones:', fetchErr);
           }
         }
 
-        // Fallback a localStorage (modo demo o complementario)
+        // Fallback a localStorage (modo demo o si no hay resultados remotos)
         if (found.length === 0) {
           const localList = [];
           for (let i = 0; i < localStorage.length; i++) {
@@ -88,7 +120,14 @@ export default function CommandPalette({ isOpen, onClose }) {
                 const parsed = JSON.parse(localStorage.getItem(k) || '[]');
                 if (Array.isArray(parsed)) {
                   parsed.forEach(st => {
-                    localList.push({ ...st, catedra_id: st.catedra_id || catIdFromKey });
+                    const cId = st.catedra_id || catIdFromKey;
+                    const cat = catedraMap.get(String(cId));
+                    localList.push({ 
+                      ...st, 
+                      catedra_id: cId,
+                      catedra_nombre: cat?.nombre || 'Cátedra',
+                      catedra_color: cat?.color || '#10B981'
+                    });
                   });
                 }
               } catch (_) {}
@@ -119,7 +158,7 @@ export default function CommandPalette({ isOpen, onClose }) {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [query, user?.id]);
+  }, [query, user?.id, catedras, isDemo]);
 
   // Cátedras filtradas
   const matchedCatedras = useMemo(() => {
@@ -190,15 +229,18 @@ export default function CommandPalette({ isOpen, onClose }) {
   const totalItems = useMemo(() => {
     const items = [];
     matchedStudents.forEach(st => {
+      const uniqueId = `st-${st.id}-${st.catedra_id}`;
       items.push({
         type: 'student',
-        id: `st-${st.id}`,
+        id: uniqueId,
         title: `${st.apellido || ''} ${st.nombre || ''}`.trim() || 'Estudiante',
-        subtitle: st.dni ? `DNI: ${st.dni}` : 'Sin DNI',
+        subtitle: `${st.dni ? `DNI: ${st.dni}` : 'Sin DNI'} • Cátedra: ${st.catedra_nombre || 'Asignada'}`,
+        color: st.catedra_color,
         onSelect: () => {
           onClose();
           if (st.catedra_id) {
-            navigate(`/catedra/${st.catedra_id}?tab=asistencias&estudianteId=${st.id}`);
+            const searchTerm = encodeURIComponent(st.dni || st.apellido || '');
+            navigate(`/catedra/${st.catedra_id}?tab=alumnos&estudianteId=${st.id}&search=${searchTerm}`);
           } else {
             navigate('/dashboard');
           }
@@ -313,18 +355,22 @@ export default function CommandPalette({ isOpen, onClose }) {
                 {/* 1. SECCIÓN ESTUDIANTES */}
                 {matchedStudents.length > 0 && (
                   <div className="py-2">
-                    <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted block">
-                      Estudiantes encontrados ({matchedStudents.length})
+                    <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                      <span>👤</span>
+                      <span>Estudiantes Inscriptos ({matchedStudents.length})</span>
                     </span>
                     <div className="space-y-1 mt-1">
                       {matchedStudents.map((st) => {
-                        const globalIdx = totalItems.findIndex(it => it.id === `st-${st.id}`);
+                        const uniqueId = `st-${st.id}-${st.catedra_id}`;
+                        const globalIdx = totalItems.findIndex(it => it.id === uniqueId);
                         const isSelected = selectedIndex === globalIdx;
                         return (
                           <div
-                            key={st.id}
+                            key={uniqueId}
                             onClick={() => {
-                              totalItems[globalIdx]?.onSelect();
+                              if (globalIdx !== -1) {
+                                totalItems[globalIdx]?.onSelect();
+                              }
                             }}
                             className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors text-xs ${
                               isSelected
@@ -342,12 +388,20 @@ export default function CommandPalette({ isOpen, onClose }) {
                                 <p className="font-bold truncate">
                                   {st.apellido}, {st.nombre}
                                 </p>
-                                <p className={`text-[11px] font-mono ${isSelected ? 'text-white/80' : 'text-text-muted'}`}>
-                                  {st.dni ? `DNI: ${st.dni}` : 'Alumno'}
-                                </p>
+                                <div className={`flex items-center gap-1.5 text-[11px] font-mono ${isSelected ? 'text-white/80' : 'text-text-muted'}`}>
+                                  <span>{st.dni ? `DNI: ${st.dni}` : 'Sin DNI'}</span>
+                                  <span>•</span>
+                                  <span className="truncate flex items-center gap-1">
+                                    <span 
+                                      className="w-2 h-2 rounded-full inline-block shrink-0" 
+                                      style={{ backgroundColor: st.catedra_color || '#10B981' }} 
+                                    />
+                                    {st.catedra_nombre || 'Cátedra'}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                            <span className={`text-[10px] font-mono ${isSelected ? 'text-white/80' : 'text-text-muted'}`}>
+                            <span className={`text-[10px] font-mono shrink-0 ml-2 ${isSelected ? 'text-white/80' : 'text-text-muted'}`}>
                               Ver legajo →
                             </span>
                           </div>

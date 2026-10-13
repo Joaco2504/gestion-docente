@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Users, 
   UserPlus, 
@@ -353,10 +354,24 @@ export default function StudentsTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'import-excel'
 
+  const [searchParams] = useSearchParams();
+  const paramEstudianteId = searchParams.get('estudianteId');
+  const paramSearch = searchParams.get('search');
+  const openedParamDetailRef = useRef(null);
+
+  // Sincronizar búsqueda si viene por URL (ej. desde CommandPalette)
+  useEffect(() => {
+    if (paramSearch) {
+      setSearchQuery(decodeURIComponent(paramSearch));
+    }
+  }, [paramSearch]);
+
   // Limpiar automáticamente el campo de búsqueda al cambiar de cátedra o ciclo lectivo
   useEffect(() => {
-    setSearchQuery('');
-  }, [catedraId, cicloId, activeCiclo?.id]);
+    if (!paramSearch) {
+      setSearchQuery('');
+    }
+  }, [catedraId, cicloId, activeCiclo?.id, paramSearch]);
 
   // Sorting state: 'apellido' | 'nombre' | 'dni' | 'condicion', 'asc' (A-Z) | 'desc' (Z-A)
   const [sortField, setSortField] = useState('apellido');
@@ -386,6 +401,20 @@ export default function StudentsTab({
     setSelectedStudentForDetail(student);
     setIsDetailModalOpen(true);
   };
+
+  // Abrir automáticamente la ficha del estudiante si viene estudianteId por URL
+  useEffect(() => {
+    if (paramEstudianteId && estudiantes.length > 0 && openedParamDetailRef.current !== paramEstudianteId) {
+      const found = estudiantes.find(e => 
+        String(e.id) === String(paramEstudianteId) || 
+        String(e.estudiante_id) === String(paramEstudianteId)
+      );
+      if (found) {
+        handleOpenStudentDetail(found);
+        openedParamDetailRef.current = paramEstudianteId;
+      }
+    }
+  }, [paramEstudianteId, estudiantes]);
 
   // Modal: Carga Manual
   const [dniManual, setDniManual] = useState('');

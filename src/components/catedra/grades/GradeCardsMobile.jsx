@@ -134,6 +134,7 @@ export default function GradeCardsMobile({
                     );
                     const nota = getNotaValue(est.id, ev.id);
                     const estado = getNotaEstado(est.id, ev.id);
+                    const evalTitulo = ev?.titulo || ev?.nombre || 'Evaluación';
 
                     return (
                       <div
@@ -142,13 +143,13 @@ export default function GradeCardsMobile({
                           estudianteId: est.id,
                           evaluacionId: ev.id,
                           nombreEstudiante: `${est.apellido}, ${est.nombre}`,
-                          nombreEvaluacion: ev.nombre
+                          nombreEvaluacion: evalTitulo
                         })}
                         className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer min-h-[44px]"
                       >
                         <div className="min-w-0 flex-1">
                           <span className="text-xs font-bold text-text-primary block truncate">
-                            {ev.nombre}
+                            {evalTitulo}
                           </span>
                           <span className="text-[10px] text-text-muted uppercase">
                             {ev.tipo || 'Evaluación'}

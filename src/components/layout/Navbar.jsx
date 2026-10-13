@@ -84,7 +84,7 @@ export default function Navbar() {
           {/* ============================================================
               1. LADO IZQUIERDO: LOGO SVG KORUM + SELECTOR DE CÁTEDRA ACTIVA
              ============================================================ */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
             {/* Isotipo & Marca Korum */}
             <Link 
               to="/dashboard" 
@@ -118,7 +118,7 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[150px] sm:max-w-[220px] md:max-w-[260px] cursor-pointer shadow-2xs group"
+                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[140px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-[240px] xl:max-w-[280px] cursor-pointer shadow-2xs group shrink"
                     title={`Cátedra activa: ${currentCatedra.nombre}`}
                   >
                     <span 
@@ -212,7 +212,7 @@ export default function Navbar() {
           {/* ============================================================
               3. LADO DERECHO: COMMAND PALETTE + TEMA + NOTIF + USER MENU
              ============================================================ */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto lg:ml-0">
             {/* Botón disparador de Command Palette (⌘K) en Desktop */}
             <button
               type="button"

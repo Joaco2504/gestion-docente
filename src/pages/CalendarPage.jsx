@@ -170,6 +170,7 @@ function CalendarPageContent() {
             {viewMode === 'semanal' && (
               <CalendarWeekView
                 weekDays={weekDays}
+                currentDate={currentDate}
                 DAYS_OF_WEEK={DAYS_OF_WEEK}
                 HOURS_24={HOURS_24}
                 HOUR_ROW_HEIGHT={HOUR_ROW_HEIGHT}

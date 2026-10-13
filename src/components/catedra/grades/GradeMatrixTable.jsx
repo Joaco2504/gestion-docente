@@ -135,19 +135,17 @@ export default function GradeMatrixTable({
             </th>
 
             {/* Columnas Dinámicas de Evaluaciones */}
-            {mainEvaluations.map((ev, colIdx) => {
+            {mainEvaluations?.filter(Boolean).map((ev, colIdx) => {
               const metrics = evalMetricsMap.get(ev.id);
               return (
-                <th 
-                  key={ev.id} 
-                  scope="col" 
-                  className="py-2 px-2.5 text-center min-w-[130px] border-r border-slate-200/40 dark:border-white/5"
-                >
-                  <GradesHeaderColumn 
-                    evaluacion={ev}
-                    metrics={metrics}
-                  />
-                </th>
+                <GradesHeaderColumn 
+                  key={ev.id || colIdx}
+                  ev={ev}
+                  evaluacion={ev}
+                  index={colIdx}
+                  metrics={metrics}
+                  density={density}
+                />
               );
             })}
 

@@ -57,6 +57,7 @@ export function getShortEvaluationTitle(titulo, tipo, fallbackIndex = 0) {
  */
 export default function GradesHeaderColumn({
   ev,
+  evaluacion,
   index = 0,
   density = 'comfortable',
   metrics,
@@ -65,8 +66,11 @@ export default function GradesHeaderColumn({
   onDeleteRequest
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const shortTitle = getShortEvaluationTitle(ev.titulo, ev.tipo, index);
-  const rawDate = ev.fecha_entrega || ev.fecha;
+  const currentEv = ev || evaluacion || {};
+  const titulo = currentEv.titulo ?? currentEv.nombre ?? 'Evaluación';
+  const tipo = currentEv.tipo ?? 'Evaluación';
+  const shortTitle = getShortEvaluationTitle(titulo, tipo, index);
+  const rawDate = currentEv.fecha_entrega || currentEv.fecha;
   const isCompact = density === 'compact';
 
   return (
@@ -82,7 +86,7 @@ export default function GradesHeaderColumn({
         {/* Contenedor de Texto, Fecha y Métricas en Tiempo Real */}
         <div className="flex-1 min-w-0 text-left pr-1">
           {/* Línea 1: Nombre Corto con Tooltip de Título Completo */}
-          <Tooltip content={`Título completo: "${ev.titulo}" (${ev.tipo})`}>
+          <Tooltip content={`Título completo: "${titulo}" (${tipo})`}>
             <span className="block font-bold text-xs text-slate-800 dark:text-slate-100 truncate cursor-default select-none">
               {shortTitle}
             </span>
@@ -102,7 +106,7 @@ export default function GradesHeaderColumn({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onEdit && onEdit(ev);
+                  onEdit && onEdit(currentEv);
                 }}
                 title="Sin fecha asignada. Haz clic para fijar fecha estipulada"
                 className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer inline-flex items-center gap-0.5"
@@ -134,7 +138,7 @@ export default function GradesHeaderColumn({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label={`Acciones para ${ev.titulo}`}
+              aria-label={`Acciones para ${titulo}`}
               title="Opciones de la evaluación"
               className="p-1 touch-target-44 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors cursor-pointer shrink-0"
             >
@@ -144,23 +148,23 @@ export default function GradesHeaderColumn({
 
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="truncate">
-              {ev.titulo}
+              {titulo}
             </DropdownMenuLabel>
             
-            <DropdownMenuItem onClick={() => onEdit && onEdit(ev)}>
+            <DropdownMenuItem onClick={() => onEdit && onEdit(currentEv)}>
               <Edit3 className="w-3.5 h-3.5 text-amber-500" />
               <span>Editar evaluación y fecha</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={() => onBatchGrade && onBatchGrade(ev)}>
+            <DropdownMenuItem onClick={() => onBatchGrade && onBatchGrade(currentEv)}>
               <ListChecks className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Calificar curso completo</span>
             </DropdownMenuItem>
 
-            {ev.archivo_url && (
+            {currentEv.archivo_url && (
               <DropdownMenuItem asChild>
                 <a 
-                  href={ev.archivo_url} 
+                  href={currentEv.archivo_url} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-2"
@@ -174,7 +178,7 @@ export default function GradesHeaderColumn({
             <DropdownMenuSeparator />
 
             <DropdownMenuItem 
-              onClick={() => onDeleteRequest && onDeleteRequest(ev)}
+              onClick={() => onDeleteRequest && onDeleteRequest(currentEv)}
               className="text-rose-600 dark:text-rose-400 focus:text-rose-700 dark:focus:text-rose-300 focus:bg-rose-50 dark:focus:bg-rose-950/40"
             >
               <Trash2 className="w-3.5 h-3.5" />

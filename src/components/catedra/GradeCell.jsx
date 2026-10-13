@@ -200,7 +200,12 @@ export const GradeCell = React.memo(function GradeCell({
     );
   };
 
-  const originalAccessibleLabel = `Calificación de ${est.apellido}, ${est.nombre} en ${ev.titulo}: ${
+  const evTitulo = ev?.titulo ?? ev?.nombre ?? 'Evaluación';
+  const recupTitulo = recup?.titulo ?? recup?.nombre ?? 'Recuperatorio';
+  const estApellido = est?.apellido ?? '';
+  const estNombre = est?.nombre ?? '';
+
+  const originalAccessibleLabel = `Calificación de ${estApellido}, ${estNombre} en ${evTitulo}: ${
     notaOriginal !== null ? notaOriginal : (estadoOriginal === 'NO_ENTREGO' ? 'No entregó' : (estadoOriginal === 'AUSENTE' ? 'Ausente' : 'Sin calificar'))
   }. Presiona Enter para bajar, N para no entregó, A para ausente, 1 al 10 para nota`;
 
@@ -215,7 +220,7 @@ export const GradeCell = React.memo(function GradeCell({
           data-col={colIdx}
           onClick={() => onOpenEditNota(est, ev)}
           onKeyDown={handleKeyDown}
-          title={`Calificación de ${ev.titulo || 'Evaluación'}. Atajos: Enter (bajar de fila), Flechas (navegar), N (N/E), A (Aus.), 1-10 (calificar)`}
+          title={`Calificación de ${evTitulo}. Atajos: Enter (bajar de fila), Flechas (navegar), N (N/E), A (Aus.), 1-10 (calificar)`}
           aria-label={originalAccessibleLabel}
           className={`${
             isCompact ? 'min-h-[36px] min-w-[36px] p-0.5' : 'min-h-[44px] min-w-[44px] p-1'
@@ -231,8 +236,8 @@ export const GradeCell = React.memo(function GradeCell({
             type="button"
             tabIndex={0}
             onClick={() => onOpenEditNota(est, recup)}
-            title={`Editar recuperatorio: ${recup.titulo || recup.nombre || 'Recuperatorio'}`}
-            aria-label={`Recuperatorio de ${est.apellido}, ${est.nombre} en ${recup.titulo}: ${
+            title={`Editar recuperatorio: ${recupTitulo}`}
+            aria-label={`Recuperatorio de ${estApellido}, ${estNombre} en ${recupTitulo}: ${
               notaRecup !== null ? notaRecup : (estadoRecup === 'NO_ENTREGO' ? 'No entregó' : (estadoRecup === 'AUSENTE' ? 'Ausente' : 'Sin calificar'))
             }`}
             className={`${
