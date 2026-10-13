@@ -712,7 +712,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
             className="whitespace-nowrap shrink-0 flex-1 sm:flex-initial"
           >
             <span className="hidden sm:inline">Registrar Clase</span>
-            <span className="sm:hidden">+ Clase</span>
+            <span className="sm:hidden">Nueva Clase</span>
           </Button>
         </div>
       </div>

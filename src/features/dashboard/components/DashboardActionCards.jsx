@@ -30,7 +30,7 @@ export default function DashboardActionCards({ onOpenNewCatedra, upcomingClass, 
   const actions = [
     {
       id: 'nueva-catedra',
-      label: '+ Nueva Cátedra',
+      label: 'Nueva Cátedra',
       sublabel: 'Crear asignatura',
       icon: Plus,
       iconColor: 'bg-primary/10 text-primary dark:bg-primary/20',

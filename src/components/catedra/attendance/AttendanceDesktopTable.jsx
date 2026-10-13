@@ -25,19 +25,26 @@ export default function AttendanceDesktopTable({
         </thead>
         <tbody className="divide-y divide-surface-border text-sm">
           {filteredAlumnos.map(est => {
-            const estadoActual = asistenciasDiaMap[est.id]?.estado || null;
+            const rawEstado = asistenciasDiaMap instanceof Map
+              ? asistenciasDiaMap.get(est.id)
+              : (asistenciasDiaMap?.[est.id]?.estado ?? asistenciasDiaMap?.[est.id]);
+            const estadoActual = (typeof rawEstado === 'object' ? rawEstado?.estado : rawEstado) || null;
             const isPresente = estadoActual === ESTADO_ASISTENCIA.PRESENTE;
             const isAusente = estadoActual === ESTADO_ASISTENCIA.AUSENTE;
             const isJustificado = estadoActual === ESTADO_ASISTENCIA.JUSTIFICADO;
 
-            const studentStats = asistenciaPorEstudiante[est.id] || { porcentaje: 100, esLaboral: false };
-            const pct = Math.round(studentStats.porcentaje || 0);
-            const esLaboral = studentStats.esLaboral;
+            const rawStats = asistenciaPorEstudiante instanceof Map
+              ? asistenciaPorEstudiante.get(est.id)
+              : asistenciaPorEstudiante?.[est.id];
+            const pct = typeof rawStats === 'number'
+              ? Math.round(rawStats)
+              : Math.round(rawStats?.porcentaje ?? 100);
+            const esLaboral = Boolean(est.tiene_certificado_trabajo || rawStats?.esLaboral);
             const umbral = esLaboral ? 60 : 70;
             const estaEnRiesgo = pct < umbral;
 
             return (
-              <tr key={est.id} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.01] transition-colors">
+              <tr key={est.id} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.01] transition-colors h-12">
                 <td className="py-3.5 px-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-text-secondary">

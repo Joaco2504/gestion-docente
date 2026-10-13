@@ -187,7 +187,7 @@ export default function CustomSelect({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={`
-          w-full flex items-center justify-between gap-2 px-3 py-2 text-xs sm:text-sm font-medium
+          w-full flex items-center justify-between gap-2 px-3 py-2 text-xs sm:text-sm font-medium min-h-[40px] h-10
           rounded-xl border transition-[background-color,border-color,box-shadow] duration-150 cursor-pointer select-none
           bg-surface text-text-primary border-surface-border
           hover:bg-surface-hover hover:border-primary/40

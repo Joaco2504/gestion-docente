@@ -57,7 +57,7 @@ export default function AttendanceQuickActions({
 
       {/* Botones de Acción Masiva y Reportes */}
       <div className="flex items-center gap-2 flex-wrap justify-end">
-        {/* [ ✓ Marcar Todos Presentes ] */}
+        {/* [ Marcar Todos Presentes ] */}
         <Button
           variant="outline"
           size="sm"
@@ -67,10 +67,10 @@ export default function AttendanceQuickActions({
           className="text-xs font-bold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 touch-target-44 min-h-[44px]"
           title="Asignar estado PRESENTE a todos los alumnos activos en esta fecha"
         >
-          <span>✓ Marcar Todos Presentes</span>
+          <span>Marcar Todos Presentes</span>
         </Button>
 
-        {/* [ ✕ Marcar Todos Ausentes ] */}
+        {/* [ Marcar Todos Ausentes ] */}
         <Button
           variant="outline"
           size="sm"
@@ -80,7 +80,7 @@ export default function AttendanceQuickActions({
           className="text-xs font-bold border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 touch-target-44 min-h-[44px]"
           title="Asignar inasistencia general a toda la nómina en esta fecha"
         >
-          <span>✕ Marcar Todos Ausentes</span>
+          <span>Marcar Todos Ausentes</span>
         </Button>
 
         {/* Falta Docente / Licencia Decreto 1092 */}

@@ -643,7 +643,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
               className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Nueva Cátedra</span>
+              <span>Nueva Cátedra</span>
             </button>
           </div>
         </div>

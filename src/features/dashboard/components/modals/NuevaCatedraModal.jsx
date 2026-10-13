@@ -200,7 +200,7 @@ export default function NuevaCatedraModal({
             aria-invalid={!!errors.nombre}
             aria-describedby={errors.nombre ? 'nombre-error' : undefined}
             placeholder="Ej: Programación II, Historia Argentina, Matemática..."
-            className={`w-full px-3.5 py-2.5 text-sm border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 transition-colors ${
+            className={`w-full h-10 px-3.5 py-2 text-sm border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 transition-colors ${
               errors.nombre 
                 ? 'border-danger focus:ring-danger/20' 
                 : 'border-surface-border focus:ring-primary/20 focus:border-primary'

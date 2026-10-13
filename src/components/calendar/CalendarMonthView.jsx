@@ -53,7 +53,7 @@ export default function CalendarMonthView({
               key={idx}
               onClick={() => onSelectDay?.(d)}
               className={`
-                min-h-[88px] p-2 rounded-2xl border transition-colors duration-150 cursor-pointer flex flex-col justify-between
+                min-h-[88px] p-2 rounded-2xl border transition-colors duration-150 cursor-pointer flex flex-col justify-between overflow-hidden min-w-0
                 ${isToday 
                   ? 'border-2 border-emerald-500 bg-emerald-500/5' 
                   : isSelected
@@ -80,7 +80,7 @@ export default function CalendarMonthView({
                 </span>
               )}
 
-              <div className="space-y-1 overflow-hidden mt-1">
+              <div className="space-y-1 overflow-hidden mt-1 min-w-0 max-w-full">
                 {dayEvents.slice(0, 3).map((ev) => {
                   const design = getItemDesign(ev);
                   const EvIcon = design.Icon;
@@ -95,7 +95,7 @@ export default function CalendarMonthView({
                         backgroundColor: design.bgColor,
                         color: design.textColor
                       }}
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1 shadow-2xs hover:scale-[1.02] transition-transform ${
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-2xs hover:scale-[1.02] transition-transform min-w-0 max-w-full overflow-hidden ${
                         design.isMesa 
                           ? 'ring-1 ring-inset ring-white/60 border border-dashed border-indigo-300' 
                           : ''
@@ -103,7 +103,7 @@ export default function CalendarMonthView({
                       title={ev.titulo}
                     >
                       <EvIcon className="w-2.5 h-2.5 shrink-0 opacity-90" />
-                      <span className="truncate flex-1">{ev.titulo}</span>
+                      <span className="truncate flex-1 min-w-0">{ev.titulo}</span>
                       {design.isMesa && design.catedraColor && (
                         <span
                           className="w-1.5 h-1.5 rounded-full shrink-0 ring-1 ring-white/80"

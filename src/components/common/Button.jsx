@@ -25,8 +25,8 @@ export default function Button({
 
   const sizes = {
     xs: 'px-2 py-1 text-[11px] gap-1 min-h-[32px] rounded-lg',
-    sm: 'px-3 py-1.5 sm:py-1 text-xs gap-1.5 min-h-[40px] sm:min-h-[32px] rounded-xl',
-    md: 'px-4 py-2.5 sm:py-2 text-sm gap-2 min-h-[44px] sm:min-h-[38px] rounded-xl',
+    sm: 'px-3 py-1.5 sm:py-1 text-xs gap-1.5 min-h-[40px] sm:min-h-[36px] sm:h-9 rounded-xl',
+    md: 'px-4 py-2.5 sm:py-2 text-sm gap-2 min-h-[44px] sm:min-h-[40px] sm:h-10 rounded-xl',
     lg: 'px-5 py-3 sm:py-2.5 text-base gap-2.5 min-h-[48px] sm:min-h-[44px] rounded-2xl',
     icon: 'p-2 min-h-[44px] min-w-[44px] rounded-xl flex items-center justify-center'
   };

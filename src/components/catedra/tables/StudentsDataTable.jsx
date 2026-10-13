@@ -145,14 +145,14 @@ export default function StudentsDataTable({
               </tr>
             ) : (
               table.getRowModel().rows.map(row => (
-                <tr key={row.id} className="hover:bg-surface-hover/40 transition-colors group">
+                <tr key={row.id} className="hover:bg-surface-hover/40 transition-colors group h-12">
                   {row.getVisibleCells().map((cell, idx) => {
                     const isStickyCol = idx === 0;
                     return (
                       <td
                         key={cell.id}
                         scope={isStickyCol ? "row" : undefined}
-                        className={`px-4 py-3.5 whitespace-nowrap ${
+                        className={`px-4 py-2.5 whitespace-nowrap ${
                           isStickyCol ? 'sticky left-0 bg-surface group-hover:bg-surface-hover/80 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]' : ''
                         }`}
                       >

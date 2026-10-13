@@ -265,7 +265,7 @@ export function NuevaEvaluacionModal({
             placeholder="Ej: Parcial N° 1, TP N° 1 - Modelado Relacional..."
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all font-medium"
+            className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all font-medium"
           />
         </div>
 
@@ -278,7 +278,7 @@ export function NuevaEvaluacionModal({
             <select
               value={tipo}
               onChange={(e) => setTipo(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
+              className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
             >
               <option value={TIPO_EVALUACION.PARCIAL}>{LABELS_TIPO_EVALUACION.PARCIAL}</option>
               <option value={TIPO_EVALUACION.TP}>{LABELS_TIPO_EVALUACION.TP}</option>
@@ -296,7 +296,7 @@ export function NuevaEvaluacionModal({
             <select
               value={formato}
               onChange={(e) => setFormato(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
+              className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
             >
               <option value={FORMATO_EVALUACION.ESCRITO}>{FORMATO_EVALUACION.ESCRITO}</option>
               <option value={FORMATO_EVALUACION.ORAL}>{FORMATO_EVALUACION.ORAL}</option>
@@ -315,7 +315,7 @@ export function NuevaEvaluacionModal({
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm font-mono focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
+            className="w-full h-10 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm font-mono focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
           />
         </div>
 

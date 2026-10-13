@@ -208,7 +208,7 @@ export function useGradesData({
         es_equivalencia: Boolean(st.es_equivalencia)
       });
 
-      const risk = calculateStudentRisk({
+      const risk = calculateStudentRisk(st.id, {
         estudiante: st,
         asistenciaPct: asistPct,
         notas: stNotas,

@@ -11,39 +11,61 @@ import { calcularPorcentajeAsistencia } from './academicLogic';
  * @param {Object} context - Datos académicos de la cátedra
  * @returns {Object} { level: 'CRITICAL'|'WARNING'|'OPTIMAL', reasons: string[], badgeLabel: string, colorClass: string, pulseClass: string }
  */
-export function calculateStudentRisk(studentId, {
-  asistencias = [],
-  clases = [],
-  inasistenciasDocente = [],
-  evaluaciones = [],
-  notas = [],
-  criterios = {},
-  academicLevel = 'TERCIARIO',
-  modalidad = 'ANUAL'
-}) {
-  const minPromoAsist = Number(criterios.min_asist_promo ?? 80);
-  const minRegAsist = Number(criterios.min_asist_reg ?? 70);
-  const notaMinPromo = Number(criterios.nota_min_promo ?? 7);
-  const notaMinReg = Number(criterios.nota_min_reg ?? 4);
+export function calculateStudentRisk(studentIdOrOptions, maybeContext = {}) {
+  // Manejo polimórfico: si se pasa un único objeto con propiedades del estudiante
+  let studentId = studentIdOrOptions;
+  let context = maybeContext || {};
+
+  if (studentIdOrOptions && typeof studentIdOrOptions === 'object') {
+    studentId = studentIdOrOptions.studentId || 
+                studentIdOrOptions.estudiante?.id || 
+                studentIdOrOptions.estudiante_id || 
+                studentIdOrOptions.id;
+    context = { ...studentIdOrOptions, ...maybeContext };
+  }
+
+  const {
+    asistencias = [],
+    clases = [],
+    inasistenciasDocente = [],
+    evaluaciones = [],
+    notas = [],
+    criterios = {},
+    academicLevel = 'TERCIARIO',
+    modalidad = 'ANUAL',
+    asistenciaPct: forcedAsistPct
+  } = context;
+
+  const minPromoAsist = Number(criterios?.min_asist_promo ?? 80);
+  const minRegAsist = Number(criterios?.min_asist_reg ?? 70);
+  const notaMinPromo = Number(criterios?.nota_min_promo ?? 7);
+  const notaMinReg = Number(criterios?.nota_min_reg ?? 4);
 
   // 1. Filtrar clases efectivas (excluyendo licencias del docente)
-  const fechasLicencia = new Set(inasistenciasDocente.map(i => i.fecha));
-  const clasesEfectivasOrdenadas = [...clases]
+  const safeInasistenciasDocente = Array.isArray(inasistenciasDocente) ? inasistenciasDocente : [];
+  const safeClases = Array.isArray(clases) ? clases : [];
+  const fechasLicencia = new Set(safeInasistenciasDocente.map(i => i.fecha));
+  const clasesEfectivasOrdenadas = [...safeClases]
     .filter(c => !fechasLicencia.has(c.fecha))
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
   const totalClasesEfectivas = clasesEfectivasOrdenadas.length;
 
   // Mapa de asistencias del estudiante
-  const studentAsistencias = asistencias.filter(a => a.estudiante_id === studentId);
+  const safeAsistencias = Array.isArray(asistencias) ? asistencias : [];
+  const studentAsistencias = studentId 
+    ? safeAsistencias.filter(a => a?.estudiante_id === studentId) 
+    : [];
   const asistMap = new Map();
   studentAsistencias.forEach(a => {
-    asistMap.set(a.clase_id, a.estado);
+    if (a?.clase_id) asistMap.set(a.clase_id, a.estado);
   });
 
   // Conteo de presentes y porcentaje actual
-  const presentesCount = studentAsistencias.filter(a => a.estado === 'PRESENTE').length;
-  const asistPct = calcularPorcentajeAsistencia(studentAsistencias, clases.length, inasistenciasDocente.length);
+  const presentesCount = studentAsistencias.filter(a => a?.estado === 'PRESENTE').length;
+  const asistPct = typeof forcedAsistPct === 'number'
+    ? forcedAsistPct
+    : calcularPorcentajeAsistencia(studentAsistencias, safeClases.length, safeInasistenciasDocente.length);
 
   // 2. Cálculo de inasistencias consecutivas
   // Revisamos en orden cronológico reciente hacia atrás
@@ -59,14 +81,25 @@ export function calculateStudentRisk(studentId, {
   }
 
   // 3. Análisis de evaluaciones y notas
-  const studentNotas = notas.filter(n => n.estudiante_id === studentId);
+  const safeEvaluaciones = Array.isArray(evaluaciones) ? evaluaciones : [];
   const notasMap = new Map();
-  studentNotas.forEach(n => {
-    const val = Number(n.valor);
-    if (!isNaN(val)) {
-      notasMap.set(n.evaluacion_id, val);
-    }
-  });
+
+  if (Array.isArray(notas)) {
+    const studentNotas = studentId ? notas.filter(n => n?.estudiante_id === studentId) : [];
+    studentNotas.forEach(n => {
+      const val = Number(n?.valor);
+      if (!isNaN(val) && n?.evaluacion_id) {
+        notasMap.set(n.evaluacion_id, val);
+      }
+    });
+  } else if (notas && typeof notas === 'object') {
+    Object.entries(notas).forEach(([evalId, val]) => {
+      const numVal = Number(val);
+      if (!isNaN(numVal)) {
+        notasMap.set(evalId, numVal);
+      }
+    });
+  }
 
   const parciales = evaluaciones.filter(e => {
     const t = String(e.tipo || '').toUpperCase();

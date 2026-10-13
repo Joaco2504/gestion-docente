@@ -225,7 +225,7 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Ej: Programación II, Historia Argentina, Matemática..."
-            className="w-full px-3.5 py-2.5 text-base sm:text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            className="w-full h-10 px-3.5 py-2 text-base sm:text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             required
             autoFocus
           />

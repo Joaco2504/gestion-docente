@@ -131,7 +131,7 @@ export default function EditClassModal({
             onChange={(e) => setTema(e.target.value)}
             placeholder="Ej: Medidas de Tendencia Central, Diagrama Entidad-Relación..."
             required
-            className="w-full px-3 py-2 text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            className="w-full h-10 px-3 py-2 text-sm border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           />
         </div>
 
@@ -151,7 +151,7 @@ export default function EditClassModal({
                 }}
                 className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                + Crear Unidad al vuelo
+                Crear Unidad al vuelo
               </button>
             )}
           </div>
@@ -243,7 +243,7 @@ export default function EditClassModal({
               max="6"
               value={horasCatedra}
               onChange={(e) => setHorasCatedra(Math.min(6, Math.max(1, Number(e.target.value) || 1)))}
-              className="w-full px-3 py-2 text-sm font-mono border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full h-10 px-3 py-2 text-sm font-mono border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
         </div>

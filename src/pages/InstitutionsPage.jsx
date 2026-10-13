@@ -327,7 +327,7 @@ export default function InstitutionsPage() {
               className="touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0 text-xs sm:text-sm"
             >
               <span className="hidden sm:inline">Nueva Institución</span>
-              <span className="sm:hidden">+ Institución</span>
+              <span className="sm:hidden">Institución</span>
             </Button>
             <Button
               variant="secondary"
@@ -339,7 +339,7 @@ export default function InstitutionsPage() {
               className="touch-target-44 sm:touch-target-auto whitespace-nowrap shrink-0 text-xs sm:text-sm"
             >
               <span className="hidden sm:inline">Nuevo Ciclo</span>
-              <span className="sm:hidden">+ Ciclo</span>
+              <span className="sm:hidden">Ciclo</span>
             </Button>
           </div>
         }

@@ -103,7 +103,7 @@ export default function Modal({
         />
 
         {/* Contenedor de Posicionamiento */}
-        <div className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 pointer-events-none`}>
+        <div className={`fixed inset-0 ${zIndex} flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none`}>
           <Dialog.Content
             style={{
               transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
@@ -125,9 +125,9 @@ export default function Modal({
                 handleRequestClose();
               }
             }}
-            className={`pointer-events-auto modal-sheet modal-shell relative w-full sm:w-auto ${maxWidth} max-w-[100vw] sm:max-w-xl md:max-w-2xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200/80 dark:border-white/10 overflow-hidden max-h-[90dvh] sm:max-h-[85vh] flex flex-col pb-safe focus:outline-hidden data-[state=open]:animate-sheet-up sm:data-[state=open]:animate-scaleIn data-[state=closed]:animate-sheet-down sm:data-[state=closed]:animate-modalOut`}
+            className={`pointer-events-auto modal-sheet modal-shell relative w-[92vw] sm:w-full ${maxWidth} max-w-[96vw] sm:max-w-xl md:max-w-2xl bg-white dark:bg-[#0F172A] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[85dvh] flex flex-col my-auto pb-safe focus:outline-hidden data-[state=open]:animate-scaleIn data-[state=closed]:animate-modalOut`}
           >
-            {/* Cabecera táctil deslizable con Pointer Events */}
+            {/* Cabecera táctil con Pointer Events */}
             <div
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
@@ -137,15 +137,15 @@ export default function Modal({
               className="cursor-grab active:cursor-grabbing select-none shrink-0"
             >
               {/* Mobile Drag Handle */}
-              <div className="sm:hidden pt-3 pb-1.5 flex justify-center">
-                <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
+              <div className="sm:hidden pt-2.5 pb-1 flex justify-center">
+                <div className="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
               </div>
 
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/30">
-                <div className="pr-10 min-w-0">
+              {/* Header Fijo */}
+              <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                <div className="pr-8 min-w-0 flex-1">
                   {title ? (
-                    <Dialog.Title className="text-base font-bold text-text-primary truncate">
+                    <Dialog.Title className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">
                       {title}
                     </Dialog.Title>
                   ) : (
@@ -154,7 +154,7 @@ export default function Modal({
                     </Dialog.Title>
                   )}
                   {subtitle ? (
-                    <Dialog.Description className="text-xs text-text-muted mt-0.5 leading-snug">
+                    <Dialog.Description className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug line-clamp-2">
                       {subtitle}
                     </Dialog.Description>
                   ) : (
@@ -167,18 +167,18 @@ export default function Modal({
                 <Dialog.Close asChild>
                   <button
                     type="button"
-                    className="p-2 -mr-1 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors touch-target-44 min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer shrink-0"
+                    className="p-2 -mr-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer shrink-0"
                     title="Cerrar ventana"
                     aria-label="Cerrar ventana"
                   >
-                    <X className="w-5 h-5 pointer-events-none" />
+                    <X className="w-4 h-4 pointer-events-none" />
                   </button>
                 </Dialog.Close>
               </div>
             </div>
 
-            {/* Scrollable Content Body */}
-            <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1 max-h-[calc(90dvh-5rem)] sm:max-h-[70vh] pb-safe">
+            {/* Cuerpo con Scroll Vertical Independiente Contenido */}
+            <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 text-slate-800 dark:text-slate-200 pb-safe">
               {children}
             </div>
           </Dialog.Content>

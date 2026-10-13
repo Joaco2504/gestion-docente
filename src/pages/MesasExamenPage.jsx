@@ -478,7 +478,7 @@ export default function MesasExamenPage() {
             ) : (
               <EmptyState
                 tipo="mesas"
-                actionLabel="+ Nueva Mesa de Examen"
+                actionLabel="Nueva Mesa de Examen"
                 onAction={() => setIsConstituirModalOpen(true)}
               />
             )

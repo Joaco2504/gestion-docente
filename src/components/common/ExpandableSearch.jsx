@@ -51,8 +51,8 @@ export default function ExpandableSearch({
       onClick={handleContainerClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`group relative h-11 rounded-full flex items-center shadow-xs cursor-text select-none transition-[width,background-color,border-color,box-shadow] duration-300 ease-in-out border ${
-        isExpanded ? `${widthClass} px-3.5` : 'w-11 justify-center p-2.5'
+      className={`group relative h-10 rounded-full flex items-center shadow-xs cursor-text select-none transition-[width,background-color,border-color,box-shadow] duration-300 ease-in-out border ${
+        isExpanded ? `${widthClass} px-3.5` : 'w-10 justify-center p-2'
       } bg-slate-100/90 text-slate-800 border-slate-200 dark:bg-slate-800/80 dark:text-slate-200 dark:border-white/10 focus-within:bg-indigo-600 focus-within:text-white focus-within:border-transparent focus-within:shadow-md focus-within:shadow-indigo-500/25 ${className}`}
     >
       {/* Icono de Lupa: Se mantiene siempre visible y alineado */}

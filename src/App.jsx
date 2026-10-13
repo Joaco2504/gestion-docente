@@ -13,6 +13,7 @@ import CreateCatedraModal from './components/common/CreateCatedraModal';
 import RouteLoadingSpinner from './components/common/RouteLoadingSpinner';
 
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { Analytics } from '@vercel/analytics/react';
 
 /**
  * Envoltorio resiliente para importaciones diferidas (React.lazy)
@@ -184,6 +185,7 @@ export default function App() {
               </Routes>
             </Suspense>
           </ErrorBoundary>
+          <Analytics />
         </BrowserRouter>
       </TooltipProvider>
     </NotificationProvider>

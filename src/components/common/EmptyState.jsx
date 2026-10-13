@@ -61,13 +61,13 @@ export default function EmptyState({
 
   if (effectiveTipo === 'catedras') {
     defaultTitle = 'No tienes cátedras creadas en este ciclo';
-    defaultActionLabel = '+ Crear mi primera cátedra';
+    defaultActionLabel = 'Crear mi primera cátedra';
   } else if (effectiveTipo === 'alumnos') {
     defaultTitle = 'Nómina sin alumnos registrados';
     defaultActionLabel = '📥 Importar Excel / CSV';
   } else if (effectiveTipo === 'mesas') {
     defaultTitle = 'Aún no has constituido mesas evaluadoras';
-    defaultActionLabel = '+ Nueva Mesa de Examen';
+    defaultActionLabel = 'Nueva Mesa de Examen';
   }
 
   const finalTitle = title !== null ? title : defaultTitle;

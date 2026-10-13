@@ -86,7 +86,7 @@ export default function HeaderSelector() {
           onClick={() => setIsInstModalOpen(true)}
           title="Nueva Institución"
           aria-label="Nueva Institución"
-          className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center touch-target-44 hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
+          className="p-2 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
         >
           <Plus className="w-4 h-4 text-primary" />
         </button>
@@ -115,7 +115,7 @@ export default function HeaderSelector() {
           onClick={() => setIsCicloModalOpen(true)}
           title="Nuevo Ciclo Lectivo"
           aria-label="Nuevo Ciclo Lectivo"
-          className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center touch-target-44 hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
+          className="p-2 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
         >
           <Plus className="w-4 h-4 text-primary" />
         </button>

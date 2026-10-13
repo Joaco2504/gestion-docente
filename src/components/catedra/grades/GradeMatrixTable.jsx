@@ -173,7 +173,7 @@ export default function GradeMatrixTable({
             return (
               <tr 
                 key={est.id} 
-                className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors"
+                className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors h-12"
               >
                 {/* Estudiante Congelado Izquierda */}
                 <td 
