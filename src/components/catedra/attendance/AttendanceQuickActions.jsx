@@ -8,9 +8,12 @@ import {
   ShieldAlert,
   Percent,
   CheckCircle2,
-  Clock
+  Clock,
+  Edit3,
+  Sparkles
 } from 'lucide-react';
 import Button from '../../common/Button';
+import { formatFechaDMY } from '../../../lib/dateUtils';
 
 /**
  * AttendanceQuickActions
@@ -19,6 +22,7 @@ import Button from '../../common/Button';
 export default function AttendanceQuickActions({
   fechaSeleccionada,
   onFechaChange,
+  claseActiva = null,
   statsHoy,
   onMarcarTodosPresentes,
   onMarcarTodosAusentes,
@@ -28,11 +32,12 @@ export default function AttendanceQuickActions({
   saving = false
 }) {
   const { total = 0, presentes = 0, ausentes = 0, pctDia = 0 } = statsHoy || {};
+  const formattedDate = formatFechaDMY(fechaSeleccionada).replace(/-/g, '/');
 
   return (
     <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-4 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 backdrop-blur-md shadow-xs">
-      {/* Selector de Fecha & Chip de Estado */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* Selector de Fecha & Badge Dinámico de Clase */}
+      <div className="flex items-center gap-2.5 flex-wrap">
         <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10">
           <Calendar className="w-4 h-4 text-primary shrink-0" />
           <input
@@ -44,12 +49,25 @@ export default function AttendanceQuickActions({
           />
         </div>
 
+        {/* Badge Contextual: Editando Clase Registrada vs Nueva Clase */}
+        {claseActiva ? (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-700 dark:text-blue-300">
+            <Edit3 className="w-3.5 h-3.5 shrink-0" />
+            <span>Editando clase registrada ({formattedDate})</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-700 dark:text-amber-400">
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span>Nueva clase en fecha seleccionada</span>
+          </div>
+        )}
+
         {/* Chip de Métricas de la Sesión */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>{presentes} Presentes</span>
+        <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+          <span>{presentes} Pres.</span>
           <span className="text-emerald-600/40">•</span>
-          <span className="text-rose-600 dark:text-rose-400">{ausentes} Ausentes</span>
+          <span className="text-rose-600 dark:text-rose-400">{ausentes} Aus.</span>
           <span className="text-emerald-600/40">•</span>
           <span className="font-mono">{pctDia}%</span>
         </div>

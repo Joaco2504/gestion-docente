@@ -17,7 +17,7 @@ export default function AttendanceDesktopTable({
           <tr className="border-b border-surface-border bg-slate-50/50 dark:bg-white/[0.02] text-[11px] font-bold uppercase tracking-wider text-text-muted">
             <th className="py-3 px-4">Estudiante / Legajo</th>
             <th className="py-3 px-4 text-center">Régimen RAM</th>
-            <th className="py-3 px-4 text-center">Asist. Acumulada</th>
+            <th className="py-3 px-4 text-center">Asistencia Actual</th>
             <th className="py-3 px-4 text-center">Presente</th>
             <th className="py-3 px-4 text-center">Ausente</th>
             <th className="py-3 px-4 text-center">Justificado</th>
@@ -39,9 +39,12 @@ export default function AttendanceDesktopTable({
             const pct = typeof rawStats === 'number'
               ? Math.round(rawStats)
               : Math.round(rawStats?.porcentaje ?? 100);
+            const presentes = rawStats?.presentes ?? 0;
+            const totalClases = rawStats?.totalClases ?? 0;
             const esLaboral = Boolean(est.tiene_certificado_trabajo || rawStats?.esLaboral);
-            const umbral = esLaboral ? 60 : 70;
-            const estaEnRiesgo = pct < umbral;
+            const umbral = rawStats?.umbralRequerido ?? (esLaboral ? 60 : 70);
+            const estaEnRiesgo = rawStats?.enRiesgo ?? (pct < umbral);
+            const alBorde = !estaEnRiesgo && (pct - umbral <= 5);
 
             return (
               <tr key={est.id} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.01] transition-colors h-12">
@@ -76,13 +79,30 @@ export default function AttendanceDesktopTable({
 
                 <td className="py-3 px-4 text-center">
                   <div className="flex flex-col items-center gap-1">
-                    <span className={`font-mono font-bold text-xs ${estaEnRiesgo ? 'text-rose-500 font-black' : 'text-emerald-500'}`}>
-                      {pct}%
-                    </span>
-                    <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className={`font-mono font-bold text-sm ${
+                        estaEnRiesgo
+                          ? 'text-rose-600 dark:text-rose-400 font-black'
+                          : alBorde
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {pct}%
+                      </span>
+                      <span className="text-[10px] font-mono text-text-muted">
+                        ({presentes}/{totalClases})
+                      </span>
+                    </div>
+                    <div className="w-20 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div 
-                        className={`h-full rounded-full transition-all duration-300 ${estaEnRiesgo ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                        style={{ width: `${Math.min(100, pct)}%` }}
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          estaEnRiesgo 
+                            ? 'bg-rose-500' 
+                            : alBorde 
+                            ? 'bg-amber-500' 
+                            : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
                       />
                     </div>
                   </div>

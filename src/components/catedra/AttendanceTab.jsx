@@ -7,9 +7,11 @@ import RegistrarFaltaDocenteModal from './modals/RegistrarFaltaDocenteModal';
 import AttendanceQuickActions from './attendance/AttendanceQuickActions';
 import AttendanceDesktopTable from './attendance/AttendanceDesktopTable';
 import AttendanceCardsMobile from './attendance/AttendanceCardsMobile';
+import AttendanceClassCarousel from './attendance/AttendanceClassCarousel';
 import { useAttendanceManager } from '../../hooks/useAttendanceManager';
 import { useAuth } from '../../context/AuthContext';
 import { exportAttendanceToExcel } from '../../lib/excel';
+import { getTodayYMD } from '../../lib/dateUtils';
 import { toast } from 'sonner';
 
 /**
@@ -20,7 +22,10 @@ import { toast } from 'sonner';
 export default function AttendanceTab({
   catedraId,
   catedraName = 'Cátedra',
-  academicLevel = 'TERCIARIO'
+  academicLevel = 'TERCIARIO',
+  cursadaFinalizada = false,
+  onNavigateToLibroTemas,
+  catedra
 }) {
   const { user, isDemo } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,9 +36,12 @@ export default function AttendanceTab({
   const {
     alumnosElegibles,
     clases,
+    claseActiva,
+    selectedClaseId,
     asistencias,
     fechaSeleccionada,
     setFechaSeleccionada,
+    handleSelectClase,
     loading,
     saving,
     asistenciasDiaMap,
@@ -46,7 +54,8 @@ export default function AttendanceTab({
   } = useAttendanceManager({
     catedraId,
     isDemo,
-    user
+    user,
+    catedra
   });
 
   // Filtrado reactivo de estudiantes por nombre o DNI
@@ -88,10 +97,21 @@ export default function AttendanceTab({
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
-      {/* 1. Barra de Herramientas de Alta Velocidad (Fecha & Acciones Masivas) */}
+      {/* 1. Carrusel de Clases Registradas & Selección de Jornada */}
+      <AttendanceClassCarousel
+        clases={clases}
+        selectedClaseId={selectedClaseId}
+        selectedFecha={fechaSeleccionada}
+        asistencias={asistencias}
+        onSelectClase={handleSelectClase}
+        onSelectNuevaClaseHoy={() => setFechaSeleccionada(getTodayYMD())}
+      />
+
+      {/* 2. Barra de Herramientas de Alta Velocidad (Fecha & Acciones Masivas) */}
       <AttendanceQuickActions
         fechaSeleccionada={fechaSeleccionada}
         onFechaChange={setFechaSeleccionada}
+        claseActiva={claseActiva}
         statsHoy={statsHoy}
         onMarcarTodosPresentes={handleMarcarTodosPresentes}
         onMarcarTodosAusentes={handleMarcarTodosAusentes}

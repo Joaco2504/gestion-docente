@@ -215,6 +215,60 @@ describe('Suite de Pruebas Unitarias: academicLogic (RAM Catamarca & Régimen La
       const pct = calcularPorcentajeAsistencia([], 2, 2);
       expect(pct).toBe(100);
     });
+
+    it('Soporta llamada con objeto de configuración { asistencias, totalClases, clasesConLicencia }', () => {
+      const asistencias = [
+        { estado: 'PRESENTE' },
+        { estado: 'AUSENTE' }
+      ];
+      const pct = calcularPorcentajeAsistencia({
+        asistencias,
+        totalClases: 4,
+        clasesConLicencia: 2
+      });
+      // 1 presente de (4 - 2) = 2 clases efectivas -> 50%
+      expect(pct).toBe(50);
+    });
+
+    it('Excluye asistencias marcadas con inasistencia/licencia docente si estuvieran en el arreglo', () => {
+      const asistencias = [
+        { estado: 'PRESENTE', docenteAusente: true },
+        { estado: 'PRESENTE' }
+      ];
+      const pct = calcularPorcentajeAsistencia({
+        asistencias,
+        totalClases: 2,
+        clasesConLicencia: 1
+      });
+      // 1 presente válido sobre 1 clase efectiva = 100%
+      expect(pct).toBe(100);
+    });
+  });
+
+  describe('6. Evaluación Semántica de Umbral de Asistencia Acumulada (Régimen Laboral 60% vs 70%)', () => {
+    const evaluarSemaforo = (pct, tieneCertificado) => {
+      const umbral = tieneCertificado ? 60 : 70;
+      if (pct >= umbral + 5) return 'verde';
+      if (pct >= umbral) return 'ambar';
+      return 'rojo';
+    };
+
+    it('Asigna color VERDE si el porcentaje supera el umbral por 5% o más', () => {
+      expect(evaluarSemaforo(75, false)).toBe('verde'); // 75 >= 75
+      expect(evaluarSemaforo(65, true)).toBe('verde');  // 65 >= 65
+    });
+
+    it('Asigna color ÁMBAR si está dentro del margen de riesgo (umbral a umbral + 4.9%)', () => {
+      expect(evaluarSemaforo(70, false)).toBe('ambar'); // 70 < 75
+      expect(evaluarSemaforo(74.9, false)).toBe('ambar');
+      expect(evaluarSemaforo(60, true)).toBe('ambar');  // 60 < 65
+      expect(evaluarSemaforo(64.9, true)).toBe('ambar');
+    });
+
+    it('Asigna color ROJO si cae por debajo del umbral mínimo reglamentario', () => {
+      expect(evaluarSemaforo(69.9, false)).toBe('rojo');
+      expect(evaluarSemaforo(59.9, true)).toBe('rojo');
+    });
   });
 
 });

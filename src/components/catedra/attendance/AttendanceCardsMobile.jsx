@@ -35,10 +35,22 @@ export default function AttendanceCardsMobile({
   return (
     <div className="space-y-3">
       {alumnosElegibles.map((est, idx) => {
-        const estadoActual = asistenciasDiaMap.get(est.id) || null;
-        const asistPct = asistenciaPorEstudiante.get(est.id) ?? 100;
-        const minThreshold = est.tiene_certificado_trabajo ? 60 : 70;
-        const isCumpleUmbral = asistPct >= minThreshold;
+        const rawEstado = asistenciasDiaMap instanceof Map 
+          ? asistenciasDiaMap.get(est.id) 
+          : asistenciasDiaMap?.[est.id];
+        const estadoActual = (typeof rawEstado === 'object' ? rawEstado?.estado : rawEstado) || null;
+
+        const rawStats = asistenciaPorEstudiante instanceof Map
+          ? asistenciaPorEstudiante.get(est.id)
+          : asistenciaPorEstudiante?.[est.id];
+        const asistPct = typeof rawStats === 'number'
+          ? Math.round(rawStats)
+          : Math.round(rawStats?.porcentaje ?? 100);
+        const presentes = rawStats?.presentes ?? 0;
+        const totalClases = rawStats?.totalClases ?? 0;
+        const minThreshold = rawStats?.umbralRequerido ?? (est.tiene_certificado_trabajo ? 60 : 70);
+        const estaEnRiesgo = rawStats?.enRiesgo ?? (asistPct < minThreshold);
+        const alBorde = !estaEnRiesgo && (asistPct - minThreshold <= 5);
         const initials = `${est.nombre?.[0] || ''}${est.apellido?.[0] || ''}`.toUpperCase();
 
         const isPresente = estadoActual === ESTADO_ASISTENCIA.PRESENTE;
@@ -74,14 +86,21 @@ export default function AttendanceCardsMobile({
 
               {/* Porcentaje y Barra Adaptativa */}
               <div className="text-right shrink-0">
-                <span className={`text-sm font-black font-mono block ${
-                  isCumpleUmbral
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-rose-600 dark:text-rose-400'
-                }`}>
-                  {asistPct}%
-                </span>
-                <span className="text-[10px] text-text-muted block">
+                <div className="flex items-baseline justify-end gap-1">
+                  <span className={`text-base font-black font-mono block ${
+                    estaEnRiesgo
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : alBorde
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    {asistPct}%
+                  </span>
+                  <span className="text-[10px] font-mono text-text-muted">
+                    ({presentes}/{totalClases})
+                  </span>
+                </div>
+                <span className="text-[10px] text-text-muted block mt-0.5">
                   Meta {minThreshold}%
                 </span>
               </div>
@@ -91,9 +110,11 @@ export default function AttendanceCardsMobile({
             <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
-                  isCumpleUmbral
-                    ? 'bg-emerald-500'
-                    : 'bg-rose-500'
+                  estaEnRiesgo
+                    ? 'bg-rose-500'
+                    : alBorde
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
                 }`}
                 style={{ width: `${Math.min(100, Math.max(0, asistPct))}%` }}
               />
