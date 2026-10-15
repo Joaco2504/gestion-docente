@@ -8,6 +8,10 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { AppProvider } from './context/AppContext.jsx';
 import { SystemConfigProvider } from './context/SystemConfigContext.jsx';
 import './index.css';
+import { registerSW } from 'virtual:pwa-register';
+
+// Registrar Service Worker para PWA y soporte offline áulico
+registerSW({ immediate: true });
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -1,8 +1,45 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'dashboard-logo.png', 'dashboard.ico', 'robots.txt'],
+      manifest: {
+        name: 'Korum - Gestión Docente',
+        short_name: 'Korum',
+        description: 'Suite de Gestión Docente, Cátedras, Asistencia y Calificaciones',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#0F172A',
+        theme_color: '#10B981',
+        icons: [
+          {
+            src: '/dashboard-logo.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/dashboard-logo.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: '/dashboard-logo.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}']
+      }
+    })
+  ],
   server: {
     port: 5173,
     host: true

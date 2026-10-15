@@ -1,30 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
-  GraduationCap, 
   Search, 
-  CheckSquare, 
-  Clock, 
   AlertCircle, 
   CheckCircle2, 
-  AlertTriangle, 
   ArrowLeft, 
-  ShieldAlert, 
-  ShieldCheck, 
-  Shield, 
-  UserCheck, 
-  Lock, 
-  CreditCard, 
-  FileText, 
-  RotateCw, 
   Calendar, 
   Check, 
-  Eye, 
-  Heart, 
-  Copy, 
-  Link2 as IconLink, 
-  Zap,
-  BookOpen,
+  RotateCw,
+  GraduationCap,
+  Briefcase,
+  FileText,
   ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -36,52 +22,14 @@ import {
   normalizeDni 
 } from '../services/studentPortalService';
 import { handleAppError } from '../utils/handleAppError';
-import { WaveDniInput } from '../components/portal/WaveDniInput';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 /**
- * Composición gráfica vectorial de estudiante con credencial y escudo de seguridad
- */
-function StudentCredentialGraphic() {
-  return (
-    <div className="relative w-44 h-36 shrink-0 hidden sm:flex items-center justify-center">
-      {/* Halo ambiental esmeralda */}
-      <div className="absolute w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
-      
-      {/* Tarjeta de Credencial Estudiantil */}
-      <div className="relative w-36 h-28 bg-white/95 dark:bg-slate-800/90 backdrop-blur border border-emerald-500/30 rounded-2xl p-3 shadow-lg transform -rotate-3 transition-transform hover:rotate-0 duration-300">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-            <GraduationCap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div className="space-y-0.5">
-            <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
-            <div className="w-8 h-1 bg-slate-200 dark:bg-slate-700 rounded-full" />
-          </div>
-        </div>
-        <div className="w-full h-1.5 bg-emerald-500/20 rounded-full mb-2 overflow-hidden">
-          <div className="w-3/4 h-full bg-emerald-500 rounded-full" />
-        </div>
-        <div className="flex items-center justify-between text-[8px] font-mono text-slate-400">
-          <span>DNI ••••••••</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-bold">ACTIVO</span>
-        </div>
-      </div>
-
-      {/* Escudo Flotante Esmeralda */}
-      <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/30 border-2 border-white dark:border-slate-900 flex items-center justify-center">
-        <ShieldCheck className="w-5 h-5" />
-      </div>
-    </div>
-  );
-}
-
-/**
- * ConsultaAlumnoPage - Portal de Consulta Académica Oficial Korum
+ * ConsultaAlumnoPage - Portal de Consulta Académica Oficial Korum (Diseño Ultraminimalista)
  * Ruta: /consulta/:catedraId
  */
 export default function ConsultaAlumnoPage() {
-  useDocumentTitle('Consulta de Estudiante');
+  useDocumentTitle('Consulta de Estado Académico');
   const { catedraId } = useParams();
 
   // Estados de carga e interacción
@@ -91,28 +39,14 @@ export default function ConsultaAlumnoPage() {
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [resultado, setResultado] = useState(null);
-  const [copiedLink, setCopiedLink] = useState(false);
   const [consultaTimestamp, setConsultaTimestamp] = useState('');
 
-  // Estados de control de tasa y throttle defensivo
+  // Control de tasa y cooldown
   const [intentosFallidos, setIntentosFallidos] = useState(0);
   const [bloqueadoHasta, setBloqueadoHasta] = useState(null);
   const [ultimaConsulta, setUltimaConsulta] = useState(0);
 
-  const cajaDifusionUrl = typeof window !== 'undefined' ? window.location.href : '';
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(cajaDifusionUrl);
-      setCopiedLink(true);
-      toast.success('Enlace copiado al portapapeles');
-      setTimeout(() => setCopiedLink(false), 2000);
-    } catch {
-      toast.error('No se pudo copiar el enlace');
-    }
-  };
-
-  // Carga inicial de metadatos de la cátedra
+  // Carga inicial de datos de la cátedra
   useEffect(() => {
     async function loadInitial() {
       if (!catedraId) return;
@@ -131,62 +65,32 @@ export default function ConsultaAlumnoPage() {
     loadInitial();
   }, [catedraId]);
 
-  // Formateo numérico en vivo con separador de miles sin romper el cursor
+  // Formateo de DNI
   const handleDniInputFormatting = (e) => {
-    const input = e.target;
-    const oldVal = input.value;
-    const oldCursor = input.selectionStart || 0;
-    
-    // Contar dígitos numéricos antes del cursor
-    const digitsBeforeCursor = oldVal.slice(0, oldCursor).replace(/\D/g, '').length;
-    
-    // Extraer únicamente dígitos (hasta 8 dígitos para DNI)
-    const raw = oldVal.replace(/\D/g, '').slice(0, 8);
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 8);
     const formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    
     setFormattedDni(formatted);
     if (searchError) setSearchError('');
-
-    // Reubicar el cursor conservando los dígitos ingresados sin saltar al final
-    requestAnimationFrame(() => {
-      let newCursor = 0;
-      let digitsSeen = 0;
-      for (let i = 0; i < formatted.length; i++) {
-        if (/\d/.test(formatted[i])) {
-          digitsSeen++;
-        }
-        if (digitsSeen === digitsBeforeCursor) {
-          newCursor = i + 1;
-          break;
-        }
-      }
-      if (digitsBeforeCursor === 0) newCursor = 0;
-      if (digitsSeen < digitsBeforeCursor) newCursor = formatted.length;
-      input.setSelectionRange(newCursor, newCursor);
-    });
   };
 
   const handleConsultarDni = async (e) => {
     if (e) e.preventDefault();
     const ahora = Date.now();
 
-    // 1. Throttle por intentos fallidos acumulados (bloqueo temporal)
     if (bloqueadoHasta && ahora < bloqueadoHasta) {
       const segundosRestantes = Math.ceil((bloqueadoHasta - ahora) / 1000);
-      toast.error(`Demasiadas consultas fallidas. Esperá ${segundosRestantes}s para reintentar.`);
+      toast.error(`Demasiadas consultas. Esperá ${segundosRestantes}s para reintentar.`);
       return;
     }
 
-    // 2. Cooldown mínimo entre consultas (2.5 segundos)
-    if (ahora - ultimaConsulta < 2500) {
-      const segundosRestantes = Math.ceil((2500 - (ahora - ultimaConsulta)) / 1000);
-      toast.error(`Consultas muy rápidas. Esperá ${segundosRestantes}s para volver a consultar.`);
+    if (ahora - ultimaConsulta < 2000) {
+      toast.error('Por favor esperá 2 segundos entre consultas.');
       return;
     }
 
     const cleanDni = normalizeDni(formattedDni);
     if (!cleanDni || cleanDni.length < 6) {
-      setSearchError('Por favor ingresá un número de DNI válido (mínimo 6 dígitos).');
+      setSearchError('Ingresá un número de DNI válido (mínimo 6 dígitos).');
       return;
     }
 
@@ -201,27 +105,20 @@ export default function ConsultaAlumnoPage() {
         const nuevosIntentos = intentosFallidos + 1;
         setIntentosFallidos(nuevosIntentos);
         if (nuevosIntentos >= 5) {
-          setBloqueadoHasta(Date.now() + 30000); // 30s de enfriamiento defensivo
-          toast.error('Límite de intentos alcanzado. Acceso pausado por 30 segundos.');
+          setBloqueadoHasta(Date.now() + 30000);
+          toast.error('Acceso pausado por 30 segundos por intentos reiterados.');
         }
         setSearchError(res.message || 'No se encontró registro para el DNI ingresado.');
         setResultado(null);
       } else {
-        // Consulta exitosa: resetear contadores de bloqueo
         setIntentosFallidos(0);
         setBloqueadoHasta(null);
         setResultado(res);
         setConsultaTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
     } catch (err) {
-      const nuevosIntentos = intentosFallidos + 1;
-      setIntentosFallidos(nuevosIntentos);
-      if (nuevosIntentos >= 5) {
-        setBloqueadoHasta(Date.now() + 30000);
-        toast.error('Límite de intentos alcanzado. Acceso pausado por 30 segundos.');
-      }
+      setSearchError('Error de conexión al consultar el estado académico.');
       handleAppError(err, 'ConsultaAlumnoPage / handleConsultarDni');
-      setSearchError('Ocurrió un error al verificar la situación académica. Reintenta en unos instantes.');
     } finally {
       setLoading(false);
     }
@@ -229,41 +126,28 @@ export default function ConsultaAlumnoPage() {
 
   const handleResetSearch = () => {
     setResultado(null);
-    setSearchError('');
     setFormattedDni('');
+    setSearchError('');
   };
 
-  // 1. PANTALLA DE CARGA INICIAL
+  // Carga inicial
   if (initLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
-        <div className="flex flex-col items-center gap-4 max-w-sm text-center">
-          <div className="relative">
-            <div className="w-14 h-14 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <img src="/dashboard-logo.png" alt="Korum" className="w-7 h-7 object-contain rounded-xl" />
-            </div>
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-white">Korum</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Conectando con el portal de la cátedra...</p>
-          </div>
-        </div>
+        <div className="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
       </div>
     );
   }
 
-  // 2. CASO: CÁTEDRA NO ENCONTRADA O PORTAL PAUSADO
+  // Cátedra no encontrada o inactiva
   if (!catedra) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
-        <div className="max-w-md w-full backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 text-center shadow-lg animate-fadeIn">
-          <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Cátedra no encontrada</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-            El enlace al que intentas acceder no corresponde a una materia activa en el sistema. Revisa la URL proporcionada por tu docente.
+        <div className="max-w-sm w-full bg-surface border border-surface-border rounded-2xl p-6 text-center space-y-3 shadow-xs">
+          <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
+          <h2 className="text-base font-bold text-text-primary">Cátedra no encontrada</h2>
+          <p className="text-xs text-text-muted leading-relaxed">
+            El enlace no corresponde a una materia activa en el sistema.
           </p>
         </div>
       </div>
@@ -272,666 +156,286 @@ export default function ConsultaAlumnoPage() {
 
   if (!catedra.portal_activo) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-canvas p-4 selection:bg-emerald-500/20">
-        <div className="max-w-md w-full backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 text-center shadow-xl animate-fadeIn">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-500/20 shadow-xs">
-            <ShieldAlert className="w-7 h-7" />
-          </div>
-          <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-amber-600 dark:text-amber-400 block mb-1">
-            Consulta Pausada
-          </span>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-            Portal de Consulta Desactivado
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-            El equipo docente de <strong>{catedra.nombre}</strong> ({catedra.instituciones?.nombre || catedra.institucion_nombre || 'Institución'}) aún no ha habilitado la consulta pública de calificaciones o la ha pausado temporalmente.
+      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
+        <div className="max-w-sm w-full bg-surface border border-surface-border rounded-2xl p-6 text-center space-y-3 shadow-xs">
+          <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
+          <h2 className="text-base font-bold text-text-primary">Consulta desactivada</h2>
+          <p className="text-xs text-text-muted leading-relaxed">
+            El docente de <strong>{catedra.nombre}</strong> no tiene habilitada la consulta pública de calificaciones en este momento.
           </p>
-          <div className="p-3.5 rounded-2xl bg-slate-100/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-mono">
-            💡 Consulta con tu profesor en el aula para conocer tu situación académica reglamentaria.
-          </div>
         </div>
       </div>
     );
   }
 
-  const institucionNombre = catedra.instituciones?.nombre || catedra.institucion_nombre || 'I.E.S Belén';
-  const modalidadLabel = catedra.modalidad || 'ANUAL';
+  const institucionNombre = catedra.instituciones?.nombre || catedra.institucion_nombre || 'Institución Educativa';
 
   return (
-    <div className="min-h-screen flex flex-col bg-canvas text-slate-900 dark:text-slate-100 antialiased selection:bg-emerald-500/20 selection:text-emerald-500">
-      
-      {/* ========================================================================= */}
-      {/* PARTE 1: HEADER INSTITUCIONAL Y BARRA DE SEGURIDAD                         */}
-      {/* ========================================================================= */}
-      <header className="w-full bg-surface border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-sm sticky top-0 z-30">
-        {/* Extremo Izquierdo */}
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen flex flex-col bg-canvas text-text-primary antialiased selection:bg-emerald-500/20">
+      {/* 1. Cabecera Compacta */}
+      <header className="w-full bg-surface border-b border-surface-border px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="flex items-center gap-2.5 min-w-0">
           <img 
             src="/dashboard-logo.png" 
             alt="Korum" 
-            className="w-8 h-8 rounded-xl object-contain drop-shadow-xs" 
+            className="w-7 h-7 rounded-lg object-contain shrink-0" 
           />
-          <div>
-            <div className="flex items-center">
-              <span className="font-bold text-slate-900 dark:text-white text-base leading-none">
-                Korum
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-semibold uppercase tracking-wider ml-2">
-                PORTAL ALUMNOS
-              </span>
-            </div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-              {institucionNombre}
+          <div className="min-w-0">
+            <h1 className="text-xs sm:text-sm font-bold text-text-primary truncate leading-tight">
+              Consulta de Estado Académico
+            </h1>
+            <p className="text-[11px] text-text-muted truncate">
+              {catedra.nombre} · {institucionNombre}
             </p>
           </div>
         </div>
 
-        {/* Extremo Derecho */}
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs font-mono text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 shadow-2xs">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="hidden xs:inline">Cifrado</span> SSL / RLS
-          </div>
-          <ThemeToggle />
-        </div>
+        <ThemeToggle />
       </header>
 
-      {/* ========================================================================= */}
-      {/* CUERPO PRINCIPAL DEL PORTAL                                               */}
-      {/* ========================================================================= */}
-      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 flex-1">
-        
-        {/* ========================================================================= */}
-        {/* PARTE 2: HERO BANNER INSTITUCIONAL ("TU INFORMACIÓN, SEGURA Y ACCESIBLE")  */}
-        {/* ========================================================================= */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-500/20 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-          {/* Lado Izquierdo */}
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-              <GraduationCap className="w-6 h-6" />
-            </div>
+      {/* 2. Cuerpo Utilitario */}
+      <main className="max-w-xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 flex flex-col justify-start">
+        {!resultado ? (
+          /* PANTALLA DE BÚSQUEDA DIRECTA */
+          <div className="bg-surface border border-surface-border rounded-2xl p-5 sm:p-6 shadow-xs space-y-4 animate-fadeIn">
             <div>
-              <span className="text-[11px] font-mono font-bold tracking-widest text-emerald-700 dark:text-emerald-400 uppercase block">
-                CONSULTA DE CONDICIÓN ACADÉMICA
-              </span>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 mb-2">
-                Tu información, segura y accesible
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed">
-                Ingresá tu DNI para consultar tu número de documento, condición reglamentaria y situación académica en tiempo real en <strong>{catedra.nombre}</strong>.
+              <h2 className="text-sm font-bold text-text-primary">
+                Ingresá tu DNI
+              </h2>
+              <p className="text-xs text-text-muted mt-0.5">
+                Consulta inmediata de condición reglamentaria, asistencia y notas.
               </p>
             </div>
+
+            <form onSubmit={handleConsultarDni} className="space-y-3">
+              <div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={formattedDni}
+                  onChange={handleDniInputFormatting}
+                  placeholder="Ej: 42.123.456"
+                  autoFocus
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 text-center tracking-wider"
+                />
+              </div>
+
+              {searchError && (
+                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{searchError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 bg-primary hover:bg-primary-hover active:scale-[0.99] text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 touch-target-44 min-h-[44px]"
+              >
+                {loading ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    <span>Consultando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4" />
+                    <span>Consultar Estado</span>
+                  </>
+                )}
+              </button>
+            </form>
           </div>
-
-          {/* Lado Derecho */}
-          <StudentCredentialGraphic />
-        </section>
-
-        {/* ========================================================================= */}
-        {/* PARTE 3: MATRIZ DE CONSULTA Y PRIVACIDAD (FORMULARIO 2 COLUMNAS)         */}
-        {/* ========================================================================= */}
-        {!resultado ? (
-          <section className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch animate-fadeIn">
-            {/* Columna Izquierda (md:col-span-7) - Formulario DNI */}
-            <div className="md:col-span-7 bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
-              <div>
-                {/* Encabezado del Formulario */}
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-slate-900 dark:text-white text-base">
-                      Ingresá tu DNI
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Solo vos podrás ver tu información.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Formulario */}
-                <form onSubmit={handleConsultarDni} className="mt-4">
-                  {/* Campo DNI con animación Wave Floating Label */}
-                  <WaveDniInput
-                    value={formattedDni}
-                    onChange={handleDniInputFormatting}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleConsultarDni();
-                      }
-                    }}
-                    onClear={() => setFormattedDni('')}
-                  />
-
-                  {/* Micro-nota de respaldo */}
-                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 text-[11px] text-slate-500 dark:text-slate-400 font-medium mb-4">
-                    <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
-                    <span>Tu información está protegida con tecnología de cifrado.</span>
-                  </div>
-
-                  {/* Mensaje de Error si ocurre */}
-                  {searchError && (
-                    <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2 text-left mb-4 animate-fadeIn">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{searchError}</span>
-                    </div>
-                  )}
-
-                  {/* Botón Primario CTA */}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full h-12 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                        <span>Verificando condición...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Search className="w-4 h-4" />
-                        <span>Consultar condición</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-
-              {/* Caja de difusión rápida */}
-              <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <span className="truncate pr-2 font-mono text-[11px]">
-                  {cajaDifusionUrl}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="shrink-0 flex items-center gap-1 text-emerald-700 dark:text-emerald-400 hover:underline font-semibold cursor-pointer"
-                  title="Copiar enlace de acceso directo"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>{copiedLink ? 'Copiado' : 'Copiar'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Columna Derecha (md:col-span-5) - Privacidad y Seguridad */}
-            <div className="md:col-span-5 bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-base mt-3 mb-1">
-                  Privacidad y seguridad
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
-                  El acceso a tu información es personal y se realiza de forma segura. No se almacena tu DNI en el sistema.
-                </p>
-              </div>
-
-              {/* 3 Columnas de Garantías */}
-              <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-center">
-                <div className="flex flex-col items-center">
-                  <Shield className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1.5" />
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
-                    Conexión segura (SSL / RLS)
-                  </span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <UserCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1.5" />
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
-                    Solo vos podés ver tus datos
-                  </span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <Lock className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1.5" />
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">
-                    Sin registro de consultas
-                  </span>
-                </div>
-              </div>
-            </div>
-          </section>
         ) : (
-          /* ========================================================================= */
-          /* PARTE 4: CONTENEDOR DE RESULTADOS ACADÉMICOS ("RESULTADO DE LA CONSULTA")  */
-          /* ========================================================================= */
-          <section className="space-y-6 animate-fadeInUp">
-            
-            {/* 1. Barra de Estado del Resultado */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-700 dark:text-emerald-400 inline" />
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  Resultado de la consulta
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                <span>Última actualización: {consultaTimestamp}</span>
-                <button
-                  type="button"
-                  onClick={handleConsultarDni}
-                  className="p-1 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors cursor-pointer"
-                  title="Actualizar datos"
-                >
-                  <RotateCw className="w-3.5 h-3.5 hover:rotate-180 transition-transform duration-500" />
-                </button>
-              </div>
-            </div>
-
-            {/* 2. Tarjeta Bento de Identidad del Alumno */}
-            <div className="bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-              {/* Lado Izquierdo (Datos personales) */}
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-lg flex items-center justify-center shrink-0 font-mono">
-                  {resultado.estudiante?.nombre?.[0] || 'A'}
-                  {resultado.estudiante?.apellido?.[0] || 'L'}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-                    {resultado.estudiante?.apellido}, {resultado.estudiante?.nombre}
-                  </h2>
-                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400 block mt-0.5">
-                    DNI: {formatDniDisplay(resultado.estudiante?.dni)}
-                  </span>
-                  <div className="text-[10px] font-mono uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400 mt-2 flex flex-wrap items-center gap-1.5">
-                    {resultado.estudiante?.es_equivalencia ? (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20">
-                        ACREDITACIÓN POR EQUIVALENCIA
-                      </span>
-                    ) : resultado.estudiante?.tiene_certificado_trabajo ? (
-                      <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/20">
-                        💼 RÉGIMEN LABORAL (60%)
-                      </span>
-                    ) : (
-                      <span>ESTUDIANTE REGULAR</span>
-                    )}
-                    <span>•</span>
-                    <span>{catedra.nombre}</span>
-                    <span>•</span>
-                    <span>{catedra.nivel || 'TERCIARIO'} ({modalidadLabel})</span>
-                  </div>
+          /* FICHA DE RESULTADOS COMPACTA (1 PANTALLA) */
+          <div className="space-y-4 animate-fadeIn">
+            {/* Encabezado del Alumno y Botón Volver */}
+            <div className="flex items-center justify-between gap-3 bg-surface border border-surface-border rounded-2xl p-4 shadow-xs">
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-text-primary truncate">
+                  {resultado.estudiante?.apellido}, {resultado.estudiante?.nombre}
+                </h2>
+                <div className="flex items-center gap-2 text-xs font-mono text-text-muted mt-0.5">
+                  <span>DNI {formatDniDisplay(resultado.estudiante?.dni)}</span>
+                  <span>•</span>
+                  <span>{catedra.nombre}</span>
                 </div>
               </div>
 
-              {/* Lado Derecho (Dictamen de Condición Reglamentaria) */}
-              {resultado.config?.portal_mostrar_condicion && resultado.condicion_ram && (
-                <div className="flex flex-col items-start sm:items-end gap-1 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 dark:border-slate-800">
-                  <span className="text-[11px] font-mono text-slate-400 text-right uppercase tracking-wider block">
-                    Condición Reglamentaria
-                  </span>
-                  
-                  {(() => {
-                    const c = resultado.condicion_ram;
-                    const isEquiv = c.condicion === 'ACREDITADA_EQUIVALENCIA' || resultado.estudiante?.es_equivalencia;
-                    const isPromo = c.condicion === 'PROMOCIONAL' || c.condicion === 'PROMOCIONADO' || c.condicion === 'APROBADO';
-                    const isReg = c.condicion === 'REGULAR';
-                    const isLibre = c.condicion === 'LIBRE' || c.condicion === 'DESAPROBADO' || c.condicion === 'EN RIESGO';
-
-                    if (isEquiv) {
-                      return (
-                        <div className="space-y-1 sm:text-right">
-                          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-mono font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
-                            <CheckCircle2 className="w-4 h-4 shrink-0" />
-                            <span>CONDICIÓN: MATERIA ACREDITADA (EQUIVALENCIA)</span>
-                          </span>
-                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 text-right font-medium">
-                            {resultado.estudiante?.resolucion_equivalencia 
-                              ? `Aprobada según Resolución: ${resultado.estudiante.resolucion_equivalencia}` 
-                              : (c.motivo || 'Materia acreditada por equivalencia reglamentaria.')}
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    if (isPromo) {
-                      return (
-                        <div className="space-y-1 sm:text-right">
-                          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-mono font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
-                            <CheckCircle2 className="w-4 h-4 shrink-0" />
-                            <span>{c.condicion}</span>
-                          </span>
-                          <p className="text-[11px] text-slate-400 text-right">
-                            {c.motivo || 'Cumple con requisitos de promoción directa.'}
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    if (isReg) {
-                      return (
-                        <div className="space-y-1 sm:text-right">
-                          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-mono font-bold uppercase tracking-wider bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300">
-                            <Check className="w-4 h-4 shrink-0" />
-                            <span>{c.condicion}</span>
-                          </span>
-                          <p className="text-[11px] text-slate-400 text-right">
-                            {c.motivo || 'Cumple con el mínimo de asistencia y parciales.'}
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="space-y-1 sm:text-right">
-                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-mono font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400">
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>{c.condicion}</span>
-                        </span>
-                        <p className="text-[11px] text-slate-400 text-right">
-                          {c.motivo || 'No alcanza regularidad requerida por RAM.'}
-                        </p>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-
-            {/* 3. Sub-Grilla 50/50: Asistencia vs Calificaciones */}
-            <div className={`grid grid-cols-1 ${
-              resultado.config?.portal_mostrar_asistencia && resultado.config?.portal_mostrar_notas 
-                ? 'lg:grid-cols-12' 
-                : 'grid-cols-1'
-            } gap-6 items-stretch`}>
-              
-              {/* Tarjeta 1: Asistencia Registrada */}
-              {resultado.config?.portal_mostrar_asistencia && resultado.asistencia && (
-                <div className={`${
-                  resultado.config?.portal_mostrar_notas ? 'lg:col-span-6' : 'w-full'
-                } bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4`}>
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                        Asistencia Registrada
-                      </h3>
-                    </div>
-                    <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                      RAM Docente
-                    </span>
-                  </div>
-
-                  {resultado.estudiante?.es_equivalencia ? (
-                    <div className="py-8 px-4 text-center space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-                        <CheckCircle2 className="w-6 h-6" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                          Exención de Asistencia por Equivalencia
-                        </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
-                          Al contar con acreditación reglamentaria de la materia, no se requiere cursado presencial ni cómputo de asistencia diaria en este ciclo lectivo.
-                        </p>
-                        {resultado.estudiante?.resolucion_equivalencia && (
-                          <div className="inline-block mt-2 px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-                            Resolución / Expediente: {resultado.estudiante.resolucion_equivalencia}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Donut Chart destacado */}
-                      <div className="flex flex-col items-center justify-center py-2">
-                        <div className="relative w-36 h-36 flex items-center justify-center">
-                          {(() => {
-                            const pct = Math.min(100, Math.max(0, resultado.asistencia.porcentaje || 0));
-                            const radius = 52;
-                            const circumference = 2 * Math.PI * radius;
-                            const strokeDashoffset = circumference - (pct / 100) * circumference;
-
-                            const minReg = Number(resultado.asistencia.min_asist_reg || (resultado.estudiante?.tiene_certificado_trabajo ? 60 : 70));
-                            let strokeColor = '#10B981'; // emerald
-                            if (pct < minReg) {
-                              strokeColor = '#EF4444'; // rose
-                            } else if (pct < Number(resultado.asistencia.min_asist_promo || 80)) {
-                              strokeColor = '#0284C7'; // sky
-                            }
-
-                            return (
-                              <>
-                                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 128 128">
-                                  <circle
-                                    cx="64"
-                                    cy="64"
-                                    r={radius}
-                                    stroke="currentColor"
-                                    strokeWidth="9"
-                                    className="text-slate-100 dark:text-slate-800"
-                                    fill="transparent"
-                                  />
-                                  <circle
-                                    cx="64"
-                                    cy="64"
-                                    r={radius}
-                                    stroke={strokeColor}
-                                    strokeWidth="9"
-                                    strokeDasharray={circumference}
-                                    strokeDashoffset={strokeDashoffset}
-                                    strokeLinecap="round"
-                                    fill="transparent"
-                                    className="transition-all duration-700 ease-out"
-                                  />
-                                </svg>
-                                <div className="absolute flex flex-col items-center justify-center text-center">
-                                  <span className="text-2xl sm:text-3xl font-mono font-black text-slate-900 dark:text-white tracking-tight">
-                                    {pct}%
-                                  </span>
-                                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                    Asistencia
-                                  </span>
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </div>
-
-                      {/* 3 Contadores en píldoras */}
-                      <div className="grid grid-cols-3 gap-2 text-center pt-2 font-mono">
-                        <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
-                          <span className="text-[11px] uppercase font-bold block">Presentes</span>
-                          <span className="text-base font-extrabold">
-                            {resultado.asistencia.presentes ?? 0}
-                          </span>
-                        </div>
-                        <div className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                          <span className="text-[11px] uppercase font-bold text-slate-400 block">Dictadas</span>
-                          <span className="text-base font-bold text-slate-900 dark:text-white">
-                            {resultado.asistencia.total_clases ?? 0}
-                          </span>
-                        </div>
-                        <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400">
-                          <span className="text-[11px] uppercase font-bold block">Ausentes</span>
-                          <span className="text-base font-extrabold">
-                            {resultado.asistencia.ausentes ?? 0}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Pie con umbrales RAM */}
-                      <div className="text-[11px] font-mono text-slate-400 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-center space-y-1">
-                        <div>
-                          Mínimo Regularidad: <strong className="text-slate-700 dark:text-slate-300">{resultado.asistencia.min_asist_reg ?? (resultado.estudiante?.tiene_certificado_trabajo ? 60 : 70)}%</strong> | Mínimo Promoción: <strong className="text-slate-700 dark:text-slate-300">{resultado.asistencia.min_asist_promo ?? 80}%</strong>
-                        </div>
-                        {resultado.estudiante?.tiene_certificado_trabajo && (
-                          <div className="text-blue-600 dark:text-blue-400 font-semibold font-sans text-xs pt-0.5 flex items-center justify-center gap-1">
-                            <span>💼 Régimen Laboral Acreditado · Requisito Regularidad: 60%</span>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Tarjeta 2: Calificaciones y Evaluaciones */}
-              {resultado.config?.portal_mostrar_notas && (
-                <div className={`${
-                  resultado.config?.portal_mostrar_asistencia ? 'lg:col-span-6' : 'w-full'
-                } bg-surface border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-4`}>
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                        Calificaciones y Evaluaciones
-                      </h3>
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
-                      {resultado.evaluaciones?.length || 0} Registradas
-                    </span>
-                  </div>
-
-                  {(!resultado.evaluaciones || resultado.evaluaciones.length === 0) ? (
-                    <div className="text-center py-8 space-y-2">
-                      <BookOpen className="w-8 h-8 text-slate-400 mx-auto opacity-40" />
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Sin notas registradas aún
-                      </p>
-                      <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                        Tu docente no ha publicado calificaciones para este período.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1 scrollbar-thin">
-                      {resultado.evaluaciones.map((ev, index) => {
-                        const hasNota = ev.valor !== null && ev.valor !== undefined;
-                        const notaNum = hasNota ? Number(ev.valor) : null;
-                        const isAprobado = notaNum !== null && notaNum >= 4;
-                        const isPromo = notaNum !== null && notaNum >= 7;
-
-                        return (
-                          <div 
-                            key={ev.id || index}
-                            className="bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 mb-0.5">
-                                <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                  {ev.tipo || 'EVAL'}
-                                </span>
-                                {ev.fecha_entrega && (
-                                  <span className="text-[10px] font-mono text-slate-400">
-                                    {ev.fecha_entrega}
-                                  </span>
-                                )}
-                              </div>
-                              <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">
-                                {ev.titulo}
-                              </h4>
-                              {(ev.archivo_url || ev.link_consigna) && (
-                                <div className="mt-1">
-                                  <a
-                                    href={ev.archivo_url || ev.link_consigna}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 hover:underline hover:text-emerald-500 font-semibold transition-colors"
-                                  >
-                                    <ExternalLink className="w-3 h-3 shrink-0" />
-                                    <span>{ev.archivo_nombre || 'Ver Consignas / Material'}</span>
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="shrink-0 text-right">
-                              {hasNota ? (
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-mono font-bold border ${
-                                  isPromo
-                                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                                    : isAprobado
-                                      ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30'
-                                      : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30'
-                                }`}>
-                                  CALIFICACIÓN {notaNum.toFixed(1)} / 10
-                                </span>
-                              ) : ev.estado === 'NO_ENTREGO' ? (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300/80 dark:border-slate-700 shadow-2xs">
-                                  ESTADO: NO ENTREGÓ
-                                </span>
-                              ) : ev.estado === 'AUSENTE' ? (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-500/10 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-500/30 shadow-2xs">
-                                  ESTADO: AUSENTE
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-400">
-                                  Pendiente
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <div className="text-[10px] font-mono text-slate-400 text-center pt-2 border-t border-slate-100 dark:border-slate-800">
-                    Aprobación: <strong>4+ / 10</strong> | Promoción: <strong>7+ / 10</strong>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Botón: Consultar otro DNI */}
-            <div className="pt-2 text-center">
               <button
                 type="button"
                 onClick={handleResetSearch}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-sm transition-all duration-200 active:scale-95 cursor-pointer text-xs sm:text-sm font-semibold"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-surface-border text-xs font-bold text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 touch-target-44 min-h-[38px] cursor-pointer"
+                title="Consultar otro número de DNI"
               >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Consultar otro DNI</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Volver</span>
               </button>
             </div>
-          </section>
+
+            {/* Tarjeta Principal de Condición Reglamentaria */}
+            {resultado.config?.portal_mostrar_condicion && resultado.condicion_ram && (
+              <div className="bg-surface border border-surface-border rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-mono uppercase font-bold text-text-muted block">
+                    Condición Académica
+                  </span>
+                  <p className="text-xs text-text-muted">
+                    {resultado.condicion_ram.motivo || 'Situación académica según RAM provincial.'}
+                  </p>
+                </div>
+
+                {(() => {
+                  const cond = (resultado.condicion_ram.condicion || '').toUpperCase();
+                  const isPromo = cond.includes('PROMO') || cond.includes('APROB');
+                  const isReg = cond === 'REGULAR';
+                  const isEquiv = cond.includes('EQUIV') || resultado.estudiante?.es_equivalencia;
+
+                  let badgeColor = 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20';
+                  if (isEquiv || isPromo) {
+                    badgeColor = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20';
+                  } else if (isReg) {
+                    badgeColor = 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20';
+                  }
+
+                  return (
+                    <span className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-mono font-black uppercase tracking-wider border shrink-0 ${badgeColor}`}>
+                      {cond}
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Bloque de Asistencia Acumulada */}
+            {resultado.config?.portal_mostrar_asistencia && resultado.asistencia && (
+              <div className="bg-surface border border-surface-border rounded-2xl p-4 shadow-xs space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
+                    <Calendar className="w-4 h-4 text-primary shrink-0" />
+                    <span>Asistencia Acumulada</span>
+                  </div>
+                  <span className="text-xs font-mono text-text-muted">
+                    {resultado.asistencia.presentes ?? 0} de {resultado.asistencia.total_clases ?? 0} clases
+                  </span>
+                </div>
+
+                <div className="flex items-baseline justify-between">
+                  <span className="text-2xl font-black font-mono text-text-primary">
+                    {resultado.asistencia.porcentaje ?? 0}%
+                  </span>
+                  <div className="text-right">
+                    <span className="text-[11px] font-mono text-text-muted block">
+                      {resultado.estudiante?.tiene_certificado_trabajo ? (
+                        <span className="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
+                          <Briefcase className="w-3 h-3" /> Meta 60% (Laboral)
+                        </span>
+                      ) : (
+                        <span>Meta 70% (Regular)</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Barra Visual de Progreso */}
+                {(() => {
+                  const pct = Math.min(100, Math.max(0, resultado.asistencia.porcentaje ?? 0));
+                  const meta = resultado.estudiante?.tiene_certificado_trabajo ? 60 : 70;
+                  const isOk = pct >= meta;
+                  const isAlBorde = pct >= meta && pct < meta + 5;
+
+                  return (
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          !isOk 
+                            ? 'bg-rose-500' 
+                            : isAlBorde 
+                            ? 'bg-amber-500' 
+                            : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Lista Compacta de Evaluaciones y TPs */}
+            {resultado.config?.portal_mostrar_notas && (
+              <div className="bg-surface border border-surface-border rounded-2xl p-4 shadow-xs space-y-3">
+                <div className="flex items-center justify-between border-b border-surface-border pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
+                    <GraduationCap className="w-4 h-4 text-primary shrink-0" />
+                    <span>Calificaciones y Evaluaciones</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-text-muted uppercase">
+                    {resultado.evaluaciones?.length || 0} Registradas
+                  </span>
+                </div>
+
+                {(!resultado.evaluaciones || resultado.evaluaciones.length === 0) ? (
+                  <p className="text-xs text-text-muted text-center py-4">
+                    Sin evaluaciones registradas por el docente para este ciclo.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-surface-border">
+                    {resultado.evaluaciones.map((ev, idx) => {
+                      const hasNota = ev.valor !== null && ev.valor !== undefined;
+                      const notaNum = hasNota ? Number(ev.valor) : null;
+                      const isAprobado = notaNum !== null && notaNum >= 4;
+
+                      return (
+                        <div key={ev.id || idx} className="py-2.5 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-text-primary block truncate">
+                              {ev.titulo}
+                            </span>
+                            <div className="flex items-center gap-2 text-[10px] font-mono text-text-muted mt-0.5">
+                              <span className="uppercase">{ev.tipo || 'EVAL'}</span>
+                              {ev.fecha_entrega && <span>· {ev.fecha_entrega}</span>}
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            {hasNota ? (
+                              <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-mono font-bold border ${
+                                isAprobado
+                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30'
+                              }`}>
+                                {notaNum.toFixed(1)} / 10
+                              </span>
+                            ) : ev.estado === 'NO_ENTREGO' ? (
+                              <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                NO ENTREGÓ
+                              </span>
+                            ) : ev.estado === 'AUSENTE' ? (
+                              <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+                                AUSENTE
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-mono text-text-muted">
+                                Pendiente
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
-
-        {/* ========================================================================= */}
-        {/* PARTE 5: FRANJA INFERIOR DE 3 PILARES (EXPERIENCIA KORUM)                  */}
-        {/* ========================================================================= */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-slate-200/60 dark:border-slate-800/60">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/60 shadow-2xs">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Eye className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Rápido</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Obtené la información en segundos.</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/60 shadow-2xs">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Seguro</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Tu información está protegida.</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/60 shadow-2xs">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Heart className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Simple</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Una sola vista, todo lo que necesitás.</p>
-            </div>
-          </div>
-        </section>
-
       </main>
 
-      {/* Footer del Portal Estudiantil */}
-      <footer className="mt-auto py-6 border-t border-slate-200/60 dark:border-slate-800 px-4 text-center font-mono">
-        <p className="text-[11px] text-slate-400">
-          Korum · Plataforma Oficial de Gestión Docente y Situación Académica
-        </p>
+      {/* Footer Sobrio */}
+      <footer className="py-4 border-t border-surface-border text-center text-[11px] font-mono text-text-muted">
+        Korum · Consulta de Estado Académico
       </footer>
     </div>
   );

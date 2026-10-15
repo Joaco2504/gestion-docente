@@ -8,6 +8,7 @@ import AttendanceQuickActions from './attendance/AttendanceQuickActions';
 import AttendanceDesktopTable from './attendance/AttendanceDesktopTable';
 import AttendanceCardsMobile from './attendance/AttendanceCardsMobile';
 import AttendanceClassCarousel from './attendance/AttendanceClassCarousel';
+import AttendanceClassTopicBar from './attendance/AttendanceClassTopicBar';
 import { useAttendanceManager } from '../../hooks/useAttendanceManager';
 import { useAuth } from '../../context/AuthContext';
 import { exportAttendanceToExcel } from '../../lib/excel';
@@ -36,12 +37,14 @@ export default function AttendanceTab({
   const {
     alumnosElegibles,
     clases,
+    unidades,
     claseActiva,
     selectedClaseId,
     asistencias,
     fechaSeleccionada,
     setFechaSeleccionada,
     handleSelectClase,
+    handleUpdateClase,
     loading,
     saving,
     asistenciasDiaMap,
@@ -121,7 +124,15 @@ export default function AttendanceTab({
         saving={saving}
       />
 
-      {/* 2. Buscador Reactivo */}
+      {/* 3. Barra Rápida de Unidad, Tema dictado & Decreto 1092 */}
+      <AttendanceClassTopicBar
+        claseActiva={claseActiva}
+        unidades={unidades}
+        onUpdateClase={handleUpdateClase}
+        disabled={saving}
+      />
+
+      {/* 4. Buscador Reactivo */}
       <Card className="p-3.5 border border-surface-border">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />

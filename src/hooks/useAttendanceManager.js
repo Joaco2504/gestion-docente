@@ -4,18 +4,22 @@ import { getEstudiantesCatedra } from '../services/catedraEstudiantesService';
 import { getTodayYMD, formatFechaDMY } from '../lib/dateUtils';
 import { handleAppError } from '../utils/handleAppError';
 import { ESTADO_ASISTENCIA } from '../lib/enums';
+import { enqueueOfflineMutation } from '../services/offlineSyncService';
+import { ensureScheduledClassesToDate } from '../utils/scheduledClassesHelper';
 import { toast } from 'sonner';
 
 /**
  * useAttendanceManager
  * Hook desacoplado para gestión de asistencia con soporte de:
  * 1. Selección y edición libre de clases anteriores y nuevas jornadas.
- * 2. Cálculo en tiempo real de porcentaje acumulado por estudiante con umbral laboral adaptativo (60% vs 70%).
- * 3. Persistencia optimista en memoria y sincronización con Supabase (upsert por clase_id, estudiante_id).
+ * 2. Autogeneración de clases según cronograma semanal y feriados.
+ * 3. Cálculo en tiempo real de porcentaje acumulado por estudiante con umbral laboral adaptativo (60% vs 70%).
+ * 4. Persistencia optimista en memoria y sincronización con Supabase (upsert por clase_id, estudiante_id) con cola offline resiliente.
  */
 export function useAttendanceManager({ catedraId, isDemo = false, user = null, catedra = null }) {
   const [estudiantes, setEstudiantes] = useState([]);
   const [clases, setClases] = useState([]);
+  const [unidades, setUnidades] = useState([]);
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
   
@@ -33,8 +37,8 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
 
     try {
       if (isSupabaseConfigured && !isDemo) {
-        // 1. Obtener nómina, clases ordenadas e inasistencias docentes en paralelo
-        const [estList, clasesRes, inasDocRes] = await Promise.all([
+        // 1. Obtener nómina, clases ordenadas, inasistencias docentes y unidades en paralelo
+        const [estList, clasesRes, inasDocRes, uniRes] = await Promise.all([
           getEstudiantesCatedra(catedraId),
           supabase
             .from('clases')
@@ -45,14 +49,35 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
             .from('inasistencias_docente')
             .select('*')
             .eq('catedra_id', catedraId)
-            .order('fecha', { ascending: false })
+            .order('fecha', { ascending: false }),
+          supabase
+            .from('unidades_tematicas')
+            .select('*')
+            .eq('catedra_id', catedraId)
+            .order('numero', { ascending: true })
         ]);
 
-        const rawClases = clasesRes.data || [];
+        let rawClases = clasesRes.data || [];
         const allEst = estList || [];
         setEstudiantes(allEst.filter(e => e.estado !== 'BAJA'));
-        setClases(rawClases);
         setInasistenciasDocente(inasDocRes.data || []);
+        setUnidades(uniRes.data || []);
+
+        // Autogeneración transparente de clases según horarios de la cátedra
+        if (catedra) {
+          const autoRes = await ensureScheduledClassesToDate(catedra, rawClases, isDemo);
+          if (autoRes.nuevas.length > 0) {
+            rawClases = autoRes.all;
+          }
+        }
+        setClases(rawClases);
+
+        // Seleccionar por defecto la clase más reciente para tomar asistencia con un toque
+        if (rawClases.length > 0) {
+          const masReciente = rawClases[0];
+          setSelectedClaseId(masReciente.id);
+          setFechaSeleccionadaState(masReciente.fecha);
+        }
 
         // 2. Obtener asistencias correspondientes a las clases de esta cátedra
         const claseIds = rawClases.map(c => c.id).filter(Boolean);
@@ -81,18 +106,33 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
         const storedEst = localStorage.getItem(`docentepro_demo_estudiantes_${catedraId}`);
         const storedClases = localStorage.getItem(`docentepro_demo_clases_${catedraId}`);
         const storedAsist = localStorage.getItem(`docentepro_demo_asistencias_${catedraId}`);
+        const storedUni = localStorage.getItem(`unidades_tematicas_${catedraId}`);
 
-        const parsedClases = storedClases ? JSON.parse(storedClases) : [];
+        let parsedClases = storedClases ? JSON.parse(storedClases) : [];
+        if (catedra) {
+          const autoRes = await ensureScheduledClassesToDate(catedra, parsedClases, true);
+          if (autoRes.nuevas.length > 0) {
+            parsedClases = autoRes.all;
+          }
+        }
+
         setEstudiantes(storedEst ? JSON.parse(storedEst) : []);
         setClases(parsedClases);
         setAsistencias(storedAsist ? JSON.parse(storedAsist) : []);
+        setUnidades(storedUni ? JSON.parse(storedUni) : []);
+
+        if (parsedClases.length > 0) {
+          const masReciente = parsedClases[0];
+          setSelectedClaseId(masReciente.id);
+          setFechaSeleccionadaState(masReciente.fecha);
+        }
       }
     } catch (err) {
       handleAppError(err, 'useAttendanceManager / fetchData', user);
     } finally {
       setLoading(false);
     }
-  }, [catedraId, isDemo, user]);
+  }, [catedraId, isDemo, user, catedra]);
 
   useEffect(() => {
     fetchData();
@@ -321,9 +361,25 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
           updated_at: new Date().toISOString()
         }));
 
-        await supabase
-          .from('asistencias')
-          .upsert(rowsToUpsert, { onConflict: 'clase_id, estudiante_id' });
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          enqueueOfflineMutation({
+            tipo: 'ASISTENCIA_LOTE',
+            payload: rowsToUpsert,
+            catedraId
+          });
+        } else {
+          try {
+            await supabase
+              .from('asistencias')
+              .upsert(rowsToUpsert, { onConflict: 'clase_id, estudiante_id' });
+          } catch (netErr) {
+            enqueueOfflineMutation({
+              tipo: 'ASISTENCIA_LOTE',
+              payload: rowsToUpsert,
+              catedraId
+            });
+          }
+        }
       }
 
       toast.success(`Se marcaron ${alumnosElegibles.length} estudiantes como PRESENTES.`);
@@ -371,9 +427,25 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
           updated_at: new Date().toISOString()
         }));
 
-        await supabase
-          .from('asistencias')
-          .upsert(rowsToUpsert, { onConflict: 'clase_id, estudiante_id' });
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          enqueueOfflineMutation({
+            tipo: 'ASISTENCIA_LOTE',
+            payload: rowsToUpsert,
+            catedraId
+          });
+        } else {
+          try {
+            await supabase
+              .from('asistencias')
+              .upsert(rowsToUpsert, { onConflict: 'clase_id, estudiante_id' });
+          } catch (netErr) {
+            enqueueOfflineMutation({
+              tipo: 'ASISTENCIA_LOTE',
+              payload: rowsToUpsert,
+              catedraId
+            });
+          }
+        }
       }
 
       toast.info(`Se marcaron ${alumnosElegibles.length} inasistencias generales.`);
@@ -423,24 +495,83 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
       });
 
       if (isSupabaseConfigured && !isDemo) {
-        await supabase
-          .from('asistencias')
-          .upsert({
-            clase_id: targetClaseId,
-            estudiante_id: estudianteId,
-            estado: nuevoEstado,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'clase_id, estudiante_id' });
+        const rowToUpsert = {
+          clase_id: targetClaseId,
+          estudiante_id: estudianteId,
+          estado: nuevoEstado,
+          updated_at: new Date().toISOString()
+        };
+
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          enqueueOfflineMutation({
+            tipo: 'ASISTENCIA_INDIVIDUAL',
+            payload: rowToUpsert,
+            catedraId
+          });
+        } else {
+          try {
+            await supabase
+              .from('asistencias')
+              .upsert(rowToUpsert, { onConflict: 'clase_id, estudiante_id' });
+          } catch (netErr) {
+            enqueueOfflineMutation({
+              tipo: 'ASISTENCIA_INDIVIDUAL',
+              payload: rowToUpsert,
+              catedraId
+            });
+          }
+        }
       }
     } catch (err) {
       handleAppError(err, 'useAttendanceManager / handleToggleEstado', user);
     }
   }, [fechaSeleccionada, catedraId, isDemo, user, claseActiva, clases]);
 
+  // Actualizar tema, unidad o estado de una clase específica
+  const handleUpdateClase = useCallback(async (claseId, updates) => {
+    if (!claseId) return;
+    try {
+      setClases(prev => {
+        const next = prev.map(c => c.id === claseId ? { ...c, ...updates } : c);
+        if (isDemo || !isSupabaseConfigured) {
+          localStorage.setItem(`docentepro_demo_clases_${catedraId}`, JSON.stringify(next));
+        }
+        return next;
+      });
+
+      if (isSupabaseConfigured && !isDemo) {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          enqueueOfflineMutation({
+            tipo: 'CLASE_UPSERT',
+            payload: { id: claseId, catedra_id: catedraId, ...updates },
+            catedraId
+          });
+        } else {
+          try {
+            await supabase
+              .from('clases')
+              .update(updates)
+              .eq('id', claseId);
+          } catch (netErr) {
+            enqueueOfflineMutation({
+              tipo: 'CLASE_UPSERT',
+              payload: { id: claseId, catedra_id: catedraId, ...updates },
+              catedraId
+            });
+          }
+        }
+      }
+      toast.success('Clase actualizada correctamente.');
+    } catch (err) {
+      handleAppError(err, 'useAttendanceManager / handleUpdateClase', user);
+    }
+  }, [catedraId, isDemo, user]);
+
   return {
     estudiantes,
     alumnosElegibles,
     clases,
+    unidades,
     claseActiva,
     selectedClaseId,
     asistencias,
@@ -449,6 +580,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     setFechaSeleccionada: handleSelectFecha,
     handleSelectClase,
     handleSelectFecha,
+    handleUpdateClase,
     loading,
     saving,
     asistenciasDiaMap,
