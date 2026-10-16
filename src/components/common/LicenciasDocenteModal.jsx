@@ -29,19 +29,16 @@ import {
   createOrUpdateLicencia, 
   updateObservacion, 
   deleteLicencia, 
-  calcularConsumoLicencias 
+  calcularConsumoLicencias,
+  calcularDisponibilidadArticulo
 } from '../../services/licenciasService';
+import {
+  CATALOGO_DECRETO_1092,
+  getArticulosAgrupadosPorCapitulo,
+  getArticuloByCodigo,
+  getArticuloByText
+} from '../../constants/decreto1092';
 import { useAuth } from '../../context/AuthContext';
-
-const ARTICULOS_OPTIONS = [
-  { id: 'Art. 15° - Razones particulares', label: 'Art. 15° — Razones particulares', cupo: 'Máx. 6/año (2/mes)' },
-  { id: 'Art. 9° - Enfermedad de corto tratamiento', label: 'Art. 9° — Enfermedad de corto tratamiento', cupo: 'Con certificado médico' },
-  { id: 'Art. 24° - Atención de familiar enfermo', label: 'Art. 24° — Atención de familiar enfermo', cupo: 'Cuidado cónyuge/hijos/padres' },
-  { id: 'Art. 28°/29° - Perfeccionamiento / Capacitación docente', label: 'Art. 28° / 29° — Perfeccionamiento / Capacitación', cupo: 'Jornadas / Congresos' },
-  { id: 'Art. 32° - Integración de mesa examinadora', label: 'Art. 32° — Integración de mesa examinadora', cupo: 'Tribunal evaluador' },
-  { id: 'Art. 45° - Fuerza mayor / Fenómenos climáticos', label: 'Art. 45° — Fuerza mayor / Fenómenos climáticos', cupo: 'Inclemencias / Cortes' },
-  { id: 'OTRO', label: 'Otro artículo / Franquicia (especificar)', cupo: 'Régimen general' }
-];
 
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -79,6 +76,8 @@ export default function LicenciasDocenteModal({
   const [licencias, setLicencias] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const gruposCapitulos = useMemo(() => getArticulosAgrupadosPorCapitulo(), []);
+
   // Filtros
   const [filterArticulo, setFilterArticulo] = useState('TODOS');
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,10 +87,15 @@ export default function LicenciasDocenteModal({
   const [submitting, setSubmitting] = useState(false);
   const [formFecha, setFormFecha] = useState(getTodayYMD());
   const [formCatedraId, setFormCatedraId] = useState(initialCatedraId || '');
-  const [formArticulo, setFormArticulo] = useState(ARTICULOS_OPTIONS[0].id);
+  const [formArticulo, setFormArticulo] = useState('ART_52');
   const [formCustomArticulo, setFormCustomArticulo] = useState('');
   const [formEstadoTramite, setFormEstadoTramite] = useState('PENDIENTE_CERTIFICADO');
   const [formObservacion, setFormObservacion] = useState('');
+
+  // Cálculo reactivo de disponibilidad y cupo según artículo y fecha seleccionados
+  const disponibilidad = useMemo(() => {
+    return calcularDisponibilidadArticulo(formArticulo, licencias, formFecha);
+  }, [formArticulo, licencias, formFecha]);
 
   // Edición inline de observaciones
   const [editingLicenciaId, setEditingLicenciaId] = useState(null);
@@ -139,13 +143,21 @@ export default function LicenciasDocenteModal({
       // Filtro por artículo / chip
       if (filterArticulo !== 'TODOS') {
         const art = item.articulo || '';
-        if (filterArticulo === 'Art. 15°' && !art.includes('Art. 15')) return false;
-        if (filterArticulo === 'Art. 9°' && !art.includes('Art. 9')) return false;
-        if (filterArticulo === 'Art. 24°' && !art.includes('Art. 24')) return false;
-        if (filterArticulo === 'Art. 28°/29°' && !(art.includes('Art. 28') || art.includes('Art. 29'))) return false;
-        if (filterArticulo === 'Art. 32°' && !art.includes('Art. 32')) return false;
-        if (filterArticulo === 'Art. 45°' && !art.includes('Art. 45')) return false;
-        if (filterArticulo === 'Otro' && (art.includes('Art. 15') || art.includes('Art. 9') || art.includes('Art. 24') || art.includes('Art. 28') || art.includes('Art. 29') || art.includes('Art. 32') || art.includes('Art. 45'))) return false;
+        const artCod = item.articulo_codigo || getArticuloByText(art)?.codigo;
+
+        if (filterArticulo === 'Art. 52°' && !(art.includes('Art. 52') || art.includes('Art. 15') || artCod === 'ART_52')) return false;
+        if (filterArticulo === 'Art. 16°' && !(art.includes('Art. 16') || art.includes('Art. 9') || artCod === 'ART_16' || artCod === 'ART_18')) return false;
+        if (filterArticulo === 'Art. 30°' && !(art.includes('Art. 30') || art.includes('Art. 24') || artCod === 'ART_30_GOCE')) return false;
+        if (filterArticulo === 'Art. 41°' && !(art.includes('Art. 41') || art.includes('Art. 28') || art.includes('Art. 29') || artCod === 'ART_41')) return false;
+        if (filterArticulo === 'Art. 53°/54°' && !(art.includes('Art. 53') || art.includes('Art. 54') || art.includes('Art. 32') || (artCod && artCod.startsWith('ART_53')))) return false;
+        if (filterArticulo === 'Art. 49°' && !(art.includes('Art. 49') || art.includes('Art. 45') || artCod === 'ART_49')) return false;
+        if (filterArticulo === 'Art. 15°' && !(art.includes('Art. 15') || art.includes('Art. 52') || artCod === 'ART_52')) return false;
+        if (filterArticulo === 'Art. 9°' && !(art.includes('Art. 9') || art.includes('Art. 16') || artCod === 'ART_16')) return false;
+
+        if (!art.includes(filterArticulo.replace('°', '')) && !art.includes(filterArticulo)) {
+          const chipCandidate = getArticuloByText(art)?.label || '';
+          if (!chipCandidate.includes(filterArticulo)) return false;
+        }
       }
 
       // Filtro por búsqueda
@@ -168,14 +180,28 @@ export default function LicenciasDocenteModal({
     e.preventDefault();
     setSubmitting(true);
     try {
-      const finalArticulo = formArticulo === 'OTRO' 
-        ? (formCustomArticulo.trim() || 'Otro artículo')
-        : formArticulo;
+      const isOtro = formArticulo === 'OTRO';
+      let finalArticulo = '';
+      let articuloCodigo = null;
+
+      if (isOtro) {
+        finalArticulo = formCustomArticulo.trim() || 'Otro artículo / Franquicia especial';
+        articuloCodigo = null;
+      } else {
+        const artObj = getArticuloByCodigo(formArticulo) || getArticuloByText(formArticulo);
+        if (artObj) {
+          finalArticulo = artObj.label;
+          articuloCodigo = artObj.codigo;
+        } else {
+          finalArticulo = formArticulo;
+        }
+      }
 
       const payload = {
         fecha: formFecha,
         catedra_id: formCatedraId || null,
         articulo: finalArticulo,
+        articulo_codigo: articuloCodigo,
         observacion: formObservacion.trim(),
         estado_tramite: formEstadoTramite,
         docente_id: effectiveDocenteId
@@ -363,13 +389,13 @@ export default function LicenciasDocenteModal({
               </p>
             </div>
 
-            {/* Card 2: Art. 15° (Razones Particulares - Semáforo) */}
+            {/* Card 2: Art. 52° / 15° (Razones Particulares - Semáforo) */}
             <div className={`p-4 rounded-2xl border flex flex-col justify-between shadow-xs transition-all ${art15Styles.bg}`}>
               <div className="flex items-center justify-between gap-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <ShieldAlert className="w-4 h-4 shrink-0" />
                   <span className="text-xs font-bold uppercase tracking-wider truncate">
-                    Art. 15° (Razones Particulares)
+                    Art. 52° / 15° (Razones Particulares)
                   </span>
                 </div>
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${art15Styles.badge}`}>
@@ -399,7 +425,7 @@ export default function LicenciasDocenteModal({
               </div>
 
               <p className="text-[10px] opacity-80 leading-tight">
-                Tope legal Decreto 1092: hasta 6 días anuales y máx. 2 mensuales.
+                Tope legal Decreto 1092: hasta 5-6 días anuales y máx. 2 mensuales.
               </p>
             </div>
 
@@ -513,12 +539,103 @@ export default function LicenciasDocenteModal({
                   required
                   className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-surface-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer font-medium"
                 >
-                  {ARTICULOS_OPTIONS.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label} — [{opt.cupo}]
-                    </option>
+                  {gruposCapitulos.map((grupo) => (
+                    <optgroup key={grupo.capitulo} label={grupo.capitulo}>
+                      {grupo.articulos.map((art) => (
+                        <option key={art.codigo} value={art.codigo}>
+                          {art.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
+                  <optgroup label="Otras Causales">
+                    <option value="OTRO">Otro artículo / Franquicia especial (especificar)</option>
+                  </optgroup>
                 </select>
+
+                {/* Banner Inteligente de Disponibilidad y Balance (Decreto 1092) */}
+                {formArticulo !== 'OTRO' && disponibilidad.art && (
+                  <div className={`mt-2.5 p-3 rounded-xl border text-xs transition-all ${
+                    disponibilidad.modo === 'SIN_LIMITE'
+                      ? 'bg-blue-50/70 dark:bg-blue-950/20 border-blue-500/25 text-blue-900 dark:text-blue-200'
+                      : disponibilidad.modo === 'POR_EVENTO'
+                      ? 'bg-indigo-50/70 dark:bg-indigo-950/20 border-indigo-500/25 text-indigo-900 dark:text-indigo-200'
+                      : disponibilidad.bloqueado
+                      ? 'bg-rose-50/70 dark:bg-rose-950/20 border-rose-500/30 text-rose-900 dark:text-rose-200'
+                      : disponibilidad.alerta === 'advertencia'
+                      ? 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-500/30 text-amber-900 dark:text-amber-200'
+                      : 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-500/25 text-emerald-900 dark:text-emerald-200'
+                  }`}>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                        disponibilidad.modo === 'SIN_LIMITE'
+                          ? 'bg-blue-600 text-white'
+                          : disponibilidad.modo === 'POR_EVENTO'
+                          ? 'bg-indigo-600 text-white'
+                          : disponibilidad.bloqueado
+                          ? 'bg-rose-600 text-white'
+                          : disponibilidad.alerta === 'advertencia'
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-emerald-600 text-white'
+                      }`}>
+                        {disponibilidad.modo === 'SIN_LIMITE' && '♾️ Sin Límite Reglamentario'}
+                        {disponibilidad.modo === 'POR_EVENTO' && '📌 Límite Por Evento / Acontecimiento'}
+                        {disponibilidad.modo === 'CON_TOPE' && (
+                          disponibilidad.bloqueado ? '⛔ Cupo Reglamentario Agotado' :
+                          disponibilidad.alerta === 'advertencia' ? '⚠️ Próximo al Límite' : '✅ Cupo Disponible'
+                        )}
+                      </span>
+
+                      <span className="text-[11px] font-mono text-text-muted">
+                        {disponibilidad.art.conGoce ? 'Con goce de haberes' : 'Sin goce de haberes'}
+                      </span>
+                    </div>
+
+                    {/* Mensajes formativos del artículo */}
+                    <div className="space-y-1 font-medium text-[11.5px]">
+                      {disponibilidad.modo === 'SIN_LIMITE' && (
+                        <>
+                          <p>{disponibilidad.mensajeAnual}</p>
+                          <p className="text-[11px] opacity-80">{disponibilidad.mensajeMensual}</p>
+                          <p className="text-[11px] opacity-75 italic mt-1">{disponibilidad.art.descripcion}</p>
+                        </>
+                      )}
+
+                      {disponibilidad.modo === 'POR_EVENTO' && (
+                        <>
+                          <p className="font-semibold">{disponibilidad.mensajeSolicitud}</p>
+                          <p className="text-[11px] opacity-80">{disponibilidad.mensajeAnual}</p>
+                          <p className="text-[11px] opacity-75 italic mt-1">{disponibilidad.art.descripcion}</p>
+                        </>
+                      )}
+
+                      {disponibilidad.modo === 'CON_TOPE' && (
+                        <>
+                          <p className="font-semibold">{disponibilidad.mensajeAnual}</p>
+                          <p className="text-[11px] opacity-80">{disponibilidad.mensajeMensual}</p>
+
+                          {/* Barra de progreso anual */}
+                          <div className="w-full bg-slate-200 dark:bg-slate-700/60 h-1.5 rounded-full overflow-hidden my-1.5">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                disponibilidad.bloqueado ? 'bg-rose-600' : disponibilidad.alerta === 'advertencia' ? 'bg-amber-500' : 'bg-emerald-500'
+                              }`}
+                              style={{ width: `${Math.min(100, (disponibilidad.usadosAnio / (disponibilidad.art.topeAnual || 1)) * 100)}%` }}
+                            />
+                          </div>
+
+                          <p className="text-[11px] opacity-75 italic">{disponibilidad.art.descripcion}</p>
+                          {disponibilidad.bloqueado && (
+                            <div className="mt-1.5 p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-[11px] flex items-center gap-1.5 font-medium">
+                              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                              <span>Has alcanzado el cupo normativo para este artículo. Puedes asentar la solicitud con la debida justificación para consideración directiva.</span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Especificar si es OTRO */}
@@ -698,24 +815,43 @@ export default function LicenciasDocenteModal({
 
                           {/* Col 3: Artículo */}
                           <td className="py-3 px-3.5 align-top">
-                            <Badge 
-                              variant={lic.articulo.includes('Art. 15') ? 'warning' : 'primary'}
-                              size="sm"
-                              className="font-semibold"
-                            >
-                              {lic.articulo}
-                            </Badge>
-                            <div className="mt-1">
-                              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
-                                lic.estado_tramite === 'APROBADA'
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                  : lic.estado_tramite === 'PRESENTADA'
-                                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                              }`}>
-                                {lic.estado_tramite === 'APROBADA' ? '✓ Aprobada' : lic.estado_tramite === 'PRESENTADA' ? '📋 Presentada' : '⏳ Pendiente Cert.'}
-                              </span>
-                            </div>
+                            {(() => {
+                              const artConfig = getArticuloByCodigo(lic.articulo_codigo) || getArticuloByText(lic.articulo);
+                              const modo = artConfig?.modoLimite || 'SIN_LIMITE';
+                              return (
+                                <div className="space-y-1">
+                                  <div className="font-semibold text-text-primary leading-snug">
+                                    {artConfig ? artConfig.label : lic.articulo}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {modo === 'SIN_LIMITE' && (
+                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                                        ♾️ Sin Límite
+                                      </span>
+                                    )}
+                                    {modo === 'POR_EVENTO' && (
+                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                                        📌 Por Evento ({artConfig?.topePorEvento ? `hasta ${artConfig.topePorEvento}d` : 'evento'})
+                                      </span>
+                                    )}
+                                    {modo === 'CON_TOPE' && (
+                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                                        📊 Con Tope ({artConfig?.topeAnual || 0} {artConfig?.unidad || 'días'})
+                                      </span>
+                                    )}
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                                      lic.estado_tramite === 'APROBADA'
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                        : lic.estado_tramite === 'PRESENTADA'
+                                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    }`}>
+                                      {lic.estado_tramite === 'APROBADA' ? '✓ Aprobada' : lic.estado_tramite === 'PRESENTADA' ? '📋 Presentada' : '⏳ Pendiente Cert.'}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           {/* Col 4: Observaciones con edición inline */}
@@ -806,7 +942,7 @@ export default function LicenciasDocenteModal({
                     >
                       {/* Cabecera Tarjeta: Fecha & Badge de Artículo */}
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-baseline gap-1.5">
                             <span className="font-mono font-bold text-sm text-text-primary">
                               {formatFechaDMY(lic.fecha)}
@@ -815,18 +951,29 @@ export default function LicenciasDocenteModal({
                               ({diaSemana})
                             </span>
                           </div>
-                          <p className="text-xs font-semibold text-text-secondary mt-0.5">
+                          <p className="text-xs font-semibold text-text-secondary mt-0.5 truncate">
                             {lic.catedra ? lic.catedra.nombre : 'General (Todas las cátedras)'}
+                          </p>
+                          <p className="text-[11px] font-medium text-text-primary mt-0.5">
+                            {getArticuloByCodigo(lic.articulo_codigo)?.label || getArticuloByText(lic.articulo)?.label || lic.articulo}
                           </p>
                         </div>
 
-                        <Badge 
-                          variant={lic.articulo.includes('Art. 15') ? 'warning' : 'primary'}
-                          size="xs"
-                          className="font-bold shrink-0"
-                        >
-                          {lic.articulo.split(' - ')[0]}
-                        </Badge>
+                        {(() => {
+                          const artConfig = getArticuloByCodigo(lic.articulo_codigo) || getArticuloByText(lic.articulo);
+                          const modo = artConfig?.modoLimite || 'SIN_LIMITE';
+                          return (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
+                              modo === 'SIN_LIMITE'
+                                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
+                                : modo === 'POR_EVENTO'
+                                ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20'
+                                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                            }`}>
+                              {modo === 'SIN_LIMITE' ? '♾️ Sin Límite' : modo === 'POR_EVENTO' ? '📌 Por Evento' : '📊 Con Tope'}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Recuadro de Observación */}

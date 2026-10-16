@@ -1,6 +1,7 @@
 import { supabase as defaultSupabase, isSupabaseConfigured } from '../lib/supabase';
 import { enqueueOfflineMutation } from './offlineSyncService';
 import { getTodayYMD } from '../lib/dateUtils';
+import { getArticuloByCodigo, getArticuloByText } from '../constants/decreto1092';
 
 /**
  * Servicio de Gestión y Control Anual de Licencias Docentes (Decreto 1092)
@@ -59,7 +60,8 @@ export function normalizeLicencia(raw, catedrasMap = {}) {
     fecha: raw.fecha ? String(raw.fecha).split('T')[0] : getTodayYMD(),
     catedra_id: catedraId,
     clase_id: raw.clase_id || null,
-    articulo: raw.articulo || raw.articulo_licencia || 'Art. 15° - Razones particulares',
+    articulo: raw.articulo || raw.articulo_licencia || 'Art. 52° - Razones particulares o especiales',
+    articulo_codigo: raw.articulo_codigo || getArticuloByText(raw.articulo || raw.articulo_licencia)?.codigo || null,
     observacion: raw.observacion || raw.observaciones || raw.motivo_inasistencia || '',
     estado_tramite: raw.estado_tramite || 'PENDIENTE_CERTIFICADO',
     created_at: raw.created_at || new Date().toISOString(),
@@ -240,7 +242,8 @@ export async function createOrUpdateLicencia(payload, options = {}) {
 
   const licenciaId = payload.id || `lic-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const fecha = payload.fecha ? String(payload.fecha).split('T')[0] : getTodayYMD();
-  const articulo = payload.articulo || 'Art. 15° - Razones particulares';
+  const articulo = payload.articulo || 'Art. 52° - Razones particulares o especiales';
+  const articuloCodigo = payload.articulo_codigo || getArticuloByText(articulo)?.codigo || null;
   const observacion = payload.observacion || payload.observaciones || '';
   const estadoTramite = payload.estado_tramite || 'PENDIENTE_CERTIFICADO';
   const catedraId = payload.catedra_id || null;
@@ -296,6 +299,7 @@ export async function createOrUpdateLicencia(payload, options = {}) {
     docente_id: docenteId,
     fecha,
     articulo,
+    articulo_codigo: articuloCodigo,
     observacion,
     estado_tramite: estadoTramite,
     catedra_id: catedraId,
@@ -331,6 +335,7 @@ export async function createOrUpdateLicencia(payload, options = {}) {
             docente_id: docenteId,
             fecha,
             articulo,
+            articulo_codigo: articuloCodigo,
             observacion,
             estado_tramite: estadoTramite,
             catedra_id: catedraId,
@@ -481,7 +486,7 @@ export function calcularConsumoLicencias(licencias = [], targetYear = new Date()
   for (const lic of licenciasDelAno) {
     const art = lic.articulo || '';
     const artLower = art.toLowerCase();
-    const isArt15 = art.includes('Art. 15') || art.includes('Art. 60') || artLower.includes('razones particulares');
+    const isArt15 = art.includes('Art. 52') || art.includes('Art. 15') || art.includes('Art. 60') || artLower.includes('razones particulares') || lic.articulo_codigo === 'ART_52';
 
     if (isArt15) {
       art15Anual += 1;
@@ -490,21 +495,21 @@ export function calcularConsumoLicencias(licencias = [], targetYear = new Date()
       }
     }
 
-    // Clasificación normalizada para chips (soporta nomenclatura Art. 15/9/24/32/45 y Decreto 1092 Art. 60/17/22/35/49)
+    // Clasificación normalizada para chips (soporta nomenclatura Decreto 1092 Art. 52/16/53/54/48/49 y variantes históricas)
     let chipKey = 'Otro';
-    if (isArt15) chipKey = art.includes('Art. 60') ? 'Art. 60°' : 'Art. 15°';
-    else if (art.includes('Art. 9') || art.includes('Art. 17') || artLower.includes('enfermedad') || artLower.includes('afecciones')) {
-      chipKey = art.includes('Art. 17') ? 'Art. 17°' : 'Art. 9°';
+    if (isArt15) chipKey = art.includes('Art. 52') || lic.articulo_codigo === 'ART_52' ? 'Art. 52°' : (art.includes('Art. 60') ? 'Art. 60°' : 'Art. 15°');
+    else if (art.includes('Art. 16') || art.includes('Art. 9') || art.includes('Art. 17') || artLower.includes('enfermedad') || artLower.includes('afecciones') || lic.articulo_codigo === 'ART_16') {
+      chipKey = art.includes('Art. 16') || lic.articulo_codigo === 'ART_16' ? 'Art. 16°' : (art.includes('Art. 17') ? 'Art. 17°' : 'Art. 9°');
     }
-    else if (art.includes('Art. 24') || art.includes('Art. 22') || artLower.includes('familiar')) {
-      chipKey = art.includes('Art. 22') ? 'Art. 22°' : 'Art. 24°';
+    else if (art.includes('Art. 30') || art.includes('Art. 24') || art.includes('Art. 22') || artLower.includes('familiar') || lic.articulo_codigo === 'ART_30_GOCE') {
+      chipKey = art.includes('Art. 30') ? 'Art. 30°' : (art.includes('Art. 22') ? 'Art. 22°' : 'Art. 24°');
     }
-    else if (art.includes('Art. 28') || art.includes('Art. 29') || artLower.includes('perfeccionamiento')) chipKey = 'Art. 28°/29°';
-    else if (art.includes('Art. 32') || art.includes('Art. 35') || artLower.includes('mesa') || artLower.includes('exámenes') || artLower.includes('examenes')) {
-      chipKey = art.includes('Art. 35') ? 'Art. 35°' : 'Art. 32°';
+    else if (art.includes('Art. 41') || art.includes('Art. 28') || art.includes('Art. 29') || artLower.includes('perfeccionamiento') || artLower.includes('capacitación') || lic.articulo_codigo === 'ART_41') chipKey = 'Art. 41°';
+    else if (art.includes('Art. 53') || art.includes('Art. 54') || art.includes('Art. 32') || art.includes('Art. 35') || artLower.includes('mesa') || artLower.includes('tribunal') || lic.articulo_codigo?.startsWith('ART_53')) {
+      chipKey = 'Art. 53°/54°';
     }
-    else if (art.includes('Art. 45') || art.includes('Art. 49') || artLower.includes('fuerza mayor') || artLower.includes('imprevistos')) {
-      chipKey = art.includes('Art. 49') ? 'Art. 49°' : 'Art. 45°';
+    else if (art.includes('Art. 49') || art.includes('Art. 45') || artLower.includes('fuerza mayor') || artLower.includes('meteorológico') || lic.articulo_codigo === 'ART_49') {
+      chipKey = 'Art. 49°';
     }
     else {
       // Extraer primer número de art si existe
@@ -539,3 +544,132 @@ export function calcularConsumoLicencias(licencias = [], targetYear = new Date()
     licenciasDelAno
   };
 }
+
+/**
+ * Calcula la disponibilidad, consumo y alertas de un artículo del Decreto 1092
+ * para una fecha y docente dados según su modalidad de límite:
+ * 'SIN_LIMITE' | 'POR_EVENTO' | 'CON_TOPE'
+ *
+ * @param {string} articuloCodigoOTexto - Código del artículo (ej. 'ART_52') o texto
+ * @param {Array} licencias - Historial de licencias
+ * @param {string} [fecha] - Fecha de referencia (YYYY-MM-DD, default hoy)
+ * @returns {Object} Información completa de disponibilidad, topes y mensajes
+ */
+export function calcularDisponibilidadArticulo(articuloCodigoOTexto, licencias = [], fecha = getTodayYMD()) {
+  const art = getArticuloByCodigo(articuloCodigoOTexto) || getArticuloByText(articuloCodigoOTexto);
+  if (!art) {
+    return {
+      art: null,
+      modo: 'SIN_LIMITE',
+      usadosAnio: 0,
+      usadosMes: 0,
+      restantesAnio: null,
+      restantesMes: null,
+      topeEvento: null,
+      bloqueado: false,
+      alerta: 'info',
+      badgeColor: 'blue',
+      mensajeSolicitud: null,
+      mensajeAnual: 'Artículo no catalogado o especial',
+      mensajeMensual: null,
+      mensajes: ['Artículo no catalogado o especial']
+    };
+  }
+
+  const anio = fecha ? String(fecha).substring(0, 4) : String(new Date().getFullYear());
+  const mes = fecha ? String(fecha).substring(0, 7) : `${anio}-01`;
+  const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const mesNum = parseInt(mes.substring(5, 7), 10);
+  const nombreMes = (!isNaN(mesNum) && mesNum >= 1 && mesNum <= 12) ? MESES[mesNum - 1] : 'este mes';
+
+  const licenciasDelAno = (licencias || []).filter(l => (l.fecha || '').startsWith(anio));
+  const licenciasDelMes = licenciasDelAno.filter(l => (l.fecha || '').startsWith(mes));
+
+  function matchLicencia(lic) {
+    const licCod = lic.articulo_codigo || getArticuloByText(lic.articulo)?.codigo;
+    if (!licCod) return false;
+    if (licCod === art.codigo) return true;
+    if (art.grupoCupo) {
+      const otherArt = getArticuloByCodigo(licCod);
+      if (otherArt?.grupoCupo && otherArt.grupoCupo === art.grupoCupo) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const usadosAnio = licenciasDelAno.filter(matchLicencia).length;
+  const usadosMes = licenciasDelMes.filter(matchLicencia).length;
+
+  if (art.modoLimite === 'SIN_LIMITE') {
+    const mensajeAnual = `♾️ Sin límite anual fijo (${art.unidad}) — Llevás ${usadosAnio} días registrados en ${anio}`;
+    const mensajeMensual = `♾️ Sin límite mensual fijo — Llevás ${usadosMes} días registrados en ${nombreMes}`;
+    return {
+      art,
+      modo: 'SIN_LIMITE',
+      usadosAnio,
+      usadosMes,
+      restantesAnio: null,
+      restantesMes: null,
+      topeEvento: null,
+      bloqueado: false,
+      alerta: 'info',
+      badgeColor: 'blue',
+      mensajeSolicitud: null,
+      mensajeAnual,
+      mensajeMensual,
+      mensajes: [mensajeAnual, mensajeMensual]
+    };
+  }
+
+  if (art.modoLimite === 'POR_EVENTO') {
+    const mensajeSolicitud = `📌 Tope por evento: hasta ${art.topePorEvento} ${art.unidad}`;
+    const mensajeAnual = `♾️ Sin tope anual ni mensual de ocurrencias (Usados este año: ${usadosAnio} días / este mes: ${usadosMes} días)`;
+    return {
+      art,
+      modo: 'POR_EVENTO',
+      usadosAnio,
+      usadosMes,
+      restantesAnio: null,
+      restantesMes: null,
+      topeEvento: art.topePorEvento,
+      bloqueado: false,
+      alerta: 'evento',
+      badgeColor: 'indigo',
+      mensajeSolicitud,
+      mensajeAnual,
+      mensajeMensual: null,
+      mensajes: [mensajeSolicitud, mensajeAnual]
+    };
+  }
+
+  // Modo: CON_TOPE
+  const restantesAnio = Math.max(0, art.topeAnual - usadosAnio);
+  const restantesMes = art.topeMensual != null ? Math.max(0, art.topeMensual - usadosMes) : null;
+  const bloqueado = (restantesAnio <= 0) || (restantesMes !== null && restantesMes <= 0);
+  const alerta = bloqueado ? 'limite' : (restantesAnio <= 1 || (restantesMes !== null && restantesMes <= 1) ? 'advertencia' : 'normal');
+  const badgeColor = bloqueado ? 'red' : (alerta === 'advertencia' ? 'amber' : 'emerald');
+
+  const mensajeAnual = `📊 Cupo Anual: Usaste ${usadosAnio} de ${art.topeAnual} → Te quedan ${restantesAnio} ${art.unidad}`;
+  const mensajeMensual = art.topeMensual != null
+    ? `📅 Cupo Mensual: Usaste ${usadosMes} de ${art.topeMensual} → Te quedan ${restantesMes} este mes.`
+    : `📅 Mensual: Sin límite mensual (disponibles hasta ${restantesAnio} días de tu saldo anual).`;
+
+  return {
+    art,
+    modo: 'CON_TOPE',
+    usadosAnio,
+    usadosMes,
+    restantesAnio,
+    restantesMes,
+    topeEvento: art.topePorEvento || null,
+    bloqueado,
+    alerta,
+    badgeColor,
+    mensajeSolicitud: null,
+    mensajeAnual,
+    mensajeMensual,
+    mensajes: [mensajeAnual, mensajeMensual]
+  };
+}
+
