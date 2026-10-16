@@ -24,14 +24,20 @@ export default function AttendanceDesktopTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-surface-border text-sm">
-          {filteredAlumnos.map(est => {
+          {filteredAlumnos.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="py-10 px-4 text-center text-xs text-text-muted">
+                No se encontraron estudiantes para los criterios seleccionados.
+              </td>
+            </tr>
+          ) : filteredAlumnos.map(est => {
             const rawEstado = asistenciasDiaMap instanceof Map
               ? asistenciasDiaMap.get(est.id)
               : (asistenciasDiaMap?.[est.id]?.estado ?? asistenciasDiaMap?.[est.id]);
             const estadoActual = (typeof rawEstado === 'object' ? rawEstado?.estado : rawEstado) || null;
             const isPresente = estadoActual === ESTADO_ASISTENCIA.PRESENTE;
             const isAusente = estadoActual === ESTADO_ASISTENCIA.AUSENTE;
-            const isJustificado = estadoActual === ESTADO_ASISTENCIA.JUSTIFICADO;
+            const isJustificado = estadoActual === ESTADO_ASISTENCIA.JUSTIFICADO || estadoActual === ESTADO_ASISTENCIA.JUSTIFICADA;
 
             const rawStats = asistenciaPorEstudiante instanceof Map
               ? asistenciaPorEstudiante.get(est.id)

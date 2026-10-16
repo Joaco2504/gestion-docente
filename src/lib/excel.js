@@ -1,4 +1,4 @@
-import { formatFechaDMY } from './dateUtils.js';
+import { formatFechaDMY, getTodayYMD } from './dateUtils.js';
 
 /**
  * Carga diferida de XLSX solo al momento de procesar un archivo
@@ -238,6 +238,14 @@ export async function exportGradesToCsv(arg1, arg2, arg3, arg4, arg5) {
 export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4, arg5) {
   const XLSX = await getXLSX();
 
+  const sanitizeExcelCell = (val) => {
+    if (typeof val !== 'string') return val;
+    if (/^[=+\-@]/.test(val.trim())) {
+      return `'${val}`;
+    }
+    return val;
+  };
+
   let catedraInfo = { nombre: 'Catedra' };
   let estudiantes = [];
   let evaluaciones = [];
@@ -251,13 +259,30 @@ export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4
     evaluaciones = arg3 || [];
     notas = arg4 || [];
     extraMatrix = arg5 || [];
-  } else if (typeof arg1 === 'object') {
+  } else if (typeof arg1 === 'object' && arg1 !== null) {
     // Single object call
-    catedraInfo = { nombre: arg1.catedraNombre || 'Catedra' };
+    catedraInfo = { nombre: arg1.catedraNombre || arg1.nombre || 'Catedra' };
     evaluaciones = arg1.evaluaciones || [];
-    if (arg1.estudiantesConNotas) {
-      // Convert format
-      estudiantes = arg1.estudiantesConNotas.map(e => e.estudiante);
+    estudiantes = arg1.estudiantes || [];
+    notas = arg1.notas || [];
+    extraMatrix = arg1.extraMatrix || [];
+    if (Array.isArray(arg1.estudiantesConNotas)) {
+      estudiantes = arg1.estudiantesConNotas.map(e => e.estudiante || e);
+      if (notas.length === 0) {
+        arg1.estudiantesConNotas.forEach(item => {
+          const estId = item.estudiante?.id || item.id;
+          if (Array.isArray(item.notas)) {
+            item.notas.forEach(n => notas.push({ ...n, estudiante_id: n.estudiante_id || estId }));
+          }
+        });
+      }
+      if (extraMatrix.length === 0) {
+        extraMatrix = arg1.estudiantesConNotas.map(item => ({
+          estudianteId: item.estudiante?.id || item.id,
+          asistenciaPct: item.asistenciaPct ?? item.porcentajeAsistencia ?? 100,
+          condicion: item.condicion || { condicion: item.condicionFinal || 'REGULAR', motivo: item.motivo || '' }
+        }));
+      }
     }
   }
 
@@ -280,9 +305,9 @@ export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4
     const matrixInfo = matrixMap.get(est.id) || {};
     const row = {
       'N°': idx + 1,
-      'DNI': est.dni,
-      'Apellido': est.apellido,
-      'Nombre': est.nombre,
+      'DNI': sanitizeExcelCell(est.dni),
+      'Apellido': sanitizeExcelCell(est.apellido),
+      'Nombre': sanitizeExcelCell(est.nombre),
       '% Asistencia': `${matrixInfo.asistenciaPct ?? 100}%`
     };
 
@@ -322,8 +347,8 @@ export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4
     const cond = matrixInfo.condicion?.condicion || 'REGULAR';
     const motivo = matrixInfo.condicion?.motivo || '';
 
-    row['Condición Final'] = cond;
-    row['Observaciones / Criterio'] = motivo;
+    row['Condición Final'] = sanitizeExcelCell(cond);
+    row['Observaciones / Criterio'] = sanitizeExcelCell(motivo);
 
     return row;
   });
@@ -344,7 +369,7 @@ export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4
   XLSX.utils.book_append_sheet(workbook, worksheet, "Calificaciones");
 
   const cleanCatedraName = (catedraInfo.nombre || 'Catedra').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = getTodayYMD();
 
   if (format === 'csv') {
     const fileName = `Calificaciones_${cleanCatedraName}_${dateStr}.csv`;
@@ -364,20 +389,21 @@ export async function exportGradesToFile(format = 'xlsx', arg1, arg2, arg3, arg4
 export async function exportMesaExamenToExcel(mesa = {}, actasAlumnos = [], catedraNombre = '') {
   const XLSX = await getXLSX();
 
+  const sanitizeCell = (val) => (typeof val === 'string' && /^[=+\-@]/.test(val.trim()) ? `'${val}` : val);
   const cleanCatedra = (catedraNombre || mesa.catedras?.nombre || 'Catedra').replace(/[^a-zA-Z0-9_-]/g, '_');
   const safeTurno = (mesa.turno_llamado || 'Examen').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const dateStr = mesa.fecha ? formatFechaDMY(mesa.fecha) : new Date().toISOString().split('T')[0];
+  const dateStr = mesa.fecha ? formatFechaDMY(mesa.fecha) : getTodayYMD();
 
   const rows = (actasAlumnos || []).map((acta, idx) => {
     const est = acta.estudiantes || {};
-    const dni = acta.dni || est.dni || '-';
-    const apellido = acta.apellido || est.apellido || '-';
-    const nombre = acta.nombre || est.nombre || '-';
+    const dni = sanitizeCell(acta.dni || est.dni || '-');
+    const apellido = sanitizeCell(acta.apellido || est.apellido || '-');
+    const nombre = sanitizeCell(acta.nombre || est.nombre || '-');
     const escrito = acta.nota_escrito !== undefined && acta.nota_escrito !== null ? acta.nota_escrito : '-';
     const oral = acta.nota_oral !== undefined && acta.nota_oral !== null ? acta.nota_oral : '-';
     const definitiva = acta.nota_definitiva !== undefined && acta.nota_definitiva !== null ? acta.nota_definitiva : '-';
-    const letras = acta.calificacion_letras || acta.nota_letras || '-';
-    const dictamen = acta.dictamen || acta.resultado || '-';
+    const letras = sanitizeCell(acta.calificacion_letras || acta.nota_letras || '-');
+    const dictamen = sanitizeCell(acta.dictamen || acta.resultado || '-');
 
     return {
       'N°': idx + 1,
@@ -389,7 +415,7 @@ export async function exportMesaExamenToExcel(mesa = {}, actasAlumnos = [], cate
       'Nota Definitiva': definitiva,
       'Calificación en Letras': letras,
       'Dictamen': dictamen,
-      'Folio': acta.folio_fisico || mesa.folio || '-'
+      'Folio': sanitizeCell(acta.folio_fisico || mesa.folio || '-')
     };
   });
 
@@ -435,8 +461,9 @@ export async function exportAttendanceToExcel(
 ) {
   const XLSX = await getXLSX();
 
+  const sanitizeCell = (val) => (typeof val === 'string' && /^[=+\-@]/.test(val.trim()) ? `'${val}` : val);
   const cleanCatedra = (catedraInfo.nombre || 'Catedra').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = getTodayYMD();
 
   // Ordenar clases cronológicamente
   const sortedClases = [...(clases || [])].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -456,9 +483,9 @@ export async function exportAttendanceToExcel(
 
     const row = {
       'N°': idx + 1,
-      'DNI': est.dni || '-',
-      'Apellido': est.apellido || '-',
-      'Nombre': est.nombre || '-'
+      'DNI': sanitizeCell(est.dni || '-'),
+      'Apellido': sanitizeCell(est.apellido || '-'),
+      'Nombre': sanitizeCell(est.nombre || '-')
     };
 
     sortedClases.forEach(c => {
@@ -470,16 +497,19 @@ export async function exportAttendanceToExcel(
       } else if (estado === 'AUSENTE') {
         ausentes++;
         row[fechaCol] = 'A';
-      } else if (estado === 'JUSTIFICADA') {
+      } else if (estado === 'JUSTIFICADA' || estado === 'JUSTIFICADO') {
         justificadas++;
         row[fechaCol] = 'J';
+      } else if (estado === 'TARDE') {
+        presentes += 0.5;
+        row[fechaCol] = 'T';
       } else {
         row[fechaCol] = '-';
       }
     });
 
     const pct = studentStatsMap?.get(est.id) ?? (
-      sortedClases.length > 0 ? Math.round((presentes / sortedClases.length) * 100) : 100
+      sortedClases.length > 0 ? Math.round(((presentes + justificadas) / sortedClases.length) * 100) : 100
     );
 
     row['Total Clases'] = sortedClases.length;

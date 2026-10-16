@@ -77,6 +77,8 @@ export default function GradeMatrixTable({
   onQuickSetGrade,
   onOpenEditNota,
   onOpenNuevaEvaluacion,
+  onOpenEditParams,
+  onDeleteEval,
   density = 'comfortable'
 }) {
   const isCompact = density === 'compact';
@@ -118,7 +120,7 @@ export default function GradeMatrixTable({
   }
 
   return (
-    <div className="overflow-x-auto touch-pan-x scrollbar-thin rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xs max-h-[75vh]">
+    <div className="overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xs max-h-[75vh]">
       <table 
         className="w-full text-left border-collapse text-xs" 
         aria-label="Sábana de Calificaciones Académicas"
@@ -145,6 +147,8 @@ export default function GradeMatrixTable({
                   index={colIdx}
                   metrics={metrics}
                   density={density}
+                  onEdit={onOpenEditParams}
+                  onDeleteRequest={onDeleteEval}
                 />
               );
             })}
@@ -157,7 +161,7 @@ export default function GradeMatrixTable({
             {/* Columna Sticky Derecha: Condición RAM */}
             <th 
               scope="col" 
-              className="py-3 px-3.5 sticky right-0 top-0 z-30 bg-slate-50 dark:bg-slate-800/95 backdrop-blur border-l border-slate-200/60 dark:border-white/10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)] text-center w-36"
+              className="py-3 px-2.5 sticky right-0 top-0 z-30 bg-slate-50 dark:bg-slate-800/95 backdrop-blur border-l border-slate-200/60 dark:border-white/10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)] text-center w-28 sm:w-32"
             >
               Condición RAM
             </th>
@@ -165,7 +169,13 @@ export default function GradeMatrixTable({
         </thead>
 
         <tbody className="divide-y divide-slate-200/70 dark:divide-white/5">
-          {studentRows.map((row, rowIdx) => {
+          {studentRows.length === 0 ? (
+            <tr>
+              <td colSpan={mainEvaluations.length + 3} className="py-10 text-center text-xs text-text-muted">
+                No se encontraron estudiantes para los criterios de búsqueda.
+              </td>
+            </tr>
+          ) : studentRows.map((row, rowIdx) => {
             const { estudiante: est, promedio, condicion, risk, asistPct } = row;
 
             return (

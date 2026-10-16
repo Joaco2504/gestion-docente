@@ -2,13 +2,13 @@ import React, { useRef, useEffect } from 'react';
 
 function safeIsoDate(d, fallback = '') {
   if (!d) return fallback;
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10);
   const dateObj = d instanceof Date ? d : new Date(d);
   if (isNaN(dateObj.getTime())) return fallback;
-  try {
-    return dateObj.toISOString().split('T')[0];
-  } catch (_) {
-    return fallback;
-  }
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export default function CalendarWeekView({
@@ -67,7 +67,7 @@ export default function CalendarWeekView({
   return (
     <div 
       ref={scrollContainerRef}
-      className="w-full max-h-[660px] overflow-y-auto overflow-x-auto overscroll-contain select-none relative rounded-2xl" 
+      className="w-full max-h-[660px] overflow-y-auto overflow-x-auto overscroll-contain select-none relative rounded-2xl touch-pan-x touch-pan-y" 
       data-testid="calendar-week-view"
     >
       <div className="min-w-[780px]">
@@ -184,28 +184,37 @@ export default function CalendarWeekView({
                 hora_inicio: e.fecha_inicio ? e.fecha_inicio.substring(11, 16) : (e.hora_inicio || '18:00'),
                 hora_fin: e.fecha_fin ? e.fecha_fin.substring(11, 16) : (e.hora_fin || '20:00')
               }))
-            ];
+            ].map((item) => {
+              const [sh, sm] = (item.hora_inicio || '18:00').split(':').map(Number);
+              const [eh, em] = (item.hora_fin || '20:00').split(':').map(Number);
+              const startMinTotal = (isNaN(sh) ? 18 : sh) * 60 + (isNaN(sm) ? 0 : sm);
+              const endMinTotal = Math.max(startMinTotal + 60, (isNaN(eh) ? 20 : eh) * 60 + (isNaN(em) ? 0 : em));
+              return { ...item, startMinTotal, endMinTotal };
+            });
 
             return (
               <React.Fragment key={`events-col-${dayIdx}`}>
                 {dayAllItems.map((item, itemIdx) => {
-                  const [sh, sm] = (item.hora_inicio || '18:00').split(':').map(Number);
-                  const [eh, em] = (item.hora_fin || '20:00').split(':').map(Number);
-                  
-                  const startMinTotal = (isNaN(sh) ? 18 : sh) * 60 + (isNaN(sm) ? 0 : sm);
-                  const endMinTotal = (isNaN(eh) ? 20 : eh) * 60 + (isNaN(em) ? 0 : em);
                   const baseMinTotal = 7 * 60; // 07:00 hs base
 
-                  const top = Math.max(0, ((startMinTotal - baseMinTotal) / 60) * HOUR_ROW_HEIGHT);
-                  const durationHours = Math.max(1, (endMinTotal - startMinTotal) / 60);
+                  // Detectar solapamientos en la misma columna de día
+                  const overlapping = dayAllItems.filter(
+                    other => other.startMinTotal < item.endMinTotal && other.endMinTotal > item.startMinTotal
+                  );
+                  const overlapCount = Math.max(1, overlapping.length);
+                  const overlapIndex = Math.max(0, overlapping.indexOf(item));
+
+                  const top = Math.max(0, ((item.startMinTotal - baseMinTotal) / 60) * HOUR_ROW_HEIGHT);
+                  const durationHours = Math.max(1, (item.endMinTotal - item.startMinTotal) / 60);
                   const height = Math.max(56, durationHours * HOUR_ROW_HEIGHT - 6);
 
                   const design = getItemDesign(item);
                   const EvIcon = design.Icon;
 
                   // Columna en grid de 8 (col 1 es hora, cols 2-8 son días)
-                  const colLeftPercent = (dayIdx + 1) * (100 / 8);
-                  const colWidthPercent = 100 / 8;
+                  const dayColLeftPercent = (dayIdx + 1) * (100 / 8);
+                  const dayColWidthPercent = (100 / 8) / overlapCount;
+                  const colLeftPercent = dayColLeftPercent + overlapIndex * dayColWidthPercent;
 
                   return (
                     <div
@@ -216,8 +225,8 @@ export default function CalendarWeekView({
                       }}
                       style={{
                         top: `${top}px`,
-                        left: `calc(${colLeftPercent}% + 4px)`,
-                        width: `calc(${colWidthPercent}% - 8px)`,
+                        left: `calc(${colLeftPercent}% + 3px)`,
+                        width: `calc(${dayColWidthPercent}% - 6px)`,
                         height: `${height}px`,
                         backgroundColor: design.bgColor,
                         color: design.textColor

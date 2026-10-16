@@ -26,12 +26,20 @@ export function calcularPorcentajeAsistencia(arg1 = [], arg2 = 0, arg3 = 0) {
   const clasesEfectivas = Math.max(0, totalClases - clasesConLicencia);
   if (clasesEfectivas === 0) return 100;
 
-  // Filtrar presentes, excluyendo explícitamente clases donde el docente faltó si estuvieran marcadas
-  const presentes = asistencias.filter(a => 
-    a.estado === 'PRESENTE' && !a.docenteAusente && !a.inasistenciaDocente
-  ).length;
+  // Sumar presentes, justificados (1) y llegadas tarde (0.5), excluyendo clases con licencia docente
+  const presentes = asistencias.reduce((acc, a) => {
+    if (!a || a.docenteAusente || a.inasistenciaDocente) return acc;
+    const est = String(a.estado || '').trim().toUpperCase();
+    if (est === 'PRESENTE' || est === 'P' || est === 'JUSTIFICADO' || est === 'JUSTIFICADA' || est === 'J') {
+      return acc + 1;
+    }
+    if (est === 'TARDE' || est === 'T') {
+      return acc + 0.5;
+    }
+    return acc;
+  }, 0);
 
-  return Number(((presentes / clasesEfectivas) * 100).toFixed(1));
+  return Math.min(100, Number(((presentes / clasesEfectivas) * 100).toFixed(1)));
 }
 
 /**
@@ -215,7 +223,7 @@ export function calcularCondicionFinal(
 
   const parciales = evaluaciones.filter(e => {
     const t = String(e.tipo || '').toUpperCase();
-    return t === 'PARCIAL' || t === 'PRUEBA' || (t.includes('PARCIAL') && !t.includes('RECUP'));
+    return t === 'PARCIAL' || t === 'PRUEBA' || t === 'COLOQUIO' || (t.includes('PARCIAL') && !t.includes('RECUP'));
   });
   const tps = evaluaciones.filter(e => {
     const t = String(e.tipo || '').toUpperCase();
@@ -228,8 +236,8 @@ export function calcularCondicionFinal(
 
   // Verificar TPs (se exige aprobación con >= notaMinReg para los TPs ya calificados o vencidos)
   let todosTpsAprobados = true;
+  let todosTpsPromo = true;
   const tpsExigibles = tps.filter(tp => {
-    // Si el TP tiene fecha de entrega futura y el alumno aún no tiene nota ni estado, está en plazo de entrega
     if (tp.fecha_entrega && !isDatePast(tp.fecha_entrega) && !notasMap.has(tp.id) && !estadosMap.has(tp.id)) {
       return false;
     }
@@ -240,9 +248,13 @@ export function calcularCondicionFinal(
     for (const tp of tpsExigibles) {
       const v = notasMap.get(tp.id);
       const est = estadosMap.get(tp.id);
-      if (est === 'NO_ENTREGO' || v === undefined || v < notaMinReg) {
+      if (est === 'NO_ENTREGO' || est === 'AUSENTE' || v === undefined || v < notaMinReg) {
         todosTpsAprobados = false;
+        todosTpsPromo = false;
         break;
+      }
+      if (v < notaMinPromo) {
+        todosTpsPromo = false;
       }
     }
   }
@@ -266,19 +278,20 @@ export function calcularCondicionFinal(
     const notaRecup = recupLinked ? notasMap.get(recupLinked.id) : undefined;
     const estadoRecup = recupLinked ? estadosMap.get(recupLinked.id) : undefined;
 
-    if (notaRecup !== undefined || (estadoRecup && estadoRecup !== '')) {
+    const necesitoRecup = notaOrig === undefined || notaOrig < notaMinPromo;
+    if (necesitoRecup && (notaRecup !== undefined || estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO')) {
       recupsUsados++;
     }
 
-    // La nota efectiva para regularidad o promoción toma el recuperatorio si existe
+    // La nota efectiva protege la nota original si el alumno ya había aprobado y sacó menos o faltó al recuperatorio
     let notaEfectiva = null;
-    if (notaRecup !== undefined) {
+    if (notaOrig !== undefined && notaRecup !== undefined) {
+      notaEfectiva = Math.max(notaOrig, notaRecup);
+    } else if (notaRecup !== undefined) {
       notaEfectiva = notaRecup;
-    } else if (estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO') {
-      notaEfectiva = null;
     } else if (notaOrig !== undefined) {
       notaEfectiva = notaOrig;
-    } else if (estadoOrig === 'AUSENTE' || estadoOrig === 'NO_ENTREGO') {
+    } else if (estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO' || estadoOrig === 'AUSENTE' || estadoOrig === 'NO_ENTREGO') {
       notaEfectiva = null;
     }
 
@@ -290,22 +303,43 @@ export function calcularCondicionFinal(
     }
   }
 
-  const maxRecupPermitidoReg = modalidad === 'ANUAL' ? 2 : 1;
+  const maxRecupPermitidoReg = String(modalidad).toUpperCase().includes('ANUAL') ? 2 : 1;
+
+  // Caso especial: hay parciales futuros aún sin rendir pero ya se calificaron TPs
+  if (parciales.length > 0 && parcialesExigibles.length === 0) {
+    if (asistenciaPct >= minRegAsist && todosTpsAprobados) {
+      return {
+        condicion: 'REGULAR',
+        color: 'text-amber-700',
+        badgeVariant: 'regular',
+        motivo: `En curso con TPs aprobados (parciales pendientes) | Asist: ${asistenciaPct}%`
+      };
+    }
+    return {
+      condicion: 'LIBRE',
+      color: 'text-rose-700',
+      badgeVariant: 'libre',
+      motivo: `No alcanza regularidad en TPs o asistencia (${asistenciaPct}%)`
+    };
+  }
+
+  // Caso especial: Cátedra tipo Taller / Seminario evaluada únicamente con TPs (sin parciales)
+  const soloTps = parciales.length === 0 && tpsExigibles.length > 0;
 
   // 1. PROMOCIONAL
   const cumplePromo =
     asistenciaPct >= minPromoAsist &&
     todosTpsAprobados &&
-    parciales.length > 0 &&
-    todosParcialesPromo &&
-    recupsUsados <= 1;
+    (soloTps ? todosTpsPromo : (parcialesExigibles.length > 0 && todosParcialesPromo && recupsUsados <= 1));
 
   if (cumplePromo) {
     return {
       condicion: 'PROMOCIONAL',
       color: 'text-emerald-700',
       badgeVariant: 'promo',
-      motivo: `Asistencia: ${asistenciaPct}% | Parciales >= ${notaMinPromo} | Recup: ${recupsUsados}/1`
+      motivo: soloTps
+        ? `Asistencia: ${asistenciaPct}% | TPs >= ${notaMinPromo}`
+        : `Asistencia: ${asistenciaPct}% | Parciales >= ${notaMinPromo} | Recup: ${recupsUsados}/1`
     };
   }
 
@@ -313,16 +347,16 @@ export function calcularCondicionFinal(
   const cumpleReg =
     asistenciaPct >= minRegAsist &&
     todosTpsAprobados &&
-    parciales.length > 0 &&
-    todosParcialesReg &&
-    recupsUsados <= maxRecupPermitidoReg;
+    (soloTps ? true : (parcialesExigibles.length > 0 && todosParcialesReg && recupsUsados <= maxRecupPermitidoReg));
 
   if (cumpleReg) {
     return {
       condicion: 'REGULAR',
       color: 'text-amber-700',
       badgeVariant: 'regular',
-      motivo: `Asistencia: ${asistenciaPct}% | Parciales >= ${notaMinReg} | Recup: ${recupsUsados}/${maxRecupPermitidoReg}`
+      motivo: soloTps
+        ? `Asistencia: ${asistenciaPct}% | TPs aprobados >= ${notaMinReg}`
+        : `Asistencia: ${asistenciaPct}% | Parciales >= ${notaMinReg} | Recup: ${recupsUsados}/${maxRecupPermitidoReg}`
     };
   }
 

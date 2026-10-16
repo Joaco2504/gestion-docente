@@ -84,19 +84,25 @@ export async function notificarErrorDiscord({
         : { code: codigoError, message: mensajeFinal }
     );
 
+    const isGenericFallback = traduccion.titulo === 'Incidencia al registrar inasistencia' && !(contexto || '').toLowerCase().includes('asistencia');
+    const embedTitle = isGenericFallback ? `⚠️ Incidencia en ${contexto || 'Korum'} (${codigoFinal})` : `⚠️ ${traduccion.titulo} (${codigoFinal})`;
+    const embedDesc = isGenericFallback ? mensajeFinal : traduccion.explicacion;
+
     const payload = {
       username: 'Korum Telemetría',
       embeds: [
         {
-          title: `⚠️ ${traduccion.titulo}`,
-          description: traduccion.explicacion,
+          title: embedTitle,
+          description: embedDesc,
           color: 0xEF4444,
           fields: [
-            { name: 'Módulo', value: contexto || 'Asistencias', inline: true },
+            { name: 'Código', value: codigoFinal, inline: true },
+            { name: 'Módulo', value: contexto || 'General', inline: true },
             { name: 'Docente', value: usuario?.email || 'Desconocido', inline: true },
-            { name: 'Solución Sugerida', value: traduccion.accionSugerida }
+            { name: 'Solución Sugerida', value: traduccion.accionSugerida },
+            ...(detalleTecnicoStr ? [{ name: 'Detalle Técnico', value: `\`\`\`json\n${detalleTecnicoStr}\n\`\`\`` }] : [])
           ],
-          footer: { text: `Korum Telemetría · Catamarca, 2026` },
+          footer: { text: `Korum Telemetría · Catamarca (${fechaCatamarca})` },
           timestamp: new Date().toISOString()
         }
       ]

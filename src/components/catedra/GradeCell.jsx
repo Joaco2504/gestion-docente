@@ -209,6 +209,18 @@ export const GradeCell = React.memo(function GradeCell({
     notaOriginal !== null ? notaOriginal : (estadoOriginal === 'NO_ENTREGO' ? 'No entregó' : (estadoOriginal === 'AUSENTE' ? 'Ausente' : 'Sin calificar'))
   }. Presiona Enter para bajar, N para no entregó, A para ausente, 1 al 10 para nota`;
 
+  const triggerEditModal = (targetEv) => {
+    if (!onOpenEditNota || !est || !targetEv) return;
+    onOpenEditNota({
+      estudianteId: est.id,
+      evaluacionId: targetEv.id,
+      nombreEstudiante: `${estApellido}, ${estNombre}`.trim(),
+      nombreEvaluacion: targetEv.titulo ?? targetEv.nombre ?? 'Evaluación',
+      est,
+      ev: targetEv
+    }, targetEv);
+  };
+
   return (
     <td className={`px-2 sm:px-3 ${isCompact ? 'py-1' : 'py-2.5'} text-center border-l border-surface-border align-middle`}>
       <div className="flex items-center justify-center gap-1">
@@ -218,7 +230,7 @@ export const GradeCell = React.memo(function GradeCell({
           data-grade-cell="true"
           data-row={rowIdx}
           data-col={colIdx}
-          onClick={() => onOpenEditNota(est, ev)}
+          onClick={() => triggerEditModal(ev)}
           onKeyDown={handleKeyDown}
           title={`Calificación de ${evTitulo}. Atajos: Enter (bajar de fila), Flechas (navegar), N (N/E), A (Aus.), 1-10 (calificar)`}
           aria-label={originalAccessibleLabel}
@@ -235,7 +247,7 @@ export const GradeCell = React.memo(function GradeCell({
           <button
             type="button"
             tabIndex={0}
-            onClick={() => onOpenEditNota(est, recup)}
+            onClick={() => triggerEditModal(recup)}
             title={`Editar recuperatorio: ${recupTitulo}`}
             aria-label={`Recuperatorio de ${estApellido}, ${estNombre} en ${recupTitulo}: ${
               notaRecup !== null ? notaRecup : (estadoRecup === 'NO_ENTREGO' ? 'No entregó' : (estadoRecup === 'AUSENTE' ? 'Ausente' : 'Sin calificar'))

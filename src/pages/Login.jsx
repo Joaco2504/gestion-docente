@@ -155,6 +155,32 @@ export default function Login() {
     navigate('/dashboard', { replace: true });
   };
 
+  const handleForgotPassword = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    if (!email.trim()) {
+      setErrorMsg('Ingresa tu correo electrónico primero para enviarte el enlace de recuperación.');
+      return;
+    }
+    if (!isSupabaseConfigured || !supabase) {
+      toast.info('En Modo Demostración puedes ingresar directamente con el botón Modo Demostración.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw error;
+      setSuccessMsg('Te enviamos un enlace a tu correo para restablecer tu contraseña.');
+    } catch (err) {
+      const info = handleAppError(err, 'Login / Recuperar Clave', null, { mostrarToast: false });
+      setErrorMsg(getFriendlyAuthError(err) || info.mensaje);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-[#0B0F19]">
       {/* ===================================================================
@@ -253,9 +279,13 @@ export default function Login() {
               />
               {isLogin && (
                 <div className="text-right -mt-2 mb-3">
-                  <span className="text-[11px] text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-[11px] text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors"
+                  >
                     ¿Olvidaste tu clave?
-                  </span>
+                  </button>
                 </div>
               )}
             </div>

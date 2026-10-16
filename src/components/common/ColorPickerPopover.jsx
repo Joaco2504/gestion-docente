@@ -34,12 +34,17 @@ export default function ColorPickerPopover({
   onChange,
   defaultColor = '#10B981',
   title = 'Personalizar Color',
+  label,
   previewLabel = 'Vista Previa del Chip',
+  previewTitle,
+  previewSubtitle,
   isMesa = false,
   catedraColor = null,
   palette = CATEDRA_PALETTE,
   className = ''
 }) {
+  const effectiveTitle = label || title;
+  const effectivePreviewLabel = previewTitle || previewLabel;
   const [isOpen, setIsOpen] = useState(false);
   const [hexInput, setHexInput] = useState(color || defaultColor);
   const popoverRef = useRef(null);
@@ -109,6 +114,11 @@ export default function ColorPickerPopover({
 
   return (
     <div className={`relative inline-block ${className}`}>
+      {label && (
+        <span className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
+          {label}
+        </span>
+      )}
       {/* Botón Disparador (Trigger) */}
       <button
         ref={triggerRef}
@@ -116,8 +126,8 @@ export default function ColorPickerPopover({
         onClick={() => setIsOpen(prev => !prev)}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        aria-label={`${title}: actual ${currentColor}`}
-        title={`${title} (Clic para modificar)`}
+        aria-label={`${effectiveTitle}: actual ${currentColor}`}
+        title={`${effectiveTitle} (Clic para modificar)`}
         className="flex items-center gap-2 px-3 py-2 rounded-xl border border-surface-border bg-surface hover:bg-surface-hover text-xs font-semibold text-text-primary transition-[transform,background-color,border-color,box-shadow] duration-150 shadow-xs cursor-pointer min-h-[44px] touch-target-44 active:scale-98"
       >
         <span 
@@ -138,8 +148,8 @@ export default function ColorPickerPopover({
         <div
           ref={popoverRef}
           role="dialog"
-          aria-label={title}
-          className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl animate-scaleIn space-y-4"
+          aria-label={effectiveTitle}
+          className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-2 w-[min(20rem,calc(100vw-2.5rem))] p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl animate-scaleIn space-y-4"
         >
           {/* Cabecera del Popover */}
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80">
@@ -148,12 +158,12 @@ export default function ColorPickerPopover({
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: currentColor }}
               />
-              <span className="text-xs font-bold text-text-primary">{title}</span>
+              <span className="text-xs font-bold text-text-primary">{effectiveTitle}</span>
             </div>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               aria-label="Cerrar selector de color"
             >
               <X className="w-4 h-4" />
@@ -186,9 +196,16 @@ export default function ColorPickerPopover({
                   ) : (
                     <BookOpen className="w-4 h-4 shrink-0" style={{ color: currentColor }} />
                   )}
-                  <span className="text-xs font-bold truncate">
-                    {previewLabel}
-                  </span>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold truncate block">
+                      {effectivePreviewLabel}
+                    </span>
+                    {previewSubtitle && (
+                      <span className="text-[10px] opacity-80 truncate block">
+                        {previewSubtitle}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Si es mesa, muestra el dot del color de la cátedra */}

@@ -433,17 +433,26 @@ export function useCalendarEvents({
       }
     });
 
-    const daysMap = { 'Domingo': 0, 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6 };
+    const normalizeDayKey = (d) => String(d || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const daysMap = { 'domingo': 0, 'lunes': 1, 'martes': 2, 'miercoles': 3, 'jueves': 4, 'viernes': 5, 'sabado': 6 };
     regularClassesList.forEach(cls => {
-      const targetDay = daysMap[cls.dia_semana];
+      const targetDay = daysMap[normalizeDayKey(cls.dia_semana)];
       if (targetDay !== undefined) {
-        const diff = (targetDay - now.getDay() + 7) % 7;
+        let diff = (targetDay - now.getDay() + 7) % 7;
         const clsDate = new Date();
         clsDate.setDate(now.getDate() + diff);
         const [hh, mm] = (cls.desde || '19:00').split(':');
-        clsDate.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
+        clsDate.setHours(parseInt(hh, 10) || 19, parseInt(mm, 10) || 0, 0, 0);
 
-        if (clsDate >= now) {
+        const clsEndDate = new Date(clsDate);
+        const [ehh, emm] = (cls.hasta || '21:05').split(':');
+        clsEndDate.setHours(parseInt(ehh, 10) || 21, parseInt(emm, 10) || 5, 0, 0);
+
+        if (diff === 0 && clsEndDate < now) {
+          clsDate.setDate(clsDate.getDate() + 7);
+        }
+
+        if (clsDate >= now || (diff === 0 && clsEndDate >= now)) {
           candidates.push({
             id: cls.id,
             titulo: cls.catedra_nombre,
@@ -597,8 +606,8 @@ export function useCalendarEvents({
   // Exportar .ics
   const handleDownloadIcs = () => {
     try {
-      const ics = generateIcsContent(allFilteredEvents, catedras);
-      downloadIcsFile(ics, `calendario_korum_${new Date().getFullYear()}.ics`);
+      const ics = generateIcsContent(allFilteredEvents, clases, catedras);
+      downloadIcsFile(`calendario_korum_${new Date().getFullYear()}.ics`, ics);
       toast.success('Archivo .ics descargado con éxito');
       return true;
     } catch (err) {

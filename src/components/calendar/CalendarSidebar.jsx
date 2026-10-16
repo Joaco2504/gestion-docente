@@ -24,13 +24,13 @@ const MONTH_NAMES = [
 
 function safeIsoDate(d, fallback = '') {
   if (!d) return fallback;
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10);
   const dateObj = d instanceof Date ? d : new Date(d);
   if (isNaN(dateObj.getTime())) return fallback;
-  try {
-    return dateObj.toISOString().split('T')[0];
-  } catch (_) {
-    return fallback;
-  }
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export default function CalendarSidebar({
@@ -49,10 +49,11 @@ export default function CalendarSidebar({
   setCategoryFilters,
   isLegendCollapsed,
   setIsLegendCollapsed,
-  onTodayClick
+  onTodayClick,
+  showOnMobile = false
 }) {
   return (
-    <aside className="hidden lg:flex lg:col-span-4 xl:col-span-3 flex-col gap-5" data-testid="calendar-sidebar">
+    <aside className={`${showOnMobile ? 'flex' : 'hidden'} lg:flex lg:col-span-4 xl:col-span-3 flex-col gap-5`} data-testid="calendar-sidebar">
       <Card variant="default" className="p-5 flex flex-col gap-5">
         
         {/* 1. CABECERA DEL DOCENTE */}

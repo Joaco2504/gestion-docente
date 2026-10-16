@@ -166,7 +166,7 @@ export default function EditEvaluacionParamsModal({
       subtitle={`Configuración académica y consignas para "${evaluacion?.titulo || 'Evaluación'}"`}
       maxWidth="max-w-2xl"
     >
-      <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {errorMsg && (
           <div className="p-3 bg-danger/10 border border-danger/30 text-danger text-xs rounded-xl flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />

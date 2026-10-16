@@ -36,8 +36,15 @@ export function calculateStudentRisk(studentIdOrOptions, maybeContext = {}) {
     asistenciaPct: forcedAsistPct
   } = context;
 
+  const tieneCertTrabajo = Boolean(
+    context?.tiene_certificado_trabajo ||
+    context?.estudiante?.tiene_certificado_trabajo ||
+    criterios?.tiene_certificado_trabajo
+  );
   const minPromoAsist = Number(criterios?.min_asist_promo ?? 80);
-  const minRegAsist = Number(criterios?.min_asist_reg ?? 70);
+  const minRegAsist = tieneCertTrabajo
+    ? Number(criterios?.min_asist_trabajo ?? 60)
+    : Number(criterios?.min_asist_reg ?? 70);
   const notaMinPromo = Number(criterios?.nota_min_promo ?? 7);
   const notaMinReg = Number(criterios?.nota_min_reg ?? 4);
 
@@ -46,26 +53,32 @@ export function calculateStudentRisk(studentIdOrOptions, maybeContext = {}) {
   const safeClases = Array.isArray(clases) ? clases : [];
   const fechasLicencia = new Set(safeInasistenciasDocente.map(i => i.fecha));
   const clasesEfectivasOrdenadas = [...safeClases]
-    .filter(c => !fechasLicencia.has(c.fecha))
+    .filter(c => !fechasLicencia.has(c.fecha) && c.estado !== 'DOCENTE_AUSENTE')
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
   const totalClasesEfectivas = clasesEfectivasOrdenadas.length;
+  const licenciasEfectivas = Math.max(0, safeClases.length - totalClasesEfectivas);
 
   // Mapa de asistencias del estudiante
   const safeAsistencias = Array.isArray(asistencias) ? asistencias : [];
   const studentAsistencias = studentId 
-    ? safeAsistencias.filter(a => a?.estudiante_id === studentId) 
+    ? safeAsistencias.filter(a => !a?.estudiante_id || a.estudiante_id === studentId) 
     : [];
   const asistMap = new Map();
   studentAsistencias.forEach(a => {
-    if (a?.clase_id) asistMap.set(a.clase_id, a.estado);
+    if (a?.clase_id) asistMap.set(a.clase_id, String(a.estado || '').toUpperCase());
   });
 
-  // Conteo de presentes y porcentaje actual
-  const presentesCount = studentAsistencias.filter(a => a?.estado === 'PRESENTE').length;
+  // Conteo de presentes (incluyendo justificados) y porcentaje actual
+  const presentesCount = studentAsistencias.reduce((acc, a) => {
+    const est = String(a?.estado || '').toUpperCase();
+    if (est === 'PRESENTE' || est === 'P' || est === 'JUSTIFICADO' || est === 'JUSTIFICADA' || est === 'J') return acc + 1;
+    if (est === 'TARDE' || est === 'T') return acc + 0.5;
+    return acc;
+  }, 0);
   const asistPct = typeof forcedAsistPct === 'number'
     ? forcedAsistPct
-    : calcularPorcentajeAsistencia(studentAsistencias, safeClases.length, safeInasistenciasDocente.length);
+    : calcularPorcentajeAsistencia(studentAsistencias, safeClases.length, licenciasEfectivas);
 
   // 2. Cálculo de inasistencias consecutivas
   // Revisamos en orden cronológico reciente hacia atrás
@@ -73,9 +86,9 @@ export function calculateStudentRisk(studentIdOrOptions, maybeContext = {}) {
   for (let i = clasesEfectivasOrdenadas.length - 1; i >= 0; i--) {
     const c = clasesEfectivasOrdenadas[i];
     const estado = asistMap.get(c.id);
-    if (estado === 'AUSENTE') {
+    if (estado === 'AUSENTE' || estado === 'A') {
       consecutiveAbsences++;
-    } else if (estado === 'PRESENTE') {
+    } else if (estado === 'PRESENTE' || estado === 'P' || estado === 'JUSTIFICADO' || estado === 'JUSTIFICADA' || estado === 'J' || estado === 'TARDE' || estado === 'T') {
       break; // Se interrumpe la racha de ausencias
     }
   }
@@ -85,18 +98,25 @@ export function calculateStudentRisk(studentIdOrOptions, maybeContext = {}) {
   const notasMap = new Map();
 
   if (Array.isArray(notas)) {
-    const studentNotas = studentId ? notas.filter(n => n?.estudiante_id === studentId) : [];
+    const studentNotas = studentId
+      ? notas.filter(n => !n?.estudiante_id || n.estudiante_id === studentId)
+      : notas;
     studentNotas.forEach(n => {
-      const val = Number(n?.valor);
-      if (!isNaN(val) && n?.evaluacion_id) {
-        notasMap.set(n.evaluacion_id, val);
+      const rawVal = n?.valor !== undefined && n?.valor !== null ? n.valor : n?.nota;
+      if (rawVal !== null && rawVal !== undefined && rawVal !== '' && n?.evaluacion_id) {
+        const val = Number(rawVal);
+        if (!isNaN(val)) {
+          notasMap.set(n.evaluacion_id, val);
+        }
       }
     });
   } else if (notas && typeof notas === 'object') {
     Object.entries(notas).forEach(([evalId, val]) => {
-      const numVal = Number(val);
-      if (!isNaN(numVal)) {
-        notasMap.set(evalId, numVal);
+      if (val !== null && val !== undefined && val !== '') {
+        const numVal = Number(val);
+        if (!isNaN(numVal)) {
+          notasMap.set(evalId, numVal);
+        }
       }
     });
   }

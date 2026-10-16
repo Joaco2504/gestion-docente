@@ -73,7 +73,7 @@ export default function BottomNav() {
         style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
         aria-label="Navegación móvil inferior Korum"
       >
-        <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
+        <div className="flex items-center justify-around h-16 h-nav-landscape max-w-lg mx-auto px-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -94,7 +94,7 @@ export default function BottomNav() {
                 }`}>
                   <Icon className="w-5 h-5 shrink-0" />
                 </div>
-                <span className="mt-0.5 tracking-tight font-medium text-[10px] sm:text-[11px] truncate max-w-[62px]">
+                <span className="bottomnav-label mt-0.5 tracking-tight font-medium text-[10px] sm:text-[11px] truncate max-w-[68px]">
                   {item.label}
                 </span>
               </NavLink>
@@ -111,7 +111,7 @@ export default function BottomNav() {
             <div className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150">
               <SlidersHorizontal className="w-5 h-5 shrink-0" />
             </div>
-            <span className="mt-0.5 tracking-tight font-medium text-[10px] sm:text-[11px] truncate max-w-[62px]">
+            <span className="bottomnav-label mt-0.5 tracking-tight font-medium text-[10px] sm:text-[11px] truncate max-w-[68px]">
               Más
             </span>
           </button>

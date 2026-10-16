@@ -204,7 +204,7 @@ export default function CreateCatedraModal({ isOpen, onClose, onCreated }) {
               const targetId = typeof val === 'object' ? val.target.value : val;
               setInstitucionId(targetId);
               const inst = instituciones.find(i => i.id === targetId);
-              if (inst?.nivel) setNewNivel(inst.nivel);
+              if (inst?.nivel) setNivel(inst.nivel);
             }}
             options={instituciones.map(inst => ({
               value: inst.id,

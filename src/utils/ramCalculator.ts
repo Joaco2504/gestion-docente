@@ -235,6 +235,7 @@ export function calcularNotasRAM(
 
 /**
  * Calcula el promedio aritmético o ponderado blindado contra NaN o divisiones por cero.
+ * Si un parcial tiene recuperatorio aprobado con nota mayor, utiliza la mejor nota efectiva.
  */
 export function calcularPromedioRAM(
   evaluaciones: EvaluacionItem[] = [],
@@ -242,13 +243,48 @@ export function calcularPromedioRAM(
   estudianteId?: string
 ): number | null {
   const analizadas = calcularNotasRAM(evaluaciones, notas, estudianteId);
-  const calificadas = analizadas.filter(a => a.evaluada && a.nota !== null && !isNaN(a.nota));
+  if (analizadas.length === 0) return null;
 
-  if (calificadas.length === 0) return null;
+  // Mapear por evaluación para resolver recuperatorios vinculados a su parcial origen
+  const evalById = new Map(evaluaciones.map((ev, idx) => [ev.id, { ev, res: analizadas[idx] }]));
+  const recupsByOrigen = new Map<string, { ev: EvaluacionItem; res: EvaluacionResultadoRAM }>();
 
-  const suma = calificadas.reduce((acc, curr) => acc + (curr.nota || 0), 0);
-  const prom = suma / calificadas.length;
+  evaluaciones.forEach((ev, idx) => {
+    const isRecup = String(ev.tipo || '').toUpperCase().includes('RECUP');
+    if (isRecup && ev.evaluacion_origen_id) {
+      recupsByOrigen.set(ev.evaluacion_origen_id, { ev, res: analizadas[idx] });
+    }
+  });
 
+  let sumaPonderada = 0;
+  let pesoTotal = 0;
+
+  evaluaciones.forEach((ev, idx) => {
+    const isRecup = String(ev.tipo || '').toUpperCase().includes('RECUP');
+    if (isRecup && ev.evaluacion_origen_id && evalById.has(ev.evaluacion_origen_id)) {
+      return; // Se evalúa junto a su parcial de origen
+    }
+
+    const mainRes = analizadas[idx];
+    const linkedRecup = recupsByOrigen.get(ev.id)?.res;
+
+    let notaEfectiva: number | null = null;
+    if (mainRes.evaluada && mainRes.nota !== null && !isNaN(mainRes.nota)) {
+      notaEfectiva = mainRes.nota;
+    }
+    if (linkedRecup?.evaluada && linkedRecup.nota !== null && !isNaN(linkedRecup.nota)) {
+      notaEfectiva = notaEfectiva !== null ? Math.max(notaEfectiva, linkedRecup.nota) : linkedRecup.nota;
+    }
+
+    if (notaEfectiva !== null) {
+      const peso = ev.ponderacion && Number(ev.ponderacion) > 0 ? Number(ev.ponderacion) : 1;
+      sumaPonderada += notaEfectiva * peso;
+      pesoTotal += peso;
+    }
+  });
+
+  if (pesoTotal === 0) return null;
+  const prom = sumaPonderada / pesoTotal;
   return isNaN(prom) ? null : Number(prom.toFixed(2));
 }
 

@@ -5,16 +5,17 @@ import { SlidersHorizontal, Rows3, Rows4 } from 'lucide-react';
  * Selector de densidad para la sábana de calificaciones.
  * Persiste la preferencia ("comfortable" | "compact") en localStorage.
  */
-export default function GradesDensitySelector({ density, onDensityChange }) {
+export default function GradesDensitySelector({ density, onDensityChange, onChange }) {
   const isCompact = density === 'compact';
+  const handleSelect = onDensityChange || onChange || (() => {});
 
   return (
     <div className="inline-flex items-center rounded-xl bg-slate-100 dark:bg-slate-800/80 p-0.5 border border-slate-200/80 dark:border-slate-700/80">
       <button
         type="button"
-        onClick={() => onDensityChange('comfortable')}
+        onClick={() => handleSelect('comfortable')}
         title="Densidad cómoda: celdas más amplias para revisión detallada"
-        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
+        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 cursor-pointer ${
           !isCompact
             ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -26,9 +27,9 @@ export default function GradesDensitySelector({ density, onDensityChange }) {
 
       <button
         type="button"
-        onClick={() => onDensityChange('compact')}
+        onClick={() => handleSelect('compact')}
         title="Densidad compacta: máxima información visible en pantalla"
-        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 ${
+        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all touch-target-44 cursor-pointer ${
           isCompact
             ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'

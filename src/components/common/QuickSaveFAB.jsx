@@ -51,7 +51,7 @@ export function QuickSaveFab({
       style={{
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)'
       }}
-      className={`fixed right-6 z-50 group select-none transition-[transform,opacity] duration-300 ease-out origin-bottom-right md:!bottom-6 ${
+      className={`fixed right-4 sm:right-6 z-50 group select-none transition-[transform,opacity] duration-300 ease-out origin-bottom-right lg:!bottom-6 ${
         isDirtyState
           ? 'scale-100 opacity-100 pointer-events-auto'
           : 'scale-0 opacity-0 pointer-events-none'

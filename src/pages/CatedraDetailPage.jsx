@@ -62,6 +62,7 @@ const TABS_CONFIG = [
   { id: 'asistencias', label: 'Asistencias', icon: CheckSquare },
   { id: 'calificaciones', label: 'Calificaciones', icon: GraduationCap },
   { id: 'libro-temas', label: 'Programa (Libro de Temas)', icon: BookOpen },
+  { id: 'unidades', label: 'Unidades', icon: Layers },
   { id: 'recursos', label: 'Recursos', icon: FolderOpen },
   { id: 'configuracion', label: 'Configuración', icon: SettingsIcon }
 ];

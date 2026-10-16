@@ -317,16 +317,17 @@ export async function createOrUpdateLicencia(payload, options = {}) {
   if (isSupabaseConfigured && !isDemo && client) {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       enqueueOfflineMutation({
-        tipo: 'CLASE_UPSERT',
+        tipo: 'LICENCIA_UPSERT',
         payload: licenciaItem,
         catedraId: catedraId || undefined
       });
     } else {
       try {
+        const isTempId = String(licenciaId).startsWith('lic-') || String(licenciaId).startsWith('clase-lic-');
         const { error: insertErr } = await client
           .from('licencias_docentes')
           .upsert({
-            id: licenciaId.startsWith('lic-') && licenciaId.length === 36 ? licenciaId : undefined,
+            id: !isTempId ? licenciaId : undefined,
             docente_id: docenteId,
             fecha,
             articulo,
@@ -479,7 +480,8 @@ export function calcularConsumoLicencias(licencias = [], targetYear = new Date()
 
   for (const lic of licenciasDelAno) {
     const art = lic.articulo || '';
-    const isArt15 = art.includes('Art. 15') || art.toLowerCase().includes('razones particulares');
+    const artLower = art.toLowerCase();
+    const isArt15 = art.includes('Art. 15') || art.includes('Art. 60') || artLower.includes('razones particulares');
 
     if (isArt15) {
       art15Anual += 1;
@@ -488,14 +490,22 @@ export function calcularConsumoLicencias(licencias = [], targetYear = new Date()
       }
     }
 
-    // Clasificación normalizada para chips
+    // Clasificación normalizada para chips (soporta nomenclatura Art. 15/9/24/32/45 y Decreto 1092 Art. 60/17/22/35/49)
     let chipKey = 'Otro';
-    if (isArt15) chipKey = 'Art. 15°';
-    else if (art.includes('Art. 9') || art.toLowerCase().includes('enfermedad')) chipKey = 'Art. 9°';
-    else if (art.includes('Art. 24') || art.toLowerCase().includes('familiar')) chipKey = 'Art. 24°';
-    else if (art.includes('Art. 28') || art.includes('Art. 29') || art.toLowerCase().includes('perfeccionamiento')) chipKey = 'Art. 28°/29°';
-    else if (art.includes('Art. 32') || art.toLowerCase().includes('mesa')) chipKey = 'Art. 32°';
-    else if (art.includes('Art. 45') || art.toLowerCase().includes('fuerza mayor')) chipKey = 'Art. 45°';
+    if (isArt15) chipKey = art.includes('Art. 60') ? 'Art. 60°' : 'Art. 15°';
+    else if (art.includes('Art. 9') || art.includes('Art. 17') || artLower.includes('enfermedad') || artLower.includes('afecciones')) {
+      chipKey = art.includes('Art. 17') ? 'Art. 17°' : 'Art. 9°';
+    }
+    else if (art.includes('Art. 24') || art.includes('Art. 22') || artLower.includes('familiar')) {
+      chipKey = art.includes('Art. 22') ? 'Art. 22°' : 'Art. 24°';
+    }
+    else if (art.includes('Art. 28') || art.includes('Art. 29') || artLower.includes('perfeccionamiento')) chipKey = 'Art. 28°/29°';
+    else if (art.includes('Art. 32') || art.includes('Art. 35') || artLower.includes('mesa') || artLower.includes('exámenes') || artLower.includes('examenes')) {
+      chipKey = art.includes('Art. 35') ? 'Art. 35°' : 'Art. 32°';
+    }
+    else if (art.includes('Art. 45') || art.includes('Art. 49') || artLower.includes('fuerza mayor') || artLower.includes('imprevistos')) {
+      chipKey = art.includes('Art. 49') ? 'Art. 49°' : 'Art. 45°';
+    }
     else {
       // Extraer primer número de art si existe
       const match = art.match(/Art\.?\s*(\d+)/i);

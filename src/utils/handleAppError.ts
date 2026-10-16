@@ -55,7 +55,15 @@ export function handleAppError(error: any, contexto: string, user?: any): ErrorD
         } catch (_) {}
 
         try {
+          const preservedOfflineQueue = localStorage.getItem('korum_offline_mutations_queue');
+          const preservedTheme = localStorage.getItem('theme') || localStorage.getItem('korum_theme');
           localStorage.clear();
+          if (preservedOfflineQueue) {
+            localStorage.setItem('korum_offline_mutations_queue', preservedOfflineQueue);
+          }
+          if (preservedTheme) {
+            localStorage.setItem('theme', preservedTheme);
+          }
           sessionStorage.clear();
           sessionStorage.setItem('auth_expired_notice', 'true');
         } catch (_) {}

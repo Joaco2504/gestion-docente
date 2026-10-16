@@ -295,12 +295,20 @@ export default function CommandPalette({ isOpen, onClose }) {
     }
   };
 
+  useEffect(() => {
+    if (!isOpen || !listRef.current) return;
+    const activeEl = listRef.current.querySelector(`[data-cmd-index="${selectedIndex}"]`);
+    if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }, [selectedIndex, isOpen]);
+
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm animate-in fade-in-0 duration-150" />
         <Dialog.Content 
-          className="fixed left-1/2 top-[12%] -translate-x-1/2 z-50 w-[calc(100vw-2rem)] max-w-2xl bg-surface border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden focus:outline-hidden animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col max-h-[75vh]"
+          className="fixed left-1/2 top-[6%] sm:top-[12%] -translate-x-1/2 z-50 w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] max-w-2xl bg-surface border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden focus:outline-hidden animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col max-h-[82dvh] sm:max-h-[75vh]"
           onKeyDown={handleKeyDown}
         >
           {/* Campo de búsqueda */}
@@ -367,6 +375,7 @@ export default function CommandPalette({ isOpen, onClose }) {
                         return (
                           <div
                             key={uniqueId}
+                            data-cmd-index={globalIdx}
                             onClick={() => {
                               if (globalIdx !== -1) {
                                 totalItems[globalIdx]?.onSelect();
@@ -424,6 +433,7 @@ export default function CommandPalette({ isOpen, onClose }) {
                         return (
                           <div
                             key={cat.id}
+                            data-cmd-index={globalIdx}
                             onClick={() => {
                               totalItems[globalIdx]?.onSelect();
                             }}
@@ -469,6 +479,7 @@ export default function CommandPalette({ isOpen, onClose }) {
                         return (
                           <div
                             key={act.id}
+                            data-cmd-index={globalIdx}
                             onClick={() => {
                               totalItems[globalIdx]?.onSelect();
                             }}

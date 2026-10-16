@@ -10,14 +10,20 @@
 // ============================================================================
 export const ESTADO_ASISTENCIA = {
   PRESENTE: 'PRESENTE',
-  AUSENTE: 'AUSENTE'
+  AUSENTE: 'AUSENTE',
+  JUSTIFICADO: 'JUSTIFICADO',
+  JUSTIFICADA: 'JUSTIFICADA',
+  TARDE: 'TARDE'
 } as const;
 
 export type EstadoAsistencia = typeof ESTADO_ASISTENCIA[keyof typeof ESTADO_ASISTENCIA];
 
 export const LABELS_ESTADO_ASISTENCIA: Record<EstadoAsistencia, string> = {
   PRESENTE: 'Presente',
-  AUSENTE: 'Ausente'
+  AUSENTE: 'Ausente',
+  JUSTIFICADO: 'Justificado',
+  JUSTIFICADA: 'Justificada',
+  TARDE: 'Tarde'
 };
 
 // ============================================================================

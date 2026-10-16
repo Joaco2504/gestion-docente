@@ -24,7 +24,7 @@ export function WaveAnimatedInput({
         autoComplete="off"
         minLength={minLength}
         placeholder={placeholder}
-        className="wave-input text-slate-900 dark:text-slate-100"
+        className="wave-input text-white dark:text-slate-100"
       />
       <label className="wave-label">
         {letters.map((char, index) => (

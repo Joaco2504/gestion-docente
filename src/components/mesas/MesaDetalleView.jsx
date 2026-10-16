@@ -756,12 +756,12 @@ export default function MesaDetalleView({
           </div>
         </div>
 
-        <div className="overflow-x-auto touch-pan-x scrollbar-thin max-h-[75vh]">
-          <table className="w-full text-left border-collapse text-xs table-fixed" aria-label="Planilla de Calificaciones de Mesa de Examen">
+        <div className="overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin max-h-[75vh]">
+          <table className="w-full text-left border-collapse text-xs table-fixed min-w-[760px]" aria-label="Planilla de Calificaciones de Mesa de Examen">
             <caption className="sr-only">Planilla de calificaciones de examen de la mesa</caption>
             <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/90 backdrop-blur z-20">
               <tr className="border-b border-slate-200 dark:border-white/10 text-text-muted font-bold text-[11px] uppercase tracking-wider">
-                <th scope="col" className="py-3 px-3 sticky left-0 top-0 z-30 bg-slate-50 dark:bg-slate-800/90 backdrop-blur border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-64 sm:w-72">
+                <th scope="col" className="py-3 px-3 sticky left-0 top-0 z-30 bg-slate-50 dark:bg-slate-800/90 backdrop-blur border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-48 sm:w-64 lg:w-72">
                   Estudiante (Nombre y DNI)
                 </th>
                 <th scope="col" className="py-3 px-3 text-center w-28">Condición Previa</th>
@@ -836,7 +836,7 @@ export default function MesaDetalleView({
                   return (
                     <tr key={alumno.id || idx} className="group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
                       {/* Estudiante (Nombre y DNI) Congelado */}
-                      <td scope="row" className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-64 sm:w-72">
+                      <td scope="row" className="py-2.5 px-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800/80 border-r border-slate-200/60 dark:border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-48 sm:w-64 lg:w-72">
                         <div className="flex items-center gap-2">
                           <span className="font-mono tabular-nums text-[11px] text-text-muted select-none w-5 shrink-0 text-right">
                             {idx + 1}.

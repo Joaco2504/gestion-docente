@@ -80,12 +80,14 @@ export default function AttendanceTab({
         toast.info('No hay registros de alumnos para exportar.');
         return;
       }
-      exportAttendanceToExcel({
-        catedraName,
+      exportAttendanceToExcel(
+        catedra || { id: catedraId, nombre: catedraName },
+        alumnosElegibles,
         clases,
-        estudiantes: alumnosElegibles,
-        asistencias
-      });
+        asistencias,
+        [],
+        asistenciaPorEstudiante
+      );
       toast.success('Planilla de asistencia exportada a Excel.');
     } catch (err) {
       toast.error('Error al exportar asistencia a Excel.');
@@ -124,7 +126,7 @@ export default function AttendanceTab({
         onOpenLicenciasModal={() => setIsLicenciasModalOpen(true)}
         onExportExcel={handleExportExcel}
         onOpenPrintModal={() => setIsPrintModalOpen(true)}
-        saving={saving}
+        saving={saving || cursadaFinalizada}
       />
 
       {/* 3. Barra Rápida de Unidad, Tema dictado & Decreto 1092 */}
@@ -133,7 +135,7 @@ export default function AttendanceTab({
         unidades={unidades}
         onUpdateClase={handleUpdateClase}
         onOpenLicenciasModal={() => setIsLicenciasModalOpen(true)}
-        disabled={saving}
+        disabled={saving || cursadaFinalizada}
       />
 
       {/* 4. Buscador Reactivo */}
@@ -165,7 +167,7 @@ export default function AttendanceTab({
         asistenciasDiaMap={asistenciasDiaMap}
         asistenciaPorEstudiante={asistenciaPorEstudiante}
         onToggleEstado={handleToggleEstado}
-        disabled={saving}
+        disabled={saving || cursadaFinalizada}
       />
 
       {/* 4. VISTA MÓVIL (< 1024px): Tarjetas Táctiles Modulares (Responsive-Craft) */}
@@ -175,7 +177,7 @@ export default function AttendanceTab({
           asistenciasDiaMap={asistenciasDiaMap}
           asistenciaPorEstudiante={asistenciaPorEstudiante}
           onToggleEstado={handleToggleEstado}
-          disabled={saving}
+          disabled={saving || cursadaFinalizada}
         />
       </div>
 

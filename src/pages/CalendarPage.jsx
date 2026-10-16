@@ -26,13 +26,13 @@ const HOUR_ROW_HEIGHT = 80;
 
 function safeIsoDate(d, fallback = '') {
   if (!d) return fallback;
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10);
   const dateObj = d instanceof Date ? d : new Date(d);
   if (isNaN(dateObj.getTime())) return fallback;
-  try {
-    return dateObj.toISOString().split('T')[0];
-  } catch (_) {
-    return fallback;
-  }
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function CalendarPageContent() {
@@ -43,12 +43,15 @@ function CalendarPageContent() {
 
   const initialView = useMemo(() => {
     const v = new URLSearchParams(location.search).get('view');
-    return v === 'dia' || v === 'mensual' || v === 'semanal' ? v : 'semanal';
+    if (v === 'dia' || v === 'mensual' || v === 'semanal') return v;
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return 'dia';
+    return 'semanal';
   }, [location.search]);
 
   const [viewMode, setViewMode] = useState(initialView);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [miniCalDate, setMiniCalDate] = useState(new Date());
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   const [isLegendOpen, setIsLegendOpen] = useState(false);
   const [isLegendCollapsed, setIsLegendCollapsed] = useState(false);
@@ -129,7 +132,17 @@ function CalendarPageContent() {
   if (fetchError) return <CalendarErrorState onRetry={fetchAllCalendarData} onGoHome={() => navigate('/dashboard')} />;
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6 min-h-[calc(100vh-5rem)] font-sans antialiased text-slate-800 dark:text-slate-100">
+    <div className="w-full max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 p-0 sm:p-2 min-h-[calc(100vh-5rem)] font-sans antialiased text-slate-800 dark:text-slate-100">
+      <div className="lg:hidden flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setShowMobileSidebar(prev => !prev)}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border border-surface-border bg-surface text-text-secondary hover:text-text-primary shadow-2xs cursor-pointer min-h-[40px]"
+        >
+          <span>{showMobileSidebar ? 'Ocultar Mini-Calendario y Filtros' : 'Mostrar Mini-Calendario y Filtros'}</span>
+        </button>
+      </div>
+
       <CalendarSidebar
         docenteNombre={docenteNombre}
         miniCalDate={miniCalDate}
@@ -147,10 +160,11 @@ function CalendarPageContent() {
         isLegendCollapsed={isLegendCollapsed}
         setIsLegendCollapsed={setIsLegendCollapsed}
         onTodayClick={handleToday}
+        showOnMobile={showMobileSidebar}
       />
 
-      <main className="lg:col-span-8 xl:col-span-9 flex flex-col gap-6">
-        <Card variant="default" className="p-6 flex flex-col gap-6">
+      <main className="lg:col-span-8 xl:col-span-9 flex flex-col gap-4 sm:gap-6 min-w-0">
+        <Card variant="default" className="p-3 sm:p-6 flex flex-col gap-4 sm:gap-6">
           <CalendarHeader
             formattedHeaderRange={formattedHeaderRange}
             viewMode={viewMode}

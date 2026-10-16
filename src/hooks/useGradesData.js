@@ -66,25 +66,67 @@ export function useGradesData({
           setNotas([]);
         }
 
-        // 4. Cargar clases y asistencias para el cálculo integral de regularidad
-        const [clasesRes, asistRes, inasDocRes] = await Promise.all([
-          supabase.from('clases').select('id, fecha').eq('catedra_id', catedraId),
-          supabase.from('asistencias').select('*').eq('catedra_id', catedraId),
-          supabase.from('inasistencias_docente').select('*').eq('catedra_id', catedraId)
+        // 4. Cargar clases, criterios e inasistencias docentes
+        const [clasesRes, inasDocRes, critRes] = await Promise.all([
+          supabase.from('clases').select('id, fecha, estado, caracter, caracter_clase').eq('catedra_id', catedraId),
+          supabase.from('inasistencias_docente').select('*').eq('catedra_id', catedraId),
+          supabase
+            .from('criterios_evaluacion')
+            .select('min_asist_promo, min_asist_reg, min_asist_trabajo, nota_min_promo, nota_min_reg, nota_min_sec')
+            .eq('catedra_id', catedraId)
+            .maybeSingle()
         ]);
 
-        setClases(clasesRes.data || []);
-        setAsistencias(asistRes.data || []);
+        const rawClases = clasesRes.data || [];
+        setClases(rawClases);
         setInasistenciasDocente(inasDocRes.data || []);
+
+        if (critRes.data) {
+          setCriterios({
+            min_asist_promo: Number(critRes.data.min_asist_promo) || 80,
+            min_asist_reg: Number(critRes.data.min_asist_reg) || 70,
+            min_asist_trabajo: Number(critRes.data.min_asist_trabajo) || 60,
+            nota_min_promo: Number(critRes.data.nota_min_promo) || 7,
+            nota_min_reg: Number(critRes.data.nota_min_reg) || 4,
+            nota_min_sec: Number(critRes.data.nota_min_sec) || 6
+          });
+        }
+
+        // 5. Cargar asistencias vinculadas por clase_id (asistencias no posee columna catedra_id)
+        const claseIds = rawClases.map(c => c.id).filter(Boolean);
+        if (claseIds.length > 0) {
+          const { data: asistData, error: asistErr } = await supabase
+            .from('asistencias')
+            .select('id, clase_id, estudiante_id, estado, updated_at')
+            .in('clase_id', claseIds);
+
+          if (!asistErr) {
+            setAsistencias(asistData || []);
+          } else {
+            setAsistencias([]);
+          }
+        } else {
+          setAsistencias([]);
+        }
       } else {
-        // Modo demo / sin Supabase
-        const storedEst = localStorage.getItem(`docentepro_demo_estudiantes_${catedraId}`);
-        const storedEv = localStorage.getItem(`docentepro_demo_evaluaciones_${catedraId}`);
-        const storedNotas = localStorage.getItem(`docentepro_demo_notas_${catedraId}`);
+        // Modo demo / sin Supabase (soporte unificado de claves con y sin prefijo)
+        const storedEst = localStorage.getItem(`docentepro_demo_estudiantes_${catedraId}`) || localStorage.getItem(`estudiantes_${catedraId}`);
+        const storedEv = localStorage.getItem(`docentepro_demo_evaluaciones_${catedraId}`) || localStorage.getItem(`evaluaciones_${catedraId}`);
+        const storedNotas = localStorage.getItem(`docentepro_demo_notas_${catedraId}`) || localStorage.getItem(`notas_${catedraId}`);
+        const storedClases = localStorage.getItem(`docentepro_demo_clases_${catedraId}`) || localStorage.getItem(`clases_${catedraId}`);
+        const storedAsist = localStorage.getItem(`docentepro_demo_asistencias_${catedraId}`) || localStorage.getItem(`asistencias_${catedraId}`);
+        const storedCrit = localStorage.getItem(`criterios_${catedraId}`);
 
         setEstudiantes(storedEst ? JSON.parse(storedEst) : []);
         setEvaluaciones(storedEv ? JSON.parse(storedEv) : []);
         setNotas(storedNotas ? JSON.parse(storedNotas) : []);
+        setClases(storedClases ? JSON.parse(storedClases) : []);
+        setAsistencias(storedAsist ? JSON.parse(storedAsist) : []);
+        if (storedCrit) {
+          try {
+            setCriterios(prev => ({ ...prev, ...JSON.parse(storedCrit) }));
+          } catch (_) {}
+        }
       }
     } catch (err) {
       handleAppError(err, 'useGradesData / fetchData', user);
@@ -121,12 +163,20 @@ export function useGradesData({
   // Mapa de porcentaje de asistencia por estudiante
   const asistenciaPorEstudiante = useMemo(() => {
     const map = new Map();
-    const totalClases = clases.length;
-    const licenciasCount = inasistenciasDocente.length;
+    const clasesComputables = (clases || []).filter(
+      c => c.estado !== 'DOCENTE_AUSENTE' && c.caracter !== 'FERIADO' && c.caracter_clase !== 'DOCENTE_AUSENTE'
+    );
+    const totalClases = clasesComputables.length;
+    const fechasClases = new Set(clasesComputables.map(c => c.fecha).filter(Boolean));
+    const licenciasEfectivas = (inasistenciasDocente || []).filter(i => !i.fecha || fechasClases.has(i.fecha)).length;
 
     estudiantes.forEach(st => {
+      if (st.es_equivalencia) {
+        map.set(st.id, 100);
+        return;
+      }
       const stAsistencias = asistencias.filter(a => a.estudiante_id === st.id);
-      const pct = calcularPorcentajeAsistencia(stAsistencias, totalClases, licenciasCount);
+      const pct = calcularPorcentajeAsistencia(stAsistencias, totalClases, licenciasEfectivas);
       map.set(st.id, pct);
     });
 
@@ -147,6 +197,7 @@ export function useGradesData({
       const validNumbers = [];
       let aprobados = 0;
       let totalCalificados = 0;
+      const minApr = Number(ev.nota_minima_aprobacion || criterios.nota_min_reg || 4);
 
       evNotas.forEach(n => {
         const val = n.valor ?? n.nota;
@@ -154,7 +205,7 @@ export function useGradesData({
           const num = Number(val);
           validNumbers.push(num);
           totalCalificados++;
-          if (num >= (criterios.nota_min_reg || 4)) {
+          if (num >= minApr) {
             aprobados++;
           }
         } else if (n.estado === 'AUSENTE' || n.estado === 'NO_ENTREGO') {
@@ -172,9 +223,13 @@ export function useGradesData({
 
       map.set(ev.id, {
         promedio: avg,
+        average: avg,
         pctAprobacion,
+        passRate: pctAprobacion,
         aprobados,
-        totalCalificados
+        approved: aprobados,
+        totalCalificados,
+        totalGraded: totalCalificados
       });
     });
 
@@ -211,8 +266,12 @@ export function useGradesData({
       const risk = calculateStudentRisk(st.id, {
         estudiante: st,
         asistenciaPct: asistPct,
+        asistencias,
+        clases,
+        inasistenciasDocente,
         notas: stNotas,
         evaluaciones,
+        criterios,
         condicion
       });
 
@@ -225,7 +284,7 @@ export function useGradesData({
         notas: stNotas
       };
     });
-  }, [estudiantes, asistenciaPorEstudiante, notas, academicLevel, modalidad, evaluaciones, criterios]);
+  }, [estudiantes, asistenciaPorEstudiante, notas, academicLevel, modalidad, evaluaciones, criterios, asistencias, clases, inasistenciasDocente]);
 
   // Estadísticas globales superiores de la cátedra
   const overallStats = useMemo(() => {
@@ -251,37 +310,62 @@ export function useGradesData({
     };
   }, [estudiantes, studentRows, mainEvaluations]);
 
-  // Mutación optimista de calificaciones (Enter, teclas N/A y números)
-  const handleQuickSetGrade = useCallback(async ({ estudianteId, evaluacionId, valor, estado }) => {
-    const existingIndex = notas.findIndex(
-      n => n.estudiante_id === estudianteId && n.evaluacion_id === evaluacionId
-    );
-
-    let updatedNotas = [];
-    const numVal = valor !== null && valor !== undefined && valor !== '' ? Number(valor) : null;
-
-    if (existingIndex >= 0) {
-      updatedNotas = [...notas];
-      updatedNotas[existingIndex] = {
-        ...updatedNotas[existingIndex],
-        valor: numVal,
-        nota: numVal,
-        estado: estado ?? null
-      };
-    } else {
-      const newNotaObj = {
-        id: `nota-temp-${Date.now()}-${estudianteId}-${evaluacionId}`,
-        estudiante_id: estudianteId,
-        evaluacion_id: evaluacionId,
-        valor: numVal,
-        nota: numVal,
-        estado: estado ?? null
-      };
-      updatedNotas = [...notas, newNotaObj];
+  // Mutación optimista de calificaciones (soporta firma por objeto { estudianteId, evaluacionId, valor, estado } o posicional (est, ev, payload))
+  const handleQuickSetGrade = useCallback(async (arg1, arg2, arg3) => {
+    let estudianteId, evaluacionId, valor, estado;
+    if (arg2 && arg3) {
+      estudianteId = arg1?.id || arg1?.estudiante_id || arg1;
+      evaluacionId = arg2?.id || arg2;
+      valor = arg3.valor !== undefined ? arg3.valor : arg3.nota;
+      estado = arg3.estado;
+    } else if (arg1 && typeof arg1 === 'object') {
+      estudianteId = arg1.estudianteId || arg1.estudiante_id;
+      evaluacionId = arg1.evaluacionId || arg1.evaluacion_id;
+      valor = arg1.valor !== undefined ? arg1.valor : arg1.nota;
+      estado = arg1.estado;
     }
 
-    // Actualización optimista local inmediata
-    setNotas(updatedNotas);
+    if (!estudianteId || !evaluacionId) return;
+
+    const numVal = valor !== null && valor !== undefined && valor !== '' ? Number(valor) : null;
+    let existingIdToUpdate = null;
+
+    // Actualización optimista funcional libre de cierres léxicos obsoletos
+    setNotas(prev => {
+      const existingIndex = prev.findIndex(
+        n => n.estudiante_id === estudianteId && n.evaluacion_id === evaluacionId
+      );
+      let updatedNotas;
+      if (existingIndex >= 0) {
+        existingIdToUpdate = prev[existingIndex]?.id;
+        updatedNotas = [...prev];
+        updatedNotas[existingIndex] = {
+          ...updatedNotas[existingIndex],
+          valor: numVal,
+          nota: numVal,
+          estado: estado ?? null
+        };
+      } else {
+        const newNotaObj = {
+          id: `nota-temp-${Date.now()}-${estudianteId}-${evaluacionId}`,
+          estudiante_id: estudianteId,
+          evaluacion_id: evaluacionId,
+          valor: numVal,
+          nota: numVal,
+          estado: estado ?? null
+        };
+        updatedNotas = [...prev, newNotaObj];
+      }
+
+      if (!isSupabaseConfigured || isDemo) {
+        try {
+          const json = JSON.stringify(updatedNotas);
+          localStorage.setItem(`docentepro_demo_notas_${catedraId}`, json);
+          localStorage.setItem(`notas_${catedraId}`, json);
+        } catch (_) {}
+      }
+      return updatedNotas;
+    });
 
     // Persistencia en Supabase
     if (isSupabaseConfigured && !isDemo) {
@@ -299,19 +383,16 @@ export function useGradesData({
           .upsert(payload, { onConflict: 'estudiante_id,evaluacion_id' });
 
         if (upsertErr) {
-          // Fallback con ID explícito si existe
-          if (existingIndex >= 0 && notas[existingIndex]?.id && !String(notas[existingIndex].id).startsWith('nota-temp-')) {
+          if (existingIdToUpdate && !String(existingIdToUpdate).startsWith('nota-temp-')) {
             await supabase
               .from('notas')
               .update(payload)
-              .eq('id', notas[existingIndex].id);
+              .eq('id', existingIdToUpdate);
           }
         }
       } catch (err) {
         console.warn('Aviso guardando nota en Supabase:', err);
       }
-    } else {
-      localStorage.setItem(`docentepro_demo_notas_${catedraId}`, JSON.stringify(updatedNotas));
     }
 
     if (estado === 'NO_ENTREGO') {
@@ -321,7 +402,7 @@ export function useGradesData({
     } else if (numVal !== null) {
       toast.success(`Nota registrada: ${numVal}`);
     }
-  }, [notas, isDemo, catedraId]);
+  }, [isDemo, catedraId]);
 
   return {
     estudiantes,

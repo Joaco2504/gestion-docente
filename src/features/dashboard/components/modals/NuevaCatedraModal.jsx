@@ -132,9 +132,17 @@ export default function NuevaCatedraModal({
           asistencia_promedio: null,
           ultima_clase: null
         };
+        try {
+          const existingDemo = localStorage.getItem('demo_catedras');
+          const list = existingDemo ? JSON.parse(existingDemo) : [];
+          list.push(newCat);
+          localStorage.setItem('demo_catedras', JSON.stringify(list));
+        } catch (_) {}
         onClose();
         toast.success(`Cátedra "${newCat.nombre}" creada`);
-        if (onCatedraCreated) onCatedraCreated(newCat);
+        if (refreshData) await refreshData();
+        if (onCatedraCreated) await onCatedraCreated(newCat);
+        navigate(`/catedra/${newCat.id}`);
       }
     } catch (err) {
       const info = handleAppError(err, 'DashboardPage / Crear Cátedra', user);
@@ -200,7 +208,7 @@ export default function NuevaCatedraModal({
             aria-invalid={!!errors.nombre}
             aria-describedby={errors.nombre ? 'nombre-error' : undefined}
             placeholder="Ej: Programación II, Historia Argentina, Matemática..."
-            className={`w-full h-10 px-3.5 py-2 text-sm border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 transition-colors ${
+            className={`w-full h-10 px-3.5 py-2 text-base sm:text-sm border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 transition-colors ${
               errors.nombre 
                 ? 'border-danger focus:ring-danger/20' 
                 : 'border-surface-border focus:ring-primary/20 focus:border-primary'
@@ -213,7 +221,7 @@ export default function NuevaCatedraModal({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold uppercase text-text-secondary mb-1.5">
               Nivel Académico

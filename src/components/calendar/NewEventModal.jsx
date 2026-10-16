@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import CustomSelect from '../common/CustomSelect';
@@ -16,12 +16,28 @@ export default function NewEventModal({
   const [tipo, setTipo] = useState('CLASE');
   const [fecha, setFecha] = useState(initialDate || getTodayYMD());
   const [horaInicio, setHoraInicio] = useState(initialHour ? `${String(initialHour).padStart(2, '0')}:00` : '18:30');
-  const [horaFin, setHoraFin] = useState(initialHour ? `${String(initialHour + 2).padStart(2, '0')}:00` : '20:30');
+  const [horaFin, setHoraFin] = useState(initialHour ? `${String(Math.min(23, initialHour + 2)).padStart(2, '0')}:00` : '20:30');
   const [aula, setAula] = useState('Aula 1');
   const [catedraId, setCatedraId] = useState(catedras?.[0]?.id || '');
   const [notas, setNotas] = useState('');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setFecha(initialDate || getTodayYMD());
+      if (initialHour !== null && initialHour !== undefined) {
+        const startH = Math.max(0, Math.min(23, Number(initialHour)));
+        const endH = Math.min(23, startH + 2);
+        setHoraInicio(`${String(startH).padStart(2, '0')}:00`);
+        setHoraFin(`${String(endH).padStart(2, '0')}:00`);
+      }
+      if (!catedraId && catedras?.[0]?.id) {
+        setCatedraId(catedras[0].id);
+      }
+      setErrorMsg('');
+    }
+  }, [isOpen, initialDate, initialHour, catedras]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

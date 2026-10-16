@@ -62,9 +62,9 @@ export default function HeaderSelector() {
   };
 
   return (
-    <div className="hidden md:flex flex-wrap items-center gap-2 sm:gap-3 bg-surface p-3 rounded-2xl border border-surface-border shadow-xs">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-surface p-2.5 sm:p-3 rounded-2xl border border-surface-border shadow-xs">
       {/* Selector de Institución */}
-      <div className="flex items-center gap-1.5 flex-1 min-w-[200px] max-w-xs">
+      <div className="flex items-center gap-1.5 flex-1 min-w-[170px] sm:min-w-[200px] sm:max-w-xs">
         <CustomSelect
           value={selectedInstitucion?.id || ''}
           onChange={(val) => {
@@ -86,14 +86,14 @@ export default function HeaderSelector() {
           onClick={() => setIsInstModalOpen(true)}
           title="Nueva Institución"
           aria-label="Nueva Institución"
-          className="p-2 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
+          className="p-2 w-10 h-10 min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
         >
           <Plus className="w-4 h-4 text-primary" />
         </button>
       </div>
 
       {/* Selector de Ciclo Lectivo */}
-      <div className="flex items-center gap-1.5 min-w-[160px] max-w-[220px]">
+      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-[140px] sm:min-w-[160px] sm:max-w-[220px]">
         <CustomSelect
           value={selectedCiclo?.id || ''}
           onChange={(val) => {
@@ -115,7 +115,7 @@ export default function HeaderSelector() {
           onClick={() => setIsCicloModalOpen(true)}
           title="Nuevo Ciclo Lectivo"
           aria-label="Nuevo Ciclo Lectivo"
-          className="p-2 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
+          className="p-2 w-10 h-10 min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
         >
           <Plus className="w-4 h-4 text-primary" />
         </button>

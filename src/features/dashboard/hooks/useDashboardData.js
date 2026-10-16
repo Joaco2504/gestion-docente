@@ -231,8 +231,11 @@ export function useDashboardData(user, isDemo, activeCiclo) {
       }
 
       try {
-        const todayIso = new Date().toISOString().split('T')[0];
-        const next15Days = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
+        const nowLocal = new Date();
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const todayIso = `${nowLocal.getFullYear()}-${pad2(nowLocal.getMonth() + 1)}-${pad2(nowLocal.getDate())}`;
+        const futureDate = new Date(nowLocal.getTime() + 15 * 86400000);
+        const next15Days = `${futureDate.getFullYear()}-${pad2(futureDate.getMonth() + 1)}-${pad2(futureDate.getDate())}`;
 
         // 1. Invocar RPCs optimizados en paralelo
         const [resumenRes, agendaRes] = await Promise.all([

@@ -33,7 +33,7 @@ export default function AttendanceCardsMobile({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
       {alumnosElegibles.map((est, idx) => {
         const rawEstado = asistenciasDiaMap instanceof Map 
           ? asistenciasDiaMap.get(est.id) 
@@ -55,7 +55,7 @@ export default function AttendanceCardsMobile({
 
         const isPresente = estadoActual === ESTADO_ASISTENCIA.PRESENTE;
         const isAusente = estadoActual === ESTADO_ASISTENCIA.AUSENTE;
-        const isJustificado = estadoActual === ESTADO_ASISTENCIA.JUSTIFICADO;
+        const isJustificado = estadoActual === ESTADO_ASISTENCIA.JUSTIFICADO || estadoActual === ESTADO_ASISTENCIA.JUSTIFICADA;
 
         return (
           <div
@@ -121,20 +121,20 @@ export default function AttendanceCardsMobile({
             </div>
 
             {/* Botonera Táctil de 3 Estados (Min. 44x44px) */}
-            <div className="grid grid-cols-3 gap-2 pt-1">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-1">
               {/* Botón Presente */}
               <button
                 type="button"
                 disabled={disabled}
                 onClick={() => onToggleEstado(est.id, ESTADO_ASISTENCIA.PRESENTE)}
-                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs min-h-[44px] transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-2 sm:px-3 rounded-xl font-bold text-xs min-h-[44px] transition-all cursor-pointer disabled:opacity-50 ${
                   isPresente
                     ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 font-black'
                     : 'bg-slate-100 dark:bg-slate-800/80 text-text-muted hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20'
                 }`}
               >
                 <Check className="w-4 h-4 shrink-0" />
-                <span>Presente</span>
+                <span className="truncate">Presente</span>
               </button>
 
               {/* Botón Ausente */}
@@ -142,14 +142,14 @@ export default function AttendanceCardsMobile({
                 type="button"
                 disabled={disabled}
                 onClick={() => onToggleEstado(est.id, ESTADO_ASISTENCIA.AUSENTE)}
-                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs min-h-[44px] transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-2 sm:px-3 rounded-xl font-bold text-xs min-h-[44px] transition-all cursor-pointer disabled:opacity-50 ${
                   isAusente
                     ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30 font-black'
                     : 'bg-slate-100 dark:bg-slate-800/80 text-text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20'
                 }`}
               >
                 <X className="w-4 h-4 shrink-0" />
-                <span>Ausente</span>
+                <span className="truncate">Ausente</span>
               </button>
 
               {/* Botón Justificado */}
@@ -157,14 +157,14 @@ export default function AttendanceCardsMobile({
                 type="button"
                 disabled={disabled}
                 onClick={() => onToggleEstado(est.id, ESTADO_ASISTENCIA.JUSTIFICADO)}
-                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs min-h-[44px] transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-2 sm:px-3 rounded-xl font-bold text-xs min-h-[44px] transition-all cursor-pointer disabled:opacity-50 ${
                   isJustificado
                     ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30 font-black'
                     : 'bg-slate-100 dark:bg-slate-800/80 text-text-muted hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20'
                 }`}
               >
                 <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span>Justif.</span>
+                <span className="truncate">Justif.</span>
               </button>
             </div>
           </div>

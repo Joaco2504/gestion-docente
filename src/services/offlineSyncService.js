@@ -69,10 +69,16 @@ export function enqueueOfflineMutation({ tipo, payload, catedraId }) {
   return item;
 }
 
+let isSyncInProgress = false;
+
 /**
  * Sincroniza todas las mutaciones pendientes contra Supabase
  */
 export async function syncPendingMutations() {
+  if (isSyncInProgress) {
+    return { success: true, synced: 0, message: 'Sincronización ya en curso' };
+  }
+
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return { success: false, synced: 0, error: 'Sin conexión a internet' };
   }
@@ -86,60 +92,81 @@ export async function syncPendingMutations() {
     return { success: true, synced: 0 };
   }
 
+  isSyncInProgress = true;
   const remaining = [];
   let syncedCount = 0;
 
-  for (const item of queue) {
-    try {
-      if (item.tipo === 'ASISTENCIA_INDIVIDUAL') {
-        const { error } = await supabase
-          .from('asistencias')
-          .upsert(item.payload, { onConflict: 'clase_id, estudiante_id' });
-        if (error) throw error;
-        syncedCount++;
-      } else if (item.tipo === 'ASISTENCIA_LOTE') {
-        const rows = Array.isArray(item.payload) ? item.payload : [];
-        if (rows.length > 0) {
+  try {
+    for (const item of queue) {
+      try {
+        if (item.tipo === 'ASISTENCIA_INDIVIDUAL') {
           const { error } = await supabase
             .from('asistencias')
-            .upsert(rows, { onConflict: 'clase_id, estudiante_id' });
+            .upsert(item.payload, { onConflict: 'clase_id, estudiante_id' });
           if (error) throw error;
+          syncedCount++;
+        } else if (item.tipo === 'ASISTENCIA_LOTE') {
+          const rows = Array.isArray(item.payload) ? item.payload : [];
+          if (rows.length > 0) {
+            const { error } = await supabase
+              .from('asistencias')
+              .upsert(rows, { onConflict: 'clase_id, estudiante_id' });
+            if (error) throw error;
+          }
+          syncedCount++;
+        } else if (item.tipo === 'CLASE_UPSERT') {
+          const { error } = await supabase
+            .from('clases')
+            .upsert(item.payload, { onConflict: 'catedra_id, fecha' });
+          if (error) throw error;
+          syncedCount++;
+        } else if (item.tipo === 'LICENCIA_UPSERT') {
+          const p = item.payload || {};
+          const { error } = await supabase
+            .from('licencias_docentes')
+            .upsert({
+              id: p.id && !String(p.id).startsWith('lic-') && !String(p.id).startsWith('clase-lic-') ? p.id : undefined,
+              docente_id: p.docente_id,
+              fecha: p.fecha,
+              articulo: p.articulo,
+              observacion: p.observacion,
+              estado_tramite: p.estado_tramite,
+              catedra_id: p.catedra_id,
+              clase_id: p.clase_id
+            });
+          if (error) throw error;
+          syncedCount++;
+        } else {
+          // Tipo no reconocido, descartar
+          syncedCount++;
         }
-        syncedCount++;
-      } else if (item.tipo === 'CLASE_UPSERT') {
-        const { error } = await supabase
-          .from('clases')
-          .upsert(item.payload, { onConflict: 'catedra_id, fecha' });
-        if (error) throw error;
-        syncedCount++;
-      } else {
-        // Tipo no reconocido, descartar
-        syncedCount++;
+      } catch (err) {
+        console.warn('Error sincronizando mutación offline:', item, err);
+        // Mantener en la cola para reintento posterior si fue error de red
+        remaining.push(item);
       }
-    } catch (err) {
-      console.warn('Error sincronizando mutación offline:', item, err);
-      // Mantener en la cola para reintento posterior si fue error de red
-      remaining.push(item);
     }
+
+    saveOfflineQueue(remaining);
+
+    if (syncedCount > 0 && remaining.length === 0) {
+      toast.success('☁️ Conexión restablecida: asistencias sincronizadas', {
+        duration: 3500
+      });
+    } else if (remaining.length > 0) {
+      toast.warning(`Sincronizadas ${syncedCount} operaciones. Quedan ${remaining.length} pendientes.`, {
+        duration: 4000
+      });
+    }
+
+    return {
+      success: remaining.length === 0,
+      synced: syncedCount,
+      remaining: remaining.length
+    };
+  } finally {
+    isSyncInProgress = false;
   }
-
-  saveOfflineQueue(remaining);
-
-  if (syncedCount > 0 && remaining.length === 0) {
-    toast.success('☁️ Conexión restablecida: asistencias sincronizadas', {
-      duration: 3500
-    });
-  } else if (remaining.length > 0) {
-    toast.warning(`Sincronizadas ${syncedCount} operaciones. Quedan ${remaining.length} pendientes.`, {
-      duration: 4000
-    });
-  }
-
-  return {
-    success: remaining.length === 0,
-    synced: syncedCount,
-    remaining: remaining.length
-  };
 }
 
 /**

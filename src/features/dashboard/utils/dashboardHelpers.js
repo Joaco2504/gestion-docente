@@ -60,7 +60,7 @@ export const getAgendaColorStyles = (tipo) => {
 export const calculateUpcomingClass = (catedrasList) => {
   if (!catedrasList || catedrasList.length === 0) return null;
 
-  const daysMap = { 'Domingo': 0, 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6 };
+  const daysMap = { 'domingo': 0, 'lunes': 1, 'martes': 2, 'miercoles': 3, 'jueves': 4, 'viernes': 5, 'sabado': 6 };
   const now = new Date();
   const currentDay = now.getDay();
   const candidates = [];
@@ -68,13 +68,24 @@ export const calculateUpcomingClass = (catedrasList) => {
   catedrasList.forEach(cat => {
     const schedules = Array.isArray(cat.horarios_semanales) ? cat.horarios_semanales : [];
     schedules.forEach(h => {
-      const targetDay = daysMap[h.dia];
+      const normalizedDia = normalizeSearchText(h.dia || h.dia_semana || '');
+      const targetDay = daysMap[normalizedDia];
       if (targetDay !== undefined) {
-        const diff = (targetDay - currentDay + 7) % 7;
+        let diff = (targetDay - currentDay + 7) % 7;
         const classDate = new Date();
         classDate.setDate(now.getDate() + diff);
         const [hh, mm] = (h.desde || '18:00').split(':');
-        classDate.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
+        classDate.setHours(parseInt(hh, 10) || 18, parseInt(mm, 10) || 0, 0, 0);
+
+        const classEndDate = new Date(classDate);
+        const [ehh, emm] = (h.hasta || '20:00').split(':');
+        classEndDate.setHours(parseInt(ehh, 10) || 20, parseInt(emm, 10) || 0, 0, 0);
+
+        // Si la clase era hoy pero ya finalizó, proyectar a la semana siguiente
+        if (diff === 0 && classEndDate < now) {
+          diff = 7;
+          classDate.setDate(classDate.getDate() + 7);
+        }
 
         candidates.push({
           catedraId: cat.id,
@@ -82,7 +93,7 @@ export const calculateUpcomingClass = (catedrasList) => {
           institucion: cat.institucion_nombre,
           nivel: cat.nivel,
           modalidad: cat.modalidad,
-          dia: h.dia,
+          dia: h.dia || h.dia_semana,
           desde: h.desde || '18:00',
           hasta: h.hasta || '20:00',
           aula: h.aula || 'Aula Principal',

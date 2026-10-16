@@ -1,15 +1,10 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuth } from './context/AuthContext';
 import { useApp } from './context/AppContext';
 import { useTheme } from './context/ThemeContext';
-import Navbar from './components/layout/Navbar';
-import BottomNav from './components/layout/BottomNav';
 import AppLayout from './components/layout/AppLayout';
-import HeaderSelector from './components/layout/HeaderSelector';
-import Footer from './components/layout/Footer';
-import CreateCatedraModal from './components/common/CreateCatedraModal';
 import RouteLoadingSpinner from './components/common/RouteLoadingSpinner';
 
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -66,26 +61,33 @@ const ConsultaAlumnoPage = lazyWithRetry(() => import('./pages/ConsultaAlumnoPag
 import AdminRoute from './components/auth/AdminRoute';
 import GlobalNoticeBanner from './components/layout/GlobalNoticeBanner';
 import ScrollToTop from './components/common/ScrollToTop';
-import { GraduationCap } from 'lucide-react';
 import { NotificationProvider } from './context/NotificationContext';
 import { TooltipProvider } from './components/common/Tooltip';
 
+function resolveTargetCatedraId(catedras) {
+  const lastId = typeof window !== 'undefined' ? localStorage.getItem('last_active_catedra_id') : null;
+  if (lastId && (catedras || []).some(c => String(c.id) === String(lastId))) {
+    return lastId;
+  }
+  return catedras?.[0]?.id || null;
+}
+
 function AsistenciaRedirect() {
   const { catedras } = useApp();
-  const firstId = catedras?.[0]?.id;
-  return <Navigate to={firstId ? `/catedra/${firstId}?tab=asistencias` : '/dashboard'} replace />;
+  const targetId = resolveTargetCatedraId(catedras);
+  return <Navigate to={targetId ? `/catedra/${targetId}?tab=asistencias` : '/dashboard'} replace />;
 }
 
 function CalificacionesRedirect() {
   const { catedras } = useApp();
-  const firstId = catedras?.[0]?.id;
-  return <Navigate to={firstId ? `/catedra/${firstId}?tab=calificaciones` : '/dashboard'} replace />;
+  const targetId = resolveTargetCatedraId(catedras);
+  return <Navigate to={targetId ? `/catedra/${targetId}?tab=calificaciones` : '/dashboard'} replace />;
 }
 
 function LibroTemasRedirect() {
   const { catedras } = useApp();
-  const firstId = catedras?.[0]?.id;
-  return <Navigate to={firstId ? `/catedra/${firstId}?tab=libro-temas` : '/guias'} replace />;
+  const targetId = resolveTargetCatedraId(catedras);
+  return <Navigate to={targetId ? `/catedra/${targetId}?tab=libro-temas` : '/guias'} replace />;
 }
 
 /**

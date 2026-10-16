@@ -84,7 +84,7 @@ export default function StudentsDataTable({
   return (
     <div className="space-y-3">
       {/* Contenedor de Tabla con Scroll Horizontal y Headers Sticky */}
-      <div className="overflow-x-auto overscroll-x-contain select-none touch-pan-x" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
+      <div className="overflow-x-auto overscroll-x-contain select-none touch-pan-x touch-pan-y" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}>
         <table
           className="w-full text-left text-xs sm:text-sm border-collapse"
           aria-label={isEquivalencias ? "Alumnos Acreditados por Equivalencia" : "Nómina Oficial de Estudiantes"}
@@ -184,7 +184,7 @@ export default function StudentsDataTable({
                 value={table.getState().pagination.pageSize}
                 onChange={e => table.setPageSize(Number(e.target.value))}
                 aria-label="Registros por página"
-                className="bg-surface border border-surface-border text-text-primary rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                className="bg-surface border border-surface-border text-text-primary rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer min-h-[38px]"
               >
                 {[15, 25, 50, 100].map(size => (
                   <option key={size} value={size}>
@@ -199,7 +199,7 @@ export default function StudentsDataTable({
                 type="button"
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
-                className="p-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:pointer-events-none text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg border border-surface-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:pointer-events-none text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                 title="Primera página"
                 aria-label="Primera página"
               >
@@ -209,7 +209,7 @@ export default function StudentsDataTable({
                 type="button"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                className="p-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:pointer-events-none text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg border border-surface-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:pointer-events-none text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                 title="Página anterior"
                 aria-label="Página anterior"
               >
@@ -223,7 +223,7 @@ export default function StudentsDataTable({
                 type="button"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                className="p-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:pointer-events-none text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg border border-surface-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:pointer-events-none text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                 title="Página siguiente"
                 aria-label="Página siguiente"
               >
@@ -233,7 +233,7 @@ export default function StudentsDataTable({
                 type="button"
                 onClick={() => table.setPageIndex(pageCount - 1)}
                 disabled={!table.getCanNextPage()}
-                className="p-1.5 rounded-lg border border-surface-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:pointer-events-none text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg border border-surface-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:pointer-events-none text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
                 title="Última página"
                 aria-label="Última página"
               >

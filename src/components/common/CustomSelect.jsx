@@ -49,16 +49,15 @@ export default function CustomSelect({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Lock body scroll when mobile bottom sheet is open
+  // Lock body scroll when mobile bottom sheet is open (preserving prior overflow when inside a Modal)
   useEffect(() => {
     if (isOpen && isMobile) {
+      const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
     }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
   }, [isOpen, isMobile]);
 
   // Normalizar opciones a formato objeto { value, label, icon, badge }
@@ -167,12 +166,8 @@ export default function CustomSelect({
     if (disabled) return;
     setIsOpen(false);
     setSearch('');
-    if (onChange) {
-      // Soporta tanto onChange(value) como onChange({ target: { value } })
-      onChange({ target: { value: optionValue } });
-      if (typeof onChange === 'function') {
-        onChange(optionValue);
-      }
+    if (typeof onChange === 'function') {
+      onChange(optionValue);
     }
   };
 
@@ -223,7 +218,7 @@ export default function CustomSelect({
 
       {/* Mobile Bottom Sheet Modal via Portal */}
       {isOpen && isMobile && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+        <div className="fixed inset-0 z-[150] flex items-end justify-center">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm animate-fadeIn"
@@ -233,6 +228,7 @@ export default function CustomSelect({
 
           {/* Bottom Sheet Modal */}
           <div
+            ref={menuRef}
             role="listbox"
             className="relative w-full max-w-lg bg-surface border-t border-surface-border rounded-t-3xl shadow-2xl p-4 pb-6 max-h-[82vh] flex flex-col z-10 animate-slideUp overscroll-contain"
           >

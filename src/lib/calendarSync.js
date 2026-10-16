@@ -89,7 +89,9 @@ export function generateIcsContent(events = [], clases = [], catedras = []) {
     const title = cat ? `${cat.nombre} - Clase` : 'Clase Regular';
     
     // Parsear fecha y asignar horario aproximado o del día
-    const [y, m, d] = clase.fecha.split('-').map(Number);
+    const datePart = String(clase.fecha).split('T')[0];
+    const [y, m, d] = datePart.split('-').map(Number);
+    if (!y || !m || !d) return;
     const startObj = new Date(y, m - 1, d, 18, 0, 0); // 18:00
     const endObj = new Date(y, m - 1, d, 20, 0, 0);   // 20:00
 
@@ -134,11 +136,21 @@ function escapeIcsText(text = '') {
  * Descarga directamente un archivo .ics en el navegador
  */
 export function downloadIcsFile(filename, icsContent) {
-  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  let finalFilename = String(filename || 'calendario.ics');
+  let finalContent = String(icsContent || '');
+
+  // Autodetección defensiva por si los argumentos fueron pasados en orden inverso (icsContent, filename)
+  if (finalFilename.includes('BEGIN:VCALENDAR')) {
+    const tmp = finalFilename;
+    finalFilename = finalContent || 'calendario.ics';
+    finalContent = tmp;
+  }
+
+  const blob = new Blob([finalContent], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', filename.endsWith('.ics') ? filename : `${filename}.ics`);
+  link.setAttribute('download', finalFilename.endsWith('.ics') ? finalFilename : `${finalFilename}.ics`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

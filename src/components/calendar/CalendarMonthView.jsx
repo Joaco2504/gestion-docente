@@ -2,13 +2,13 @@ import React from 'react';
 
 function safeIsoDate(d, fallback = '') {
   if (!d) return fallback;
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10);
   const dateObj = d instanceof Date ? d : new Date(d);
   if (isNaN(dateObj.getTime())) return fallback;
-  try {
-    return dateObj.toISOString().split('T')[0];
-  } catch (_) {
-    return fallback;
-  }
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export default function CalendarMonthView({
@@ -24,19 +24,20 @@ export default function CalendarMonthView({
   return (
     <div className="space-y-3" data-testid="calendar-month-view">
       {/* Cabecera de días de la semana */}
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono font-bold text-slate-400 pb-2 border-b border-slate-100 dark:border-slate-800">
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] sm:text-xs font-mono font-bold text-slate-400 pb-2 border-b border-slate-100 dark:border-slate-800">
         {DAYS_OF_WEEK.map((d, i) => (
           <span key={i} title={d} className="truncate">
             <span className="hidden xl:inline">{d}</span>
-            <span className="inline xl:hidden">{d.slice(0, 3)}</span>
+            <span className="hidden sm:inline xl:hidden">{d.slice(0, 3)}</span>
+            <span className="inline sm:hidden">{d.slice(0, 1)}</span>
           </span>
         ))}
       </div>
 
       {/* Grilla mensual de días */}
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2">
         {mainCalMonthDays.map((d, idx) => {
-          if (!d) return <div key={`empty-m-${idx}`} className="min-h-[88px] bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl" />;
+          if (!d) return <div key={`empty-m-${idx}`} className="min-h-[64px] sm:min-h-[88px] bg-slate-50/50 dark:bg-slate-900/30 rounded-xl sm:rounded-2xl" />;
 
           const dStr = safeIsoDate(d);
           const isToday = d.toDateString() === new Date().toDateString();
@@ -53,7 +54,7 @@ export default function CalendarMonthView({
               key={idx}
               onClick={() => onSelectDay?.(d)}
               className={`
-                min-h-[88px] p-2 rounded-2xl border transition-colors duration-150 cursor-pointer flex flex-col justify-between overflow-hidden min-w-0
+                min-h-[64px] sm:min-h-[88px] p-1 sm:p-2 rounded-xl sm:rounded-2xl border transition-colors duration-150 cursor-pointer flex flex-col justify-between overflow-hidden min-w-0
                 ${isToday 
                   ? 'border-2 border-emerald-500 bg-emerald-500/5' 
                   : isSelected
@@ -63,11 +64,11 @@ export default function CalendarMonthView({
               `}
             >
               <div className="flex items-center justify-between">
-                <span className={`font-mono font-bold text-xs ${isToday ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-800 dark:text-slate-200'}`}>
+                <span className={`font-mono font-bold text-[11px] sm:text-xs ${isToday ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-800 dark:text-slate-200'}`}>
                   {d.getDate()}
                 </span>
                 {dayEvents.length > 0 && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                 )}
               </div>
 

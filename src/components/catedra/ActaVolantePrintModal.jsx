@@ -44,9 +44,9 @@ export default function ActaVolantePrintModal({
 
   // Cálculos estadísticos oficiales
   const totalInscriptos = alumnos.length;
-  const ausentesCount = alumnos.filter(a => a.dictamen === 'AUSENTE').length;
+  const ausentesCount = alumnos.filter(a => a.dictamen === 'AUSENTE' || !a.dictamen).length;
   const presentesCount = totalInscriptos - ausentesCount;
-  const aprobadosCount = alumnos.filter(a => a.dictamen === 'APROBADO').length;
+  const aprobadosCount = alumnos.filter(a => a.dictamen === 'APROBADO' || a.dictamen === 'ACREDITADO').length;
   const desaprobadosCount = alumnos.filter(a => a.dictamen === 'DESAPROBADO').length;
   const porcentajeAprobacion = presentesCount > 0 
     ? Math.round((aprobadosCount / presentesCount) * 100) 
@@ -183,9 +183,9 @@ export default function ActaVolantePrintModal({
                   </tr>
                 ) : (
                   alumnos.map((alumno, idx) => {
-                    const isAprobado = alumno.dictamen === 'APROBADO';
+                    const isAprobado = alumno.dictamen === 'APROBADO' || alumno.dictamen === 'ACREDITADO';
                     const isDesaprobado = alumno.dictamen === 'DESAPROBADO';
-                    const isAusente = alumno.dictamen === 'AUSENTE';
+                    const isAusente = alumno.dictamen === 'AUSENTE' || (!isAprobado && !isDesaprobado);
 
                     const notaLetras = alumno.nota_definitiva !== null && alumno.nota_definitiva !== undefined && alumno.nota_definitiva !== ''
                       ? `${alumno.nota_definitiva} (${notaEnLetras(alumno.nota_definitiva)})`

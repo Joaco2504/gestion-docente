@@ -76,6 +76,7 @@ export default function MesasExamenPage() {
   // Modales
   const [isConstituirModalOpen, setIsConstituirModalOpen] = useState(false);
   const [mesaToPrint, setMesaToPrint] = useState(null);
+  const [alumnosToPrint, setAlumnosToPrint] = useState([]);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   useEffect(() => {
@@ -263,9 +264,30 @@ export default function MesasExamenPage() {
     }
   };
 
-  const handleOpenPrintModal = (mesaItem, e) => {
+  const handleOpenPrintModal = async (mesaItem, e) => {
     if (e) e.stopPropagation();
     setMesaToPrint(mesaItem);
+    let alumnosData = [];
+    try {
+      const localRaw = localStorage.getItem(`actas_examen_${mesaItem.id}`);
+      if (localRaw) {
+        alumnosData = JSON.parse(localRaw);
+      }
+      if (isSupabaseConfigured && !isDemo && mesaItem.id && !String(mesaItem.id).startsWith('local-')) {
+        const { data, error } = await supabase
+          .from('actas_examen_alumnos')
+          .select('*')
+          .eq('mesa_id', mesaItem.id)
+          .order('alumno_nombre_completo', { ascending: true });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          alumnosData = data;
+          localStorage.setItem(`actas_examen_${mesaItem.id}`, JSON.stringify(data));
+        }
+      }
+    } catch (_) {
+      // Fallback silencioso a datos locales
+    }
+    setAlumnosToPrint(alumnosData);
     setIsPrintModalOpen(true);
   };
 
@@ -631,6 +653,7 @@ export default function MesasExamenPage() {
           onClose={() => {
             setIsPrintModalOpen(false);
             setMesaToPrint(null);
+            setAlumnosToPrint([]);
           }}
           type="acta-examen"
           title={`Acta Volante de Exámenes — ${mesaToPrint.turno_llamado || 'Examen'}`}
@@ -638,7 +661,7 @@ export default function MesasExamenPage() {
           defaultOrientation="portrait"
           data={{
             mesa: mesaToPrint,
-            alumnos: JSON.parse(localStorage.getItem(`actas_examen_${mesaToPrint.id}`) || '[]'),
+            alumnos: alumnosToPrint,
             catedra: mesaToPrint.catedras || { id: mesaToPrint.catedra_id, nombre: 'Cátedra' },
             institucionNombre: mesaToPrint.catedras?.instituciones?.nombre || 'INSTITUTO DE EDUCACIÓN SUPERIOR',
             cicloAnio: activeCiclo?.anio || '2026'

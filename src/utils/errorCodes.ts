@@ -126,7 +126,21 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     lowerText.includes('column') || lowerText.includes('foreign key') || 
     lowerText.includes('violates');
 
-  // 1. Sesión y Token JWT
+  // 1. Permisos y Políticas de Seguridad (RLS) — No debe cerrar la sesión del usuario
+  if (
+    codeStr === '42501' ||
+    lowerText.includes('42501') ||
+    lowerText.includes('permission denied') ||
+    lowerText.includes('row-level security')
+  ) {
+    return {
+      codigo: 'ERR-403',
+      mensaje: 'No cuenta con los permisos necesarios para realizar esta acción sobre el registro solicitado.',
+      originalError: error
+    };
+  }
+
+  // 1.1 Sesión y Token JWT expirado
   if (
     lowerText.includes('jwt') ||
     lowerText.includes('token') ||
@@ -135,9 +149,7 @@ export function procesarErrorDocente(error: any): ErrorDocenteInfo {
     lowerText.includes('pgrst303') ||
     lowerText.includes('jwt expired') ||
     lowerText.includes('sesión') ||
-    lowerText.includes('sesion') ||
-    lowerText.includes('permission denied') ||
-    lowerText.includes('row-level security')
+    lowerText.includes('sesion')
   ) {
     return {
       codigo: DICCIONARIO_ERRORES["jwt"].codigo,

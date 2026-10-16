@@ -27,6 +27,7 @@ export default function PrintGradesConfigModal({
   onClose,
   evaluaciones = [],
   onGeneratePreview,
+  onConfirmPrint,
   initialConfig = {}
 }) {
   // Estado de configuración de columnas
@@ -120,14 +121,17 @@ export default function PrintGradesConfigModal({
     e?.preventDefault();
     if (!hasAtLeastOneColumn) return;
 
-    onGeneratePreview({
-      includeAsistencia,
-      selectedEvalIds,
-      includeNotaFinal,
-      includeCondicion,
-      orientation,
-      includeSignature
-    });
+    const callback = onGeneratePreview || onConfirmPrint;
+    if (callback) {
+      callback({
+        includeAsistencia,
+        selectedEvalIds,
+        includeNotaFinal,
+        includeCondicion,
+        orientation,
+        includeSignature
+      });
+    }
   };
 
   return (
@@ -138,7 +142,7 @@ export default function PrintGradesConfigModal({
       subtitle="Personaliza las columnas, evaluaciones y formato de página antes de generar el acta"
       maxWidth="max-w-2xl"
     >
-      <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+      <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* SECCIÓN 1: COLUMNAS BÁSICAS A INCLUIR */}
         <div className="space-y-3">

@@ -146,10 +146,14 @@ export default function AttendanceClassTopicBar({
                 {!unidades.some(u => `Unidad ${u.numero}` === unidad) && unidad && (
                   <option value={unidad} className="text-slate-900 dark:text-white">{unidad}</option>
                 )}
-                <option value="Unidad 1" className="text-slate-900 dark:text-white">Unidad 1</option>
-                <option value="Unidad 2" className="text-slate-900 dark:text-white">Unidad 2</option>
-                <option value="Unidad 3" className="text-slate-900 dark:text-white">Unidad 3</option>
-                <option value="Unidad 4" className="text-slate-900 dark:text-white">Unidad 4</option>
+                {unidades.length === 0 && (
+                  <>
+                    <option value="Unidad 1" className="text-slate-900 dark:text-white">Unidad 1</option>
+                    <option value="Unidad 2" className="text-slate-900 dark:text-white">Unidad 2</option>
+                    <option value="Unidad 3" className="text-slate-900 dark:text-white">Unidad 3</option>
+                    <option value="Unidad 4" className="text-slate-900 dark:text-white">Unidad 4</option>
+                  </>
+                )}
               </select>
             </div>
 

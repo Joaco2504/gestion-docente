@@ -9,12 +9,24 @@ import { X } from 'lucide-react';
  * - Portaling gestionado por Radix UI evitando recortes por overflow o z-index.
  * - Control de escape y bloqueo de scroll nativos.
  */
+const SIZE_MAP = {
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-2xl',
+  xl: 'sm:max-w-4xl',
+  '2xl': 'sm:max-w-5xl',
+  '3xl': 'sm:max-w-6xl',
+  '4xl': 'sm:max-w-7xl',
+  full: 'sm:max-w-[96vw]'
+};
+
 export default function Modal({
   isOpen,
   onClose,
   title,
   subtitle,
   children,
+  size,
   maxWidth = 'max-w-lg',
   zIndex = 'z-[110]',
   hasUnsavedChanges = false,
@@ -26,6 +38,8 @@ export default function Modal({
   const dragStartYRef = useRef(0);
   const dragStartTimeRef = useRef(0);
 
+  const resolvedMaxWidth = size && SIZE_MAP[size] ? SIZE_MAP[size] : maxWidth;
+
   const handleRequestClose = () => {
     if (hasUnsavedChanges) {
       const confirmClose = window.confirm(unsavedChangesMessage);
@@ -35,6 +49,10 @@ export default function Modal({
   };
 
   const handlePointerDown = (e) => {
+    // Solo activar gesto swipe-down en pantallas táctiles o móviles (< 640px)
+    if (e.pointerType === 'mouse' && typeof window !== 'undefined' && window.innerWidth >= 640) {
+      return;
+    }
     // Si el evento se originó en un botón o control interactivo, no iniciar arrastre ni capturar puntero
     if (e.target.closest('button, a, input, select, textarea, [role="button"], [data-no-drag]')) {
       return;
@@ -102,8 +120,8 @@ export default function Modal({
           className={`fixed inset-0 ${zIndex} bg-slate-950/60 backdrop-blur-xs transition-opacity duration-200 data-[state=open]:animate-fadeIn data-[state=closed]:animate-fadeOut`}
         />
 
-        {/* Contenedor de Posicionamiento */}
-        <div className={`fixed inset-0 ${zIndex} flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none`}>
+        {/* Contenedor de Posicionamiento: Bottom-Sheet en móvil, centrado en >= sm */}
+        <div className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 pointer-events-none`}>
           <Dialog.Content
             style={{
               transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
@@ -125,7 +143,7 @@ export default function Modal({
                 handleRequestClose();
               }
             }}
-            className={`pointer-events-auto modal-sheet modal-shell relative w-[92vw] sm:w-full ${maxWidth} max-w-[96vw] ${maxWidth.includes('md:') ? '' : 'sm:max-w-xl md:max-w-2xl'} bg-white dark:bg-[#0F172A] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[85dvh] flex flex-col my-auto pb-safe focus:outline-hidden data-[state=open]:animate-scaleIn data-[state=closed]:animate-modalOut`}
+            className={`pointer-events-auto modal-sheet modal-shell relative w-full sm:w-[92vw] ${resolvedMaxWidth} sm:max-w-[96vw] bg-white dark:bg-[#0F172A] rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[90dvh] sm:max-h-[85dvh] flex flex-col sm:my-auto pb-safe focus:outline-hidden data-[state=open]:animate-scaleIn data-[state=closed]:animate-modalOut`}
           >
             {/* Cabecera táctil con Pointer Events */}
             <div
@@ -134,7 +152,7 @@ export default function Modal({
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerCancel}
               style={{ touchAction: 'none' }}
-              className="cursor-grab active:cursor-grabbing select-none shrink-0"
+              className="sm:cursor-default cursor-grab active:cursor-grabbing select-none shrink-0"
             >
               {/* Mobile Drag Handle */}
               <div className="sm:hidden pt-2.5 pb-1 flex justify-center">
@@ -142,8 +160,8 @@ export default function Modal({
               </div>
 
               {/* Header Fijo */}
-              <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
-                <div className="pr-8 min-w-0 flex-1">
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                <div className="pr-4 min-w-0 flex-1">
                   {title ? (
                     <Dialog.Title className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">
                       {title}
@@ -167,7 +185,7 @@ export default function Modal({
                 <Dialog.Close asChild>
                   <button
                     type="button"
-                    className="p-2 -mr-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer shrink-0"
+                    className="p-2 -mr-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer shrink-0"
                     title="Cerrar ventana"
                     aria-label="Cerrar ventana"
                   >
@@ -178,7 +196,7 @@ export default function Modal({
             </div>
 
             {/* Cuerpo con Scroll Vertical Independiente Contenido */}
-            <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 text-slate-800 dark:text-slate-200 pb-safe">
+            <div className="p-4 sm:p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 text-slate-800 dark:text-slate-200 pb-safe">
               {children}
             </div>
           </Dialog.Content>

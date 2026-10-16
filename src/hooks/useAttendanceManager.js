@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getEstudiantesCatedra } from '../services/catedraEstudiantesService';
 import { getTodayYMD, formatFechaDMY } from '../lib/dateUtils';
@@ -102,10 +102,10 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
 
         setAsistencias(enrichedAsist);
       } else {
-        // Fallback para modo demo / offline
-        const storedEst = localStorage.getItem(`docentepro_demo_estudiantes_${catedraId}`);
-        const storedClases = localStorage.getItem(`docentepro_demo_clases_${catedraId}`);
-        const storedAsist = localStorage.getItem(`docentepro_demo_asistencias_${catedraId}`);
+        // Fallback para modo demo / offline (con soporte de claves con y sin prefijo)
+        const storedEst = localStorage.getItem(`docentepro_demo_estudiantes_${catedraId}`) || localStorage.getItem(`estudiantes_${catedraId}`);
+        const storedClases = localStorage.getItem(`docentepro_demo_clases_${catedraId}`) || localStorage.getItem(`clases_${catedraId}`);
+        const storedAsist = localStorage.getItem(`docentepro_demo_asistencias_${catedraId}`) || localStorage.getItem(`asistencias_${catedraId}`);
         const storedUni = localStorage.getItem(`unidades_tematicas_${catedraId}`);
 
         let parsedClases = storedClases ? JSON.parse(storedClases) : [];
@@ -113,6 +113,11 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
           const autoRes = await ensureScheduledClassesToDate(catedra, parsedClases, true);
           if (autoRes.nuevas.length > 0) {
             parsedClases = autoRes.all;
+            try {
+              const jsonClases = JSON.stringify(parsedClases);
+              localStorage.setItem(`docentepro_demo_clases_${catedraId}`, jsonClases);
+              localStorage.setItem(`clases_${catedraId}`, jsonClases);
+            } catch (_) {}
           }
         }
 
@@ -193,8 +198,9 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
   // CÁLCULO REACTIVO DEL PORCENTAJE DE ASISTENCIA ACUMULADA POR ESTUDIANTE
   const asistenciaPorEstudiante = useMemo(() => {
     // Clases válidas computables (excluir clases no computables como DOCENTE_AUSENTE o FERIADO)
+    const fechasLicencia = new Set((inasistenciasDocente || []).map(i => i.fecha).filter(Boolean));
     const clasesComputables = (clases || []).filter(
-      c => c.estado !== 'DOCENTE_AUSENTE' && c.caracter !== 'FERIADO' && c.caracter_clase !== 'DOCENTE_AUSENTE'
+      c => c.estado !== 'DOCENTE_AUSENTE' && c.caracter !== 'FERIADO' && c.caracter_clase !== 'DOCENTE_AUSENTE' && !fechasLicencia.has(c.fecha)
     );
     const totalClases = clasesComputables.length;
 
@@ -223,7 +229,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
           a => (a.clase_id === clase.id || a.fecha === clase.fecha) && a.estudiante_id === estId
         );
         const estado = registro?.estado?.toUpperCase();
-        if (estado === 'PRESENTE' || estado === 'P' || estado === 'JUSTIFICADO' || estado === 'J') {
+        if (estado === 'PRESENTE' || estado === 'P' || estado === 'JUSTIFICADO' || estado === 'JUSTIFICADA' || estado === 'J') {
           presentes += 1;
         } else if (estado === 'TARDE' || estado === 'T') {
           presentes += 0.5;
@@ -248,7 +254,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     });
 
     return mapa;
-  }, [clases, asistencias, estudiantes, catedra]);
+  }, [clases, asistencias, estudiantes, catedra, inasistenciasDocente]);
 
   // Métricas de la jornada seleccionada en tiempo real
   const statsHoy = useMemo(() => {
@@ -258,17 +264,21 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     let justificados = 0;
 
     alumnosElegibles.forEach(e => {
-      const st = asistenciasDiaMap.get(e.id);
-      if (st === ESTADO_ASISTENCIA.PRESENTE) presentes++;
-      else if (st === ESTADO_ASISTENCIA.AUSENTE) ausentes++;
-      else if (st === ESTADO_ASISTENCIA.JUSTIFICADO) justificados++;
+      const rawSt = asistenciasDiaMap.get(e.id);
+      if (!rawSt) return;
+      const st = String(rawSt).toUpperCase();
+      if (st === ESTADO_ASISTENCIA.PRESENTE || st === 'P' || st === 'TARDE' || st === 'T') presentes++;
+      else if (st === ESTADO_ASISTENCIA.AUSENTE || st === 'A') ausentes++;
+      else if (st === ESTADO_ASISTENCIA.JUSTIFICADO || st === ESTADO_ASISTENCIA.JUSTIFICADA || st === 'J') justificados++;
     });
 
-    const pctDia = total > 0 ? Math.round((presentes / total) * 100) : 0;
+    const pctDia = total > 0 ? Math.round(((presentes + justificados) / total) * 100) : 0;
     return { total, presentes, ausentes, justificados, pctDia };
   }, [alumnosElegibles, asistenciasDiaMap]);
 
-  // Asegurar registro de clase en Supabase o memoria antes de persistir asistencias
+  const creatingClasePromiseRef = useRef(null);
+
+  // Asegurar registro de clase en Supabase o memoria antes de persistir asistencias (con mutex contra clics simultáneos)
   const asegurarClaseActiva = async (fecha) => {
     if (claseActiva && claseActiva.fecha === fecha) return claseActiva;
 
@@ -278,49 +288,64 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
       return existente;
     }
 
-    const formattedDate = formatFechaDMY(fecha).replace(/-/g, '/');
-    const nuevoNumero = clases.length + 1;
-    const nuevaClasePayload = {
-      id: `clase-${Date.now()}`,
-      catedra_id: catedraId,
-      fecha,
-      tema: `Clase del ${formattedDate}`,
-      numero_clase: nuevoNumero
-    };
-
-    if (isSupabaseConfigured && !isDemo) {
-      try {
-        const { data, error } = await supabase
-          .from('clases')
-          .insert({
-            catedra_id: catedraId,
-            fecha,
-            tema: nuevaClasePayload.tema,
-            numero_clase: nuevoNumero
-          })
-          .select()
-          .single();
-
-        if (!error && data) {
-          setClases(prev => [data, ...prev]);
-          setSelectedClaseId(data.id);
-          return data;
-        }
-      } catch (err) {
-        console.warn('Aviso asegurando clase en Supabase:', err);
-      }
+    if (creatingClasePromiseRef.current) {
+      return creatingClasePromiseRef.current;
     }
 
-    // Fallback demo/offline
-    setClases(prev => {
-      const updated = [nuevaClasePayload, ...prev];
-      if (isDemo || !isSupabaseConfigured) {
-        localStorage.setItem(`docentepro_demo_clases_${catedraId}`, JSON.stringify(updated));
+    const createTask = (async () => {
+      try {
+        const formattedDate = formatFechaDMY(fecha).replace(/-/g, '/');
+        const nuevoNumero = clases.length + 1;
+        const nuevaClasePayload = {
+          id: `clase-${Date.now()}`,
+          catedra_id: catedraId,
+          fecha,
+          tema: `Clase del ${formattedDate}`,
+          numero_clase: nuevoNumero
+        };
+
+        if (isSupabaseConfigured && !isDemo) {
+          try {
+            const { data, error } = await supabase
+              .from('clases')
+              .insert({
+                catedra_id: catedraId,
+                fecha,
+                tema: nuevaClasePayload.tema,
+                numero_clase: nuevoNumero
+              })
+              .select()
+              .single();
+
+            if (!error && data) {
+              setClases(prev => [data, ...prev.filter(c => c.id !== data.id)]);
+              setSelectedClaseId(data.id);
+              return data;
+            }
+          } catch (err) {
+            console.warn('Aviso asegurando clase en Supabase:', err);
+          }
+        }
+
+        // Fallback demo/offline
+        setClases(prev => {
+          const updated = [nuevaClasePayload, ...prev.filter(c => c.fecha !== fecha)];
+          if (isDemo || !isSupabaseConfigured) {
+            const json = JSON.stringify(updated);
+            localStorage.setItem(`docentepro_demo_clases_${catedraId}`, json);
+            localStorage.setItem(`clases_${catedraId}`, json);
+          }
+          return updated;
+        });
+        setSelectedClaseId(nuevaClasePayload.id);
+        return nuevaClasePayload;
+      } finally {
+        creatingClasePromiseRef.current = null;
       }
-      return updated;
-    });
-    setSelectedClaseId(nuevaClasePayload.id);
-    return nuevaClasePayload;
+    })();
+
+    creatingClasePromiseRef.current = createTask;
+    return createTask;
   };
 
   // Marcar a toda la nómina como PRESENTE
