@@ -27,6 +27,7 @@ export default function AttendanceQuickActions({
   onMarcarTodosPresentes,
   onMarcarTodosAusentes,
   onOpenFaltaDocenteModal,
+  onOpenLicenciasModal = null,
   onExportExcel,
   onOpenPrintModal,
   saving = false
@@ -106,9 +107,9 @@ export default function AttendanceQuickActions({
           variant="outline"
           size="sm"
           icon={ShieldAlert}
-          onClick={onOpenFaltaDocenteModal}
+          onClick={onOpenLicenciasModal || onOpenFaltaDocenteModal}
           className="text-xs font-semibold border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 touch-target-44 min-h-[44px]"
-          title="Registrar inasistencia justificada docente por Decreto 1092"
+          title="Abrir centro de control y registro de licencias docentes (Decreto 1092)"
         >
           <span className="hidden sm:inline">Licencia Docente</span>
           <span className="sm:hidden">Licencia</span>

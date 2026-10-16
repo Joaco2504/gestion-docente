@@ -22,7 +22,8 @@ export default function AttendanceClassTopicBar({
   claseActiva,
   unidades = [],
   onUpdateClase,
-  disabled = false
+  disabled = false,
+  onOpenLicenciasModal = null
 }) {
   const [tema, setTema] = useState('');
   const [unidad, setUnidad] = useState('');
@@ -92,6 +93,15 @@ export default function AttendanceClassTopicBar({
               </p>
               <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
                 Esta jornada ({formattedDate}) no computa inasistencias para los alumnos. Los porcentajes de asistencia acumulada no son penalizados.
+                {onOpenLicenciasModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenLicenciasModal}
+                    className="ml-1.5 font-bold underline hover:text-amber-950 dark:hover:text-white cursor-pointer inline-block"
+                  >
+                    Ver balance anual de licencias
+                  </button>
+                )}
               </p>
             </div>
           </div>
@@ -200,6 +210,7 @@ export default function AttendanceClassTopicBar({
         isOpen={isModal1092Open}
         onClose={() => setIsModal1092Open(false)}
         clase={claseActiva}
+        onOpenHistorialLicencias={onOpenLicenciasModal}
         onConfirm={async (data) => {
           await onUpdateClase(data.claseId, {
             estado: data.estado,

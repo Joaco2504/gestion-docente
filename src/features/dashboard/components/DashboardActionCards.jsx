@@ -4,11 +4,18 @@ import { Plus, Calendar as CalendarIcon, ShieldAlert, ExternalLink } from 'lucid
 import { toast } from 'sonner';
 import Card from '../../../components/common/Card';
 
-export default function DashboardActionCards({ onOpenNewCatedra, upcomingClass, firstCatedraId }) {
+export default function DashboardActionCards({ 
+  onOpenNewCatedra, 
+  upcomingClass, 
+  firstCatedraId,
+  onOpenLicenciasModal
+}) {
   const navigate = useNavigate();
 
   const handleLicenciasClick = () => {
-    if (upcomingClass) {
+    if (onOpenLicenciasModal) {
+      onOpenLicenciasModal();
+    } else if (upcomingClass) {
       navigate(`/catedra/${upcomingClass.catedraId}?tab=asistencias`);
     } else if (firstCatedraId) {
       navigate(`/catedra/${firstCatedraId}?tab=asistencias`);

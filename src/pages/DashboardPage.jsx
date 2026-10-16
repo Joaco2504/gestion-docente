@@ -13,6 +13,7 @@ import DashboardAgendaSection from '../features/dashboard/components/DashboardAg
 import NuevaCatedraModal from '../features/dashboard/components/modals/NuevaCatedraModal';
 import QuickClassModal from '../features/dashboard/components/modals/QuickClassModal';
 import QuickEventModal from '../features/dashboard/components/modals/QuickEventModal';
+import LicenciasDocenteModal from '../components/common/LicenciasDocenteModal';
 
 const EditarCatedraModal = lazy(() => import('../components/catedra/EditarCatedraModal'));
 
@@ -40,6 +41,7 @@ export default function DashboardPage() {
   const [isQuickClassModalOpen, setIsQuickClassModalOpen] = useState(false);
   const [targetCatedraForClass, setTargetCatedraForClass] = useState(null);
   const [isNewEventModalOpen, setIsNewEventModalOpen] = useState(false);
+  const [isLicenciasModalOpen, setIsLicenciasModalOpen] = useState(false);
 
   // 4. Computed Data
   const upcomingClass = useMemo(() => calculateUpcomingClass(catedrasList), [catedrasList]);
@@ -90,6 +92,7 @@ export default function DashboardPage() {
         onOpenNewCatedra={() => setIsNewCatedraModalOpen(true)}
         upcomingClass={upcomingClass}
         firstCatedraId={catedrasList[0]?.id}
+        onOpenLicenciasModal={() => setIsLicenciasModalOpen(true)}
       />
 
       {/* 3. Monitoreo Operativo Bento 50/50 */}
@@ -184,6 +187,17 @@ export default function DashboardPage() {
           />
         </Suspense>
       )}
+
+      {/* 7. Centro Anual de Licencias Docentes */}
+      <LicenciasDocenteModal
+        isOpen={isLicenciasModalOpen}
+        onClose={() => setIsLicenciasModalOpen(false)}
+        catedras={catedrasList}
+        docenteId={user?.id}
+        onLicenciaSaved={async () => {
+          await fetchDashboardData();
+        }}
+      />
     </div>
   );
 }

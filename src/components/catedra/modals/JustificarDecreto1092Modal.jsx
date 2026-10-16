@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ShieldAlert, AlertTriangle, Check, X, BookOpen, Clock, FileText } from 'lucide-react';
 import Modal from '../../common/Modal';
 import { formatFechaDMY } from '../../../lib/dateUtils';
+import { getLocalLicencias } from '../../../services/licenciasService';
+import { useAuth } from '../../../context/AuthContext';
 
 const ARTICULOS_DECRETO_1092 = [
   { id: 'Art. 9°', label: 'Art. 9° — Enfermedad de corto tratamiento', descripcion: 'Afección común con certificado médico oficial' },
@@ -22,12 +24,24 @@ export default function JustificarDecreto1092Modal({
   isOpen,
   onClose,
   clase,
-  onConfirm
+  onConfirm,
+  onOpenHistorialLicencias
 }) {
+  const { user } = useAuth();
   const [selectedArticulo, setSelectedArticulo] = useState('Art. 9°');
   const [customArticulo, setCustomArticulo] = useState('');
   const [observacion, setObservacion] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const currentYear = new Date().getFullYear();
+  const licenciasCount = useMemo(() => {
+    try {
+      const list = getLocalLicencias(user?.id);
+      return list.filter(l => (l.fecha || '').startsWith(String(currentYear))).length;
+    } catch (_) {
+      return 0;
+    }
+  }, [user?.id, currentYear, isOpen]);
 
   if (!isOpen || !clase) return null;
 
@@ -73,6 +87,22 @@ export default function JustificarDecreto1092Modal({
             </p>
           </div>
         </div>
+
+        {/* Botón de Acceso Directo: Historial Anual de Licencias */}
+        {onOpenHistorialLicencias && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenHistorialLicencias();
+            }}
+            className="w-full py-2 px-3 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer touch-target-44 min-h-[40px]"
+            title="Abrir el centro de control anual de licencias docentes"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>📋 Ver mi historial anual de licencias ({licenciasCount} usadas en {currentYear})</span>
+          </button>
+        )}
 
         {/* Selector de Artículo del Decreto 1092 */}
         <div className="space-y-1.5">
@@ -126,15 +156,15 @@ export default function JustificarDecreto1092Modal({
           </div>
         )}
 
-        {/* Campo opcional de observaciones / N° de parte médico */}
+        {/* Observación / Nota personal */}
         <div className="space-y-1">
           <label className="block text-xs font-mono uppercase font-bold text-text-secondary">
-            N° de Parte Médico u Observación (Opcional)
+            Observación / Nota personal (Opcional)
           </label>
           <textarea
             value={observacion}
             onChange={(e) => setObservacion(e.target.value)}
-            placeholder="Ej: Certificado médico N° 8492 — Dr. González..."
+            placeholder="Escribí una observación (ej: Entregué certificado al preceptor, mesa de examen en IES, reposo médico por 48hs...)"
             rows={2}
             className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-surface-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium resize-none"
           />

@@ -4,6 +4,7 @@ import Card from '../common/Card';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
 import RegistrarFaltaDocenteModal from './modals/RegistrarFaltaDocenteModal';
+import LicenciasDocenteModal from '../common/LicenciasDocenteModal';
 import AttendanceQuickActions from './attendance/AttendanceQuickActions';
 import AttendanceDesktopTable from './attendance/AttendanceDesktopTable';
 import AttendanceCardsMobile from './attendance/AttendanceCardsMobile';
@@ -32,6 +33,7 @@ export default function AttendanceTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [isFaltaDocenteModalOpen, setIsFaltaDocenteModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isLicenciasModalOpen, setIsLicenciasModalOpen] = useState(false);
 
   // Hook desacoplado de gestión de asistencia
   const {
@@ -119,6 +121,7 @@ export default function AttendanceTab({
         onMarcarTodosPresentes={handleMarcarTodosPresentes}
         onMarcarTodosAusentes={handleMarcarTodosAusentes}
         onOpenFaltaDocenteModal={() => setIsFaltaDocenteModalOpen(true)}
+        onOpenLicenciasModal={() => setIsLicenciasModalOpen(true)}
         onExportExcel={handleExportExcel}
         onOpenPrintModal={() => setIsPrintModalOpen(true)}
         saving={saving}
@@ -129,6 +132,7 @@ export default function AttendanceTab({
         claseActiva={claseActiva}
         unidades={unidades}
         onUpdateClase={handleUpdateClase}
+        onOpenLicenciasModal={() => setIsLicenciasModalOpen(true)}
         disabled={saving}
       />
 
@@ -196,6 +200,18 @@ export default function AttendanceTab({
           clases,
           estudiantes: filteredAlumnos,
           asistencias
+        }}
+      />
+
+      {/* Centro y Balance Anual de Licencias Docentes */}
+      <LicenciasDocenteModal
+        isOpen={isLicenciasModalOpen}
+        onClose={() => setIsLicenciasModalOpen(false)}
+        catedras={catedra ? [catedra] : [{ id: catedraId, nombre: catedraName }]}
+        initialCatedraId={catedraId}
+        docenteId={user?.id}
+        onLicenciaSaved={() => {
+          refetch();
         }}
       />
     </div>
