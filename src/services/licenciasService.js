@@ -47,19 +47,103 @@ export function saveLocalLicencias(docenteId, licencias) {
 }
 
 /**
- * Normaliza un registro de licencia docente
+ * Retorna un array con todas las fechas (YYYY-MM-DD) entre startDate y endDate inclusive.
+ * @param {string} startDateStr 
+ * @param {string} [endDateStr]
+ * @returns {string[]}
+ */
+export function getFechasEnRango(startDateStr, endDateStr) {
+  if (!startDateStr) return [];
+  const start = new Date(startDateStr.split('T')[0] + 'T00:00:00');
+  const end = endDateStr ? new Date(endDateStr.split('T')[0] + 'T00:00:00') : new Date(start);
+  const result = [];
+  const current = new Date(start);
+
+  while (current <= end) {
+    const y = current.getFullYear();
+    const m = String(current.getMonth() + 1).padStart(2, '0');
+    const d = String(current.getDate()).padStart(2, '0');
+    result.push(`${y}-${m}-${d}`);
+    current.setDate(current.getDate() + 1);
+  }
+  return result;
+}
+
+/**
+ * Determina si una fecha dada está cubierta por alguna de las licencias del docente,
+ * evaluando rango de fechas [fecha_inicio, fecha_fin] y alcance de cátedras.
+ * @param {string} fechaStr - YYYY-MM-DD
+ * @param {Array} licencias - Lista de licencias
+ * @param {string} [catedraId] - ID de cátedra opcional
+ * @returns {{ cubierta: boolean, licencia: Object|null }}
+ */
+export function isFechaCubiertaPorLicencias(fechaStr, licencias = [], catedraId = null) {
+  if (!fechaStr || !Array.isArray(licencias) || licencias.length === 0) {
+    return { cubierta: false, licencia: null };
+  }
+  const targetDate = String(fechaStr).split('T')[0];
+
+  for (const lic of licencias) {
+    const fInicio = String(lic.fecha_inicio || lic.fecha || '').split('T')[0];
+    const fFin = String(lic.fecha_fin || lic.fecha_inicio || lic.fecha || '').split('T')[0];
+    if (!fInicio) continue;
+
+    // Verificar si aplica a la cátedra
+    let aplicaCatedra = true;
+    if (catedraId) {
+      if (lic.aplica_todas_catedras === true) {
+        aplicaCatedra = true;
+      } else if (lic.catedra_id && lic.catedra_id === catedraId) {
+        aplicaCatedra = true;
+      } else if (Array.isArray(lic.catedra_ids) && lic.catedra_ids.includes(catedraId)) {
+        aplicaCatedra = true;
+      } else if (!lic.catedra_id && (!lic.catedra_ids || lic.catedra_ids.length === 0)) {
+        aplicaCatedra = true; // Alcance General
+      } else {
+        aplicaCatedra = false;
+      }
+    }
+
+    if (!aplicaCatedra) continue;
+
+    // Verificar si cae dentro del rango [fInicio, fFin]
+    if (targetDate >= fInicio && targetDate <= fFin) {
+      return { cubierta: true, licencia: lic };
+    }
+  }
+
+  return { cubierta: false, licencia: null };
+}
+
+/**
+ * Normaliza un registro de licencia docente con soporte multi-día y multi-cátedra
  */
 export function normalizeLicencia(raw, catedrasMap = {}) {
   if (!raw) return null;
   const catedraId = raw.catedra_id || null;
   const catedraInfo = raw.catedra || raw.catedras || (catedraId ? catedrasMap[catedraId] : null) || null;
+  const fechaInicio = raw.fecha_inicio || raw.fecha ? String(raw.fecha_inicio || raw.fecha).split('T')[0] : getTodayYMD();
+  const fechaFin = raw.fecha_fin ? String(raw.fecha_fin).split('T')[0] : fechaInicio;
+  const cantidadDias = Math.max(1, parseInt(raw.cantidad_dias, 10) || 1);
+  const fechaReintegro = raw.fecha_reintegro ? String(raw.fecha_reintegro).split('T')[0] : null;
+  const aplicaTodasCatedras = Boolean(
+    raw.aplica_todas_catedras ?? (raw.catedra_id === null && (!raw.catedra_ids || raw.catedra_ids.length === 0))
+  );
+  const catedraIds = Array.isArray(raw.catedra_ids) ? raw.catedra_ids : (catedraId ? [catedraId] : []);
 
   return {
     id: String(raw.id),
     docente_id: raw.docente_id,
-    fecha: raw.fecha ? String(raw.fecha).split('T')[0] : getTodayYMD(),
+    fecha: fechaInicio,
+    fecha_inicio: fechaInicio,
+    fecha_fin: fechaFin,
+    cantidad_dias: cantidadDias,
+    fecha_reintegro: fechaReintegro,
+    aplica_todas_catedras: aplicaTodasCatedras,
+    catedra_ids: catedraIds,
     catedra_id: catedraId,
     clase_id: raw.clase_id || null,
+    clase_ids: Array.isArray(raw.clase_ids) ? raw.clase_ids : (raw.clase_id ? [raw.clase_id] : []),
     articulo: raw.articulo || raw.articulo_licencia || 'Art. 52° - Razones particulares o especiales',
     articulo_codigo: raw.articulo_codigo || getArticuloByText(raw.articulo || raw.articulo_licencia)?.codigo || null,
     observacion: raw.observacion || raw.observaciones || raw.motivo_inasistencia || '',
@@ -221,18 +305,25 @@ export async function getLicenciasByYear(docenteId, year = new Date().getFullYea
 }
 
 /**
- * Registra o actualiza una licencia docente.
- * Si se selecciona cátedra, sincroniza la clase correspondiente en public.clases.
+ * Registra o actualiza una licencia docente con soporte multi-día y multi-cátedra.
+ * Si se seleccionan cátedras o todas, sincroniza las clases correspondientes en public.clases.
  *
  * @param {Object} payload
- * @param {string} payload.fecha - YYYY-MM-DD (obligatorio)
- * @param {string} [payload.catedra_id] - ID de cátedra o null
+ * @param {string} payload.fecha - YYYY-MM-DD (fecha inicio)
+ * @param {string} [payload.fecha_inicio] - YYYY-MM-DD
+ * @param {string} [payload.fecha_fin] - YYYY-MM-DD
+ * @param {number} [payload.cantidad_dias] - Días computados
+ * @param {string} [payload.fecha_reintegro] - YYYY-MM-DD
+ * @param {boolean} [payload.aplica_todas_catedras] - Abarca todas las cátedras
+ * @param {string[]} [payload.catedra_ids] - IDs de cátedras seleccionadas
+ * @param {string} [payload.catedra_id] - ID de cátedra singular o null
  * @param {string} payload.articulo - Artículo normativo
  * @param {string} [payload.observacion] - Texto libre
  * @param {'PRESENTADA'|'PENDIENTE_CERTIFICADO'|'APROBADA'} [payload.estado_tramite]
  * @param {string} [payload.docente_id]
  * @param {string} [payload.clase_id]
- * @param {Object} [options] - Opciones (supabase, isDemo)
+ * @param {string[]} [payload.clase_ids]
+ * @param {Object} [options] - Opciones (supabase, isDemo, allCatedraIds, catedrasList)
  * @returns {Promise<Object>} Licencia guardada
  */
 export async function createOrUpdateLicencia(payload, options = {}) {
@@ -241,69 +332,107 @@ export async function createOrUpdateLicencia(payload, options = {}) {
   const docenteId = payload.docente_id || options.docenteId || 'demo';
 
   const licenciaId = payload.id || `lic-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  const fecha = payload.fecha ? String(payload.fecha).split('T')[0] : getTodayYMD();
+  const fechaInicio = payload.fecha_inicio || payload.fecha ? String(payload.fecha_inicio || payload.fecha).split('T')[0] : getTodayYMD();
+  const fechaFin = payload.fecha_fin ? String(payload.fecha_fin).split('T')[0] : fechaInicio;
+  const cantidadDias = Math.max(1, parseInt(payload.cantidad_dias, 10) || 1);
+  const fechaReintegro = payload.fecha_reintegro ? String(payload.fecha_reintegro).split('T')[0] : null;
+  const aplicaTodasCatedras = Boolean(
+    payload.aplica_todas_catedras ?? (payload.catedra_id === null && (!payload.catedra_ids || payload.catedra_ids.length === 0))
+  );
+  const catedraIds = Array.isArray(payload.catedra_ids) 
+    ? payload.catedra_ids 
+    : (payload.catedra_id ? [payload.catedra_id] : []);
+  const catedraId = !aplicaTodasCatedras && catedraIds.length === 1 ? catedraIds[0] : (payload.catedra_id || null);
+
   const articulo = payload.articulo || 'Art. 52° - Razones particulares o especiales';
   const articuloCodigo = payload.articulo_codigo || getArticuloByText(articulo)?.codigo || null;
   const observacion = payload.observacion || payload.observaciones || '';
   const estadoTramite = payload.estado_tramite || 'PENDIENTE_CERTIFICADO';
-  const catedraId = payload.catedra_id || null;
   let claseId = payload.clase_id || null;
+  const affectedClaseIds = Array.isArray(payload.clase_ids) ? [...payload.clase_ids] : (claseId ? [claseId] : []);
 
-  // 1. Sincronización con clases si hay cátedra seleccionada
-  if (catedraId) {
+  // Fechas dentro del rango
+  const fechasRango = getFechasEnRango(fechaInicio, fechaFin);
+
+  // Determinar cátedras a sincronizar
+  let targetCatedraIds = [];
+  if (aplicaTodasCatedras) {
+    if (options.catedrasList && options.catedrasList.length > 0) {
+      targetCatedraIds = options.catedrasList.map(c => c.id).filter(Boolean);
+    } else if (options.allCatedraIds && options.allCatedraIds.length > 0) {
+      targetCatedraIds = options.allCatedraIds;
+    }
+  } else {
+    targetCatedraIds = catedraIds;
+  }
+
+  // 1. Sincronización con clases si hay cátedras involucradas
+  if (targetCatedraIds.length > 0 && isSupabaseConfigured && !isDemo && client) {
     try {
-      if (isSupabaseConfigured && !isDemo && client) {
-        // Buscar si existe clase en esa fecha
-        const { data: existingClases } = await client
-          .from('clases')
-          .select('id, tema')
-          .eq('catedra_id', catedraId)
-          .eq('fecha', fecha);
-
-        if (existingClases && existingClases.length > 0) {
-          claseId = existingClases[0].id;
-          await client
+      for (const cId of targetCatedraIds) {
+        for (const f of fechasRango) {
+          const { data: existingClases } = await client
             .from('clases')
-            .update({
-              estado: 'DOCENTE_AUSENTE',
-              articulo_licencia: articulo,
-              observaciones: observacion,
-              tema: `Sin actividad áulica - Licencia Docente (${articulo})`
-            })
-            .eq('id', claseId);
-        } else {
-          // Crear clase ausente en esa fecha
-          const { data: newClase } = await client
-            .from('clases')
-            .insert({
-              catedra_id: catedraId,
-              fecha: fecha,
-              estado: 'DOCENTE_AUSENTE',
-              articulo_licencia: articulo,
-              observaciones: observacion,
-              tema: `Sin actividad áulica - Licencia Docente (${articulo})`
-            })
-            .select()
-            .single();
+            .select('id, tema')
+            .eq('catedra_id', cId)
+            .eq('fecha', f);
 
-          if (newClase) claseId = newClase.id;
+          if (existingClases && existingClases.length > 0) {
+            const foundId = existingClases[0].id;
+            if (!affectedClaseIds.includes(foundId)) affectedClaseIds.push(foundId);
+            if (!claseId) claseId = foundId;
+            await client
+              .from('clases')
+              .update({
+                estado: 'DOCENTE_AUSENTE',
+                articulo_licencia: articulo,
+                observaciones: observacion,
+                tema: `Sin actividad áulica - Licencia Docente (${articulo})`
+              })
+              .eq('id', foundId);
+          } else {
+            const { data: newClase } = await client
+              .from('clases')
+              .insert({
+                catedra_id: cId,
+                fecha: f,
+                estado: 'DOCENTE_AUSENTE',
+                articulo_licencia: articulo,
+                observaciones: observacion,
+                tema: `Sin actividad áulica - Licencia Docente (${articulo})`
+              })
+              .select()
+              .single();
+
+            if (newClase) {
+              if (!affectedClaseIds.includes(newClase.id)) affectedClaseIds.push(newClase.id);
+              if (!claseId) claseId = newClase.id;
+            }
+          }
         }
       }
     } catch (claseSyncErr) {
-      console.warn('Error sincronizando clase de licencia:', claseSyncErr);
+      console.warn('Error sincronizando clases de licencia en rango:', claseSyncErr);
     }
   }
 
   const licenciaItem = {
     id: licenciaId,
     docente_id: docenteId,
-    fecha,
+    fecha: fechaInicio,
+    fecha_inicio: fechaInicio,
+    fecha_fin: fechaFin,
+    cantidad_dias: cantidadDias,
+    fecha_reintegro: fechaReintegro,
+    aplica_todas_catedras: aplicaTodasCatedras,
+    catedra_ids: targetCatedraIds,
+    catedra_id: catedraId,
+    clase_id: claseId,
+    clase_ids: affectedClaseIds,
     articulo,
     articulo_codigo: articuloCodigo,
     observacion,
     estado_tramite: estadoTramite,
-    catedra_id: catedraId,
-    clase_id: claseId,
     updated_at: new Date().toISOString()
   };
 
@@ -328,32 +457,60 @@ export async function createOrUpdateLicencia(payload, options = {}) {
     } else {
       try {
         const isTempId = String(licenciaId).startsWith('lic-') || String(licenciaId).startsWith('clase-lic-');
+        
+        // Intento completo con soporte multi-día y multi-cátedra
+        const fullPayload = {
+          id: !isTempId ? licenciaId : undefined,
+          docente_id: docenteId,
+          fecha: fechaInicio,
+          fecha_fin: fechaFin,
+          cantidad_dias: cantidadDias,
+          fecha_reintegro: fechaReintegro,
+          aplica_todas_catedras: aplicaTodasCatedras,
+          catedra_ids: targetCatedraIds,
+          articulo,
+          articulo_codigo: articuloCodigo,
+          observacion,
+          estado_tramite: estadoTramite,
+          catedra_id: catedraId,
+          clase_id: claseId
+        };
+
         const { error: insertErr } = await client
           .from('licencias_docentes')
-          .upsert({
+          .upsert(fullPayload);
+
+        if (insertErr) {
+          // Fallback clásico si la tabla remota no tiene aún columnas multi-día
+          const fallbackPayload = {
             id: !isTempId ? licenciaId : undefined,
             docente_id: docenteId,
-            fecha,
+            fecha: fechaInicio,
             articulo,
             articulo_codigo: articuloCodigo,
             observacion,
             estado_tramite: estadoTramite,
             catedra_id: catedraId,
             clase_id: claseId
-          });
+          };
 
-        if (insertErr) {
-          // Fallback a inasistencias_docente si la tabla no existe
-          await client
-            .from('inasistencias_docente')
-            .insert({
-              docente_id: docenteId,
-              fecha,
-              tipo: 'LICENCIA',
-              articulo_licencia: articulo,
-              observaciones: observacion,
-              catedra_id: catedraId
-            });
+          const { error: fallbackErr } = await client
+            .from('licencias_docentes')
+            .upsert(fallbackPayload);
+
+          if (fallbackErr) {
+            // Fallback final a inasistencias_docente
+            await client
+              .from('inasistencias_docente')
+              .insert({
+                docente_id: docenteId,
+                fecha: fechaInicio,
+                tipo: 'LICENCIA',
+                articulo_licencia: articulo,
+                observaciones: observacion,
+                catedra_id: catedraId
+              });
+          }
         }
       } catch (saveErr) {
         console.warn('Error al guardar en Supabase:', saveErr);
@@ -415,7 +572,7 @@ export async function updateObservacion(licenciaId, nuevaObservacion, estadoTram
 }
 
 /**
- * Elimina una licencia docente y restaura la clase asociada a 'DICTADA'
+ * Elimina una licencia docente y restaura las clases asociadas a 'DICTADA'
  *
  * @param {string} licenciaId - ID de la licencia
  * @param {string} [claseId] - ID de clase vinculada si existe
@@ -430,22 +587,42 @@ export async function deleteLicencia(licenciaId, claseId = null, options = {}) {
   const currentList = getLocalLicencias(docenteId);
   const target = currentList.find(l => String(l.id) === String(licenciaId));
   const effectiveClaseId = claseId || target?.clase_id;
+  const effectiveClaseIds = target?.clase_ids || (effectiveClaseId ? [effectiveClaseId] : []);
   const nextList = currentList.filter(l => String(l.id) !== String(licenciaId));
   saveLocalLicencias(docenteId, nextList);
 
-  // 2. Restaurar clase si existe
-  if (effectiveClaseId && isSupabaseConfigured && !isDemo && client) {
+  // 2. Restaurar clases si existen
+  if (isSupabaseConfigured && !isDemo && client) {
     try {
-      await client
-        .from('clases')
-        .update({
-          estado: 'DICTADA',
-          articulo_licencia: null,
-          tema: 'Clase dictada regular'
-        })
-        .eq('id', effectiveClaseId);
+      if (effectiveClaseIds.length > 0) {
+        await client
+          .from('clases')
+          .update({
+            estado: 'DICTADA',
+            articulo_licencia: null,
+            tema: 'Clase dictada regular'
+          })
+          .in('id', effectiveClaseIds);
+      } else if (target && target.fecha_inicio && target.fecha_fin) {
+        const fechasRango = getFechasEnRango(target.fecha_inicio, target.fecha_fin);
+        let q = client
+          .from('clases')
+          .update({
+            estado: 'DICTADA',
+            articulo_licencia: null,
+            tema: 'Clase dictada regular'
+          })
+          .in('fecha', fechasRango);
+
+        if (target.catedra_ids && target.catedra_ids.length > 0) {
+          q = q.in('catedra_id', target.catedra_ids);
+        } else if (target.catedra_id) {
+          q = q.eq('catedra_id', target.catedra_id);
+        }
+        await q;
+      }
     } catch (claseErr) {
-      console.warn('Error restaurando clase a DICTADA:', claseErr);
+      console.warn('Error restaurando clases a DICTADA:', claseErr);
     }
   }
 
@@ -466,6 +643,7 @@ export async function deleteLicencia(licenciaId, claseId = null, options = {}) {
 
 /**
  * Calcula los contadores reglamentarios de consumo de licencias (Decreto 1092)
+ * acumulando correctamente los días computados por cada evento.
  *
  * @param {Array} licencias - Lista de licencias del año
  * @param {number|string} [targetYear] - Año actual (ej. 2026)
@@ -477,7 +655,7 @@ export function calcularConsumoLicencias(licencias = [], targetYear = new Date()
   const currentMonth = targetDate.substring(0, 7); // YYYY-MM
 
   const licenciasDelAno = licencias.filter(l => (l.fecha || '').startsWith(yearStr));
-  const totalAnual = licenciasDelAno.length;
+  const totalAnual = licenciasDelAno.reduce((acc, l) => acc + (Number(l.cantidad_dias) || 1), 0);
 
   let art15Anual = 0;
   let art15Mes = 0;
@@ -487,15 +665,16 @@ export function calcularConsumoLicencias(licencias = [], targetYear = new Date()
     const art = lic.articulo || '';
     const artLower = art.toLowerCase();
     const isArt15 = art.includes('Art. 52') || art.includes('Art. 15') || art.includes('Art. 60') || artLower.includes('razones particulares') || lic.articulo_codigo === 'ART_52';
+    const diasLic = Number(lic.cantidad_dias) || 1;
 
     if (isArt15) {
-      art15Anual += 1;
+      art15Anual += diasLic;
       if ((lic.fecha || '').startsWith(currentMonth)) {
-        art15Mes += 1;
+        art15Mes += diasLic;
       }
     }
 
-    // Clasificación normalizada para chips (soporta nomenclatura Decreto 1092 Art. 52/16/53/54/48/49 y variantes históricas)
+    // Clasificación normalizada para chips
     let chipKey = 'Otro';
     if (isArt15) chipKey = art.includes('Art. 52') || lic.articulo_codigo === 'ART_52' ? 'Art. 52°' : (art.includes('Art. 60') ? 'Art. 60°' : 'Art. 15°');
     else if (art.includes('Art. 16') || art.includes('Art. 9') || art.includes('Art. 17') || artLower.includes('enfermedad') || artLower.includes('afecciones') || lic.articulo_codigo === 'ART_16') {
@@ -512,19 +691,18 @@ export function calcularConsumoLicencias(licencias = [], targetYear = new Date()
       chipKey = 'Art. 49°';
     }
     else {
-      // Extraer primer número de art si existe
       const match = art.match(/Art\.?\s*(\d+)/i);
       chipKey = match ? `Art. ${match[1]}°` : 'Otro';
     }
 
-    desglose[chipKey] = (desglose[chipKey] || 0) + 1;
+    desglose[chipKey] = (desglose[chipKey] || 0) + diasLic;
   }
 
   // Alertas reglamentarias (Decreto 1092: Máx 6 por año, Máx 2 por mes)
   const art15AnualMax = 6;
   const art15MesMax = 2;
 
-  let alertaArt15 = 'normal'; // 'normal' | 'advertencia' | 'limite'
+  let alertaArt15 = 'normal';
   if (art15Anual >= art15AnualMax || art15Mes >= art15MesMax) {
     alertaArt15 = 'limite';
   } else if (art15Anual >= 4 || art15Mes >= 1) {
@@ -598,8 +776,8 @@ export function calcularDisponibilidadArticulo(articuloCodigoOTexto, licencias =
     return false;
   }
 
-  const usadosAnio = licenciasDelAno.filter(matchLicencia).length;
-  const usadosMes = licenciasDelMes.filter(matchLicencia).length;
+  const usadosAnio = licenciasDelAno.filter(matchLicencia).reduce((acc, l) => acc + (Number(l.cantidad_dias) || 1), 0);
+  const usadosMes = licenciasDelMes.filter(matchLicencia).reduce((acc, l) => acc + (Number(l.cantidad_dias) || 1), 0);
 
   if (art.modoLimite === 'SIN_LIMITE') {
     const mensajeAnual = `♾️ Sin límite anual fijo (${art.unidad}) — Llevás ${usadosAnio} días registrados en ${anio}`;

@@ -23,13 +23,16 @@ import {
   createOrUpdateLicencia,
   updateObservacion,
   deleteLicencia,
-  calcularDisponibilidadArticulo
+  calcularDisponibilidadArticulo,
+  getFechasEnRango,
+  isFechaCubiertaPorLicencias
 } from '../licenciasService';
 import {
   CATALOGO_DECRETO_1092,
   getArticuloByCodigo,
   getArticuloByText,
-  getArticulosAgrupadosPorCapitulo
+  getArticulosAgrupadosPorCapitulo,
+  calcularFechaFinLicencia
 } from '../../constants/decreto1092';
 
 describe('licenciasService — Reglas y Contadores Decreto 1092', () => {
@@ -273,6 +276,94 @@ describe('licenciasService — Reglas y Contadores Decreto 1092', () => {
       const disp = calcularDisponibilidadArticulo('ART_16', mockLicencias, '2026-05-10');
       expect(disp.usadosAnio).toBe(2);
       expect(disp.restantesAnio).toBe(23); // 25 - 2 = 23
+    });
+  });
+
+  describe('4. Multi-Día, Multi-Cátedra y Cálculo de Fechas Fin/Reintegro', () => {
+    it('Calcula fechas para días CORRIDOS correctamente', () => {
+      // 10 días corridos iniciando el lunes 2026-05-11
+      const res = calcularFechaFinLicencia('2026-05-11', 10, 'CORRIDOS');
+      expect(res.fechaInicio).toBe('2026-05-11');
+      expect(res.fechaFin).toBe('2026-05-20');
+      expect(res.fechaReintegro).toBe('2026-05-21');
+    });
+
+    it('Calcula fechas para días HÁBILES excluyendo fines de semana', () => {
+      // 5 días hábiles iniciando el viernes 2026-05-15
+      // Viernes 15 (1), Lunes 18 (2), Martes 19 (3), Miércoles 20 (4), Jueves 21 (5)
+      // Reintegro: Viernes 22
+      const res = calcularFechaFinLicencia('2026-05-15', 5, 'HABILES');
+      expect(res.fechaInicio).toBe('2026-05-15');
+      expect(res.fechaFin).toBe('2026-05-21');
+      expect(res.fechaReintegro).toBe('2026-05-22');
+    });
+
+    it('Ajusta automáticamente al lunes si fecha de inicio en HÁBILES cae fin de semana', () => {
+      // Sábado 2026-05-16 -> se ajusta al Lunes 2026-05-18
+      // 2 días hábiles: Lunes 18 (1), Martes 19 (2) -> Reintegro: Miércoles 20
+      const res = calcularFechaFinLicencia('2026-05-16', 2, 'HABILES');
+      expect(res.fechaInicio).toBe('2026-05-18');
+      expect(res.fechaFin).toBe('2026-05-19');
+      expect(res.fechaReintegro).toBe('2026-05-20');
+    });
+
+    it('Genera rango inclusivo de fechas con getFechasEnRango', () => {
+      const fechas = getFechasEnRango('2026-05-10', '2026-05-13');
+      expect(fechas).toEqual(['2026-05-10', '2026-05-11', '2026-05-12', '2026-05-13']);
+    });
+
+    it('Detecta si una fecha está cubierta por licencias (isFechaCubiertaPorLicencias)', () => {
+      const mockLicencias = [
+        {
+          id: 'lic-multi-1',
+          fecha_inicio: '2026-06-01',
+          fecha_fin: '2026-06-05',
+          aplica_todas_catedras: true,
+          articulo_codigo: 'ART_16'
+        },
+        {
+          id: 'lic-single-1',
+          fecha_inicio: '2026-06-15',
+          fecha_fin: '2026-06-15',
+          aplica_todas_catedras: false,
+          catedra_id: 'cat-matematica',
+          catedra_ids: ['cat-matematica'],
+          articulo_codigo: 'ART_52'
+        }
+      ];
+
+      // Dentro del rango de la licencia global
+      expect(isFechaCubiertaPorLicencias('2026-06-03', mockLicencias, 'cualquier-cat').cubierta).toBe(true);
+
+      // Fuera del rango de la licencia global
+      expect(isFechaCubiertaPorLicencias('2026-06-06', mockLicencias, 'cualquier-cat').cubierta).toBe(false);
+
+      // Licencia para cátedra específica
+      expect(isFechaCubiertaPorLicencias('2026-06-15', mockLicencias, 'cat-matematica').cubierta).toBe(true);
+      expect(isFechaCubiertaPorLicencias('2026-06-15', mockLicencias, 'cat-fisica').cubierta).toBe(false);
+    });
+
+    it('Acumula cantidad_dias al calcular consumo anual', () => {
+      const mockLicencias = [
+        {
+          fecha: '2026-04-01',
+          fecha_inicio: '2026-04-01',
+          fecha_fin: '2026-04-07',
+          cantidad_dias: 7,
+          articulo_codigo: 'ART_16'
+        },
+        {
+          fecha: '2026-05-10',
+          fecha_inicio: '2026-05-10',
+          fecha_fin: '2026-05-12',
+          cantidad_dias: 3,
+          articulo_codigo: 'ART_16'
+        }
+      ];
+
+      const disp = calcularDisponibilidadArticulo('ART_16', mockLicencias, '2026-05-20');
+      expect(disp.usadosAnio).toBe(10); // 7 + 3 = 10 días
+      expect(disp.restantesAnio).toBe(15); // 25 - 10 = 15 días restantes
     });
   });
 });

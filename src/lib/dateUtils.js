@@ -178,3 +178,6 @@ export function getRelativeDateLabel(dateInput) {
   if (diffDays === -1) return 'Ayer';
   return `Hace ${Math.abs(diffDays)} días`;
 }
+
+// Re-exportar cálculo de fin de licencias de Decreto 1092
+export { calcularFechaFinLicencia } from '../constants/decreto1092';

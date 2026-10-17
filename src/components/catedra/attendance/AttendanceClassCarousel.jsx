@@ -7,9 +7,11 @@ import {
   ChevronLeft, 
   ChevronRight, 
   History,
-  Users
+  Users,
+  ShieldAlert
 } from 'lucide-react';
 import { formatFechaDMY } from '../../../lib/dateUtils';
+import { isFechaCubiertaPorLicencias } from '../../../services/licenciasService';
 import Badge from '../../common/Badge';
 
 /**
@@ -22,6 +24,8 @@ export default function AttendanceClassCarousel({
   selectedClaseId = null,
   selectedFecha = '',
   asistencias = [],
+  licenciasDocente = [],
+  catedraId = null,
   onSelectClase,
   onSelectNuevaClaseHoy
 }) {
@@ -127,39 +131,62 @@ export default function AttendanceClassCarousel({
               : c.fecha === selectedFecha;
             const stats = getClaseAttendanceStats(c);
             const formattedDate = formatFechaDMY(c.fecha).replace(/-/g, '/');
+            const coverage = isFechaCubiertaPorLicencias(c.fecha, licenciasDocente, catedraId);
+            const isLicencia = c.estado === 'DOCENTE_AUSENTE' || Boolean(c.articulo_licencia) || coverage.cubierta;
+            const licenciaArticulo = c.articulo_licencia || (coverage.licencia?.articulo_codigo || coverage.licencia?.articulo);
+
+            let cardStyle = 'border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700';
+            if (isLicencia) {
+              cardStyle = isSelected
+                ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 shadow-xs ring-2 ring-amber-500/30'
+                : 'border-amber-500/40 bg-amber-500/5 dark:bg-amber-500/10 hover:border-amber-500/60';
+            } else if (isSelected) {
+              cardStyle = 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/15 shadow-xs ring-2 ring-emerald-500/30';
+            }
 
             return (
               <button
                 key={c.id || idx}
                 type="button"
                 onClick={() => onSelectClase?.(c)}
-                className={`group relative flex flex-col items-start gap-1 p-2.5 rounded-xl border transition-all cursor-pointer min-w-[145px] max-w-[180px] shrink-0 snap-start text-left touch-target-44 ${
-                  isSelected
-                    ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/15 shadow-xs ring-2 ring-emerald-500/30'
-                    : 'border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
-                }`}
-                title={`Ver y editar asistencia del ${formattedDate}`}
+                className={`group relative flex flex-col items-start gap-1 p-2.5 rounded-xl border transition-all cursor-pointer min-w-[145px] max-w-[180px] shrink-0 snap-start text-left touch-target-44 ${cardStyle}`}
+                title={isLicencia ? `Licencia Docente registrada (${formattedDate})` : `Ver y editar asistencia del ${formattedDate}`}
               >
                 {/* Línea 1: Fecha e Indicador de Selección */}
                 <div className="w-full flex items-center justify-between gap-1">
                   <span className={`font-mono text-xs font-bold ${
-                    isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-text-primary'
+                    isSelected
+                      ? isLicencia ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
+                      : isLicencia ? 'text-amber-600 dark:text-amber-400' : 'text-text-primary'
                   }`}>
                     {formattedDate}
                   </span>
-                  <span className="text-[10px] font-mono text-text-muted px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800">
-                    N° {c.numero_clase || (clases.length - idx)}
+                  <span className={`text-[10px] font-mono px-1 py-0.2 rounded ${
+                    isLicencia
+                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold'
+                      : 'bg-slate-100 dark:bg-slate-800 text-text-muted'
+                  }`}>
+                    {isLicencia ? 'LIC' : `N° ${c.numero_clase || (clases.length - idx)}`}
                   </span>
                 </div>
 
-                {/* Línea 2: Tema de la Clase */}
-                <div className="w-full text-[11px] text-text-muted truncate font-medium">
-                  {c.tema || 'Clase regular'}
+                {/* Línea 2: Tema de la Clase o Licencia */}
+                <div className={`w-full text-[11px] truncate font-medium ${
+                  isLicencia ? 'text-amber-700 dark:text-amber-300 font-semibold' : 'text-text-muted'
+                }`}>
+                  {isLicencia 
+                    ? (licenciaArticulo || c.motivo_inasistencia || 'Licencia Docente')
+                    : (c.tema || 'Clase regular')}
                 </div>
 
-                {/* Línea 3: Chip de Asistencia Tomada */}
+                {/* Línea 3: Chip de Asistencia Tomada o Licencia */}
                 <div className="w-full pt-1 mt-0.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px] font-mono">
-                  {stats.hasRecords ? (
+                  {isLicencia ? (
+                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold truncate">
+                      <ShieldAlert className="w-3 h-3 shrink-0" />
+                      <span>🛡️ Licencia</span>
+                    </span>
+                  ) : stats.hasRecords ? (
                     <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
                       <CheckCircle2 className="w-3 h-3" />
                       <span>{stats.presentes} presentes</span>
@@ -171,7 +198,9 @@ export default function AttendanceClassCarousel({
                     </span>
                   )}
                   {isSelected && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                      isLicencia ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`} />
                   )}
                 </div>
               </button>

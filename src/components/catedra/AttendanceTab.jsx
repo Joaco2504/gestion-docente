@@ -43,6 +43,9 @@ export default function AttendanceTab({
     claseActiva,
     selectedClaseId,
     asistencias,
+    licenciasDocente,
+    isLicenciaDocente,
+    licenciaDocenteActiva,
     fechaSeleccionada,
     setFechaSeleccionada,
     handleSelectClase,
@@ -110,6 +113,8 @@ export default function AttendanceTab({
         selectedClaseId={selectedClaseId}
         selectedFecha={fechaSeleccionada}
         asistencias={asistencias}
+        licenciasDocente={licenciasDocente}
+        catedraId={catedraId}
         onSelectClase={handleSelectClase}
         onSelectNuevaClaseHoy={() => setFechaSeleccionada(getTodayYMD())}
       />
@@ -132,6 +137,8 @@ export default function AttendanceTab({
       {/* 3. Barra Rápida de Unidad, Tema dictado & Decreto 1092 */}
       <AttendanceClassTopicBar
         claseActiva={claseActiva}
+        isLicenciaDocente={isLicenciaDocente}
+        licenciaDocenteActiva={licenciaDocenteActiva}
         unidades={unidades}
         onUpdateClase={handleUpdateClase}
         onOpenLicenciasModal={() => setIsLicenciasModalOpen(true)}

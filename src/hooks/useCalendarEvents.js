@@ -15,9 +15,12 @@ import {
   CheckSquare, 
   Bookmark, 
   CalendarRange, 
-  Bell 
+  Bell,
+  ShieldAlert,
+  CheckCircle2
 } from 'lucide-react';
 import { getTodayYMD, formatFechaLegible } from '../lib/dateUtils';
+import { getLocalLicencias, getFechasEnRango } from '../services/licenciasService';
 import { isValid, parseISO } from 'date-fns';
 
 function safeParseDate(val) {
@@ -54,6 +57,7 @@ export function useCalendarEvents({
 }) {
   const [events, setEvents] = useState([]);
   const [clases, setClases] = useState([]);
+  const [licencias, setLicencias] = useState([]);
   const [periodos, setPeriodos] = useState([]);
   const [mesas, setMesas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +70,9 @@ export function useCalendarEvents({
     TRIBUNAL_EXAMEN: true,
     EVALUACION: true,
     TRABAJO_PRACTICO: true,
-    PERIODO: true
+    PERIODO: true,
+    LICENCIA_DOCENTE: true,
+    ASISTENCIA_REGISTRADA: true
   });
 
   // Mapeo indexado de feriados para consultas O(1)
@@ -165,9 +171,28 @@ export function useCalendarEvents({
       }
     ];
 
+    // Cargar clases en modo demo
+    const demoClases = [];
+    (catedras || []).forEach(cat => {
+      const stored = localStorage.getItem(`docentepro_demo_clases_${cat.id}`) || localStorage.getItem(`clases_${cat.id}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            demoClases.push(...parsed.map(c => ({ ...c, catedra_id: cat.id })));
+          }
+        } catch (_) {}
+      }
+    });
+    setClases(demoClases);
+
+    // Cargar licencias locales en demo
+    const localLics = getLocalLicencias(user?.id || 'demo-user');
+    setLicencias(localLics);
+
     setEvents(sampleEvents);
     setPeriodos((periodosAcademicos && periodosAcademicos.length > 0) ? periodosAcademicos : getDefaultPeriods());
-  }, [catedras, periodosAcademicos]);
+  }, [catedras, periodosAcademicos, user]);
 
   const fetchAllCalendarData = useCallback(async () => {
     setLoading(true);
@@ -191,6 +216,25 @@ export function useCalendarEvents({
           setClases(clsData || []);
         } else {
           setClases([]);
+        }
+
+        // Cargar licencias docentes desde Supabase con fallback local
+        try {
+          const { data: licData } = await supabase
+            .from('licencias_docentes')
+            .select('*')
+            .eq('docente_id', user.id);
+          const localLics = getLocalLicencias(user.id);
+          const combined = [...(licData || [])];
+          for (const l of localLics) {
+            if (!combined.some(c => c.id === l.id)) {
+              combined.push(l);
+            }
+          }
+          setLicencias(combined);
+        } catch (licErr) {
+          console.warn('Aviso al cargar licencias docentes en calendario:', licErr);
+          setLicencias(getLocalLicencias(user?.id));
         }
 
         let perQuery = supabase.from('periodos_academicos').select('*');
@@ -241,6 +285,17 @@ export function useCalendarEvents({
 
   useEffect(() => {
     fetchAllCalendarData();
+  }, [fetchAllCalendarData]);
+
+  // Manejo de eventos en tiempo real de licencias docentes
+  useEffect(() => {
+    const handleLicenciasUpdate = () => {
+      fetchAllCalendarData();
+    };
+    window.addEventListener('licencias_docentes_updated', handleLicenciasUpdate);
+    return () => {
+      window.removeEventListener('licencias_docentes_updated', handleLicenciasUpdate);
+    };
   }, [fetchAllCalendarData]);
 
   // Manejo de eventos en tiempo real de períodos
@@ -390,6 +445,107 @@ export function useCalendarEvents({
     }).filter(Boolean);
   }, [mesas, catedras, catFilters, categoryFilters]);
 
+  // Eventos de Licencias Docentes (Decreto 1092)
+  const licenciaEvents = useMemo(() => {
+    if (!categoryFilters.LICENCIA_DOCENTE) return [];
+    const list = [];
+    (licencias || []).forEach(lic => {
+      // Filtrar si está asociada a cátedra deseleccionada
+      if (!lic.aplica_todas_catedras && lic.catedra_id && catFilters[lic.catedra_id] === false) {
+        return;
+      }
+      const fInicio = lic.fecha_inicio || lic.fecha;
+      const fFin = lic.fecha_fin || lic.fecha;
+      if (!fInicio) return;
+
+      const fechas = getFechasEnRango(fInicio, fFin);
+      const catObj = lic.catedra_id ? (catedras || []).find(c => c.id === lic.catedra_id) : null;
+      const catNombre = lic.aplica_todas_catedras ? 'Todas las Cátedras' : (catObj?.nombre || 'Cátedra Específica');
+      const artLabel = lic.articulo_codigo || lic.articulo || 'Decreto 1092';
+
+      fechas.forEach(f => {
+        list.push({
+          id: `lic-ev-${lic.id}-${f}`,
+          licencia_id: lic.id,
+          titulo: `🛡️ Licencia: ${artLabel}`,
+          tipo: 'LICENCIA_DOCENTE',
+          fecha_inicio: `${f}T08:00:00`,
+          fecha_fin: `${f}T10:00:00`,
+          fecha: f,
+          hora_inicio: '08:00',
+          hora_fin: '10:00',
+          aula: catNombre,
+          institucion: 'Decreto Acuerdo 1092',
+          catedra_id: lic.catedra_id || null,
+          catedra_nombre: catNombre,
+          catedra_color: '#F59E0B',
+          color: '#F59E0B',
+          articulo: lic.articulo,
+          articulo_codigo: lic.articulo_codigo,
+          observacion: lic.observacion,
+          notas: `🛡️ Licencia Docente (${artLabel})\nAlcance: ${catNombre}\nPeríodo: ${fInicio} al ${fFin} (${lic.cantidad_dias || 1} días)\nReintegro: ${lic.fecha_reintegro || 'N/A'}${lic.observacion ? `\nObs: ${lic.observacion}` : ''}`,
+          isLicencia: true,
+          editable: false
+        });
+      });
+    });
+    return list;
+  }, [licencias, catedras, catFilters, categoryFilters]);
+
+  // Eventos de Asistencia Registrada / Tomada
+  const asistenciaEvents = useMemo(() => {
+    if (!categoryFilters.ASISTENCIA_REGISTRADA) return [];
+    const list = [];
+    (clases || []).forEach(c => {
+      // Solo si está dictada y no es falta/licencia docente
+      if (c.estado !== 'DICTADA') return;
+      if (c.catedra_id && catFilters[c.catedra_id] === false) return;
+
+      const catObj = (catedras || []).find(cat => cat.id === c.catedra_id);
+      const f = c.fecha ? String(c.fecha).split('T')[0] : null;
+      if (!f) return;
+
+      // Buscar horario de la cátedra para ese día
+      let hi = c.hora_inicio || '18:00';
+      let hf = c.hora_fin || '20:00';
+      if (!c.hora_inicio && catObj?.horarios_semanales) {
+        const dateObj = parseISO(f);
+        if (isValid(dateObj)) {
+          const daysMap = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+          const dayName = daysMap[dateObj.getDay()];
+          const horario = (catObj.horarios_semanales || []).find(h => h.dia === dayName);
+          if (horario) {
+            hi = horario.desde || hi;
+            hf = horario.hasta || hf;
+          }
+        }
+      }
+
+      list.push({
+        id: `asist-ev-${c.id || f + '-' + c.catedra_id}`,
+        clase_id: c.id,
+        titulo: `✓ Asistencia Tomada: ${catObj?.nombre || 'Clase Dictada'}`,
+        tipo: 'ASISTENCIA_REGISTRADA',
+        fecha_inicio: `${f}T${hi}:00`,
+        fecha_fin: `${f}T${hf}:00`,
+        fecha: f,
+        hora_inicio: hi,
+        hora_fin: hf,
+        aula: c.aula || catObj?.horarios_semanales?.[0]?.aula || 'Aula 1',
+        institucion: catObj?.institucion_nombre || 'Instituto',
+        catedra_id: c.catedra_id,
+        catedra_nombre: catObj?.nombre || 'Cátedra',
+        catedra_color: '#10B981',
+        color: '#10B981',
+        tema: c.tema || 'Clase regular',
+        notas: `Asistencia tomada • Clase N° ${c.numero_clase || ''} • Tema: ${c.tema || 'Clase regular'}`,
+        isAsistenciaRegistrada: true,
+        editable: false
+      });
+    });
+    return list;
+  }, [clases, catedras, catFilters, categoryFilters]);
+
   // Colección unificada de eventos filtrados
   const allFilteredEvents = useMemo(() => {
     const customEvents = events.filter(e => {
@@ -404,8 +560,8 @@ export function useCalendarEvents({
         color: e.color || catObj?.color || null
       };
     });
-    return [...customEvents, ...periodoEvents, ...mesaEvents];
-  }, [events, periodoEvents, mesaEvents, categoryFilters, catFilters, catedras]);
+    return [...customEvents, ...periodoEvents, ...mesaEvents, ...licenciaEvents, ...asistenciaEvents];
+  }, [events, periodoEvents, mesaEvents, licenciaEvents, asistenciaEvents, categoryFilters, catFilters, catedras]);
 
   // Próximo compromiso destacado
   const nextUpcomingItem = useMemo(() => {
@@ -478,6 +634,8 @@ export function useCalendarEvents({
     if (!item) {
       return {
         isMesa: false,
+        isLicencia: false,
+        isAsistencia: false,
         bgColor: DEFAULT_CURATED_COLORS[0].value,
         textColor: '#FFFFFF',
         catedraColor: DEFAULT_CURATED_COLORS[0].value,
@@ -486,7 +644,9 @@ export function useCalendarEvents({
       };
     }
 
-    const isMesa = item.tipo === 'TRIBUNAL_EXAMEN' || item.isMesa;
+    const isMesa = item.tipo === 'TRIBUNAL_EXAMEN' || Boolean(item.isMesa);
+    const isLicencia = item.tipo === 'LICENCIA_DOCENTE' || Boolean(item.isLicencia);
+    const isAsistencia = item.tipo === 'ASISTENCIA_REGISTRADA' || Boolean(item.isAsistenciaRegistrada);
     const catObj = item.catedra_id ? (catedras || []).find(c => c.id === item.catedra_id) : null;
     const fallbackColor = DEFAULT_CURATED_COLORS[0].value;
 
@@ -500,15 +660,26 @@ export function useCalendarEvents({
       ? rawItemColor.trim()
       : null;
 
-    const bgColor = isMesa
-      ? (validItemColor || DEFAULT_MESA_COLOR)
-      : (validItemColor || catColor);
+    let bgColor = validItemColor || catColor;
+    if (isLicencia) {
+      bgColor = '#F59E0B';
+    } else if (isAsistencia) {
+      bgColor = '#10B981';
+    } else if (isMesa) {
+      bgColor = validItemColor || DEFAULT_MESA_COLOR;
+    }
 
     const textColor = getContrastTextColor(bgColor);
 
     let Icon = BookOpen;
     let tag = 'Clase Regular';
-    if (isMesa) {
+    if (isLicencia) {
+      Icon = ShieldAlert;
+      tag = 'Licencia Docente';
+    } else if (isAsistencia) {
+      Icon = CheckCircle2;
+      tag = 'Asistencia Tomada';
+    } else if (isMesa) {
       Icon = GraduationCap;
       tag = 'Mesa de Examen';
     } else if (item.tipo === 'EVALUACION') {
@@ -527,6 +698,8 @@ export function useCalendarEvents({
 
     return {
       isMesa,
+      isLicencia,
+      isAsistencia,
       bgColor,
       textColor,
       catedraColor: catColor,
@@ -684,6 +857,7 @@ export function useCalendarEvents({
   return {
     events,
     clases,
+    licencias,
     periodos,
     mesas,
     loading,
@@ -697,6 +871,8 @@ export function useCalendarEvents({
     regularClassesList,
     periodoEvents,
     mesaEvents,
+    licenciaEvents,
+    asistenciaEvents,
     allFilteredEvents,
     nextUpcomingItem,
     getItemDesign,

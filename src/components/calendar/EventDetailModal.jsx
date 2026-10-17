@@ -145,12 +145,16 @@ export default function EventDetailModal({
               >
                 <span>🔒 Sin Clases (Feriado)</span>
               </button>
+            ) : selectedEvent.tipo === 'LICENCIA_DOCENTE' ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold">
+                <span>🛡️ Jornada Cubierta por Licencia Docente</span>
+              </div>
             ) : (
               <Button
                 variant="primary"
                 onClick={() => onNavigateAttendance(selectedEvent)}
               >
-                ⚡ Iniciar Registro de Asistencia
+                {selectedEvent.tipo === 'ASISTENCIA_REGISTRADA' ? '✓ Ver / Modificar Asistencia' : '⚡ Iniciar Registro de Asistencia'}
               </Button>
             )}
 

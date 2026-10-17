@@ -10,7 +10,9 @@ import {
   BookOpen, 
   Bookmark, 
   CalendarRange, 
-  GraduationCap 
+  GraduationCap,
+  ShieldAlert,
+  CheckCircle2
 } from 'lucide-react';
 import Card from '../common/Card';
 import CalendarProgressWidget from './CalendarProgressWidget';
@@ -247,6 +249,8 @@ export default function CalendarSidebar({
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Tipos de Eventos</span>
                 {[
                   { key: 'CLASE', label: 'Clases Regulares', Icon: BookOpen },
+                  { key: 'ASISTENCIA_REGISTRADA', label: '✓ Asistencia Registrada', Icon: CheckCircle2 },
+                  { key: 'LICENCIA_DOCENTE', label: '🛡️ Licencias Docentes', Icon: ShieldAlert },
                   { key: 'TRIBUNAL_EXAMEN', label: 'Mesas de Examen', Icon: GraduationCap },
                   { key: 'EVALUACION', label: 'Parciales / Evaluaciones', Icon: CheckSquare },
                   { key: 'TRABAJO_PRACTICO', label: 'Entregas de TP', Icon: Bookmark },

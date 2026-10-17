@@ -6,6 +6,7 @@ import { handleAppError } from '../utils/handleAppError';
 import { ESTADO_ASISTENCIA } from '../lib/enums';
 import { enqueueOfflineMutation } from '../services/offlineSyncService';
 import { ensureScheduledClassesToDate } from '../utils/scheduledClassesHelper';
+import { getLocalLicencias, isFechaCubiertaPorLicencias } from '../services/licenciasService';
 import { toast } from 'sonner';
 
 /**
@@ -14,7 +15,8 @@ import { toast } from 'sonner';
  * 1. Selección y edición libre de clases anteriores y nuevas jornadas.
  * 2. Autogeneración de clases según cronograma semanal y feriados.
  * 3. Cálculo en tiempo real de porcentaje acumulado por estudiante con umbral laboral adaptativo (60% vs 70%).
- * 4. Persistencia optimista en memoria y sincronización con Supabase (upsert por clase_id, estudiante_id) con cola offline resiliente.
+ * 4. Exclusión estricta de días con licencia docente (Decreto 1092) para no penalizar a los estudiantes.
+ * 5. Persistencia optimista en memoria y sincronización con Supabase (upsert por clase_id, estudiante_id) con cola offline resiliente.
  */
 export function useAttendanceManager({ catedraId, isDemo = false, user = null, catedra = null }) {
   const [estudiantes, setEstudiantes] = useState([]);
@@ -22,6 +24,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
   const [unidades, setUnidades] = useState([]);
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
+  const [licenciasDocente, setLicenciasDocente] = useState([]);
   
   // Sincronización dual: fecha e ID de clase seleccionada
   const [fechaSeleccionada, setFechaSeleccionadaState] = useState(getTodayYMD());
@@ -34,6 +37,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
   const fetchData = useCallback(async () => {
     if (!catedraId) return;
     setLoading(true);
+    let rawLicencias = [];
 
     try {
       if (isSupabaseConfigured && !isDemo) {
@@ -101,6 +105,19 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
         }));
 
         setAsistencias(enrichedAsist);
+
+        // 3. Obtener licencias docentes desde Supabase
+        try {
+          const { data: licData } = await supabase
+            .from('licencias_docentes')
+            .select('*')
+            .order('fecha', { ascending: false });
+          if (Array.isArray(licData)) {
+            rawLicencias = licData;
+          }
+        } catch (licFetchErr) {
+          console.warn('Error consultando licencias_docentes en useAttendanceManager:', licFetchErr);
+        }
       } else {
         // Fallback para modo demo / offline (con soporte de claves con y sin prefijo)
         const storedEst = localStorage.getItem(`docentepro_demo_estudiantes_${catedraId}`) || localStorage.getItem(`estudiantes_${catedraId}`);
@@ -132,6 +149,16 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
           setFechaSeleccionadaState(masReciente.fecha);
         }
       }
+
+      // 4. Unificar con licencias locales (offline / demo / sincronización inmediata)
+      const localLics = getLocalLicencias(user?.id);
+      const combinedLics = [...rawLicencias];
+      for (const l of localLics) {
+        if (!combinedLics.some(cl => cl.id === l.id)) {
+          combinedLics.push(l);
+        }
+      }
+      setLicenciasDocente(combinedLics);
     } catch (err) {
       handleAppError(err, 'useAttendanceManager / fetchData', user);
     } finally {
@@ -141,6 +168,17 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Recarga reactiva si se registra o modifica una licencia docente
+  useEffect(() => {
+    const handleLicenciasUpdated = () => {
+      fetchData();
+    };
+    window.addEventListener('licencias_docentes_updated', handleLicenciasUpdated);
+    return () => {
+      window.removeEventListener('licencias_docentes_updated', handleLicenciasUpdated);
+    };
   }, [fetchData]);
 
   // Selección manual de clase desde el carrusel
@@ -196,11 +234,22 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
   }, [asistencias, claseActiva, fechaSeleccionada]);
 
   // CÁLCULO REACTIVO DEL PORCENTAJE DE ASISTENCIA ACUMULADA POR ESTUDIANTE
+  // Regla estricta: Toda fecha cubierta por Licencia Docente (Decreto 1092) queda
+  // excluida de clasesComputables (denominador), impidiendo penalizar el porcentaje estudiantil.
   const asistenciaPorEstudiante = useMemo(() => {
-    // Clases válidas computables (excluir clases no computables como DOCENTE_AUSENTE o FERIADO)
-    const fechasLicencia = new Set((inasistenciasDocente || []).map(i => i.fecha).filter(Boolean));
+    const fechasLicenciaInas = new Set((inasistenciasDocente || []).map(i => i.fecha).filter(Boolean));
+
+    const isClaseCubiertaPorLicencia = (c) => {
+      if (!c) return false;
+      if (c.estado === 'DOCENTE_AUSENTE' || Boolean(c.articulo_licencia)) return true;
+      if (c.caracter === 'DOCENTE_AUSENTE' || c.caracter_clase === 'DOCENTE_AUSENTE') return true;
+      if (fechasLicenciaInas.has(c.fecha)) return true;
+      if (isFechaCubiertaPorLicencias(c.fecha, licenciasDocente, catedraId).cubierta) return true;
+      return false;
+    };
+
     const clasesComputables = (clases || []).filter(
-      c => c.estado !== 'DOCENTE_AUSENTE' && c.caracter !== 'FERIADO' && c.caracter_clase !== 'DOCENTE_AUSENTE' && !fechasLicencia.has(c.fecha)
+      c => c.caracter !== 'FERIADO' && !isClaseCubiertaPorLicencia(c)
     );
     const totalClases = clasesComputables.length;
 
@@ -254,7 +303,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     });
 
     return mapa;
-  }, [clases, asistencias, estudiantes, catedra, inasistenciasDocente]);
+  }, [clases, asistencias, estudiantes, catedra, inasistenciasDocente, licenciasDocente, catedraId]);
 
   // Métricas de la jornada seleccionada en tiempo real
   const statsHoy = useMemo(() => {
@@ -592,6 +641,22 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     }
   }, [catedraId, isDemo, user]);
 
+  // Determinación reactiva de si la clase o fecha seleccionada está cubierta por licencia
+  const licenciaDocenteActiva = useMemo(() => {
+    const checkDate = claseActiva?.fecha || fechaSeleccionada;
+    const res = isFechaCubiertaPorLicencias(checkDate, licenciasDocente, catedraId);
+    if (res.cubierta) return res.licencia;
+    if (claseActiva?.estado === 'DOCENTE_AUSENTE' || claseActiva?.articulo_licencia) {
+      return {
+        articulo: claseActiva.articulo_licencia || 'Decreto 1092',
+        observacion: claseActiva.observaciones || ''
+      };
+    }
+    return null;
+  }, [claseActiva, fechaSeleccionada, licenciasDocente, catedraId]);
+
+  const isLicenciaDocente = Boolean(licenciaDocenteActiva);
+
   return {
     estudiantes,
     alumnosElegibles,
@@ -601,6 +666,9 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     selectedClaseId,
     asistencias,
     inasistenciasDocente,
+    licenciasDocente,
+    isLicenciaDocente,
+    licenciaDocenteActiva,
     fechaSeleccionada,
     setFechaSeleccionada: handleSelectFecha,
     handleSelectClase,

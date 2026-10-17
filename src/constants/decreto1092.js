@@ -6,6 +6,10 @@
  * - 'CON_TOPE': Cupo anual o mensual taxativo con descuento de saldo.
  * - 'POR_EVENTO': Límite individual por acontecimiento sin tope anual prefijado.
  * - 'SIN_LIMITE': Sin tope anual ni mensual; justificado por constancia o resolución.
+ *
+ * Parámetros de duración y cálculo de finalización:
+ * - diasFijosPorEvento: Número fijo de días fijado por el decreto (o null si es variable)
+ * - requiereIngresarDias: Boolean que indica si el docente debe especificar los días otorgados
  */
 
 export const CATALOGO_DECRETO_1092 = [
@@ -18,6 +22,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 5,
     topeMensual: 2,
     topePorEvento: 2,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días hábiles',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -31,6 +37,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según superposición horaria',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -44,6 +52,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según superposición horaria',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -57,6 +67,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según autorización de Nivel',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -70,6 +82,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según designación oficial',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -83,6 +97,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según ocurrencia comprobada',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -96,6 +112,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 1,
+    diasFijosPorEvento: 1,
+    requiereIngresarDias: false,
     unidad: 'día por donación',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -109,6 +127,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según dictamen de Junta Médica',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -122,6 +142,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 10,
+    diasFijosPorEvento: 10,
+    requiereIngresarDias: false,
     unidad: 'días por fallecimiento',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -135,6 +157,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 5,
+    diasFijosPorEvento: 5,
+    requiereIngresarDias: false,
     unidad: 'días por fallecimiento',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -148,6 +172,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 1,
+    diasFijosPorEvento: 1,
+    requiereIngresarDias: false,
     unidad: 'día (el del sepelio)',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -161,6 +187,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 5,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días anuales',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -176,11 +204,13 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 25,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días corridos',
     tipoComputo: 'CORRIDOS',
     grupoCupo: 'CORTO_TRATAMIENTO',
     conGoce: true,
-    descripcion: 'Hasta 25 días corridos por año calendario (continuos o discontinuos) con goce íntegro de haberes.'
+    descripcion: 'Hasta 25 días corridos por año calendario (continuos o discontinuos) con goce íntegro de haberes. El docente ingresa los días que le otorgó el médico.'
   },
   {
     codigo: 'ART_18',
@@ -190,6 +220,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 25,
     topeMensual: null,
     topePorEvento: 1,
+    diasFijosPorEvento: 1,
+    requiereIngresarDias: false,
     unidad: 'días corridos (imputa al Art. 16°)',
     tipoComputo: 'CORRIDOS',
     grupoCupo: 'CORTO_TRATAMIENTO',
@@ -204,6 +236,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según alta médica / Ley 24.557',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -217,6 +251,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 365,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días corridos',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -230,6 +266,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según Junta Médica (CFT 1 año extensible)',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -243,6 +281,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según evaluación de servicios de asistencia',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -256,6 +296,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 120,
+    diasFijosPorEvento: 120,
+    requiereIngresarDias: false,
     unidad: 'días corridos (135 prematuro / +10 múltiple)',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -269,6 +311,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 30,
+    diasFijosPorEvento: 30,
+    requiereIngresarDias: false,
     unidad: 'días corridos por evento',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -282,6 +326,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 60,
+    diasFijosPorEvento: 60,
+    requiereIngresarDias: false,
     unidad: 'días corridos por evento',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -295,6 +341,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 15,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días corridos',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -308,6 +356,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 45,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días corridos sin goce',
     tipoComputo: 'CORRIDOS',
     conGoce: false,
@@ -320,7 +370,9 @@ export const CATALOGO_DECRETO_1092 = [
     modoLimite: 'POR_EVENTO',
     topeAnual: null,
     topeMensual: null,
-    topePorEvento: 16,
+    topePorEvento: 15,
+    diasFijosPorEvento: 15,
+    requiereIngresarDias: false,
     unidad: 'días corridos (15 + 1 prenupcial)',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -334,6 +386,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 40,
     topeMensual: null,
     topePorEvento: 40,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días corridos',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -347,6 +401,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según Ley Provincial N° 4793',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -362,6 +418,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 30,
     topeMensual: null,
     topePorEvento: 5,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días laborables',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -375,6 +433,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 15,
     topeMensual: null,
     topePorEvento: 5,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días laborables',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -388,6 +448,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 365,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: '1 año (prorrogable por 1 año más)',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -401,6 +463,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'por el período del evento oficial',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -414,6 +478,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'por el período del evento deportivo',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -427,6 +493,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'por el término del mandato',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -440,6 +508,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 10,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días hábiles',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -453,6 +523,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'mientras dure la función o cargo',
     tipoComputo: 'CORRIDOS',
     conGoce: false,
@@ -466,6 +538,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 180,
     topeMensual: null,
     topePorEvento: 180,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días (hasta 6 meses cada 10 años)',
     tipoComputo: 'CORRIDOS',
     conGoce: false,
@@ -479,6 +553,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'mientras dure relación de dependencia',
     tipoComputo: 'CORRIDOS',
     conGoce: false,
@@ -492,6 +568,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 730,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'hasta 2 años máximo',
     tipoComputo: 'CORRIDOS',
     conGoce: false,
@@ -507,6 +585,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'durante el período de cursado',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -520,6 +600,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 360,
     topeMensual: null,
     topePorEvento: 360,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días corridos desde el nacimiento',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -533,6 +615,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'según citación o trámite obligatorio',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -546,6 +630,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: 8,
     topePorEvento: null,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'horas mensuales no acumulativas',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -559,6 +645,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 24,
     topeMensual: 2,
     topePorEvento: 2,
+    diasFijosPorEvento: null,
+    requiereIngresarDias: true,
     unidad: 'días por mes',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -572,6 +660,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: null,
     topeMensual: null,
     topePorEvento: 1,
+    diasFijosPorEvento: 1,
+    requiereIngresarDias: false,
     unidad: 'día por congreso',
     tipoComputo: 'HABILES',
     conGoce: true,
@@ -587,6 +677,8 @@ export const CATALOGO_DECRETO_1092 = [
     topeAnual: 35,
     topeMensual: null,
     topePorEvento: 35,
+    diasFijosPorEvento: 35,
+    requiereIngresarDias: false,
     unidad: 'días corridos',
     tipoComputo: 'CORRIDOS',
     conGoce: true,
@@ -599,24 +691,25 @@ export const CATALOGO_DECRETO_1092 = [
  */
 export function getArticuloByCodigo(codigo) {
   if (!codigo) return null;
-  return CATALOGO_DECRETO_1092.find(a => a.codigo === codigo) || null;
+  const clean = String(codigo).trim().toUpperCase();
+  return CATALOGO_DECRETO_1092.find(a => a.codigo === clean) || null;
 }
 
 /**
- * Búsqueda inteligente y tolerante de artículo por texto o código.
- * Mapea referencias históricas (ej: "Art. 15°" -> ART_52, "Art. 9°" -> ART_16, etc.)
+ * Busca de forma tolerante y retrocompatible un artículo por texto libre
+ * (nomenclatura histórica, número de artículo o descripción).
  */
 export function getArticuloByText(text) {
   if (!text) return null;
   const str = String(text).trim();
 
-  // Búsqueda directa por código exacto
-  const byCode = CATALOGO_DECRETO_1092.find(a => a.codigo === str);
-  if (byCode) return byCode;
+  // Búsqueda directa por código
+  const directByCode = getArticuloByCodigo(str);
+  if (directByCode) return directByCode;
 
-  // Búsqueda directa por label exacto
-  const byLabel = CATALOGO_DECRETO_1092.find(a => a.label === str);
-  if (byLabel) return byLabel;
+  // Búsqueda exacta por etiqueta
+  const exactByLabel = CATALOGO_DECRETO_1092.find(a => a.label.toLowerCase() === str.toLowerCase());
+  if (exactByLabel) return exactByLabel;
 
   const low = str.toLowerCase();
 
@@ -645,6 +738,12 @@ export function getArticuloByText(text) {
   if (low.includes('art. 27') || low.includes('maternidad')) {
     return getArticuloByCodigo('ART_27');
   }
+  if (low.includes('art. 28') && (low.includes('menores') || low.includes('hijos'))) {
+    return getArticuloByCodigo('ART_28');
+  }
+  if (low.includes('art. 29') && low.includes('adopción')) {
+    return getArticuloByCodigo('ART_29');
+  }
   if (low.includes('art. 30') || low.includes('art. 24') || low.includes('art. 22') || low.includes('familiar enfermo')) {
     return getArticuloByCodigo('ART_30_GOCE');
   }
@@ -668,8 +767,14 @@ export function getArticuloByText(text) {
   if (low.includes('art. 35') || low.includes('rendir exámenes') || low.includes('rendir examenes')) {
     return getArticuloByCodigo('ART_35');
   }
+  if (low.includes('art. 36') || low.includes('prácticas obligatorias') || low.includes('practicas obligatorias')) {
+    return getArticuloByCodigo('ART_36');
+  }
   if (low.includes('art. 31') || low.includes('matrimonio')) {
     return getArticuloByCodigo('ART_31');
+  }
+  if (low.includes('art. 13') || low.includes('anual ordinaria') || low.includes('receso escolar')) {
+    return getArticuloByCodigo('ART_13_14');
   }
 
   // Búsqueda parcial por prefijo de número
@@ -702,6 +807,86 @@ export function getArticulosAgrupadosPorCapitulo() {
     capitulo,
     articulos
   }));
+}
+
+/**
+ * Calcula la fecha de finalización y fecha de reintegro de una licencia docente
+ * según la cantidad de días y el tipo de cómputo (HABILES vs. CORRIDOS).
+ *
+ * @param {string} fechaInicioStr - Fecha de inicio (YYYY-MM-DD)
+ * @param {number} cantidadDias - Cantidad de días de la licencia (>= 1)
+ * @param {'HABILES'|'CORRIDOS'} [tipoComputo='CORRIDOS'] - Modalidad de cómputo
+ * @returns {{ fechaFin: string, fechaReintegro: string, diasComputados: number }}
+ */
+export function calcularFechaFinLicencia(fechaInicioStr, cantidadDias = 1, tipoComputo = 'CORRIDOS') {
+  if (!fechaInicioStr) {
+    const today = new Date().toISOString().split('T')[0];
+    return { fechaFin: today, fechaReintegro: today, diasComputados: 1 };
+  }
+
+  const dias = Math.max(1, parseInt(cantidadDias, 10) || 1);
+  const parts = String(fechaInicioStr).split('T')[0].split('-').map(Number);
+  const y = parts[0];
+  const m = parts[1];
+  const d = parts[2];
+
+  const formatYMD = (dt) => {
+    const year = dt.getFullYear();
+    const month = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  if (tipoComputo === 'HABILES') {
+    let current = new Date(y, m - 1, d);
+    
+    // Si la fecha de inicio es sábado o domingo, empezar a computar el primer día hábil siguiente
+    while (current.getDay() === 0 || current.getDay() === 6) {
+      current.setDate(current.getDate() + 1);
+    }
+
+    const effectiveStart = new Date(current);
+    let diasContados = 0;
+    let lastActiveDay = new Date(current);
+
+    while (diasContados < dias) {
+      if (current.getDay() !== 0 && current.getDay() !== 6) {
+        diasContados++;
+        lastActiveDay = new Date(current);
+      }
+      if (diasContados < dias) {
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    // Fecha de reintegro: próximo día hábil posterior a lastActiveDay
+    let reintegro = new Date(lastActiveDay);
+    do {
+      reintegro.setDate(reintegro.getDate() + 1);
+    } while (reintegro.getDay() === 0 || reintegro.getDay() === 6);
+
+    return {
+      fechaInicio: formatYMD(effectiveStart),
+      fechaFin: formatYMD(lastActiveDay),
+      fechaReintegro: formatYMD(reintegro),
+      diasComputados: dias
+    };
+  } else {
+    // CORRIDOS (calendario corrido)
+    const start = new Date(y, m - 1, d);
+    const end = new Date(start);
+    end.setDate(start.getDate() + (dias - 1));
+
+    const reintegro = new Date(end);
+    reintegro.setDate(end.getDate() + 1);
+
+    return {
+      fechaInicio: formatYMD(start),
+      fechaFin: formatYMD(end),
+      fechaReintegro: formatYMD(reintegro),
+      diasComputados: dias
+    };
+  }
 }
 
 export default CATALOGO_DECRETO_1092;

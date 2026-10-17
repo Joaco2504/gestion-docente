@@ -36,7 +36,8 @@ import {
   CATALOGO_DECRETO_1092,
   getArticulosAgrupadosPorCapitulo,
   getArticuloByCodigo,
-  getArticuloByText
+  getArticuloByText,
+  calcularFechaFinLicencia
 } from '../../constants/decreto1092';
 import { useAuth } from '../../context/AuthContext';
 
@@ -86,11 +87,34 @@ export default function LicenciasDocenteModal({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formFecha, setFormFecha] = useState(getTodayYMD());
-  const [formCatedraId, setFormCatedraId] = useState(initialCatedraId || '');
   const [formArticulo, setFormArticulo] = useState('ART_52');
+  const [formCantidadDias, setFormCantidadDias] = useState(1);
+  const [aplicaTodasCatedras, setAplicaTodasCatedras] = useState(!initialCatedraId);
+  const [selectedCatedraIds, setSelectedCatedraIds] = useState(initialCatedraId ? [initialCatedraId] : []);
   const [formCustomArticulo, setFormCustomArticulo] = useState('');
   const [formEstadoTramite, setFormEstadoTramite] = useState('PENDIENTE_CERTIFICADO');
   const [formObservacion, setFormObservacion] = useState('');
+
+  // Objeto de configuración del artículo actual
+  const currentArticuloObj = useMemo(() => {
+    return getArticuloByCodigo(formArticulo) || getArticuloByText(formArticulo);
+  }, [formArticulo]);
+
+  // Sincronizar cantidad de días al cambiar de artículo si este tiene días fijos reglamentarios
+  useEffect(() => {
+    if (currentArticuloObj?.diasFijosPorEvento) {
+      setFormCantidadDias(currentArticuloObj.diasFijosPorEvento);
+    } else if (currentArticuloObj?.requiereIngresarDias) {
+      setFormCantidadDias(prev => (prev > 0 ? prev : 1));
+    }
+  }, [currentArticuloObj]);
+
+  // Cálculo automático de fecha de finalización y reintegro
+  const calculoFechas = useMemo(() => {
+    const tipoComputo = currentArticuloObj?.tipoComputo || 'CORRIDOS';
+    const cant = currentArticuloObj?.diasFijosPorEvento || formCantidadDias || 1;
+    return calcularFechaFinLicencia(formFecha, cant, tipoComputo);
+  }, [formFecha, formCantidadDias, currentArticuloObj]);
 
   // Cálculo reactivo de disponibilidad y cupo según artículo y fecha seleccionados
   const disponibilidad = useMemo(() => {
@@ -197,9 +221,18 @@ export default function LicenciasDocenteModal({
         }
       }
 
+      const effectiveCatedraIds = aplicaTodasCatedras ? [] : selectedCatedraIds;
+      const primaryCatedraId = !aplicaTodasCatedras && effectiveCatedraIds.length > 0 ? effectiveCatedraIds[0] : null;
+
       const payload = {
         fecha: formFecha,
-        catedra_id: formCatedraId || null,
+        fecha_inicio: formFecha,
+        fecha_fin: calculoFechas.fechaFin,
+        cantidad_dias: calculoFechas.diasComputados,
+        fecha_reintegro: calculoFechas.fechaReintegro,
+        aplica_todas_catedras: aplicaTodasCatedras,
+        catedra_ids: effectiveCatedraIds,
+        catedra_id: primaryCatedraId,
         articulo: finalArticulo,
         articulo_codigo: articuloCodigo,
         observacion: formObservacion.trim(),
@@ -209,7 +242,9 @@ export default function LicenciasDocenteModal({
 
       const saved = await createOrUpdateLicencia(payload, {
         isDemo,
-        docenteId: effectiveDocenteId
+        docenteId: effectiveDocenteId,
+        catedrasList: catedras,
+        allCatedraIds: catedras.map(c => c.id)
       });
 
       toast.success('Licencia docente registrada con éxito.');
@@ -221,6 +256,7 @@ export default function LicenciasDocenteModal({
 
       // Recargar lista
       await loadLicencias();
+      window.dispatchEvent(new CustomEvent('licencias_docentes_updated'));
       onLicenciaSaved?.(saved);
     } catch (err) {
       console.error('Error al registrar licencia:', err);
@@ -259,6 +295,7 @@ export default function LicenciasDocenteModal({
       }));
 
       setEditingLicenciaId(null);
+      window.dispatchEvent(new CustomEvent('licencias_docentes_updated'));
       toast.success('Observación actualizada.');
     } catch (err) {
       console.error('Error actualizando nota:', err);
@@ -282,6 +319,7 @@ export default function LicenciasDocenteModal({
       });
 
       setLicencias(prev => prev.filter(item => item.id !== lic.id));
+      window.dispatchEvent(new CustomEvent('licencias_docentes_updated'));
       toast.success('Licencia eliminada y clase restaurada.');
     } catch (err) {
       console.error('Error al eliminar licencia:', err);
@@ -495,10 +533,10 @@ export default function LicenciasDocenteModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Fecha */}
+              {/* Fecha de inicio */}
               <div>
                 <label className="block text-xs font-mono font-bold uppercase text-text-secondary mb-1">
-                  Fecha de la Inasistencia *
+                  Fecha de Inicio *
                 </label>
                 <input
                   type="date"
@@ -509,23 +547,171 @@ export default function LicenciasDocenteModal({
                 />
               </div>
 
-              {/* Cátedra alcanzada */}
+              {/* Duración (Días Otorgados) */}
               <div>
                 <label className="block text-xs font-mono font-bold uppercase text-text-secondary mb-1">
-                  Cátedra Alcanzada
+                  Duración / Días Solicitados *
                 </label>
-                <select
-                  value={formCatedraId}
-                  onChange={(e) => setFormCatedraId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-surface-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer font-medium"
-                >
-                  <option value="">General / Todas las cátedras del día</option>
-                  {catedras.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre} {c.institucion ? `(${c.institucion})` : ''}
-                    </option>
-                  ))}
-                </select>
+                {currentArticuloObj?.requiereIngresarDias ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center rounded-xl border border-surface-border bg-slate-50 dark:bg-slate-800 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setFormCantidadDias(prev => Math.max(1, prev - 1))}
+                          className="w-8 h-8 flex items-center justify-center text-sm font-bold text-text-secondary hover:text-text-primary rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                          aria-label="Restar un día"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={formCantidadDias}
+                          onChange={(e) => setFormCantidadDias(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                          className="w-12 text-center font-mono font-bold text-xs bg-transparent text-text-primary outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormCantidadDias(prev => prev + 1)}
+                          className="w-8 h-8 flex items-center justify-center text-sm font-bold text-text-secondary hover:text-text-primary rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                          aria-label="Sumar un día"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <span className="text-xs font-medium text-text-secondary">
+                        {formCantidadDias === 1 ? 'día' : 'días'} ({currentArticuloObj?.tipoComputo === 'HABILES' ? 'hábiles' : 'corridos'})
+                      </span>
+                    </div>
+
+                    {/* Chips rápidos de días */}
+                    <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                      {[1, 2, 3, 5, 7, 10, 15, 30].map(dias => (
+                        <button
+                          key={dias}
+                          type="button"
+                          onClick={() => setFormCantidadDias(dias)}
+                          className={`px-2 py-0.5 rounded-lg text-[11px] font-mono font-semibold border transition-all cursor-pointer ${
+                            formCantidadDias === dias 
+                              ? 'bg-primary text-white border-primary shadow-xs' 
+                              : 'bg-slate-100 dark:bg-slate-800 border-surface-border text-text-secondary hover:text-text-primary'
+                          }`}
+                        >
+                          {dias}d
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-surface-border flex items-center justify-between">
+                    <span className="text-xs font-semibold text-text-primary">
+                      🔒 Duración fija por evento:
+                    </span>
+                    <span className="font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-primary/10 text-primary dark:bg-primary/20">
+                      {currentArticuloObj?.diasFijosPorEvento || 1} {currentArticuloObj?.tipoComputo === 'HABILES' ? 'días hábiles' : 'días corridos'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Selector Múltiple de Cátedras */}
+              <div className="sm:col-span-2 space-y-2 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/50 border border-surface-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-mono font-bold uppercase text-text-secondary">
+                    Alcance de Cátedras Alcanzadas *
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-primary">
+                    <input
+                      type="checkbox"
+                      checked={aplicaTodasCatedras}
+                      onChange={(e) => setAplicaTodasCatedras(e.target.checked)}
+                      className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300 dark:border-slate-600 cursor-pointer"
+                    />
+                    <span>Todas mis cátedras automáticamente (Recomendado)</span>
+                  </label>
+                </div>
+
+                {!aplicaTodasCatedras && (
+                  <div className="pt-1.5 animate-fadeIn space-y-1.5">
+                    <p className="text-[11px] text-text-muted">
+                      Selecciona las cátedras específicas donde se registrará la justificación:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {catedras.length === 0 ? (
+                        <span className="text-xs text-text-muted italic">No hay cátedras disponibles para seleccionar.</span>
+                      ) : (
+                        catedras.map(c => {
+                          const isChecked = selectedCatedraIds.includes(c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCatedraIds(prev => 
+                                  isChecked ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                );
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                                isChecked 
+                                  ? 'bg-primary/10 border-primary text-primary dark:bg-primary/20 shadow-xs' 
+                                  : 'bg-white dark:bg-slate-900 border-surface-border text-text-muted hover:border-slate-300 dark:hover:border-slate-700'
+                              }`}
+                            >
+                              <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] font-bold ${
+                                isChecked ? 'bg-primary text-white' : 'border border-slate-300 dark:border-slate-600'
+                              }`}>
+                                {isChecked ? '✓' : ''}
+                              </span>
+                              <span className="truncate max-w-[200px]">{c.nombre}</span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Banner Inteligente de Cómputo de Fechas (Inicia ➔ Finaliza ➔ Reintegro) */}
+              <div className="sm:col-span-2 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-blue-500/10 border border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 sm:gap-3 justify-around flex-1">
+                  <div className="text-center sm:text-left">
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">
+                      🟢 Inicia
+                    </span>
+                    <span className="font-mono font-bold text-text-primary text-xs">
+                      {formatFechaDMY(formFecha)}
+                    </span>
+                  </div>
+                  <span className="text-text-muted font-bold">➔</span>
+                  <div className="text-center sm:text-left">
+                    <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block">
+                      🔴 Finaliza
+                    </span>
+                    <span className="font-mono font-bold text-text-primary text-xs">
+                      {formatFechaDMY(calculoFechas.fechaFin)}
+                    </span>
+                  </div>
+                  <span className="text-text-muted font-bold">➔</span>
+                  <div className="text-center sm:text-left">
+                    <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
+                      🔵 Reintegro
+                    </span>
+                    <span className="font-mono font-bold text-text-primary text-xs">
+                      {formatFechaDMY(calculoFechas.fechaReintegro)}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-center sm:text-right sm:border-l border-slate-200 dark:border-white/10 sm:pl-3 shrink-0">
+                  <span className="font-mono font-bold text-primary block text-xs">
+                    {calculoFechas.diasComputados} {calculoFechas.diasComputados === 1 ? 'día' : 'días'}
+                  </span>
+                  <span className="text-[10px] text-text-muted">
+                    {currentArticuloObj?.tipoComputo === 'HABILES' ? 'Días hábiles' : 'Días corridos'}
+                  </span>
+                </div>
               </div>
 
               {/* Artículo Decreto 1092 */}
@@ -783,19 +969,49 @@ export default function LicenciasDocenteModal({
 
                       return (
                         <tr key={lic.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          {/* Col 1: Fecha */}
+                          {/* Col 1: Fecha / Rango */}
                           <td className="py-3 px-3.5 align-top whitespace-nowrap">
-                            <div className="font-mono font-bold text-text-primary">
+                            <div className="font-mono font-bold text-text-primary text-xs">
                               {formatFechaDMY(lic.fecha)}
+                              {lic.fecha_fin && lic.fecha_fin !== lic.fecha && (
+                                <span className="text-text-secondary font-normal">
+                                  {' al '}{formatFechaDMY(lic.fecha_fin)}
+                                </span>
+                              )}
                             </div>
-                            <span className="text-[10px] font-mono uppercase text-text-muted">
-                              {diaSemana}
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] font-mono uppercase text-text-muted">
+                                {diaSemana}
+                              </span>
+                              {lic.cantidad_dias > 1 && (
+                                <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-primary">
+                                  {lic.cantidad_dias}d
+                                </span>
+                              )}
+                              {lic.fecha_reintegro && (
+                                <span className="text-[10px] text-text-muted">
+                                  · Reint: {formatFechaDMY(lic.fecha_reintegro)}
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Col 2: Cátedra */}
                           <td className="py-3 px-3.5 align-top">
-                            {lic.catedra ? (
+                            {lic.aplica_todas_catedras || (!lic.catedra_id && (!lic.catedra_ids || lic.catedra_ids.length === 0)) ? (
+                              <Badge variant="default" size="sm">
+                                General (Todas)
+                              </Badge>
+                            ) : lic.catedra_ids && lic.catedra_ids.length > 1 ? (
+                              <div className="space-y-0.5">
+                                <Badge variant="outline" size="sm" className="font-semibold text-primary border-primary/30">
+                                  {lic.catedra_ids.length} Cátedras
+                                </Badge>
+                                <span className="text-[10px] text-text-muted block truncate max-w-[160px]">
+                                  {lic.catedra?.nombre || 'Multi-cátedra'}
+                                </span>
+                              </div>
+                            ) : lic.catedra ? (
                               <div>
                                 <span className="font-bold text-text-primary block leading-tight">
                                   {lic.catedra.nombre}
@@ -943,16 +1159,35 @@ export default function LicenciasDocenteModal({
                       {/* Cabecera Tarjeta: Fecha & Badge de Artículo */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-1.5">
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
                             <span className="font-mono font-bold text-sm text-text-primary">
                               {formatFechaDMY(lic.fecha)}
+                              {lic.fecha_fin && lic.fecha_fin !== lic.fecha && (
+                                <span className="text-xs font-normal text-text-secondary">
+                                  {' al '}{formatFechaDMY(lic.fecha_fin)}
+                                </span>
+                              )}
                             </span>
                             <span className="text-xs font-mono text-text-muted uppercase">
                               ({diaSemana})
                             </span>
+                            {lic.cantidad_dias > 1 && (
+                              <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-primary">
+                                {lic.cantidad_dias}d
+                              </span>
+                            )}
                           </div>
+                          {lic.fecha_reintegro && (
+                            <span className="text-[10px] text-text-muted block mt-0.5">
+                              Reintegro: {formatFechaDMY(lic.fecha_reintegro)}
+                            </span>
+                          )}
                           <p className="text-xs font-semibold text-text-secondary mt-0.5 truncate">
-                            {lic.catedra ? lic.catedra.nombre : 'General (Todas las cátedras)'}
+                            {lic.aplica_todas_catedras || (!lic.catedra_id && (!lic.catedra_ids || lic.catedra_ids.length === 0))
+                              ? 'General (Todas las cátedras)'
+                              : (lic.catedra_ids && lic.catedra_ids.length > 1)
+                              ? `${lic.catedra_ids.length} Cátedras seleccionadas`
+                              : (lic.catedra ? lic.catedra.nombre : 'General (Todas)')}
                           </p>
                           <p className="text-[11px] font-medium text-text-primary mt-0.5">
                             {getArticuloByCodigo(lic.articulo_codigo)?.label || getArticuloByText(lic.articulo)?.label || lic.articulo}

@@ -20,6 +20,8 @@ import { formatFechaDMY } from '../../../lib/dateUtils';
  */
 export default function AttendanceClassTopicBar({
   claseActiva,
+  isLicenciaDocente = false,
+  licenciaDocenteActiva = null,
   unidades = [],
   onUpdateClase,
   disabled = false,
@@ -48,8 +50,9 @@ export default function AttendanceClassTopicBar({
     return null;
   }
 
-  const isDocenteAusente = claseActiva.estado === 'DOCENTE_AUSENTE';
-  const articuloLicencia = claseActiva.articulo_licencia || 'Decreto 1092';
+  const isDocenteAusente = isLicenciaDocente || claseActiva.estado === 'DOCENTE_AUSENTE' || Boolean(claseActiva.articulo_licencia);
+  const articuloLicencia = licenciaDocenteActiva?.articulo || claseActiva.articulo_licencia || 'Decreto 1092';
+  const observacionLicencia = licenciaDocenteActiva?.observacion || claseActiva.observaciones || '';
   const formattedDate = formatFechaDMY(claseActiva.fecha);
 
   const handleGuardarTemaYUnidad = async () => {
