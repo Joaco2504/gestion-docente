@@ -37,6 +37,9 @@ import { formatFechaDMY, getTodayYMD } from '../../lib/dateUtils';
 import { handleAppError } from '../../utils/handleAppError';
 import { obtenerFeriadosCatedraEnPeriodo, obtenerFeriado } from '../../utils/feriadosAcademicos';
 import { catedraCache } from '../../services/catedraCache';
+import { obtenerLicenciaParaFecha } from '../../utils/licenciasHelper';
+import { getLocalLicencias } from '../../services/licenciasService';
+import { getDiasNumerosCatedra } from '../../utils/scheduledClassesHelper';
 
 const CARACTER_OPTIONS = [
   { value: 'TEORICA', label: 'Teórica' },
@@ -51,6 +54,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
   const { activeCiclo, catedras } = useApp();
 
   const [clases, setClases] = useState([]);
+  const [licenciasDocente, setLicenciasDocente] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [caracterFilter, setCaracterFilter] = useState('ALL');
@@ -102,6 +106,18 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
 
   useEffect(() => {
     fetchClases();
+  }, [catedraId]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchClases();
+    };
+    window.addEventListener('licencias_docentes_updated', handleRefresh);
+    window.addEventListener('clases_updated', handleRefresh);
+    return () => {
+      window.removeEventListener('licencias_docentes_updated', handleRefresh);
+      window.removeEventListener('clases_updated', handleRefresh);
+    };
   }, [catedraId]);
 
   const handleQuickCreateUnidad = async ({ numero, titulo }) => {
@@ -213,6 +229,30 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
           ]);
         }
       }
+
+      // 3. Obtener licencias docentes (Supabase + localStorage fallback)
+      let rawLicencias = [];
+      if (isSupabaseConfigured && !isDemo) {
+        try {
+          const { data: licData } = await supabase
+            .from('licencias_docentes')
+            .select('*')
+            .order('fecha', { ascending: false });
+          if (Array.isArray(licData)) {
+            rawLicencias = licData;
+          }
+        } catch (licErr) {
+          console.warn('Error cargando licencias_docentes en LibroTemasTab:', licErr);
+        }
+      }
+      const localLics = getLocalLicencias(user?.id);
+      const combinedLics = [...rawLicencias];
+      for (const l of localLics) {
+        if (!combinedLics.some(cl => cl.id === l.id)) {
+          combinedLics.push(l);
+        }
+      }
+      setLicenciasDocente(combinedLics);
     } catch (err) {
       handleAppError(err, 'LibroTemasTab / Cargar Clases', user);
     } finally {
@@ -570,7 +610,66 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
       }));
   }, [currentCatedra?.horarios_semanales, clases, catedraId]);
 
-  // Orden cronológico estricto para correlatividad (#1, #2...) con inserción de feriados oficiales
+  // Detección automática de licencias docentes que coinciden con los horarios semanales de la cátedra
+  const licenseClasses = useMemo(() => {
+    if (!currentCatedra?.horarios_semanales || currentCatedra.horarios_semanales.length === 0 || !licenciasDocente || licenciasDocente.length === 0) {
+      return [];
+    }
+
+    const diasCatedra = getDiasNumerosCatedra(currentCatedra.horarios_semanales);
+    if (diasCatedra.size === 0) return [];
+
+    const generated = [];
+    const generatedDates = new Set();
+
+    licenciasDocente.forEach(lic => {
+      // Verificar si la licencia aplica a esta cátedra
+      const aplica = lic.aplica_todas_catedras ||
+        !lic.catedra_id ||
+        lic.catedra_id === catedraId ||
+        (Array.isArray(lic.catedra_ids) && lic.catedra_ids.includes(catedraId));
+
+      if (!aplica) return;
+
+      const fInicioStr = (lic.fecha_inicio || lic.fecha || '').slice(0, 10);
+      const fFinStr = (lic.fecha_fin || lic.fecha_inicio || lic.fecha || '').slice(0, 10);
+      if (!fInicioStr) return;
+
+      let curr = new Date(fInicioStr + 'T12:00:00');
+      const end = new Date(fFinStr + 'T12:00:00');
+
+      while (curr <= end) {
+        const dateStr = curr.toISOString().slice(0, 10);
+        const dayNum = curr.getDay(); // 0: domingo, 1: lunes, ..., 6: sábado
+
+        if (diasCatedra.has(dayNum) && !generatedDates.has(dateStr)) {
+          const yaEnClases = clases.some(c => (c.fecha || '').slice(0, 10) === dateStr);
+          if (!yaEnClases) {
+            generatedDates.add(dateStr);
+            generated.push({
+              id: `licencia-auto-${dateStr}-${lic.id || 'dto1092'}`,
+              catedra_id: catedraId,
+              fecha: dateStr,
+              tema: `Sin actividad áulica — Justificada por ${lic.articulo || 'Licencia Docente'}`,
+              horas_catedra: 0,
+              caracter: 'NO_COMPUTABLE',
+              es_licencia: true,
+              es_computable: false,
+              licenciaInfo: lic,
+              observaciones: `Licencia Docente (Decreto 1092)${lic.observacion ? ' • Obs: ' + lic.observacion : ''}`,
+              archivo_adjunto: ''
+            });
+          }
+        }
+
+        curr.setDate(curr.getDate() + 1);
+      }
+    });
+
+    return generated;
+  }, [currentCatedra?.horarios_semanales, licenciasDocente, catedraId, clases]);
+
+  // Orden cronológico estricto para correlatividad (#1, #2...) con inserción de feriados oficiales y licencias docentes
   const chronologicallyIndexedClases = useMemo(() => {
     const combined = [
       ...clases.map(c => {
@@ -585,9 +684,25 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
             feriadoInfo: feriado
           };
         }
+        const infoLic = obtenerLicenciaParaFecha(c.fecha, catedraId, licenciasDocente, c);
+        if (infoLic) {
+          return {
+            ...c,
+            es_licencia: true,
+            es_computable: false,
+            horas_catedra: 0,
+            caracter: 'NO_COMPUTABLE',
+            licenciaInfo: infoLic,
+            tema: c.tema && !c.tema.startsWith('Clase del ')
+              ? c.tema
+              : `Sin actividad áulica — Justificada por ${infoLic.articulo || 'Licencia Docente'}`,
+            observaciones: c.observaciones || `Licencia Docente (Decreto 1092)${infoLic.observacion ? ' • Obs: ' + infoLic.observacion : ''}`
+          };
+        }
         return c;
       }),
-      ...holidayClasses
+      ...holidayClasses,
+      ...licenseClasses
     ];
 
     const sorted = combined.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -595,13 +710,14 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     let classCounter = 0;
     return sorted.map((c) => {
       const isFeriado = Boolean(c.es_feriado || obtenerFeriado(c.fecha));
-      if (!isFeriado) {
+      const isLicencia = Boolean(c.es_licencia);
+      if (!isFeriado && !isLicencia) {
         classCounter += 1;
         return { ...c, classNumber: classCounter };
       }
-      return { ...c, classNumber: '—', es_feriado: true, es_computable: false };
+      return { ...c, classNumber: '—', es_computable: false };
     });
-  }, [clases, holidayClasses]);
+  }, [clases, holidayClasses, licenseClasses, licenciasDocente, catedraId]);
 
   // Filtrado y orden de visualización para la UI
   const displayClases = useMemo(() => {
@@ -632,15 +748,22 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
 
   const totalHoras = useMemo(() => {
     return chronologicallyIndexedClases
-      .filter(c => !c.es_feriado)
+      .filter(c => !c.es_feriado && !c.es_licencia)
       .reduce((acc, c) => acc + Number(c.horas_catedra || 2), 0);
   }, [chronologicallyIndexedClases]);
 
   const totalClasesComputables = useMemo(() => {
-    return chronologicallyIndexedClases.filter(c => !c.es_feriado).length;
+    return chronologicallyIndexedClases.filter(c => !c.es_feriado && !c.es_licencia).length;
   }, [chronologicallyIndexedClases]);
 
-  const getCaracterBadge = (caracter, esFeriado = false) => {
+  const getCaracterBadge = (caracter, esFeriado = false, esLicencia = false) => {
+    if (esLicencia) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+          🛡️ Licencia Docente
+        </span>
+      );
+    }
     if (esFeriado || caracter === 'NO_COMPUTABLE') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
@@ -845,6 +968,13 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
                 >
                   —
                 </div>
+              ) : cls.es_licencia ? (
+                <div 
+                  className="absolute -left-6 sm:-left-8 top-4 w-5 h-5 rounded-full border-2 border-surface bg-amber-600 text-white flex items-center justify-center text-[10px] font-mono font-bold shadow-xs transition-transform group-hover:scale-125"
+                  title="Jornada cubierta por Licencia Docente (Decreto 1092)"
+                >
+                  🛡️
+                </div>
               ) : (
                 <div className="absolute -left-6 sm:-left-8 top-4 w-5 h-5 rounded-full border-2 border-surface bg-primary text-white flex items-center justify-center text-[9px] font-mono font-bold shadow-xs transition-transform group-hover:scale-125">
                   {cls.classNumber}
@@ -884,6 +1014,50 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
                       <div className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-900/90 dark:text-amber-300/90 leading-relaxed">
                         <span className="font-bold text-amber-950 dark:text-amber-200 block text-[11px] uppercase tracking-wider mb-0.5">
                           Disposición Normativa:
+                        </span>
+                        {cls.observaciones}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : cls.es_licencia ? (
+                <div className="backdrop-blur-xl bg-amber-50/70 dark:bg-amber-950/20 rounded-3xl border-l-4 border-l-amber-500 border border-amber-200/80 dark:border-amber-900/30 p-5 sm:p-6 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-amber-200/50 dark:border-amber-900/40">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                        🛡️ Registrada por Licencia Docente
+                      </span>
+                      <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                        <CalendarIcon className="w-3.5 h-3.5 text-text-muted" />
+                        <span>{formatFechaDMY(cls.fecha)}</span>
+                      </span>
+                      <span className="text-xs text-text-muted flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>0 hs cátedra</span>
+                      </span>
+                      {getCaracterBadge('NO_COMPUTABLE', false, true)}
+                    </div>
+
+                    <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 self-start sm:self-auto">
+                      Decreto 1092
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-amber-950 dark:text-amber-200 leading-relaxed">
+                      {cls.tema}
+                    </p>
+
+                    {cls.licenciaInfo?.articulo && (
+                      <p className="text-xs font-semibold text-amber-800/90 dark:text-amber-300/90">
+                        Artículo: {cls.licenciaInfo.articulo}
+                      </p>
+                    )}
+
+                    {cls.observaciones && (
+                      <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900/90 dark:text-amber-300/90 leading-relaxed">
+                        <span className="font-bold text-amber-950 dark:text-amber-200 block text-[11px] uppercase tracking-wider mb-0.5">
+                          Observaciones y Justificación:
                         </span>
                         {cls.observaciones}
                       </div>

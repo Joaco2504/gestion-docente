@@ -2,6 +2,22 @@ import { supabase as defaultSupabase, isSupabaseConfigured } from '../lib/supaba
 import { enqueueOfflineMutation } from './offlineSyncService';
 import { getTodayYMD } from '../lib/dateUtils';
 import { getArticuloByCodigo, getArticuloByText } from '../constants/decreto1092';
+import { catedraCache } from './catedraCache';
+
+/**
+ * Notifica a los componentes y vacía caché para reactividad inmediata
+ */
+function notificarCambioLicencias(targetCatedraIds = [], licencia = null) {
+  if (Array.isArray(targetCatedraIds)) {
+    targetCatedraIds.forEach(cId => {
+      if (cId) catedraCache.invalidate(cId);
+    });
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('licencias_docentes_updated', { detail: { licencia } }));
+    window.dispatchEvent(new CustomEvent('clases_updated', { detail: { catedraIds: targetCatedraIds } }));
+  }
+}
 
 /**
  * Servicio de Gestión y Control Anual de Licencias Docentes (Decreto 1092)
@@ -69,50 +85,21 @@ export function getFechasEnRango(startDateStr, endDateStr) {
   return result;
 }
 
+export { obtenerLicenciaParaFecha } from '../utils/licenciasHelper';
+import { obtenerLicenciaParaFecha } from '../utils/licenciasHelper';
+
 /**
  * Determina si una fecha dada está cubierta por alguna de las licencias del docente,
  * evaluando rango de fechas [fecha_inicio, fecha_fin] y alcance de cátedras.
  * @param {string} fechaStr - YYYY-MM-DD
  * @param {Array} licencias - Lista de licencias
  * @param {string} [catedraId] - ID de cátedra opcional
+ * @param {Object} [claseObj] - Fila opcional de clase
  * @returns {{ cubierta: boolean, licencia: Object|null }}
  */
-export function isFechaCubiertaPorLicencias(fechaStr, licencias = [], catedraId = null) {
-  if (!fechaStr || !Array.isArray(licencias) || licencias.length === 0) {
-    return { cubierta: false, licencia: null };
-  }
-  const targetDate = String(fechaStr).split('T')[0];
-
-  for (const lic of licencias) {
-    const fInicio = String(lic.fecha_inicio || lic.fecha || '').split('T')[0];
-    const fFin = String(lic.fecha_fin || lic.fecha_inicio || lic.fecha || '').split('T')[0];
-    if (!fInicio) continue;
-
-    // Verificar si aplica a la cátedra
-    let aplicaCatedra = true;
-    if (catedraId) {
-      if (lic.aplica_todas_catedras === true) {
-        aplicaCatedra = true;
-      } else if (lic.catedra_id && lic.catedra_id === catedraId) {
-        aplicaCatedra = true;
-      } else if (Array.isArray(lic.catedra_ids) && lic.catedra_ids.includes(catedraId)) {
-        aplicaCatedra = true;
-      } else if (!lic.catedra_id && (!lic.catedra_ids || lic.catedra_ids.length === 0)) {
-        aplicaCatedra = true; // Alcance General
-      } else {
-        aplicaCatedra = false;
-      }
-    }
-
-    if (!aplicaCatedra) continue;
-
-    // Verificar si cae dentro del rango [fInicio, fFin]
-    if (targetDate >= fInicio && targetDate <= fFin) {
-      return { cubierta: true, licencia: lic };
-    }
-  }
-
-  return { cubierta: false, licencia: null };
+export function isFechaCubiertaPorLicencias(fechaStr, licencias = [], catedraId = null, claseObj = null) {
+  const lic = obtenerLicenciaParaFecha(fechaStr, catedraId, licencias, claseObj);
+  return { cubierta: Boolean(lic), licencia: lic };
 }
 
 /**
@@ -367,52 +354,102 @@ export async function createOrUpdateLicencia(payload, options = {}) {
   }
 
   // 1. Sincronización con clases si hay cátedras involucradas
-  if (targetCatedraIds.length > 0 && isSupabaseConfigured && !isDemo && client) {
-    try {
-      for (const cId of targetCatedraIds) {
-        for (const f of fechasRango) {
-          const { data: existingClases } = await client
-            .from('clases')
-            .select('id, tema')
-            .eq('catedra_id', cId)
-            .eq('fecha', f);
+  if (targetCatedraIds.length > 0) {
+    // 1a. Sincronización en localStorage (Modo Demo / Offline / Inmediato)
+    if (typeof localStorage !== 'undefined') {
+      try {
+        for (const cId of targetCatedraIds) {
+          const keyLocal1 = `clases_${cId}`;
+          const keyLocal2 = `docentepro_demo_clases_${cId}`;
+          const rawStored = localStorage.getItem(keyLocal1) || localStorage.getItem(keyLocal2);
+          let localClases = rawStored ? JSON.parse(rawStored) : [];
+          let modificado = false;
 
-          if (existingClases && existingClases.length > 0) {
-            const foundId = existingClases[0].id;
-            if (!affectedClaseIds.includes(foundId)) affectedClaseIds.push(foundId);
-            if (!claseId) claseId = foundId;
-            await client
-              .from('clases')
-              .update({
+          for (const f of fechasRango) {
+            const idx = localClases.findIndex(c => (c.fecha || '').slice(0, 10) === f);
+            if (idx >= 0) {
+              localClases[idx] = {
+                ...localClases[idx],
                 estado: 'DOCENTE_AUSENTE',
                 articulo_licencia: articulo,
                 observaciones: observacion,
                 tema: `Sin actividad áulica - Licencia Docente (${articulo})`
-              })
-              .eq('id', foundId);
-          } else {
-            const { data: newClase } = await client
-              .from('clases')
-              .insert({
+              };
+              modificado = true;
+            } else {
+              localClases.push({
+                id: `clase-lic-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
                 catedra_id: cId,
                 fecha: f,
                 estado: 'DOCENTE_AUSENTE',
                 articulo_licencia: articulo,
                 observaciones: observacion,
-                tema: `Sin actividad áulica - Licencia Docente (${articulo})`
-              })
-              .select()
-              .single();
+                tema: `Sin actividad áulica - Licencia Docente (${articulo})`,
+                horas_catedra: 0
+              });
+              modificado = true;
+            }
+          }
 
-            if (newClase) {
-              if (!affectedClaseIds.includes(newClase.id)) affectedClaseIds.push(newClase.id);
-              if (!claseId) claseId = newClase.id;
+          if (modificado) {
+            const jsonStr = JSON.stringify(localClases);
+            localStorage.setItem(keyLocal1, jsonStr);
+            localStorage.setItem(keyLocal2, jsonStr);
+          }
+        }
+      } catch (errLocalSync) {
+        console.warn('Aviso sincronizando clases en localStorage:', errLocalSync);
+      }
+    }
+
+    // 1b. Sincronización remota en Supabase
+    if (isSupabaseConfigured && !isDemo && client) {
+      try {
+        for (const cId of targetCatedraIds) {
+          for (const f of fechasRango) {
+            const { data: existingClases } = await client
+              .from('clases')
+              .select('id, tema')
+              .eq('catedra_id', cId)
+              .eq('fecha', f);
+
+            if (existingClases && existingClases.length > 0) {
+              const foundId = existingClases[0].id;
+              if (!affectedClaseIds.includes(foundId)) affectedClaseIds.push(foundId);
+              if (!claseId) claseId = foundId;
+              await client
+                .from('clases')
+                .update({
+                  estado: 'DOCENTE_AUSENTE',
+                  articulo_licencia: articulo,
+                  observaciones: observacion,
+                  tema: `Sin actividad áulica - Licencia Docente (${articulo})`
+                })
+                .eq('id', foundId);
+            } else {
+              const { data: newClase } = await client
+                .from('clases')
+                .insert({
+                  catedra_id: cId,
+                  fecha: f,
+                  estado: 'DOCENTE_AUSENTE',
+                  articulo_licencia: articulo,
+                  observaciones: observacion,
+                  tema: `Sin actividad áulica - Licencia Docente (${articulo})`
+                })
+                .select()
+                .single();
+
+              if (newClase) {
+                if (!affectedClaseIds.includes(newClase.id)) affectedClaseIds.push(newClase.id);
+                if (!claseId) claseId = newClase.id;
+              }
             }
           }
         }
+      } catch (claseSyncErr) {
+        console.warn('Error sincronizando clases de licencia en rango:', claseSyncErr);
       }
-    } catch (claseSyncErr) {
-      console.warn('Error sincronizando clases de licencia en rango:', claseSyncErr);
     }
   }
 
@@ -518,6 +555,8 @@ export async function createOrUpdateLicencia(payload, options = {}) {
     }
   }
 
+  notificarCambioLicencias(targetCatedraIds, licenciaItem);
+
   return normalizeLicencia(licenciaItem);
 }
 
@@ -568,6 +607,11 @@ export async function updateObservacion(licenciaId, nuevaObservacion, estadoTram
     }
   }
 
+  const notifIds = target?.catedra_ids && target.catedra_ids.length > 0
+    ? target.catedra_ids
+    : (target?.catedra_id ? [target.catedra_id] : []);
+  notificarCambioLicencias(notifIds, target);
+
   return target ? normalizeLicencia(target) : null;
 }
 
@@ -591,7 +635,46 @@ export async function deleteLicencia(licenciaId, claseId = null, options = {}) {
   const nextList = currentList.filter(l => String(l.id) !== String(licenciaId));
   saveLocalLicencias(docenteId, nextList);
 
-  // 2. Restaurar clases si existen
+  // 2. Restaurar clases en localStorage (Modo Demo / Offline)
+  if (typeof localStorage !== 'undefined' && target) {
+    try {
+      const catIds = target.catedra_ids && target.catedra_ids.length > 0
+        ? target.catedra_ids
+        : (target.catedra_id ? [target.catedra_id] : []);
+      const fRange = getFechasEnRango(target.fecha_inicio || target.fecha, target.fecha_fin || target.fecha_inicio || target.fecha);
+
+      for (const cId of catIds) {
+        const keyLocal1 = `clases_${cId}`;
+        const keyLocal2 = `docentepro_demo_clases_${cId}`;
+        const rawStored = localStorage.getItem(keyLocal1) || localStorage.getItem(keyLocal2);
+        if (rawStored) {
+          let localClases = JSON.parse(rawStored);
+          let mod = false;
+          localClases = localClases.map(c => {
+            if (fRange.includes((c.fecha || '').slice(0, 10)) && c.estado === 'DOCENTE_AUSENTE') {
+              mod = true;
+              return {
+                ...c,
+                estado: 'DICTADA',
+                articulo_licencia: null,
+                tema: 'Clase dictada regular'
+              };
+            }
+            return c;
+          });
+          if (mod) {
+            const jsonStr = JSON.stringify(localClases);
+            localStorage.setItem(keyLocal1, jsonStr);
+            localStorage.setItem(keyLocal2, jsonStr);
+          }
+        }
+      }
+    } catch (errLocalDel) {
+      console.warn('Aviso restaurando clases en localStorage:', errLocalDel);
+    }
+  }
+
+  // 3. Restaurar clases en Supabase si existen
   if (isSupabaseConfigured && !isDemo && client) {
     try {
       if (effectiveClaseIds.length > 0) {
@@ -626,7 +709,7 @@ export async function deleteLicencia(licenciaId, claseId = null, options = {}) {
     }
   }
 
-  // 3. Eliminar en Supabase
+  // 4. Eliminar en Supabase
   if (isSupabaseConfigured && !isDemo && client) {
     try {
       await client
@@ -637,6 +720,11 @@ export async function deleteLicencia(licenciaId, claseId = null, options = {}) {
       console.warn('Error al eliminar licencia de Supabase:', err);
     }
   }
+
+  const affectedCatIds = target?.catedra_ids && target?.catedra_ids.length > 0
+    ? target.catedra_ids
+    : (target?.catedra_id ? [target.catedra_id] : []);
+  notificarCambioLicencias(affectedCatIds, target);
 
   return true;
 }

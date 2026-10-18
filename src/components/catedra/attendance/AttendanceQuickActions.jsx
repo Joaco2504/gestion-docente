@@ -23,6 +23,8 @@ export default function AttendanceQuickActions({
   fechaSeleccionada,
   onFechaChange,
   claseActiva = null,
+  isLicenciaDocente = false,
+  infoLicencia = null,
   statsHoy,
   onMarcarTodosPresentes,
   onMarcarTodosAusentes,
@@ -50,8 +52,13 @@ export default function AttendanceQuickActions({
           />
         </div>
 
-        {/* Badge Contextual: Editando Clase Registrada vs Nueva Clase */}
-        {claseActiva ? (
+        {/* Badge Contextual: Licencia Docente vs Editando Clase vs Nueva Clase */}
+        {isLicenciaDocente ? (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-xs font-bold text-amber-700 dark:text-amber-300">
+            <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+            <span>🛡️ Jornada Justificada (Dto. 1092)</span>
+          </div>
+        ) : claseActiva ? (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-700 dark:text-blue-300">
             <Edit3 className="w-3.5 h-3.5 shrink-0" />
             <span>Editando clase registrada ({formattedDate})</span>
@@ -76,31 +83,35 @@ export default function AttendanceQuickActions({
 
       {/* Botones de Acción Masiva y Reportes */}
       <div className="flex items-center gap-2 flex-wrap justify-end">
-        {/* [ Marcar Todos Presentes ] */}
-        <Button
-          variant="outline"
-          size="sm"
-          icon={CheckCheck}
-          onClick={onMarcarTodosPresentes}
-          loading={saving}
-          className="text-xs font-bold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 touch-target-44 min-h-[44px]"
-          title="Asignar estado PRESENTE a todos los alumnos activos en esta fecha"
-        >
-          <span>Marcar Todos Presentes</span>
-        </Button>
+        {!isLicenciaDocente && (
+          <>
+            {/* [ Marcar Todos Presentes ] */}
+            <Button
+              variant="outline"
+              size="sm"
+              icon={CheckCheck}
+              onClick={onMarcarTodosPresentes}
+              loading={saving}
+              className="text-xs font-bold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 touch-target-44 min-h-[44px]"
+              title="Asignar estado PRESENTE a todos los alumnos activos en esta fecha"
+            >
+              <span>Marcar Todos Presentes</span>
+            </Button>
 
-        {/* [ Marcar Todos Ausentes ] */}
-        <Button
-          variant="outline"
-          size="sm"
-          icon={X}
-          onClick={onMarcarTodosAusentes}
-          loading={saving}
-          className="text-xs font-bold border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 touch-target-44 min-h-[44px]"
-          title="Asignar inasistencia general a toda la nómina en esta fecha"
-        >
-          <span>Marcar Todos Ausentes</span>
-        </Button>
+            {/* [ Marcar Todos Ausentes ] */}
+            <Button
+              variant="outline"
+              size="sm"
+              icon={X}
+              onClick={onMarcarTodosAusentes}
+              loading={saving}
+              className="text-xs font-bold border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 touch-target-44 min-h-[44px]"
+              title="Asignar inasistencia general a toda la nómina en esta fecha"
+            >
+              <span>Marcar Todos Ausentes</span>
+            </Button>
+          </>
+        )}
 
         {/* Falta Docente / Licencia Decreto 1092 */}
         <Button

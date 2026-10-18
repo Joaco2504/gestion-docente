@@ -91,6 +91,17 @@ export default function LicenciasDocenteModal({
   const [formCantidadDias, setFormCantidadDias] = useState(1);
   const [aplicaTodasCatedras, setAplicaTodasCatedras] = useState(!initialCatedraId);
   const [selectedCatedraIds, setSelectedCatedraIds] = useState(initialCatedraId ? [initialCatedraId] : []);
+  const [formCatedraId, setFormCatedraIdState] = useState(initialCatedraId || '');
+  const setFormCatedraId = useCallback((id) => {
+    setFormCatedraIdState(id || '');
+    if (id) {
+      setSelectedCatedraIds([id]);
+      setAplicaTodasCatedras(false);
+    } else {
+      setSelectedCatedraIds([]);
+      setAplicaTodasCatedras(true);
+    }
+  }, []);
   const [formCustomArticulo, setFormCustomArticulo] = useState('');
   const [formEstadoTramite, setFormEstadoTramite] = useState('PENDIENTE_CERTIFICADO');
   const [formObservacion, setFormObservacion] = useState('');
@@ -154,7 +165,7 @@ export default function LicenciasDocenteModal({
     if (initialCatedraId) {
       setFormCatedraId(initialCatedraId);
     }
-  }, [initialCatedraId]);
+  }, [initialCatedraId, setFormCatedraId]);
 
   // Consumo y métricas calculadas
   const metricas = useMemo(() => {

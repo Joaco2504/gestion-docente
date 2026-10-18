@@ -6,7 +6,7 @@ import { handleAppError } from '../utils/handleAppError';
 import { ESTADO_ASISTENCIA } from '../lib/enums';
 import { enqueueOfflineMutation } from '../services/offlineSyncService';
 import { ensureScheduledClassesToDate } from '../utils/scheduledClassesHelper';
-import { getLocalLicencias, isFechaCubiertaPorLicencias } from '../services/licenciasService';
+import { getLocalLicencias, isFechaCubiertaPorLicencias, obtenerLicenciaParaFecha } from '../services/licenciasService';
 import { toast } from 'sonner';
 
 /**
@@ -241,11 +241,8 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
 
     const isClaseCubiertaPorLicencia = (c) => {
       if (!c) return false;
-      if (c.estado === 'DOCENTE_AUSENTE' || Boolean(c.articulo_licencia)) return true;
-      if (c.caracter === 'DOCENTE_AUSENTE' || c.caracter_clase === 'DOCENTE_AUSENTE') return true;
       if (fechasLicenciaInas.has(c.fecha)) return true;
-      if (isFechaCubiertaPorLicencias(c.fecha, licenciasDocente, catedraId).cubierta) return true;
-      return false;
+      return obtenerLicenciaParaFecha(c.fecha, catedraId, licenciasDocente, c) !== null;
     };
 
     const clasesComputables = (clases || []).filter(
@@ -644,15 +641,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
   // Determinación reactiva de si la clase o fecha seleccionada está cubierta por licencia
   const licenciaDocenteActiva = useMemo(() => {
     const checkDate = claseActiva?.fecha || fechaSeleccionada;
-    const res = isFechaCubiertaPorLicencias(checkDate, licenciasDocente, catedraId);
-    if (res.cubierta) return res.licencia;
-    if (claseActiva?.estado === 'DOCENTE_AUSENTE' || claseActiva?.articulo_licencia) {
-      return {
-        articulo: claseActiva.articulo_licencia || 'Decreto 1092',
-        observacion: claseActiva.observaciones || ''
-      };
-    }
-    return null;
+    return obtenerLicenciaParaFecha(checkDate, catedraId, licenciasDocente, claseActiva);
   }, [claseActiva, fechaSeleccionada, licenciasDocente, catedraId]);
 
   const isLicenciaDocente = Boolean(licenciaDocenteActiva);

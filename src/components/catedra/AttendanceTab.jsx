@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, ShieldAlert } from 'lucide-react';
 import Card from '../common/Card';
+import Button from '../common/Button';
 import { SkeletonTable } from '../common/SkeletonLoader';
 import PrintPreviewModal from '../common/PrintPreviewModal';
 import RegistrarFaltaDocenteModal from './modals/RegistrarFaltaDocenteModal';
@@ -13,7 +14,7 @@ import AttendanceClassTopicBar from './attendance/AttendanceClassTopicBar';
 import { useAttendanceManager } from '../../hooks/useAttendanceManager';
 import { useAuth } from '../../context/AuthContext';
 import { exportAttendanceToExcel } from '../../lib/excel';
-import { getTodayYMD } from '../../lib/dateUtils';
+import { getTodayYMD, formatFechaDMY } from '../../lib/dateUtils';
 import { toast } from 'sonner';
 
 /**
@@ -124,6 +125,8 @@ export default function AttendanceTab({
         fechaSeleccionada={fechaSeleccionada}
         onFechaChange={setFechaSeleccionada}
         claseActiva={claseActiva}
+        isLicenciaDocente={isLicenciaDocente}
+        infoLicencia={licenciaDocenteActiva}
         statsHoy={statsHoy}
         onMarcarTodosPresentes={handleMarcarTodosPresentes}
         onMarcarTodosAusentes={handleMarcarTodosAusentes}
@@ -145,48 +148,96 @@ export default function AttendanceTab({
         disabled={saving || cursadaFinalizada}
       />
 
-      {/* 4. Buscador Reactivo */}
-      <Card className="p-3.5 border border-surface-border">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por DNI o Apellido/Nombre..."
-            className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1 rounded-md text-xs cursor-pointer"
+      {/* 4. Vista Condicional: Bloqueo por Licencia Docente vs Lista de Presentismo */}
+      {isLicenciaDocente ? (
+        <Card className="p-6 border-2 border-amber-500/40 bg-amber-50/70 dark:bg-amber-950/20 shadow-sm animate-fadeIn">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-amber-950 dark:text-amber-200">
+                  🛡️ Sin dictado de clases — Cubierto por Licencia Docente
+                </h3>
+                <p className="text-sm font-semibold text-amber-800/90 dark:text-amber-300/90">
+                  {licenciaDocenteActiva?.articulo || 'Licencia Decreto 1092'}
+                  {licenciaDocenteActiva?.fecha_inicio && licenciaDocenteActiva?.fecha_fin ? (
+                    <span className="font-normal ml-1.5">
+                      (Del {formatFechaDMY(licenciaDocenteActiva.fecha_inicio)} al {formatFechaDMY(licenciaDocenteActiva.fecha_fin)})
+                    </span>
+                  ) : null}
+                </p>
+                {licenciaDocenteActiva?.observacion && (
+                  <p className="text-xs text-amber-700/80 dark:text-amber-400/80 italic">
+                    Nota: {licenciaDocenteActiva.observacion}
+                  </p>
+                )}
+                <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium pt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="font-bold">✅ Justificada automáticamente</span>
+                  <span className="text-slate-400">•</span>
+                  <span>No requiere tomar asistencia ni cargar tema</span>
+                  <span className="text-slate-400">•</span>
+                  <span>No descuenta % de asistencia a los alumnos</span>
+                </div>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsLicenciasModalOpen(true)}
+              className="border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100/50 dark:hover:bg-amber-900/30 shrink-0 touch-target-44 min-h-[44px]"
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </Card>
+              Ver balance anual de licencias
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {/* Buscador Reactivo */}
+          <Card className="p-3.5 border border-surface-border">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por DNI o Apellido/Nombre..."
+                className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-medium border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1 rounded-md text-xs cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </Card>
 
-      {/* 3. VISTA DESKTOP (>= 1024px): Tabla de Alta Densidad */}
-      <AttendanceDesktopTable
-        filteredAlumnos={filteredAlumnos}
-        asistenciasDiaMap={asistenciasDiaMap}
-        asistenciaPorEstudiante={asistenciaPorEstudiante}
-        onToggleEstado={handleToggleEstado}
-        disabled={saving || cursadaFinalizada}
-      />
+          {/* VISTA DESKTOP (>= 1024px): Tabla de Alta Densidad */}
+          <AttendanceDesktopTable
+            filteredAlumnos={filteredAlumnos}
+            asistenciasDiaMap={asistenciasDiaMap}
+            asistenciaPorEstudiante={asistenciaPorEstudiante}
+            onToggleEstado={handleToggleEstado}
+            disabled={saving || cursadaFinalizada}
+          />
 
-      {/* 4. VISTA MÓVIL (< 1024px): Tarjetas Táctiles Modulares (Responsive-Craft) */}
-      <div className="lg:hidden">
-        <AttendanceCardsMobile
-          alumnosElegibles={filteredAlumnos}
-          asistenciasDiaMap={asistenciasDiaMap}
-          asistenciaPorEstudiante={asistenciaPorEstudiante}
-          onToggleEstado={handleToggleEstado}
-          disabled={saving || cursadaFinalizada}
-        />
-      </div>
+          {/* VISTA MÓVIL (< 1024px): Tarjetas Táctiles Modulares (Responsive-Craft) */}
+          <div className="lg:hidden">
+            <AttendanceCardsMobile
+              alumnosElegibles={filteredAlumnos}
+              asistenciasDiaMap={asistenciasDiaMap}
+              asistenciaPorEstudiante={asistenciaPorEstudiante}
+              onToggleEstado={handleToggleEstado}
+              disabled={saving || cursadaFinalizada}
+            />
+          </div>
+        </>
+      )}
 
       {/* 5. Modales Auxiliares */}
       <RegistrarFaltaDocenteModal
