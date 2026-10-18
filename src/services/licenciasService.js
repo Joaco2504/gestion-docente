@@ -1,7 +1,7 @@
 import { supabase as defaultSupabase, isSupabaseConfigured } from '../lib/supabase';
 import { enqueueOfflineMutation } from './offlineSyncService';
 import { getTodayYMD } from '../lib/dateUtils';
-import { getArticuloByCodigo, getArticuloByText } from '../constants/decreto1092';
+import { getArticuloByCodigo, getArticuloByText, calcularFechaFinLicencia } from '../constants/decreto1092';
 import { catedraCache } from './catedraCache';
 
 /**
@@ -318,11 +318,25 @@ export async function createOrUpdateLicencia(payload, options = {}) {
   const isDemo = Boolean(options.isDemo);
   const docenteId = payload.docente_id || options.docenteId || 'demo';
 
+  if (payload?.id) {
+    const existingList = getLocalLicencias(docenteId);
+    const exists = existingList.some(l => String(l.id) === String(payload.id));
+    if (exists) {
+      return updateLicencia(payload.id, payload, options.oldLicencia, options);
+    }
+  }
+
   const licenciaId = payload.id || `lic-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const fechaInicio = payload.fecha_inicio || payload.fecha ? String(payload.fecha_inicio || payload.fecha).split('T')[0] : getTodayYMD();
-  const fechaFin = payload.fecha_fin ? String(payload.fecha_fin).split('T')[0] : fechaInicio;
+  const articulo = payload.articulo || 'Art. 52° - Razones particulares o especiales';
+  const artObj = getArticuloByCodigo(payload.articulo_codigo || payload.articulo) || getArticuloByText(articulo);
+  const articuloCodigo = payload.articulo_codigo || artObj?.codigo || null;
+  const tipoComputo = payload.tipo_computo || artObj?.tipoComputo || 'CORRIDOS';
   const cantidadDias = Math.max(1, parseInt(payload.cantidad_dias, 10) || 1);
-  const fechaReintegro = payload.fecha_reintegro ? String(payload.fecha_reintegro).split('T')[0] : null;
+
+  const calculoFechas = calcularFechaFinLicencia(fechaInicio, cantidadDias, tipoComputo);
+  const fechaFin = payload.fecha_fin ? String(payload.fecha_fin).split('T')[0] : calculoFechas.fechaFin;
+  const fechaReintegro = payload.fecha_reintegro ? String(payload.fecha_reintegro).split('T')[0] : calculoFechas.fechaReintegro;
   const aplicaTodasCatedras = Boolean(
     payload.aplica_todas_catedras ?? (payload.catedra_id === null && (!payload.catedra_ids || payload.catedra_ids.length === 0))
   );
@@ -331,8 +345,6 @@ export async function createOrUpdateLicencia(payload, options = {}) {
     : (payload.catedra_id ? [payload.catedra_id] : []);
   const catedraId = !aplicaTodasCatedras && catedraIds.length === 1 ? catedraIds[0] : (payload.catedra_id || null);
 
-  const articulo = payload.articulo || 'Art. 52° - Razones particulares o especiales';
-  const articuloCodigo = payload.articulo_codigo || getArticuloByText(articulo)?.codigo || null;
   const observacion = payload.observacion || payload.observaciones || '';
   const estadoTramite = payload.estado_tramite || 'PENDIENTE_CERTIFICADO';
   let claseId = payload.clase_id || null;
@@ -461,6 +473,7 @@ export async function createOrUpdateLicencia(payload, options = {}) {
     fecha_fin: fechaFin,
     cantidad_dias: cantidadDias,
     fecha_reintegro: fechaReintegro,
+    tipo_computo: tipoComputo,
     aplica_todas_catedras: aplicaTodasCatedras,
     catedra_ids: targetCatedraIds,
     catedra_id: catedraId,
@@ -558,6 +571,337 @@ export async function createOrUpdateLicencia(payload, options = {}) {
   notificarCambioLicencias(targetCatedraIds, licenciaItem);
 
   return normalizeLicencia(licenciaItem);
+}
+
+/**
+ * Actualiza de forma integral una licencia docente registrada (artículo, fechas,
+ * duración, cátedras alcanzadas y observaciones) reconciliando las clases asociadas:
+ * - Restaura a 'DICTADA' las clases que ya no quedan cubiertas en el nuevo rango/cátedras.
+ * - Asigna 'DOCENTE_AUSENTE' a las clases cubiertas en el nuevo rango.
+ *
+ * @param {string} licenciaId - ID de la licencia a modificar
+ * @param {Object} payload - Nuevos datos de la licencia
+ * @param {Object} [oldLicencia] - Registro previo para reconciliación diferencial
+ * @param {Object} [options] - Opciones (supabase, isDemo, docenteId, allCatedraIds, catedrasList)
+ * @returns {Promise<Object>} Licencia normalizada y actualizada
+ */
+export async function updateLicencia(licenciaId, payload, oldLicencia = null, options = {}) {
+  const client = options.supabase || defaultSupabase;
+  const isDemo = Boolean(options.isDemo);
+  const docenteId = payload.docente_id || oldLicencia?.docente_id || options.docenteId || 'demo';
+
+  // 1. Obtener la licencia previa si no fue provista
+  const currentList = getLocalLicencias(docenteId);
+  const resolvedOld = oldLicencia || currentList.find(l => String(l.id) === String(licenciaId)) || {};
+
+  // 2. Determinar fechas y cátedras previas
+  const oldStart = resolvedOld.fecha_inicio || resolvedOld.fecha || null;
+  const oldEnd = resolvedOld.fecha_fin || oldStart;
+  const oldFechas = oldStart ? getFechasEnRango(oldStart, oldEnd) : [];
+
+  let oldCatIds = [];
+  if (resolvedOld.aplica_todas_catedras) {
+    if (options.allCatedraIds && options.allCatedraIds.length > 0) {
+      oldCatIds = options.allCatedraIds;
+    } else if (options.catedrasList && options.catedrasList.length > 0) {
+      oldCatIds = options.catedrasList.map(c => c.id).filter(Boolean);
+    }
+  } else {
+    oldCatIds = Array.isArray(resolvedOld.catedra_ids) && resolvedOld.catedra_ids.length > 0
+      ? resolvedOld.catedra_ids
+      : (resolvedOld.catedra_id ? [resolvedOld.catedra_id] : []);
+  }
+
+  // 3. Determinar nuevos valores
+  const fechaInicio = payload.fecha_inicio || payload.fecha
+    ? String(payload.fecha_inicio || payload.fecha).split('T')[0]
+    : (oldStart || getTodayYMD());
+
+  const articulo = payload.articulo || resolvedOld.articulo || 'Art. 52° - Razones particulares o especiales';
+  const artObj = getArticuloByCodigo(payload.articulo_codigo || payload.articulo) || getArticuloByText(articulo);
+  const articuloCodigo = payload.articulo_codigo || artObj?.codigo || resolvedOld.articulo_codigo || null;
+  const tipoComputo = payload.tipo_computo || artObj?.tipoComputo || resolvedOld.tipo_computo || 'CORRIDOS';
+
+  const cantidadDias = Math.max(1, parseInt(payload.cantidad_dias, 10) || resolvedOld.cantidad_dias || 1);
+
+  // Calcular fecha de fin y reintegro automáticamente
+  const calculoFechas = calcularFechaFinLicencia(fechaInicio, cantidadDias, tipoComputo);
+  const fechaFin = payload.fecha_fin ? String(payload.fecha_fin).split('T')[0] : calculoFechas.fechaFin;
+  const fechaReintegro = payload.fecha_reintegro ? String(payload.fecha_reintegro).split('T')[0] : calculoFechas.fechaReintegro;
+  const newFechas = getFechasEnRango(fechaInicio, fechaFin);
+
+  const aplicaTodasCatedras = Boolean(
+    payload.aplica_todas_catedras ?? resolvedOld.aplica_todas_catedras
+  );
+
+  let newCatIds = [];
+  if (aplicaTodasCatedras) {
+    if (options.allCatedraIds && options.allCatedraIds.length > 0) {
+      newCatIds = options.allCatedraIds;
+    } else if (options.catedrasList && options.catedrasList.length > 0) {
+      newCatIds = options.catedrasList.map(c => c.id).filter(Boolean);
+    }
+  } else {
+    newCatIds = Array.isArray(payload.catedra_ids)
+      ? payload.catedra_ids
+      : (payload.catedra_id ? [payload.catedra_id] : (resolvedOld.catedra_ids || (resolvedOld.catedra_id ? [resolvedOld.catedra_id] : [])));
+  }
+
+  const primaryCatedraId = !aplicaTodasCatedras && newCatIds.length === 1 ? newCatIds[0] : (payload.catedra_id || resolvedOld.catedra_id || null);
+  const observacion = payload.observacion !== undefined ? payload.observacion : (payload.observaciones !== undefined ? payload.observaciones : (resolvedOld.observacion || ''));
+  const estadoTramite = payload.estado_tramite || resolvedOld.estado_tramite || 'PENDIENTE_CERTIFICADO';
+
+  // 4. Pares cátedra::fecha a reconciliar
+  const oldPairs = new Set();
+  oldCatIds.forEach(cId => {
+    oldFechas.forEach(f => oldPairs.add(`${cId}::${f}`));
+  });
+
+  const newPairs = new Set();
+  newCatIds.forEach(cId => {
+    newFechas.forEach(f => newPairs.add(`${cId}::${f}`));
+  });
+
+  // Pares a liberar (volver a DICTADA)
+  const toReleasePairs = [];
+  oldPairs.forEach(pair => {
+    if (!newPairs.has(pair)) {
+      const [cId, f] = pair.split('::');
+      toReleasePairs.push({ catedraId: cId, fecha: f });
+    }
+  });
+
+  // Pares a marcar como DOCENTE_AUSENTE
+  const toApplyPairs = [];
+  newPairs.forEach(pair => {
+    const [cId, f] = pair.split('::');
+    toApplyPairs.push({ catedraId: cId, fecha: f });
+  });
+
+  // 5. Reconciliación en localStorage
+  if (typeof localStorage !== 'undefined') {
+    try {
+      // 5a. Liberar pares removidos
+      const releaseByCat = {};
+      toReleasePairs.forEach(({ catedraId, fecha }) => {
+        if (!releaseByCat[catedraId]) releaseByCat[catedraId] = new Set();
+        releaseByCat[catedraId].add(fecha);
+      });
+
+      Object.entries(releaseByCat).forEach(([cId, fechasSet]) => {
+        const keyLocal1 = `clases_${cId}`;
+        const keyLocal2 = `docentepro_demo_clases_${cId}`;
+        const rawStored = localStorage.getItem(keyLocal1) || localStorage.getItem(keyLocal2);
+        if (rawStored) {
+          let localClases = JSON.parse(rawStored);
+          let mod = false;
+          localClases = localClases.map(c => {
+            const cFecha = (c.fecha || '').slice(0, 10);
+            if (fechasSet.has(cFecha) && c.estado === 'DOCENTE_AUSENTE') {
+              mod = true;
+              return {
+                ...c,
+                estado: 'DICTADA',
+                articulo_licencia: null,
+                tema: 'Clase dictada regular'
+              };
+            }
+            return c;
+          });
+          if (mod) {
+            const jsonStr = JSON.stringify(localClases);
+            localStorage.setItem(keyLocal1, jsonStr);
+            localStorage.setItem(keyLocal2, jsonStr);
+          }
+        }
+      });
+
+      // 5b. Aplicar nuevos pares
+      const applyByCat = {};
+      toApplyPairs.forEach(({ catedraId, fecha }) => {
+        if (!applyByCat[catedraId]) applyByCat[catedraId] = new Set();
+        applyByCat[catedraId].add(fecha);
+      });
+
+      Object.entries(applyByCat).forEach(([cId, fechasSet]) => {
+        const keyLocal1 = `clases_${cId}`;
+        const keyLocal2 = `docentepro_demo_clases_${cId}`;
+        const rawStored = localStorage.getItem(keyLocal1) || localStorage.getItem(keyLocal2);
+        let localClases = rawStored ? JSON.parse(rawStored) : [];
+        let mod = false;
+
+        fechasSet.forEach(f => {
+          const idx = localClases.findIndex(c => (c.fecha || '').slice(0, 10) === f);
+          if (idx >= 0) {
+            localClases[idx] = {
+              ...localClases[idx],
+              estado: 'DOCENTE_AUSENTE',
+              articulo_licencia: articulo,
+              observaciones: observacion,
+              tema: `Sin actividad áulica - Licencia Docente (${articulo})`
+            };
+            mod = true;
+          } else {
+            localClases.push({
+              id: `clase-lic-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              catedra_id: cId,
+              fecha: f,
+              estado: 'DOCENTE_AUSENTE',
+              articulo_licencia: articulo,
+              observaciones: observacion,
+              tema: `Sin actividad áulica - Licencia Docente (${articulo})`,
+              horas_catedra: 0
+            });
+            mod = true;
+          }
+        });
+
+        if (mod) {
+          const jsonStr = JSON.stringify(localClases);
+          localStorage.setItem(keyLocal1, jsonStr);
+          localStorage.setItem(keyLocal2, jsonStr);
+        }
+      });
+    } catch (errLocalReconcile) {
+      console.warn('Aviso reconciliando clases en localStorage:', errLocalReconcile);
+    }
+  }
+
+  // 6. Reconciliación en Supabase si está configurado
+  if (isSupabaseConfigured && !isDemo && client) {
+    try {
+      // 6a. Liberar en Supabase
+      for (const { catedraId, fecha } of toReleasePairs) {
+        await client
+          .from('clases')
+          .update({
+            estado: 'DICTADA',
+            articulo_licencia: null,
+            tema: 'Clase dictada regular'
+          })
+          .eq('catedra_id', catedraId)
+          .eq('fecha', fecha)
+          .eq('estado', 'DOCENTE_AUSENTE');
+      }
+
+      // 6b. Aplicar en Supabase
+      for (const { catedraId, fecha } of toApplyPairs) {
+        const { data: existingClases } = await client
+          .from('clases')
+          .select('id, tema')
+          .eq('catedra_id', catedraId)
+          .eq('fecha', fecha);
+
+        if (existingClases && existingClases.length > 0) {
+          await client
+            .from('clases')
+            .update({
+              estado: 'DOCENTE_AUSENTE',
+              articulo_licencia: articulo,
+              observaciones: observacion,
+              tema: `Sin actividad áulica - Licencia Docente (${articulo})`
+            })
+            .eq('id', existingClases[0].id);
+        } else {
+          await client
+            .from('clases')
+            .insert({
+              catedra_id: catedraId,
+              fecha,
+              estado: 'DOCENTE_AUSENTE',
+              articulo_licencia: articulo,
+              observaciones: observacion,
+              tema: `Sin actividad áulica - Licencia Docente (${articulo})`
+            });
+        }
+      }
+    } catch (errRemoteReconcile) {
+      console.warn('Error reconciliando clases en Supabase:', errRemoteReconcile);
+    }
+  }
+
+  // 7. Actualizar el registro de la licencia en la lista local
+  let updatedLicencia = null;
+  const targetIdx = currentList.findIndex(l => String(l.id) === String(licenciaId));
+
+  const baseUpdatedItem = {
+    ...(targetIdx >= 0 ? currentList[targetIdx] : resolvedOld),
+    id: licenciaId,
+    docente_id: docenteId,
+    fecha: fechaInicio,
+    fecha_inicio: fechaInicio,
+    fecha_fin: fechaFin,
+    cantidad_dias: cantidadDias,
+    fecha_reintegro: fechaReintegro,
+    tipo_computo: tipoComputo,
+    aplica_todas_catedras: aplicaTodasCatedras,
+    catedra_ids: newCatIds,
+    catedra_id: primaryCatedraId,
+    articulo,
+    articulo_codigo: articuloCodigo,
+    observacion,
+    estado_tramite: estadoTramite,
+    updated_at: new Date().toISOString()
+  };
+
+  if (targetIdx >= 0) {
+    currentList[targetIdx] = baseUpdatedItem;
+    updatedLicencia = currentList[targetIdx];
+  } else {
+    currentList.push(baseUpdatedItem);
+    updatedLicencia = baseUpdatedItem;
+  }
+  saveLocalLicencias(docenteId, currentList);
+
+  // 8. Actualizar en Supabase
+  if (isSupabaseConfigured && !isDemo && client) {
+    try {
+      const fullPayload = {
+        docente_id: docenteId,
+        fecha: fechaInicio,
+        fecha_fin: fechaFin,
+        cantidad_dias: cantidadDias,
+        fecha_reintegro: fechaReintegro,
+        aplica_todas_catedras: aplicaTodasCatedras,
+        catedra_ids: newCatIds,
+        articulo,
+        articulo_codigo: articuloCodigo,
+        observacion,
+        estado_tramite: estadoTramite,
+        catedra_id: primaryCatedraId,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateErr } = await client
+        .from('licencias_docentes')
+        .update(fullPayload)
+        .eq('id', licenciaId);
+
+      if (updateErr) {
+        // Fallback si faltan columnas
+        await client
+          .from('licencias_docentes')
+          .update({
+            fecha: fechaInicio,
+            articulo,
+            articulo_codigo: articuloCodigo,
+            observacion,
+            estado_tramite: estadoTramite,
+            catedra_id: primaryCatedraId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', licenciaId);
+      }
+    } catch (saveErr) {
+      console.warn('Error actualizando licencia en Supabase:', saveErr);
+    }
+  }
+
+  // 9. Notificar cambios a la app y limpiar cachés
+  const allAffectedCatIds = Array.from(new Set([...oldCatIds, ...newCatIds])).filter(Boolean);
+  notificarCambioLicencias(allAffectedCatIds, updatedLicencia);
+
+  return normalizeLicencia(updatedLicencia);
 }
 
 /**

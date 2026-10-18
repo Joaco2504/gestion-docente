@@ -21,6 +21,7 @@ import {
   saveLocalLicencias,
   getLicenciasByYear,
   createOrUpdateLicencia,
+  updateLicencia,
   updateObservacion,
   deleteLicencia,
   calcularDisponibilidadArticulo,
@@ -364,6 +365,175 @@ describe('licenciasService — Reglas y Contadores Decreto 1092', () => {
       const disp = calcularDisponibilidadArticulo('ART_16', mockLicencias, '2026-05-20');
       expect(disp.usadosAnio).toBe(10); // 7 + 3 = 10 días
       expect(disp.restantesAnio).toBe(15); // 25 - 10 = 15 días restantes
+    });
+  });
+
+  describe('5. Edición Completa y Reconciliación Diferencial (updateLicencia)', () => {
+    it('Actualiza artículo, días, fechas y observaciones en localStorage', async () => {
+      // 1. Crear licencia inicial
+      const payloadOriginal = {
+        id: 'lic-edit-test-1',
+        docente_id: 'doc-1',
+        fecha_inicio: '2026-07-01',
+        cantidad_dias: 2,
+        articulo: 'Art. 52° - Razones particulares o especiales',
+        articulo_codigo: 'ART_52',
+        aplica_todas_catedras: true,
+        observacion: 'Trámite inicial'
+      };
+
+      await createOrUpdateLicencia(payloadOriginal, {
+        isDemo: true,
+        docenteId: 'doc-1',
+        allCatedraIds: ['cat-1']
+      });
+
+      const licInicial = getLocalLicencias('doc-1').find(l => l.id === 'lic-edit-test-1');
+      expect(licInicial).toBeDefined();
+      expect(licInicial.fecha_fin).toBe('2026-07-02');
+      expect(licInicial.cantidad_dias).toBe(2);
+
+      // 2. Modificar licencia completa cambiando fechas (a 2026-07-10), días (a 3), artículo y cátedras
+      const payloadUpdate = {
+        fecha_inicio: '2026-07-10',
+        cantidad_dias: 3,
+        articulo: 'Art. 16° - Afecciones comunes o corto tratamiento',
+        articulo_codigo: 'ART_16',
+        aplica_todas_catedras: false,
+        catedra_ids: ['cat-1'],
+        observacion: 'Modificación con certificado médico'
+      };
+
+      const updated = await updateLicencia('lic-edit-test-1', payloadUpdate, licInicial, {
+        isDemo: true,
+        docenteId: 'doc-1',
+        allCatedraIds: ['cat-1']
+      });
+
+      expect(updated.fecha).toBe('2026-07-10');
+      expect(updated.fecha_inicio).toBe('2026-07-10');
+      expect(updated.cantidad_dias).toBe(3);
+      expect(updated.fecha_fin).toBe('2026-07-12');
+      expect(updated.articulo_codigo).toBe('ART_16');
+      expect(updated.observacion).toBe('Modificación con certificado médico');
+
+      // Verificar persistencia local
+      const stored = getLocalLicencias('doc-1').find(l => l.id === 'lic-edit-test-1');
+      expect(stored.fecha_inicio).toBe('2026-07-10');
+      expect(stored.fecha_fin).toBe('2026-07-12');
+      expect(stored.observacion).toBe('Modificación con certificado médico');
+    });
+
+    it('Reconcilia clases: libera a DICTADA las fechas viejas y marca DOCENTE_AUSENTE las nuevas', async () => {
+      const cId = 'cat-historia';
+      const keyClases = `clases_${cId}`;
+
+      // Configurar clases existentes en localStorage
+      const clasesIniciales = [
+        { id: 'c-1', catedra_id: cId, fecha: '2026-08-03', estado: 'DICTADA', tema: 'Clase inicial' },
+        { id: 'c-2', catedra_id: cId, fecha: '2026-08-04', estado: 'DICTADA', tema: 'Clase inicial' },
+        { id: 'c-3', catedra_id: cId, fecha: '2026-08-10', estado: 'DICTADA', tema: 'Clase inicial' },
+      ];
+      localStorage.setItem(keyClases, JSON.stringify(clasesIniciales));
+
+      // 1. Asentar licencia en 2026-08-03 y 2026-08-04
+      const licOriginal = await createOrUpdateLicencia({
+        id: 'lic-reconcile-1',
+        docente_id: 'doc-2',
+        fecha_inicio: '2026-08-03',
+        cantidad_dias: 2,
+        articulo: 'Art. 52° - Razones particulares',
+        articulo_codigo: 'ART_52',
+        aplica_todas_catedras: false,
+        catedra_ids: [cId]
+      }, { isDemo: true, docenteId: 'doc-2' });
+
+      let clasesAfterCreate = JSON.parse(localStorage.getItem(keyClases));
+      expect(clasesAfterCreate.find(c => c.fecha === '2026-08-03').estado).toBe('DOCENTE_AUSENTE');
+      expect(clasesAfterCreate.find(c => c.fecha === '2026-08-04').estado).toBe('DOCENTE_AUSENTE');
+      expect(clasesAfterCreate.find(c => c.fecha === '2026-08-10').estado).toBe('DICTADA');
+
+      // 2. Modificar la licencia para que ahora sea solo el 2026-08-10 (1 día)
+      await updateLicencia('lic-reconcile-1', {
+        fecha_inicio: '2026-08-10',
+        cantidad_dias: 1,
+        articulo: 'Art. 52° - Razones particulares',
+        articulo_codigo: 'ART_52',
+        aplica_todas_catedras: false,
+        catedra_ids: [cId]
+      }, licOriginal, { isDemo: true, docenteId: 'doc-2' });
+
+      let clasesAfterUpdate = JSON.parse(localStorage.getItem(keyClases));
+      // Los días viejos (03 y 04) deben haberse restaurado a DICTADA
+      const c1 = clasesAfterUpdate.find(c => c.fecha === '2026-08-03');
+      const c2 = clasesAfterUpdate.find(c => c.fecha === '2026-08-04');
+      const c3 = clasesAfterUpdate.find(c => c.fecha === '2026-08-10');
+
+      expect(c1.estado).toBe('DICTADA');
+      expect(c1.articulo_licencia).toBeNull();
+      expect(c2.estado).toBe('DICTADA');
+      expect(c2.articulo_licencia).toBeNull();
+
+      // El nuevo día (10) debe ser DOCENTE_AUSENTE
+      expect(c3.estado).toBe('DOCENTE_AUSENTE');
+      expect(c3.articulo_licencia).toBe('Art. 52° - Razones particulares');
+    });
+
+    it('createOrUpdateLicencia delega automáticamente a updateLicencia cuando el ID ya existe', async () => {
+      // Crear licencia
+      await createOrUpdateLicencia({
+        id: 'lic-auto-delegate-1',
+        docente_id: 'doc-3',
+        fecha_inicio: '2026-09-01',
+        cantidad_dias: 1,
+        articulo_codigo: 'ART_52',
+        observacion: 'Original'
+      }, { isDemo: true, docenteId: 'doc-3' });
+
+      // Llamar a createOrUpdateLicencia con el mismo ID pero datos modificados
+      const updated = await createOrUpdateLicencia({
+        id: 'lic-auto-delegate-1',
+        docente_id: 'doc-3',
+        fecha_inicio: '2026-09-05',
+        cantidad_dias: 2,
+        articulo_codigo: 'ART_16',
+        observacion: 'Actualizada via delegación'
+      }, { isDemo: true, docenteId: 'doc-3' });
+
+      expect(updated.fecha_inicio).toBe('2026-09-05');
+      expect(updated.cantidad_dias).toBe(2);
+      expect(updated.observacion).toBe('Actualizada via delegación');
+    });
+
+    it('Exclusión del registro en edición al calcular cupos para evitar duplicación de consumo', () => {
+      const mockLicencias = [
+        {
+          id: 'lic-a-editar',
+          fecha: '2026-05-02',
+          fecha_inicio: '2026-05-02',
+          fecha_fin: '2026-05-03',
+          cantidad_dias: 2,
+          articulo_codigo: 'ART_52'
+        },
+        {
+          id: 'otra-licencia',
+          fecha: '2026-05-15',
+          fecha_inicio: '2026-05-15',
+          fecha_fin: '2026-05-15',
+          cantidad_dias: 1,
+          articulo_codigo: 'ART_52'
+        }
+      ];
+
+      // Sin exclusión (ambas licencias cuentan -> 3 días usados)
+      const dispTotal = calcularDisponibilidadArticulo('ART_52', mockLicencias, '2026-05-02');
+      expect(dispTotal.usadosAnio).toBe(3);
+
+      // Con exclusión de la licencia en edición (solo cuenta 'otra-licencia' -> 1 día usado)
+      const licenciasFiltradas = mockLicencias.filter(l => l.id !== 'lic-a-editar');
+      const dispModoEdicion = calcularDisponibilidadArticulo('ART_52', licenciasFiltradas, '2026-05-02');
+      expect(dispModoEdicion.usadosAnio).toBe(1);
+      expect(dispModoEdicion.restantesAnio).toBe(4); // 5 - 1 = 4 días disponibles
     });
   });
 });

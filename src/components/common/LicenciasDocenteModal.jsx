@@ -27,6 +27,7 @@ import { formatFechaDMY, getTodayYMD } from '../../lib/dateUtils';
 import { 
   getLicenciasByYear, 
   createOrUpdateLicencia, 
+  updateLicencia,
   updateObservacion, 
   deleteLicencia, 
   calcularConsumoLicencias,
@@ -83,8 +84,9 @@ export default function LicenciasDocenteModal({
   const [filterArticulo, setFilterArticulo] = useState('TODOS');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Formulario colapsable
+  // Formulario colapsable y modo edición
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingLicencia, setEditingLicencia] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formFecha, setFormFecha] = useState(getTodayYMD());
   const [formArticulo, setFormArticulo] = useState('ART_52');
@@ -128,9 +130,59 @@ export default function LicenciasDocenteModal({
   }, [formFecha, formCantidadDias, currentArticuloObj]);
 
   // Cálculo reactivo de disponibilidad y cupo según artículo y fecha seleccionados
+  // Si estamos en edición completa, excluimos la licencia en edición para no duplicar cómputo en el saldo
   const disponibilidad = useMemo(() => {
-    return calcularDisponibilidadArticulo(formArticulo, licencias, formFecha);
-  }, [formArticulo, licencias, formFecha]);
+    const licenciasParaDisponibilidad = editingLicencia
+      ? licencias.filter(l => String(l.id) !== String(editingLicencia.id))
+      : licencias;
+    return calcularDisponibilidadArticulo(formArticulo, licenciasParaDisponibilidad, formFecha);
+  }, [formArticulo, licencias, formFecha, editingLicencia]);
+
+  // Cancelar edición y limpiar formulario
+  const handleCancelEditForm = useCallback(() => {
+    setEditingLicencia(null);
+    setFormObservacion('');
+    setFormCustomArticulo('');
+    setFormFecha(getTodayYMD());
+    setFormArticulo('ART_52');
+    setFormCantidadDias(1);
+    setAplicaTodasCatedras(!initialCatedraId);
+    setSelectedCatedraIds(initialCatedraId ? [initialCatedraId] : []);
+    setFormEstadoTramite('PENDIENTE_CERTIFICADO');
+    setIsFormOpen(false);
+  }, [initialCatedraId]);
+
+  // Iniciar edición completa de una licencia
+  const handleStartFullEdit = useCallback((lic) => {
+    setEditingLicencia(lic);
+    setFormFecha(lic.fecha_inicio || lic.fecha || getTodayYMD());
+
+    const artCode = lic.articulo_codigo || getArticuloByText(lic.articulo)?.codigo;
+    if (artCode) {
+      setFormArticulo(artCode);
+      setFormCustomArticulo('');
+    } else {
+      setFormArticulo('OTRO');
+      setFormCustomArticulo(lic.articulo || '');
+    }
+
+    setFormCantidadDias(lic.cantidad_dias || 1);
+    const isTodas = Boolean(lic.aplica_todas_catedras || (!lic.catedra_id && (!lic.catedra_ids || lic.catedra_ids.length === 0)));
+    setAplicaTodasCatedras(isTodas);
+
+    if (isTodas) {
+      setSelectedCatedraIds([]);
+    } else {
+      const catIds = Array.isArray(lic.catedra_ids) && lic.catedra_ids.length > 0
+        ? lic.catedra_ids
+        : (lic.catedra_id ? [lic.catedra_id] : []);
+      setSelectedCatedraIds(catIds);
+    }
+
+    setFormEstadoTramite(lic.estado_tramite || 'PENDIENTE_CERTIFICADO');
+    setFormObservacion(lic.observacion || '');
+    setIsFormOpen(true);
+  }, []);
 
   // Edición inline de observaciones
   const [editingLicenciaId, setEditingLicenciaId] = useState(null);
@@ -210,8 +262,8 @@ export default function LicenciasDocenteModal({
     });
   }, [licencias, filterArticulo, searchQuery]);
 
-  // Manejo de envío de nueva licencia
-  const handleCreateLicencia = async (e) => {
+  // Manejo de guardado (creación o edición) de licencia
+  const handleSaveLicencia = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -236,11 +288,13 @@ export default function LicenciasDocenteModal({
       const primaryCatedraId = !aplicaTodasCatedras && effectiveCatedraIds.length > 0 ? effectiveCatedraIds[0] : null;
 
       const payload = {
+        id: editingLicencia?.id,
         fecha: formFecha,
         fecha_inicio: formFecha,
         fecha_fin: calculoFechas.fechaFin,
         cantidad_dias: calculoFechas.diasComputados,
         fecha_reintegro: calculoFechas.fechaReintegro,
+        tipo_computo: currentArticuloObj?.tipoComputo || 'CORRIDOS',
         aplica_todas_catedras: aplicaTodasCatedras,
         catedra_ids: effectiveCatedraIds,
         catedra_id: primaryCatedraId,
@@ -251,26 +305,34 @@ export default function LicenciasDocenteModal({
         docente_id: effectiveDocenteId
       };
 
-      const saved = await createOrUpdateLicencia(payload, {
-        isDemo,
-        docenteId: effectiveDocenteId,
-        catedrasList: catedras,
-        allCatedraIds: catedras.map(c => c.id)
-      });
-
-      toast.success('Licencia docente registrada con éxito.');
+      let saved = null;
+      if (editingLicencia) {
+        saved = await updateLicencia(editingLicencia.id, payload, editingLicencia, {
+          isDemo,
+          docenteId: effectiveDocenteId,
+          catedrasList: catedras,
+          allCatedraIds: catedras.map(c => c.id)
+        });
+        toast.success('Licencia docente actualizada correctamente.');
+      } else {
+        saved = await createOrUpdateLicencia(payload, {
+          isDemo,
+          docenteId: effectiveDocenteId,
+          catedrasList: catedras,
+          allCatedraIds: catedras.map(c => c.id)
+        });
+        toast.success('Licencia docente registrada con éxito.');
+      }
       
-      // Limpiar formulario y colapsar
-      setFormObservacion('');
-      setFormCustomArticulo('');
-      setIsFormOpen(false);
+      // Limpiar formulario y cerrar modo edición
+      handleCancelEditForm();
 
       // Recargar lista
       await loadLicencias();
       window.dispatchEvent(new CustomEvent('licencias_docentes_updated'));
       onLicenciaSaved?.(saved);
     } catch (err) {
-      console.error('Error al registrar licencia:', err);
+      console.error('Error al guardar licencia:', err);
       toast.error('Ocurrió un error al guardar la licencia.');
     } finally {
       setSubmitting(false);
@@ -405,11 +467,25 @@ export default function LicenciasDocenteModal({
 
             <button
               type="button"
-              onClick={() => setIsFormOpen(prev => !prev)}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-xs cursor-pointer touch-target-44 min-h-[40px]"
+              onClick={() => {
+                if (isFormOpen) {
+                  handleCancelEditForm();
+                } else {
+                  setIsFormOpen(true);
+                }
+              }}
+              className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-xs cursor-pointer touch-target-44 min-h-[40px] ${
+                editingLicencia
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'bg-primary hover:bg-primary-hover'
+              }`}
             >
-              <Plus className="w-4 h-4" />
-              <span>{isFormOpen ? 'Ocultar Formulario' : '+ Registrar Nueva Licencia'}</span>
+              {editingLicencia ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              <span>
+                {isFormOpen
+                  ? (editingLicencia ? 'Cancelar Edición' : 'Ocultar Formulario')
+                  : '+ Registrar Nueva Licencia'}
+              </span>
             </button>
           </div>
 
@@ -523,25 +599,52 @@ export default function LicenciasDocenteModal({
         {/* ================================================================= */}
         {isFormOpen && (
           <form 
-            onSubmit={handleCreateLicencia}
-            className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-primary/30 shadow-md space-y-4 animate-scaleIn"
+            onSubmit={handleSaveLicencia}
+            className={`p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border-2 shadow-md space-y-4 animate-scaleIn ${
+              editingLicencia ? 'border-amber-500/50' : 'border-primary/30'
+            }`}
           >
             <div className="flex items-center justify-between pb-2 border-b border-surface-border">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
+                {editingLicencia ? (
+                  <Edit3 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-primary" />
+                )}
                 <h3 className="text-sm font-bold text-text-primary">
-                  Registrar Inasistencia Justificada (Decreto 1092)
+                  {editingLicencia 
+                    ? 'Modificar Licencia Registrada (Decreto 1092)' 
+                    : 'Registrar Inasistencia Justificada (Decreto 1092)'}
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setIsFormOpen(false)}
+                onClick={handleCancelEditForm}
                 className="p-1 text-text-muted hover:text-text-primary rounded-lg cursor-pointer"
                 aria-label="Cerrar formulario"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Banner de Edición Activa */}
+            {editingLicencia && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 flex items-center justify-between gap-2 animate-fadeIn">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Edit3 className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="text-xs font-bold truncate">
+                    Editando Licencia (Original: {formatFechaDMY(editingLicencia.fecha_inicio || editingLicencia.fecha)} — {editingLicencia.articulo})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelEditForm}
+                  className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline shrink-0 cursor-pointer"
+                >
+                  ✕ Cancelar Edición
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Fecha de inicio */}
@@ -887,7 +990,7 @@ export default function LicenciasDocenteModal({
             <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-surface-border">
               <button
                 type="button"
-                onClick={() => setIsFormOpen(false)}
+                onClick={handleCancelEditForm}
                 className="px-4 py-2 rounded-xl border border-surface-border text-xs font-semibold text-text-secondary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cancelar
@@ -895,10 +998,14 @@ export default function LicenciasDocenteModal({
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 ${
+                  editingLicencia
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-primary hover:bg-primary-hover'
+                }`}
               >
                 <Check className="w-3.5 h-3.5" />
-                <span>{submitting ? 'Guardando...' : 'Asentar Licencia'}</span>
+                <span>{submitting ? 'Guardando...' : (editingLicencia ? 'Guardar Cambios' : 'Asentar Licencia')}</span>
               </button>
             </div>
           </form>
@@ -1139,15 +1246,26 @@ export default function LicenciasDocenteModal({
 
                           {/* Col 5: Acciones */}
                           <td className="py-3 px-3.5 align-top text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(lic)}
-                              className="p-1.5 rounded-lg text-text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-                              title="Eliminar registro de licencia"
-                              aria-label="Eliminar licencia"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleStartFullEdit(lic)}
+                                className="p-1.5 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                                title="Editar licencia completa (fechas, artículo, duración, cátedras)"
+                                aria-label="Editar licencia completa"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(lic)}
+                                className="p-1.5 rounded-lg text-text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                                title="Eliminar registro de licencia"
+                                aria-label="Eliminar licencia"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1286,14 +1404,23 @@ export default function LicenciasDocenteModal({
                             {lic.estado_tramite === 'APROBADA' ? '✓ Aprobada' : lic.estado_tramite === 'PRESENTADA' ? '📋 Presentada' : '⏳ Pendiente'}
                           </span>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleStartFullEdit(lic)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs touch-target-44 min-h-[40px] cursor-pointer"
+                              title="Editar licencia completa (fechas, artículo, duración, cátedras)"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Editar</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleStartEdit(lic)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-primary font-bold text-xs touch-target-44 min-h-[40px] cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-secondary hover:text-text-primary font-bold text-xs touch-target-44 min-h-[40px] cursor-pointer"
+                              title="Editar únicamente nota u observación"
                             >
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>Editar nota</span>
+                              <span>Nota</span>
                             </button>
                             <button
                               type="button"
