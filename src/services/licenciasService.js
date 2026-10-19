@@ -85,8 +85,37 @@ export function getFechasEnRango(startDateStr, endDateStr) {
   return result;
 }
 
-export { obtenerLicenciaParaFecha } from '../utils/licenciasHelper';
-import { obtenerLicenciaParaFecha } from '../utils/licenciasHelper';
+export { 
+  obtenerLicenciaParaFecha, 
+  catedraTieneClaseEnFecha, 
+  esFechaFeriado, 
+  tieneHorariosConfigurados 
+} from '../utils/licenciasHelper';
+import { 
+  obtenerLicenciaParaFecha, 
+  catedraTieneClaseEnFecha, 
+  esFechaFeriado, 
+  tieneHorariosConfigurados 
+} from '../utils/licenciasHelper';
+
+/**
+ * Resuelve el objeto cátedra completo (con horarios_semanales) desde catedrasList o localStorage
+ */
+function resolverCatedraObj(catedraId, catedrasList = []) {
+  if (!catedraId) return null;
+  if (Array.isArray(catedrasList) && catedrasList.length > 0) {
+    const found = catedrasList.find(c => String(c?.id) === String(catedraId));
+    if (found) return found;
+  }
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const demoCats = JSON.parse(localStorage.getItem('demo_catedras') || '[]');
+      const foundDemo = demoCats.find(c => String(c?.id) === String(catedraId));
+      if (foundDemo) return foundDemo;
+    } catch (_) {}
+  }
+  return null;
+}
 
 /**
  * Determina si una fecha dada está cubierta por alguna de las licencias del docente,
@@ -167,11 +196,27 @@ export async function getLicenciasByYear(docenteId, year = new Date().getFullYea
     if (c?.id) catedrasMap[c.id] = c;
   }
 
-  // 1. Obtener datos locales (modo demo u offline)
-  const localList = getLocalLicencias(docenteId).filter(item => {
+  // 1. Obtener datos locales (modo demo u offline), filtrando registros derivados clase-lic-* redundantes
+  const rawLocalList = getLocalLicencias(docenteId).filter(item => {
     const y = item.fecha ? parseInt(item.fecha.substring(0, 4), 10) : null;
     return y === targetYear;
   });
+
+  const mainLocalList = rawLocalList.filter(item => !String(item.id || '').startsWith('clase-lic-'));
+  const localList = [
+    ...mainLocalList,
+    ...rawLocalList.filter(item => {
+      if (!String(item.id || '').startsWith('clase-lic-')) return false;
+      const f = String(item.fecha || '').slice(0, 10);
+      if (esFechaFeriado(f)) return false;
+      const yaCubierta = mainLocalList.some(m => {
+        const ini = String(m.fecha_inicio || m.fecha || '').slice(0, 10);
+        const fin = String(m.fecha_fin || ini).slice(0, 10);
+        return f >= ini && f <= fin;
+      });
+      return !yaCubierta;
+    })
+  ];
 
   if (isDemo || !isSupabaseConfigured || !client) {
     return localList.sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -182,7 +227,9 @@ export async function getLicenciasByYear(docenteId, year = new Date().getFullYea
   // Incorporar locales inicialmente
   for (const item of localList) {
     const norm = normalizeLicencia(item, catedrasMap);
-    const dedupeKey = norm.clase_id ? `clase_${norm.clase_id}` : `fecha_${norm.fecha}_cat_${norm.catedra_id || 'gral'}`;
+    const dedupeKey = norm.id && !String(norm.id).startsWith('clase-lic-')
+      ? `lic_${norm.id}`
+      : (norm.clase_id ? `clase_${norm.clase_id}` : `fecha_${norm.fecha}_cat_${norm.catedra_id || 'gral'}`);
     licenciasUnificadas.set(dedupeKey, norm);
   }
 
@@ -204,7 +251,7 @@ export async function getLicenciasByYear(docenteId, year = new Date().getFullYea
     if (!licErr && Array.isArray(remoteLicencias)) {
       for (const lic of remoteLicencias) {
         const norm = normalizeLicencia(lic, catedrasMap);
-        const dedupeKey = norm.clase_id ? `clase_${norm.clase_id}` : `fecha_${norm.fecha}_cat_${norm.catedra_id || 'gral'}`;
+        const dedupeKey = norm.id ? `lic_${norm.id}` : `fecha_${norm.fecha}_cat_${norm.catedra_id || 'gral'}`;
         licenciasUnificadas.set(dedupeKey, norm);
       }
     }
@@ -213,6 +260,7 @@ export async function getLicenciasByYear(docenteId, year = new Date().getFullYea
   }
 
   // 3. Respaldo defensivo: buscar clases con estado = 'DOCENTE_AUSENTE' en el rango del año
+  // SOLO si la fecha no es feriado y NO está cubierta ya por una licencia registrada en licenciasUnificadas
   try {
     const catedraIds = Object.keys(catedrasMap);
     if (catedraIds.length > 0) {
@@ -226,15 +274,25 @@ export async function getLicenciasByYear(docenteId, year = new Date().getFullYea
 
       if (!clasesErr && Array.isArray(clasesAusentes)) {
         for (const cl of clasesAusentes) {
+          const clFecha = String(cl.fecha || '').slice(0, 10);
+          if (esFechaFeriado(clFecha)) continue;
+
+          const existingLics = Array.from(licenciasUnificadas.values());
+          const yaCubierta = existingLics.some(l => {
+            const ini = String(l.fecha_inicio || l.fecha || '').slice(0, 10);
+            const fin = String(l.fecha_fin || ini).slice(0, 10);
+            return clFecha >= ini && clFecha <= fin;
+          });
+
           const dedupeKey = `clase_${cl.id}`;
-          if (!licenciasUnificadas.has(dedupeKey)) {
+          if (!yaCubierta && !licenciasUnificadas.has(dedupeKey)) {
             const norm = normalizeLicencia({
               id: `clase-lic-${cl.id}`,
               docente_id: docenteId,
               fecha: cl.fecha,
               catedra_id: cl.catedra_id,
               clase_id: cl.id,
-              articulo: cl.articulo_licencia || 'Art. 15° - Razones particulares',
+              articulo: cl.articulo_licencia || 'Art. 52° - Razones particulares o especiales',
               observacion: cl.observaciones || '',
               estado_tramite: 'PRESENTADA'
             }, catedrasMap);
@@ -371,6 +429,8 @@ export async function createOrUpdateLicencia(payload, options = {}) {
     if (typeof localStorage !== 'undefined') {
       try {
         for (const cId of targetCatedraIds) {
+          const catObj = resolverCatedraObj(cId, options.catedrasList);
+          const hasSchedule = Boolean(catObj && tieneHorariosConfigurados(catObj));
           const keyLocal1 = `clases_${cId}`;
           const keyLocal2 = `docentepro_demo_clases_${cId}`;
           const rawStored = localStorage.getItem(keyLocal1) || localStorage.getItem(keyLocal2);
@@ -378,8 +438,14 @@ export async function createOrUpdateLicencia(payload, options = {}) {
           let modificado = false;
 
           for (const f of fechasRango) {
+            // Prioridad absoluta: Si es Feriado nacional o manual en la cátedra, NO tocar ni crear licencia
+            if (esFechaFeriado(f, localClases)) continue;
+            // Si la cátedra tiene días de cursada definidos y no cursa ese día, NO crear día fantasma
+            if (hasSchedule && !catedraTieneClaseEnFecha(catObj, f)) continue;
+
             const idx = localClases.findIndex(c => (c.fecha || '').slice(0, 10) === f);
             if (idx >= 0) {
+              if (localClases[idx].estado === 'FERIADO') continue;
               localClases[idx] = {
                 ...localClases[idx],
                 estado: 'DOCENTE_AUSENTE',
@@ -418,14 +484,21 @@ export async function createOrUpdateLicencia(payload, options = {}) {
     if (isSupabaseConfigured && !isDemo && client) {
       try {
         for (const cId of targetCatedraIds) {
+          const catObj = resolverCatedraObj(cId, options.catedrasList);
+          const hasSchedule = Boolean(catObj && tieneHorariosConfigurados(catObj));
+
           for (const f of fechasRango) {
+            if (esFechaFeriado(f)) continue;
+            if (hasSchedule && !catedraTieneClaseEnFecha(catObj, f)) continue;
+
             const { data: existingClases } = await client
               .from('clases')
-              .select('id, tema')
+              .select('id, tema, estado')
               .eq('catedra_id', cId)
               .eq('fecha', f);
 
             if (existingClases && existingClases.length > 0) {
+              if (existingClases[0].estado === 'FERIADO') continue;
               const foundId = existingClases[0].id;
               if (!affectedClaseIds.includes(foundId)) affectedClaseIds.push(foundId);
               if (!claseId) claseId = foundId;
@@ -659,7 +732,13 @@ export async function updateLicencia(licenciaId, payload, oldLicencia = null, op
 
   const newPairs = new Set();
   newCatIds.forEach(cId => {
-    newFechas.forEach(f => newPairs.add(`${cId}::${f}`));
+    const catObj = resolverCatedraObj(cId, options.catedrasList);
+    const hasSchedule = Boolean(catObj && tieneHorariosConfigurados(catObj));
+    newFechas.forEach(f => {
+      if (esFechaFeriado(f)) return;
+      if (hasSchedule && !catedraTieneClaseEnFecha(catObj, f)) return;
+      newPairs.add(`${cId}::${f}`);
+    });
   });
 
   // Pares a liberar (volver a DICTADA)
@@ -724,6 +803,8 @@ export async function updateLicencia(licenciaId, payload, oldLicencia = null, op
       });
 
       Object.entries(applyByCat).forEach(([cId, fechasSet]) => {
+        const catObj = resolverCatedraObj(cId, options.catedrasList);
+        const hasSchedule = Boolean(catObj && tieneHorariosConfigurados(catObj));
         const keyLocal1 = `clases_${cId}`;
         const keyLocal2 = `docentepro_demo_clases_${cId}`;
         const rawStored = localStorage.getItem(keyLocal1) || localStorage.getItem(keyLocal2);
@@ -731,8 +812,12 @@ export async function updateLicencia(licenciaId, payload, oldLicencia = null, op
         let mod = false;
 
         fechasSet.forEach(f => {
+          if (esFechaFeriado(f, localClases)) return;
+          if (hasSchedule && !catedraTieneClaseEnFecha(catObj, f)) return;
+
           const idx = localClases.findIndex(c => (c.fecha || '').slice(0, 10) === f);
           if (idx >= 0) {
+            if (localClases[idx].estado === 'FERIADO') return;
             localClases[idx] = {
               ...localClases[idx],
               estado: 'DOCENTE_AUSENTE',
@@ -786,13 +871,18 @@ export async function updateLicencia(licenciaId, payload, oldLicencia = null, op
 
       // 6b. Aplicar en Supabase
       for (const { catedraId, fecha } of toApplyPairs) {
+        if (esFechaFeriado(fecha)) continue;
+        const catObj = resolverCatedraObj(catedraId, options.catedrasList);
+        if (catObj && tieneHorariosConfigurados(catObj) && !catedraTieneClaseEnFecha(catObj, fecha)) continue;
+
         const { data: existingClases } = await client
           .from('clases')
-          .select('id, tema')
+          .select('id, tema, estado')
           .eq('catedra_id', catedraId)
           .eq('fecha', fecha);
 
         if (existingClases && existingClases.length > 0) {
+          if (existingClases[0].estado === 'FERIADO') continue;
           await client
             .from('clases')
             .update({

@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { getTodayYMD, formatFechaLegible } from '../lib/dateUtils';
 import { getLocalLicencias, getFechasEnRango } from '../services/licenciasService';
+import { getArticuloByCodigo, getArticuloByText } from '../constants/decreto1092';
+import { catedraTieneClaseEnFecha, esFechaFeriado, tieneHorariosConfigurados } from '../utils/licenciasHelper';
 import { isValid, parseISO } from 'date-fns';
 
 function safeParseDate(val) {
@@ -218,7 +220,7 @@ export function useCalendarEvents({
           setClases([]);
         }
 
-        // Cargar licencias docentes desde Supabase con fallback local
+        // Cargar licencias docentes desde Supabase con fallback local (sin duplicados por id ni por rango/artículo)
         try {
           const { data: licData } = await supabase
             .from('licencias_docentes')
@@ -227,7 +229,18 @@ export function useCalendarEvents({
           const localLics = getLocalLicencias(user.id);
           const combined = [...(licData || [])];
           for (const l of localLics) {
-            if (!combined.some(c => c.id === l.id)) {
+            if (String(l.id || '').startsWith('clase-lic-')) continue;
+            const lStart = String(l.fecha_inicio || l.fecha || '').slice(0, 10);
+            const lEnd = String(l.fecha_fin || lStart).slice(0, 10);
+            const lArt = l.articulo_codigo || l.articulo || '';
+            const isDup = combined.some(c => {
+              if (String(c.id) === String(l.id)) return true;
+              const cStart = String(c.fecha_inicio || c.fecha || '').slice(0, 10);
+              const cEnd = String(c.fecha_fin || cStart).slice(0, 10);
+              const cArt = c.articulo_codigo || c.articulo || '';
+              return cStart === lStart && cEnd === lEnd && cArt === lArt;
+            });
+            if (!isDup) {
               combined.push(l);
             }
           }
@@ -445,52 +458,93 @@ export function useCalendarEvents({
     }).filter(Boolean);
   }, [mesas, catedras, catFilters, categoryFilters]);
 
-  // Eventos de Licencias Docentes (Decreto 1092)
+  // Eventos de Licencias Docentes (Decreto 1092) — 1 tarjeta consolidada por día
   const licenciaEvents = useMemo(() => {
     if (!categoryFilters.LICENCIA_DOCENTE) return [];
     const list = [];
+    const seenDayArticles = new Set();
+
     (licencias || []).forEach(lic => {
+      if (!lic || String(lic.id || '').startsWith('clase-lic-')) return;
+
       // Filtrar si está asociada a cátedra deseleccionada
       if (!lic.aplica_todas_catedras && lic.catedra_id && catFilters[lic.catedra_id] === false) {
         return;
       }
-      const fInicio = lic.fecha_inicio || lic.fecha;
-      const fFin = lic.fecha_fin || lic.fecha;
+
+      const fInicio = String(lic.fecha_inicio || lic.fecha || '').slice(0, 10);
+      const fFin = String(lic.fecha_fin || lic.fecha_inicio || lic.fecha || '').slice(0, 10);
       if (!fInicio) return;
 
       const fechas = getFechasEnRango(fInicio, fFin);
-      const catObj = lic.catedra_id ? (catedras || []).find(c => c.id === lic.catedra_id) : null;
-      const catNombre = lic.aplica_todas_catedras ? 'Todas las Cátedras' : (catObj?.nombre || 'Cátedra Específica');
-      const artLabel = lic.articulo_codigo || lic.articulo || 'Decreto 1092';
+      const artObj = getArticuloByCodigo(lic.articulo_codigo || lic.articulo) || getArticuloByText(lic.articulo);
+      const artReadable = artObj
+        ? artObj.label
+        : (lic.articulo || lic.articulo_codigo || 'Decreto 1092');
+      const artDedupKey = artObj?.codigo || artReadable;
+
+      // Determinar cátedras alcanzadas por la licencia
+      const catedrasAlcanzadas = lic.aplica_todas_catedras
+        ? (catedras || [])
+        : (catedras || []).filter(c => {
+            if (lic.catedra_id && String(c.id) === String(lic.catedra_id)) return true;
+            if (Array.isArray(lic.catedra_ids) && lic.catedra_ids.map(String).includes(String(c.id))) return true;
+            return false;
+          });
 
       fechas.forEach(f => {
+        // Prioridad absoluta: Si el día ya es Feriado nacional o manual, no duplicar como tarjeta de licencia
+        if (feriadosMap.has(f) || esFechaFeriado(f, clases)) {
+          return;
+        }
+
+        const dayKey = `${f}::${artDedupKey}`;
+        if (seenDayArticles.has(dayKey)) return;
+        seenDayArticles.add(dayKey);
+
+        // Cátedras que realmente dictan clases en este día de la semana (f)
+        const catedrasConClaseHoy = catedrasAlcanzadas.filter(cat =>
+          tieneHorariosConfigurados(cat) && catedraTieneClaseEnFecha(cat, f)
+        );
+
+        let alcanceSubtitle = '';
+        if (catedrasConClaseHoy.length > 0) {
+          alcanceSubtitle = `Afecta hoy a: ${catedrasConClaseHoy.map(c => c.nombre).join(' • ')}`;
+        } else if (lic.aplica_todas_catedras) {
+          alcanceSubtitle = 'Todas las cátedras (Sin cursada programada hoy)';
+        } else if (catedrasAlcanzadas.length > 0) {
+          alcanceSubtitle = catedrasAlcanzadas.map(c => c.nombre).join(' • ');
+        } else {
+          alcanceSubtitle = 'Alcance General';
+        }
+
         list.push({
           id: `lic-ev-${lic.id}-${f}`,
           licencia_id: lic.id,
-          titulo: `🛡️ Licencia: ${artLabel}`,
+          titulo: `🛡️ Licencia Docente: ${artReadable}`,
           tipo: 'LICENCIA_DOCENTE',
           fecha_inicio: `${f}T08:00:00`,
           fecha_fin: `${f}T10:00:00`,
           fecha: f,
           hora_inicio: '08:00',
           hora_fin: '10:00',
-          aula: catNombre,
+          aula: alcanceSubtitle,
           institucion: 'Decreto Acuerdo 1092',
           catedra_id: lic.catedra_id || null,
-          catedra_nombre: catNombre,
+          catedra_nombre: alcanceSubtitle,
           catedra_color: '#F59E0B',
           color: '#F59E0B',
-          articulo: lic.articulo,
-          articulo_codigo: lic.articulo_codigo,
+          articulo: artReadable,
+          articulo_codigo: artObj?.codigo || lic.articulo_codigo,
           observacion: lic.observacion,
-          notas: `🛡️ Licencia Docente (${artLabel})\nAlcance: ${catNombre}\nPeríodo: ${fInicio} al ${fFin} (${lic.cantidad_dias || 1} días)\nReintegro: ${lic.fecha_reintegro || 'N/A'}${lic.observacion ? `\nObs: ${lic.observacion}` : ''}`,
+          notas: `🛡️ Licencia Docente (${artReadable})\n${alcanceSubtitle}\nPeríodo: ${fInicio} al ${fFin} (${lic.cantidad_dias || 1} días)\nReintegro: ${lic.fecha_reintegro || 'N/A'}${lic.observacion ? `\nObs: ${lic.observacion}` : ''}`,
           isLicencia: true,
           editable: false
         });
       });
     });
     return list;
-  }, [licencias, catedras, catFilters, categoryFilters]);
+  }, [licencias, catedras, catFilters, categoryFilters, feriadosMap, clases]);
 
   // Eventos de Asistencia Registrada / Tomada
   const asistenciaEvents = useMemo(() => {

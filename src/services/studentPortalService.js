@@ -44,6 +44,19 @@ export function formatDniDisplay(dni) {
 }
 
 /**
+ * Enmascara los dígitos centrales del DNI para proteger la privacidad tras la consulta.
+ * Ej: "42376302" -> "42.***.302" | "8123456" -> "8.***.456"
+ */
+export function maskDni(dni) {
+  const clean = normalizeDni(dni);
+  if (!clean) return '';
+  if (clean.length <= 5) return `${clean.slice(0, 1)}.***.${clean.slice(-2)}`;
+  const prefix = clean.slice(0, clean.length - 6);
+  const last3 = clean.slice(-3);
+  return `${prefix}.***.${last3}`;
+}
+
+/**
  * Carga la configuración de visibilidad del portal y datos públicos de la cátedra.
  * Admite tanto UUID directo como slugs o alias amigables de cátedra.
  */

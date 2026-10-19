@@ -34,6 +34,12 @@ import {
   calcularDisponibilidadArticulo
 } from '../../services/licenciasService';
 import {
+  catedraTieneClaseEnFecha,
+  esFechaFeriado,
+  tieneHorariosConfigurados,
+  generarFechasEnRango
+} from '../../utils/licenciasHelper';
+import {
   CATALOGO_DECRETO_1092,
   getArticulosAgrupadosPorCapitulo,
   getArticuloByCodigo,
@@ -93,6 +99,7 @@ export default function LicenciasDocenteModal({
   const [formCantidadDias, setFormCantidadDias] = useState(1);
   const [aplicaTodasCatedras, setAplicaTodasCatedras] = useState(!initialCatedraId);
   const [selectedCatedraIds, setSelectedCatedraIds] = useState(initialCatedraId ? [initialCatedraId] : []);
+  const [autoSelectionNotice, setAutoSelectionNotice] = useState('');
   const [formCatedraId, setFormCatedraIdState] = useState(initialCatedraId || '');
   const setFormCatedraId = useCallback((id) => {
     setFormCatedraIdState(id || '');
@@ -129,6 +136,58 @@ export default function LicenciasDocenteModal({
     const cant = currentArticuloObj?.diasFijosPorEvento || formCantidadDias || 1;
     return calcularFechaFinLicencia(formFecha, cant, tipoComputo);
   }, [formFecha, formCantidadDias, currentArticuloObj]);
+
+  // Autoselección inteligente de cátedras según los días reales de cursada dentro del rango [formFecha, fechaFin]
+  useEffect(() => {
+    if (editingLicencia || !catedras || catedras.length === 0) return;
+
+    const catedrasConHorario = catedras.filter(c => tieneHorariosConfigurados(c));
+    if (catedrasConHorario.length === 0) {
+      setAutoSelectionNotice('');
+      return;
+    }
+
+    const fechasRango = generarFechasEnRango(formFecha, calculoFechas.fechaFin);
+    const fechasHabiles = fechasRango.filter(f => !esFechaFeriado(f));
+
+    if (fechasRango.length > 0 && fechasHabiles.length === 0) {
+      setAutoSelectionNotice('ℹ️ La fecha seleccionada coincide con un Feriado (no requiere justificar clases).');
+      return;
+    }
+
+    const catedrasQueCursan = catedrasConHorario.filter(cat =>
+      fechasHabiles.some(f => catedraTieneClaseEnFecha(cat, f))
+    );
+
+    if (catedrasQueCursan.length === 1) {
+      // Caso A: Solo 1 cátedra tiene clase en ese rango/día
+      const unica = catedrasQueCursan[0];
+      setAplicaTodasCatedras(false);
+      setSelectedCatedraIds([unica.id]);
+      setAutoSelectionNotice(
+        `✨ Se seleccionó automáticamente ${unica.nombre} porque es la única que se dicta en esta fecha`
+      );
+    } else if (
+      catedrasQueCursan.length === catedrasConHorario.length &&
+      catedrasQueCursan.length > 1
+    ) {
+      // Caso B: Todas las cátedras tienen clase dentro del rango de la licencia
+      setAplicaTodasCatedras(true);
+      setSelectedCatedraIds(catedras.map(c => c.id));
+      setAutoSelectionNotice(
+        '✨ Se seleccionaron automáticamente todas las cátedras porque el rango abarca los días de cursada de cada una'
+      );
+    } else if (catedrasQueCursan.length > 1) {
+      // Caso C: Subconjunto (ej. 2 de 3 cátedras tienen clase en ese rango)
+      setAplicaTodasCatedras(false);
+      setSelectedCatedraIds(catedrasQueCursan.map(c => c.id));
+      setAutoSelectionNotice(
+        `✨ Se seleccionaron automáticamente las cátedras que se dictan en este período: ${catedrasQueCursan.map(c => c.nombre).join(', ')}`
+      );
+    } else {
+      setAutoSelectionNotice('');
+    }
+  }, [formFecha, calculoFechas.fechaFin, catedras, editingLicencia]);
 
   // Lista base excluyendo licencia en edición para cálculo de saldos
   const licenciasParaDisponibilidad = useMemo(() => {
@@ -750,7 +809,7 @@ export default function LicenciasDocenteModal({
 
               {/* Selector Múltiple de Cátedras */}
               <div className="sm:col-span-2 space-y-2 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/50 border border-surface-border">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <label className="text-xs font-mono font-bold uppercase text-text-secondary">
                     Alcance de Cátedras Alcanzadas *
                   </label>
@@ -758,12 +817,21 @@ export default function LicenciasDocenteModal({
                     <input
                       type="checkbox"
                       checked={aplicaTodasCatedras}
-                      onChange={(e) => setAplicaTodasCatedras(e.target.checked)}
+                      onChange={(e) => {
+                        setAplicaTodasCatedras(e.target.checked);
+                        setAutoSelectionNotice('');
+                      }}
                       className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300 dark:border-slate-600 cursor-pointer"
                     />
                     <span>Todas mis cátedras automáticamente (Recomendado)</span>
                   </label>
                 </div>
+
+                {autoSelectionNotice && (
+                  <div className="px-2.5 py-1.5 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-800/40 text-[11px] font-medium text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5 animate-fadeIn">
+                    <span>{autoSelectionNotice}</span>
+                  </div>
+                )}
 
                 {!aplicaTodasCatedras && (
                   <div className="pt-1.5 animate-fadeIn space-y-1.5">
@@ -781,6 +849,7 @@ export default function LicenciasDocenteModal({
                               key={c.id}
                               type="button"
                               onClick={() => {
+                                setAutoSelectionNotice('');
                                 setSelectedCatedraIds(prev => 
                                   isChecked ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                 );

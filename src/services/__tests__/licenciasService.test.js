@@ -26,8 +26,12 @@ import {
   deleteLicencia,
   calcularDisponibilidadArticulo,
   getFechasEnRango,
-  isFechaCubiertaPorLicencias
+  isFechaCubiertaPorLicencias,
+  catedraTieneClaseEnFecha,
+  esFechaFeriado,
+  obtenerLicenciaParaFecha
 } from '../licenciasService';
+import { maskDni } from '../studentPortalService';
 import {
   CATALOGO_DECRETO_1092,
   getArticuloByCodigo,
@@ -534,6 +538,60 @@ describe('licenciasService — Reglas y Contadores Decreto 1092', () => {
       const dispModoEdicion = calcularDisponibilidadArticulo('ART_52', licenciasFiltradas, '2026-05-02');
       expect(dispModoEdicion.usadosAnio).toBe(1);
       expect(dispModoEdicion.restantesAnio).toBe(4); // 5 - 1 = 4 días disponibles
+    });
+
+    it('Enmascara correctamente el DNI (maskDni) para privacidad en el portal estudiantil', () => {
+      expect(maskDni('42376302')).toBe('42.***.302');
+      expect(maskDni('42.376.302')).toBe('42.***.302');
+      expect(maskDni(38123456)).toBe('38.***.456');
+    });
+
+    it('Valida días reales de cursada (catedraTieneClaseEnFecha) y prioridad absoluta de Feriados (esFechaFeriado)', async () => {
+      const catEstadistica = {
+        id: 'cat-est',
+        nombre: 'Estadística',
+        horarios_semanales: [
+          { dia: 'Lunes', desde: '18:00', hasta: '20:00' },
+          { dia: 'Miércoles', desde: '18:00', hasta: '20:00' }
+        ]
+      };
+
+      // 2026-10-12 es Lunes (Feriado: Día del Respeto a la Diversidad Cultural)
+      // 2026-10-13 es Martes (Estadística NO cursa)
+      // 2026-10-14 es Miércoles (Estadística SÍ cursa y NO es feriado)
+      expect(catedraTieneClaseEnFecha(catEstadistica, '2026-10-12')).toBe(true);
+      expect(catedraTieneClaseEnFecha(catEstadistica, '2026-10-13')).toBe(false);
+      expect(catedraTieneClaseEnFecha(catEstadistica, '2026-10-14')).toBe(true);
+
+      expect(esFechaFeriado('2026-10-12')).toBe(true);
+      expect(esFechaFeriado('2026-10-14')).toBe(false);
+
+      // Si se registra una licencia del 10/10/2026 al 15/10/2026 para Estadística:
+      // - NO debe crear clase en Lunes 12/10 porque es FERIADO
+      // - NO debe crear clase en Martes 13/10 ni Jueves 15/10 porque Estadística no cursa esos días
+      // - SÍ debe crear clase DOCENTE_AUSENTE únicamente el Miércoles 14/10
+      await createOrUpdateLicencia({
+        id: 'lic-oct-2026',
+        docente_id: 'doc-4',
+        fecha_inicio: '2026-10-10',
+        cantidad_dias: 6,
+        articulo_codigo: 'ART_48_B',
+        aplica_todas_catedras: true
+      }, {
+        isDemo: true,
+        docenteId: 'doc-4',
+        catedrasList: [catEstadistica],
+        allCatedraIds: ['cat-est']
+      });
+
+      const clasesEst = JSON.parse(localStorage.getItem('clases_cat-est') || '[]');
+      expect(clasesEst.map(c => c.fecha)).toEqual(['2026-10-14']);
+      expect(clasesEst[0].estado).toBe('DOCENTE_AUSENTE');
+
+      // obtenerLicenciaParaFecha devuelve null si claseObj es FERIADO, y objeto en día hábil (2026-10-14)
+      const lics = getLocalLicencias('doc-4');
+      expect(obtenerLicenciaParaFecha('2026-10-12', 'cat-est', lics, { fecha: '2026-10-12', estado: 'FERIADO' })).toBeNull();
+      expect(obtenerLicenciaParaFecha('2026-10-14', 'cat-est', lics)).not.toBeNull();
     });
   });
 });

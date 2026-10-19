@@ -6,7 +6,14 @@ import { handleAppError } from '../utils/handleAppError';
 import { ESTADO_ASISTENCIA } from '../lib/enums';
 import { enqueueOfflineMutation } from '../services/offlineSyncService';
 import { ensureScheduledClassesToDate } from '../utils/scheduledClassesHelper';
-import { getLocalLicencias, isFechaCubiertaPorLicencias, obtenerLicenciaParaFecha } from '../services/licenciasService';
+import {
+  getLocalLicencias,
+  isFechaCubiertaPorLicencias,
+  obtenerLicenciaParaFecha,
+  catedraTieneClaseEnFecha,
+  esFechaFeriado,
+  tieneHorariosConfigurados
+} from '../services/licenciasService';
 import { toast } from 'sonner';
 
 /**
@@ -39,6 +46,23 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     setLoading(true);
     let rawLicencias = [];
 
+    const filtrarClasesFantasma = (lista) => {
+      if (!Array.isArray(lista)) return [];
+      const hasSchedule = Boolean(catedra && tieneHorariosConfigurados(catedra));
+      return lista.filter(c => {
+        if (!c) return false;
+        const isLicenseRow =
+          c.estado === 'DOCENTE_AUSENTE' ||
+          Boolean(c.articulo_licencia) ||
+          String(c.id || '').startsWith('clase-lic-');
+        if (isLicenseRow) {
+          if (esFechaFeriado(c.fecha)) return false;
+          if (hasSchedule && !catedraTieneClaseEnFecha(catedra, c.fecha)) return false;
+        }
+        return true;
+      });
+    };
+
     try {
       if (isSupabaseConfigured && !isDemo) {
         // 1. Obtener nómina, clases ordenadas, inasistencias docentes y unidades en paralelo
@@ -61,7 +85,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
             .order('numero', { ascending: true })
         ]);
 
-        let rawClases = clasesRes.data || [];
+        let rawClases = filtrarClasesFantasma(clasesRes.data || []);
         const allEst = estList || [];
         setEstudiantes(allEst.filter(e => e.estado !== 'BAJA'));
         setInasistenciasDocente(inasDocRes.data || []);
@@ -71,7 +95,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
         if (catedra) {
           const autoRes = await ensureScheduledClassesToDate(catedra, rawClases, isDemo);
           if (autoRes.nuevas.length > 0) {
-            rawClases = autoRes.all;
+            rawClases = filtrarClasesFantasma(autoRes.all);
           }
         }
         setClases(rawClases);
@@ -125,11 +149,11 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
         const storedAsist = localStorage.getItem(`docentepro_demo_asistencias_${catedraId}`) || localStorage.getItem(`asistencias_${catedraId}`);
         const storedUni = localStorage.getItem(`unidades_tematicas_${catedraId}`);
 
-        let parsedClases = storedClases ? JSON.parse(storedClases) : [];
+        let parsedClases = filtrarClasesFantasma(storedClases ? JSON.parse(storedClases) : []);
         if (catedra) {
           const autoRes = await ensureScheduledClassesToDate(catedra, parsedClases, true);
           if (autoRes.nuevas.length > 0) {
-            parsedClases = autoRes.all;
+            parsedClases = filtrarClasesFantasma(autoRes.all);
             try {
               const jsonClases = JSON.stringify(parsedClases);
               localStorage.setItem(`docentepro_demo_clases_${catedraId}`, jsonClases);
@@ -638,11 +662,15 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     }
   }, [catedraId, isDemo, user]);
 
-  // Determinación reactiva de si la clase o fecha seleccionada está cubierta por licencia
+  // Determinación reactiva de si la clase o fecha seleccionada está cubierta por licencia (respetando prioridad de Feriados)
   const licenciaDocenteActiva = useMemo(() => {
     const checkDate = claseActiva?.fecha || fechaSeleccionada;
+    if (esFechaFeriado(checkDate, clases)) return null;
+    if (catedra && tieneHorariosConfigurados(catedra) && !catedraTieneClaseEnFecha(catedra, checkDate)) {
+      return null;
+    }
     return obtenerLicenciaParaFecha(checkDate, catedraId, licenciasDocente, claseActiva);
-  }, [claseActiva, fechaSeleccionada, licenciasDocente, catedraId]);
+  }, [claseActiva, fechaSeleccionada, licenciasDocente, catedraId, clases, catedra]);
 
   const isLicenciaDocente = Boolean(licenciaDocenteActiva);
 
