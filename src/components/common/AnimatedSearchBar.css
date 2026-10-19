@@ -39,6 +39,7 @@
 .korum-search-input:focus,
 .korum-search-input:not(:placeholder-shown) {
   width: 220px;
+  max-width: calc(100vw - 80px);
   background-color: #ffffff;
   border: 1px solid #10B981;
   box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);

@@ -118,7 +118,7 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[180px] xl:max-w-[220px] truncate cursor-pointer shadow-2xs group shrink-0"
+                    className="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[130px] xs:max-w-[160px] sm:max-w-[180px] xl:max-w-[220px] truncate cursor-pointer shadow-2xs group shrink-0"
                     title={`Cátedra activa: ${currentCatedra.nombre}`}
                   >
                     <span 
@@ -234,9 +234,9 @@ export default function Navbar() {
               type="button"
               onClick={() => setIsCommandPaletteOpen(true)}
               aria-label="Abrir buscador global"
-              className="sm:hidden p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer active:scale-95"
+              className="sm:hidden w-9 h-9 flex items-center justify-center rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer active:scale-95 shrink-0"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4" />
             </button>
 
             {/* Selector de Tema Oscuro / Claro */}

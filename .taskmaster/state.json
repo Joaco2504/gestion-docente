@@ -1,0 +1,19 @@
+{
+  "currentTag": "master",
+  "lastUpdated": "2026-10-19T14:20:00.000Z",
+  "migrationNoticeShown": true,
+  "lastSwitched": "2026-10-19T14:20:00.000Z",
+  "branchTagMapping": {
+    "main": "master"
+  },
+  "metadata": {
+    "engine": "task-master-state-engine",
+    "version": "1.0.0",
+    "metrics": {
+      "totalTaskCount": 5,
+      "tagCount": 1,
+      "listCommandCount": 0,
+      "tasksWithDependencies": 4
+    }
+  }
+}

@@ -12,6 +12,7 @@ import {
 import JustificarDecreto1092Modal from '../modals/JustificarDecreto1092Modal';
 import OfflineSyncBadge from '../../common/OfflineSyncBadge';
 import { formatFechaDMY } from '../../../lib/dateUtils';
+import { obtenerFeriadoParaFecha } from '../../../services/licenciasService';
 
 /**
  * AttendanceClassTopicBar
@@ -20,6 +21,8 @@ import { formatFechaDMY } from '../../../lib/dateUtils';
  */
 export default function AttendanceClassTopicBar({
   claseActiva,
+  isFeriado = false,
+  feriadoActivo = null,
   isLicenciaDocente = false,
   licenciaDocenteActiva = null,
   unidades = [],
@@ -46,14 +49,19 @@ export default function AttendanceClassTopicBar({
     }
   }, [claseActiva?.id, claseActiva?.tema, claseActiva?.unidad]);
 
-  if (!claseActiva) {
+  const feriadoRes = feriadoActivo || (claseActiva ? obtenerFeriadoParaFecha(claseActiva.fecha, claseActiva) : null);
+  const esDiaFeriado = Boolean(isFeriado || feriadoRes?.esFeriado);
+  const nombreFeriado = feriadoRes?.nombre || claseActiva?.tema || 'Feriado Oficial';
+
+  if (!claseActiva && !esDiaFeriado) {
     return null;
   }
 
-  const isDocenteAusente = isLicenciaDocente || claseActiva.estado === 'DOCENTE_AUSENTE' || Boolean(claseActiva.articulo_licencia);
-  const articuloLicencia = licenciaDocenteActiva?.articulo || claseActiva.articulo_licencia || 'Decreto 1092';
-  const observacionLicencia = licenciaDocenteActiva?.observacion || claseActiva.observaciones || '';
-  const formattedDate = formatFechaDMY(claseActiva.fecha);
+  const isDocenteAusente =
+    !esDiaFeriado &&
+    (isLicenciaDocente || claseActiva?.estado === 'DOCENTE_AUSENTE' || Boolean(claseActiva?.articulo_licencia));
+  const articuloLicencia = licenciaDocenteActiva?.articulo || claseActiva?.articulo_licencia || 'Decreto 1092';
+  const formattedDate = formatFechaDMY(claseActiva?.fecha);
 
   const handleGuardarTemaYUnidad = async () => {
     if (!claseActiva?.id) return;
@@ -85,8 +93,25 @@ export default function AttendanceClassTopicBar({
 
   return (
     <div className="space-y-3">
-      {/* 1. Banner Especial si la clase fue justificada por Licencia Docente */}
-      {isDocenteAusente ? (
+      {/* 1. Banner Especial si es Feriado Nacional o Licencia Docente */}
+      {esDiaFeriado ? (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-900 dark:text-sky-200 shadow-xs animate-fadeIn">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <span className="text-lg leading-none shrink-0 mt-0.5">🇦🇷</span>
+            <div>
+              <p className="text-xs font-bold leading-tight">
+                🇦🇷 Día no laborable — Feriado Nacional ({nombreFeriado}).
+              </p>
+              <p className="text-[11px] text-sky-800/85 dark:text-sky-300/85 mt-0.5">
+                No se requiere tomar asistencia ni cargar tema, y esta fecha no se computa para las inasistencias de los alumnos.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
+            <OfflineSyncBadge />
+          </div>
+        </div>
+      ) : isDocenteAusente ? (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 shadow-xs animate-fadeIn">
           <div className="flex items-start gap-2.5 min-w-0">
             <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -194,7 +219,7 @@ export default function AttendanceClassTopicBar({
           </div>
 
           {/* Botones de Soporte y Decreto 1092 */}
-          <div className="flex items-center gap-2 justify-end shrink-0">
+          <div className="flex items-center gap-2 justify-between sm:justify-end w-full md:w-auto shrink-0">
             <OfflineSyncBadge />
 
             {/* Botón Justificar Inasistencia Decreto 1092 */}

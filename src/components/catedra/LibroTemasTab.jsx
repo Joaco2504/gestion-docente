@@ -41,7 +41,9 @@ import {
   obtenerLicenciaParaFecha,
   catedraTieneClaseEnFecha,
   esFechaFeriado,
-  tieneHorariosConfigurados
+  tieneHorariosConfigurados,
+  obtenerFeriadoParaFecha,
+  obtenerDiasDeCursadaCatedra
 } from '../../utils/licenciasHelper';
 import { getLocalLicencias } from '../../services/licenciasService';
 import { getDiasNumerosCatedra } from '../../utils/scheduledClassesHelper';
@@ -59,6 +61,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
   const { activeCiclo, catedras } = useApp();
 
   const [clases, setClases] = useState([]);
+  const [asistencias, setAsistencias] = useState([]);
   const [licenciasDocente, setLicenciasDocente] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -198,12 +201,29 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
         setUnidades(loadedU);
 
         if (cRes.error) throw cRes.error;
-        setClases(cRes.data || []);
+        const dbClases = cRes.data || [];
+        setClases(dbClases);
+
+        const cIds = dbClases.map(c => c.id).filter(Boolean);
+        if (cIds.length > 0) {
+          const { data: asistData } = await supabase
+            .from('asistencias')
+            .select('id, clase_id, estudiante_id, estado')
+            .in('clase_id', cIds);
+          if (Array.isArray(asistData)) {
+            const cMap = new Map(dbClases.map(c => [c.id, c]));
+            setAsistencias(asistData.map(a => ({ ...a, fecha: cMap.get(a.clase_id)?.fecha || null })));
+          }
+        } else {
+          setAsistencias([]);
+        }
       } else {
         const storedU = localStorage.getItem(`unidades_tematicas_${catedraId}`);
         if (storedU) try { loadedU = JSON.parse(storedU); } catch (e) {}
         setUnidades(loadedU);
-        const stored = localStorage.getItem(`clases_${catedraId}`);
+        const storedAsist = localStorage.getItem(`docentepro_demo_asistencias_${catedraId}`) || localStorage.getItem(`asistencias_${catedraId}`);
+        setAsistencias(storedAsist ? JSON.parse(storedAsist) : []);
+        const stored = localStorage.getItem(`clases_${catedraId}`) || localStorage.getItem(`docentepro_demo_clases_${catedraId}`);
         if (stored) {
           setClases(JSON.parse(stored));
         } else {
@@ -578,9 +598,14 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     }
   };
 
-  // Detección automática de feriados que coinciden con los horarios semanales de la cátedra
+  // Días reales de cursada de la cátedra (configurados o inferidos de clases con asistencia)
+  const diasCursadaReales = useMemo(() => {
+    return obtenerDiasDeCursadaCatedra(currentCatedra, clases, asistencias);
+  }, [currentCatedra, clases, asistencias]);
+
+  // Detección automática de feriados que coinciden con los días de cursada de la cátedra
   const holidayClasses = useMemo(() => {
-    if (!currentCatedra?.horarios_semanales || currentCatedra.horarios_semanales.length === 0) {
+    if (diasCursadaReales.length === 0) {
       return [];
     }
 
@@ -596,7 +621,12 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
       }
     }
 
-    const feriadosPeriodo = obtenerFeriadosCatedraEnPeriodo(currentCatedra.horarios_semanales, start, end);
+    const horariosParaFeriados =
+      currentCatedra?.horarios_semanales?.length > 0
+        ? currentCatedra.horarios_semanales
+        : diasCursadaReales.map(d => ({ dia_semana: d }));
+
+    const feriadosPeriodo = obtenerFeriadosCatedraEnPeriodo(horariosParaFeriados, start, end);
 
     return feriadosPeriodo
       .filter(f => !clases.some(c => c.fecha === f.fecha))
@@ -613,11 +643,11 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
         observaciones: `Cumplimiento de calendario oficial (${f.feriado.tipo === 'PROVINCIAL' ? 'Feriado Provincial' : 'Feriado Nacional'}).`,
         archivo_adjunto: ''
       }));
-  }, [currentCatedra?.horarios_semanales, clases, catedraId]);
+  }, [currentCatedra?.horarios_semanales, diasCursadaReales, clases, catedraId]);
 
-  // Detección automática de licencias docentes que coinciden con los horarios semanales de la cátedra
+  // Detección automática de licencias docentes que coinciden con los días de cursada de la cátedra
   const licenseClasses = useMemo(() => {
-    if (!currentCatedra || !tieneHorariosConfigurados(currentCatedra) || !licenciasDocente || licenciasDocente.length === 0) {
+    if (diasCursadaReales.length === 0 || !licenciasDocente || licenciasDocente.length === 0) {
       return [];
     }
 
@@ -642,11 +672,12 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
 
       while (curr <= end) {
         const dateStr = curr.toISOString().slice(0, 10);
+        const diaSem = curr.getDay();
 
         // Prioridad absoluta: Si es Feriado o la cátedra NO tiene clase programada ese día, no generar tarjeta
         if (
           !esFechaFeriado(dateStr, clases) &&
-          catedraTieneClaseEnFecha(currentCatedra, dateStr) &&
+          diasCursadaReales.includes(diaSem) &&
           !generatedDates.has(dateStr)
         ) {
           const yaEnClases = clases.some(c => (c.fecha || '').slice(0, 10) === dateStr);
@@ -673,20 +704,44 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     });
 
     return generated;
-  }, [currentCatedra, licenciasDocente, catedraId, clases]);
+  }, [diasCursadaReales, licenciasDocente, catedraId, clases]);
 
   // Orden cronológico estricto para correlatividad (#1, #2...) con inserción de feriados oficiales y licencias docentes
   const chronologicallyIndexedClases = useMemo(() => {
-    const hasSchedule = Boolean(currentCatedra && tieneHorariosConfigurados(currentCatedra));
+    const hasValidDays = diasCursadaReales.length > 0;
+    const clasesConAsist = new Set();
+    const fechasConAsist = new Set();
+    (asistencias || []).forEach(a => {
+      if (a?.clase_id) clasesConAsist.add(a.clase_id);
+      if (a?.fecha) fechasConAsist.add(String(a.fecha).slice(0, 10));
+    });
 
-    // Filtrar filas fantasma de licencia que hubieran sido insertadas en días en que la cátedra no cursa
+    // Filtrar filas fantasma (de licencia o autogeneradas sin asistencia) en días en que la cátedra no cursa
     const validClases = clases.filter(c => {
+      if (!c || !c.fecha) return false;
+      const fStr = String(c.fecha).slice(0, 10);
+      const diaSem = new Date(fStr + 'T12:00:00').getDay();
+
       const isLicenseRow =
         c.estado === 'DOCENTE_AUSENTE' ||
         Boolean(c.articulo_licencia) ||
         String(c.id || '').startsWith('clase-lic-');
-      if (isLicenseRow && hasSchedule && !catedraTieneClaseEnFecha(currentCatedra, c.fecha)) {
+
+      if (isLicenseRow && hasValidDays && !diasCursadaReales.includes(diaSem)) {
         return false;
+      }
+
+      if (hasValidDays && !diasCursadaReales.includes(diaSem)) {
+        const tieneAsist = clasesConAsist.has(c.id) || fechasConAsist.has(fStr);
+        const temaClean = String(c.tema || '').trim().toLowerCase();
+        const esTemaAuto =
+          !temaClean ||
+          temaClean === 'clase regular' ||
+          temaClean === 'clase dictada regular' ||
+          temaClean.startsWith('clase en curso') ||
+          temaClean.startsWith('clase del ') ||
+          temaClean === 'sin tema asignado';
+        if (!tieneAsist && esTemaAuto) return false;
       }
       return true;
     });
@@ -694,7 +749,9 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     const combined = [
       ...validClases.map(c => {
         const feriado = obtenerFeriado(c.fecha);
-        if (feriado || c.es_feriado || c.estado === 'FERIADO') {
+        const infoFer = obtenerFeriadoParaFecha(c.fecha, c);
+        if (feriado || infoFer.esFeriado || c.es_feriado || c.estado === 'FERIADO') {
+          const nombreMotivo = feriado?.motivo || infoFer.nombre || 'Feriado Oficial';
           const wasLicenseText =
             c.estado === 'DOCENTE_AUSENTE' ||
             Boolean(c.articulo_licencia) ||
@@ -708,17 +765,19 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
             es_computable: false,
             horas_catedra: 0,
             caracter: 'NO_COMPUTABLE',
-            feriadoInfo: feriado || c.feriadoInfo || { motivo: 'Feriado / Día no laborable', tipo: 'NACIONAL' },
-            tema: wasLicenseText && feriado
-              ? `Sin actividad áulica — ${feriado.motivo}`
-              : (c.tema || `Sin actividad áulica — ${feriado?.motivo || 'Feriado'}`),
-            observaciones: wasLicenseText && feriado
-              ? `Feriado / Día no laborable (${feriado.norma || 'Calendario Oficial'})`
-              : c.observaciones
+            feriadoInfo: feriado || c.feriadoInfo || { motivo: nombreMotivo, nombre: nombreMotivo, tipo: 'NACIONAL' },
+            tema: wasLicenseText
+              ? `Sin actividad áulica — ${nombreMotivo}`
+              : (c.tema && !c.tema.startsWith('Clase del ') ? c.tema : `Sin actividad áulica — ${nombreMotivo}`),
+            observaciones: wasLicenseText
+              ? `Feriado / Día no laborable (${feriado?.norma || 'Calendario Oficial'})`
+              : (c.observaciones || `Cumplimiento de calendario oficial (${feriado?.tipo === 'PROVINCIAL' ? 'Feriado Provincial' : 'Feriado Nacional'}).`)
           };
         }
+        const fStr = String(c.fecha).slice(0, 10);
+        const diaSem = new Date(fStr + 'T12:00:00').getDay();
         const infoLic = obtenerLicenciaParaFecha(c.fecha, catedraId, licenciasDocente, c);
-        if (infoLic && (!hasSchedule || catedraTieneClaseEnFecha(currentCatedra, c.fecha))) {
+        if (infoLic && (!hasValidDays || diasCursadaReales.includes(diaSem))) {
           return {
             ...c,
             es_licencia: true,
@@ -742,7 +801,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
 
     let classCounter = 0;
     return sorted.map((c) => {
-      const isFeriado = Boolean(c.es_feriado || obtenerFeriado(c.fecha));
+      const isFeriado = Boolean(c.es_feriado || obtenerFeriadoParaFecha(c.fecha, c).esFeriado);
       const isLicencia = Boolean(c.es_licencia);
       if (!isFeriado && !isLicencia) {
         classCounter += 1;
@@ -750,7 +809,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
       }
       return { ...c, classNumber: '—', es_computable: false };
     });
-  }, [clases, holidayClasses, licenseClasses, licenciasDocente, catedraId, currentCatedra]);
+  }, [clases, asistencias, holidayClasses, licenseClasses, licenciasDocente, catedraId, diasCursadaReales]);
 
   // Filtrado y orden de visualización para la UI
   const displayClases = useMemo(() => {
@@ -1020,7 +1079,7 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-surface-border">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
-                        {cls.feriadoInfo?.tipo === 'PROVINCIAL' ? '🏛️ Feriado Provincial' : '🇦🇷 Feriado'}
+                        {cls.feriadoInfo?.tipo === 'PROVINCIAL' ? '🏛️ Feriado Provincial' : '🇦🇷 Feriado Nacional'}
                       </span>
                       <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
                         <CalendarIcon className="w-3.5 h-3.5 text-text-muted" />

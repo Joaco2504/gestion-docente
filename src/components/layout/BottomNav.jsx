@@ -69,11 +69,10 @@ export default function BottomNav() {
   return (
     <>
       <nav 
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 shadow-xl"
-        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
+        className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 pb-[env(safe-area-inset-bottom)] shadow-xl"
         aria-label="Navegación móvil inferior Korum"
       >
-        <div className="flex items-center justify-around h-16 h-nav-landscape max-w-lg mx-auto px-2">
+        <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -81,7 +80,7 @@ export default function BottomNav() {
                 key={item.label}
                 to={item.to}
                 aria-label={item.ariaLabel}
-                className={`flex flex-col items-center justify-center flex-1 h-full min-h-[48px] py-1 text-[11px] font-semibold transition-all select-none rounded-xl active:scale-95 cursor-pointer ${
+                className={`flex flex-col items-center justify-center flex-1 h-full min-h-[48px] py-1 text-[10px] font-semibold transition-all select-none rounded-xl active:scale-95 cursor-pointer ${
                   item.isActive
                     ? 'text-emerald-600 dark:text-emerald-400 font-black'
                     : 'text-text-muted hover:text-text-primary'
@@ -94,7 +93,7 @@ export default function BottomNav() {
                 }`}>
                   <Icon className="w-5 h-5 shrink-0" />
                 </div>
-                <span className="bottomnav-label mt-0.5 tracking-tight font-medium text-[10px] sm:text-[11px] truncate max-w-[68px]">
+                <span className="bottomnav-label mt-0.5 tracking-tight font-semibold text-[10px] truncate max-w-full px-0.5">
                   {item.label}
                 </span>
               </NavLink>
@@ -105,13 +104,13 @@ export default function BottomNav() {
           <button
             type="button"
             onClick={() => setIsMoreOpen(true)}
-            aria-label="Más herramientas y ajustes"
-            className="flex flex-col items-center justify-center flex-1 h-full min-h-[48px] py-1 text-[11px] font-semibold text-text-muted hover:text-text-primary transition-all select-none rounded-xl active:scale-95 cursor-pointer"
+            aria-label="Más herramientas y accesos"
+            className="flex flex-col items-center justify-center flex-1 h-full min-h-[48px] py-1 text-[10px] font-semibold text-text-muted hover:text-text-primary transition-all select-none rounded-xl active:scale-95 cursor-pointer"
           >
             <div className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150">
               <SlidersHorizontal className="w-5 h-5 shrink-0" />
             </div>
-            <span className="bottomnav-label mt-0.5 tracking-tight font-medium text-[10px] sm:text-[11px] truncate max-w-[68px]">
+            <span className="bottomnav-label mt-0.5 tracking-tight font-semibold text-[10px] truncate max-w-full px-0.5">
               Más
             </span>
           </button>

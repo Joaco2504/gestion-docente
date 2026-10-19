@@ -27,7 +27,7 @@ export default function AppLayout({ children }) {
 
       {/* 2. Área de Trabajo Principal - Centrado simétrico y márgenes limpios */}
       <div className="flex-1 flex flex-col w-full min-w-0">
-        <main className="flex-1 w-full max-w-7xl 2xl:max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-12">
+        <main className="flex-1 w-full max-w-7xl 2xl:max-w-[96rem] mx-auto px-3 sm:px-5 lg:px-8 py-4 sm:py-6 pb-28 lg:pb-12 min-w-0">
           <div className="space-y-6 transition-all duration-300">
             {/* Selector de Institución y Ciclo Activo */}
             <HeaderSelector />

@@ -9,6 +9,7 @@ import RouteLoadingSpinner from './components/common/RouteLoadingSpinner';
 
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 /**
  * Envoltorio resiliente para importaciones diferidas (React.lazy)
@@ -188,6 +189,7 @@ export default function App() {
             </Suspense>
           </ErrorBoundary>
           <Analytics />
+          <SpeedInsights />
         </BrowserRouter>
       </TooltipProvider>
     </NotificationProvider>

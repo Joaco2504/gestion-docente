@@ -89,13 +89,19 @@ export {
   obtenerLicenciaParaFecha, 
   catedraTieneClaseEnFecha, 
   esFechaFeriado, 
-  tieneHorariosConfigurados 
+  tieneHorariosConfigurados,
+  obtenerFeriadoParaFecha,
+  obtenerDiasDeCursadaCatedra,
+  FERIADOS_OFICIALES_2026
 } from '../utils/licenciasHelper';
 import { 
   obtenerLicenciaParaFecha, 
   catedraTieneClaseEnFecha, 
   esFechaFeriado, 
-  tieneHorariosConfigurados 
+  tieneHorariosConfigurados,
+  obtenerFeriadoParaFecha,
+  obtenerDiasDeCursadaCatedra,
+  FERIADOS_OFICIALES_2026
 } from '../utils/licenciasHelper';
 
 /**

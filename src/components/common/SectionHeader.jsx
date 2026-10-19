@@ -75,7 +75,7 @@ export default function SectionHeader({
 
         {/* Lado Derecho: Acciones de cabecera */}
         {actions && (
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0 self-end sm:self-center">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0 self-start sm:self-center">
             {actions}
           </div>
         )}

@@ -45,6 +45,8 @@ export default function AttendanceTab({
     selectedClaseId,
     asistencias,
     licenciasDocente,
+    isFeriado,
+    feriadoActivo,
     isLicenciaDocente,
     licenciaDocenteActiva,
     fechaSeleccionada,
@@ -125,6 +127,8 @@ export default function AttendanceTab({
         fechaSeleccionada={fechaSeleccionada}
         onFechaChange={setFechaSeleccionada}
         claseActiva={claseActiva}
+        isFeriado={isFeriado}
+        infoFeriado={feriadoActivo}
         isLicenciaDocente={isLicenciaDocente}
         infoLicencia={licenciaDocenteActiva}
         statsHoy={statsHoy}
@@ -140,6 +144,8 @@ export default function AttendanceTab({
       {/* 3. Barra Rápida de Unidad, Tema dictado & Decreto 1092 */}
       <AttendanceClassTopicBar
         claseActiva={claseActiva}
+        isFeriado={isFeriado}
+        feriadoActivo={feriadoActivo}
         isLicenciaDocente={isLicenciaDocente}
         licenciaDocenteActiva={licenciaDocenteActiva}
         unidades={unidades}
@@ -148,8 +154,33 @@ export default function AttendanceTab({
         disabled={saving || cursadaFinalizada}
       />
 
-      {/* 4. Vista Condicional: Bloqueo por Licencia Docente vs Lista de Presentismo */}
-      {isLicenciaDocente ? (
+      {/* 4. Vista Condicional: Bloqueo por Feriado Oficial / Licencia Docente vs Lista de Presentismo */}
+      {isFeriado ? (
+        <Card className="p-6 border-2 border-sky-400/50 bg-sky-50/70 dark:bg-sky-950/30 dark:border-sky-800/60 shadow-sm animate-fadeIn">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 rounded-2xl bg-sky-500/20 text-sky-700 dark:text-sky-300 shrink-0 text-xl leading-none flex items-center justify-center">
+                🇦🇷
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-sky-950 dark:text-sky-100">
+                  🇦🇷 Día no laborable — Feriado Nacional ({feriadoActivo?.nombre || 'Feriado Oficial'})
+                </h3>
+                <p className="text-sm font-medium text-sky-800/90 dark:text-sky-200/90">
+                  No se requiere tomar asistencia ni cargar tema, y esta fecha no se computa para las inasistencias de los alumnos.
+                </p>
+                <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium pt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="font-bold">✅ Calendario Oficial 2026</span>
+                  <span className="text-slate-400">•</span>
+                  <span>Jornada no computable</span>
+                  <span className="text-slate-400">•</span>
+                  <span>No descuenta % de asistencia a los alumnos</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      ) : isLicenciaDocente ? (
         <Card className="p-6 border-2 border-amber-500/40 bg-amber-50/70 dark:bg-amber-950/20 shadow-sm animate-fadeIn">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">

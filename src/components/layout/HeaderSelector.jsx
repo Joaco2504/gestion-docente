@@ -64,7 +64,7 @@ export default function HeaderSelector() {
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-surface p-2.5 sm:p-3 rounded-2xl border border-surface-border shadow-xs">
       {/* Selector de Institución */}
-      <div className="flex items-center gap-1.5 flex-1 min-w-[170px] sm:min-w-[200px] sm:max-w-xs">
+      <div className="flex items-center gap-1.5 flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
         <CustomSelect
           value={selectedInstitucion?.id || ''}
           onChange={(val) => {
@@ -93,7 +93,7 @@ export default function HeaderSelector() {
       </div>
 
       {/* Selector de Ciclo Lectivo */}
-      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-[140px] sm:min-w-[160px] sm:max-w-[220px]">
+      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-0 sm:min-w-[160px] sm:max-w-[220px]">
         <CustomSelect
           value={selectedCiclo?.id || ''}
           onChange={(val) => {

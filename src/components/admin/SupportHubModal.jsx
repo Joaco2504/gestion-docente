@@ -946,7 +946,7 @@ export default function SupportHubModal({
         {/* ========================================================
             3. PESTAÑAS DE NAVEGACIÓN
            ======================================================== */}
-        <div className="flex items-center border-b border-slate-200 dark:border-slate-800 px-4 overflow-x-auto no-scrollbar gap-2 shrink-0 bg-white dark:bg-slate-900/60">
+        <div className="flex items-center border-b border-slate-200 dark:border-slate-800 px-4 overflow-x-auto scrollbar-none snap-x touch-pan-x gap-2 shrink-0 bg-white dark:bg-slate-900/60">
           <button
             type="button"
             onClick={() => setActiveTab('catedras')}

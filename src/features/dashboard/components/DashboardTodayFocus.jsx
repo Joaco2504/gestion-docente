@@ -117,14 +117,14 @@ export default function DashboardTodayFocus({
             </Badge>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2 flex-wrap break-words">
             <span>{greeting}, {docenteName}</span>
             <Sparkles className="w-5 h-5 text-amber-400 shrink-0" />
           </h1>
         </div>
 
         {/* Estado Operativo Inmediato del Día */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
           {upcomingClass?.isToday ? (
             <Badge variant="promo" size="md" dot={true}>
               Clase programada para hoy
@@ -145,7 +145,7 @@ export default function DashboardTodayFocus({
             ? 'bg-rose-500/[0.06] border-rose-500/25 text-rose-900 dark:text-rose-200' 
             : 'bg-amber-500/[0.06] border-amber-500/25 text-amber-900 dark:text-amber-200'
         }`}>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="p-2 rounded-xl bg-surface shadow-xs shrink-0">
                 {criticalCount > 0 ? (
@@ -170,7 +170,7 @@ export default function DashboardTodayFocus({
               type="button"
               onClick={() => setShowAlertsDetail(prev => !prev)}
               aria-expanded={showAlertsDetail}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-2xs cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-2xs cursor-pointer"
             >
               <span>{showAlertsDetail ? 'Ocultar' : `Revisar (${alerts.length})`}</span>
               {showAlertsDetail ? (

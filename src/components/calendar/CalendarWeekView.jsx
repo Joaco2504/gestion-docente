@@ -74,7 +74,7 @@ export default function CalendarWeekView({
         {/* FRANJA DE DÍAS DE LA SEMANA STICKY */}
         <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md grid grid-cols-8 gap-2 pb-4 pt-1 border-b border-slate-100 dark:border-slate-800/80">
           {/* Espacio para la columna de horas */}
-          <div className="w-16 text-right pr-3 font-mono text-xs text-slate-400 self-end pb-2">
+          <div className="w-16 text-right pr-3 font-mono text-xs text-slate-400 self-end pb-2 sticky left-0 bg-white/95 dark:bg-slate-900/95 z-40">
             GMT-3
           </div>
 
@@ -140,7 +140,7 @@ export default function CalendarWeekView({
                 className="grid grid-cols-8 gap-2 border-b border-slate-100 dark:border-slate-800/60 relative"
               >
                 {/* Eje de Horas */}
-                <div className="w-16 font-mono text-xs text-slate-400 dark:text-slate-500 text-right pr-3 -mt-2.5">
+                <div className="w-16 font-mono text-xs text-slate-400 dark:text-slate-500 text-right pr-3 -mt-2.5 sticky left-0 bg-white/95 dark:bg-slate-900/95 z-20">
                   {hourStr}
                 </div>
 

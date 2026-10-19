@@ -114,7 +114,7 @@ export default function AdminPage() {
       </div>
 
       {/* 2. Navegación por 3 pestañas Bento del Superadmin */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-surface-card border border-surface-border w-full sm:w-auto overflow-x-auto">
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-surface-card border border-surface-border w-full sm:w-auto overflow-x-auto scrollbar-none snap-x touch-pan-x">
         <button
           type="button"
           onClick={() => setActiveTab('directorio')}

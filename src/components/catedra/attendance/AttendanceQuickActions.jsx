@@ -23,6 +23,8 @@ export default function AttendanceQuickActions({
   fechaSeleccionada,
   onFechaChange,
   claseActiva = null,
+  isFeriado = false,
+  infoFeriado = null,
   isLicenciaDocente = false,
   infoLicencia = null,
   statsHoy,
@@ -52,8 +54,12 @@ export default function AttendanceQuickActions({
           />
         </div>
 
-        {/* Badge Contextual: Licencia Docente vs Editando Clase vs Nueva Clase */}
-        {isLicenciaDocente ? (
+        {/* Badge Contextual: Feriado Nacional vs Licencia Docente vs Editando Clase vs Nueva Clase */}
+        {isFeriado ? (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-500/15 border border-sky-500/30 text-xs font-bold text-sky-700 dark:text-sky-300">
+            <span>🇦🇷 Feriado Nacional ({infoFeriado?.nombre || 'Feriado Oficial'})</span>
+          </div>
+        ) : isLicenciaDocente ? (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-xs font-bold text-amber-700 dark:text-amber-300">
             <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
             <span>🛡️ Jornada Justificada (Dto. 1092)</span>
@@ -71,19 +77,21 @@ export default function AttendanceQuickActions({
         )}
 
         {/* Chip de Métricas de la Sesión */}
-        <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-          <span>{presentes} Pres.</span>
-          <span className="text-emerald-600/40">•</span>
-          <span className="text-rose-600 dark:text-rose-400">{ausentes} Aus.</span>
-          <span className="text-emerald-600/40">•</span>
-          <span className="font-mono">{pctDia}%</span>
-        </div>
+        {!isFeriado && (
+          <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+            <span>{presentes} Pres.</span>
+            <span className="text-emerald-600/40">•</span>
+            <span className="text-rose-600 dark:text-rose-400">{ausentes} Aus.</span>
+            <span className="text-emerald-600/40">•</span>
+            <span className="font-mono">{pctDia}%</span>
+          </div>
+        )}
       </div>
 
       {/* Botones de Acción Masiva y Reportes */}
-      <div className="flex items-center gap-2 flex-wrap justify-end">
-        {!isLicenciaDocente && (
+      <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end w-full lg:w-auto">
+        {!isLicenciaDocente && !isFeriado && (
           <>
             {/* [ Marcar Todos Presentes ] */}
             <Button

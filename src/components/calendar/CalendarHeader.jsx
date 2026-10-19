@@ -20,9 +20,9 @@ export default function CalendarHeader({
   onAddNew
 }) {
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+      <div className="min-w-0">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
           {formattedHeaderRange}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">

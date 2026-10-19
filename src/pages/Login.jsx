@@ -186,7 +186,7 @@ export default function Login() {
       {/* ===================================================================
           COLUMNA IZQUIERDA: ACCESO DOCENTE (FORMULARIO MODO CLARO / OSCURO)
           =================================================================== */}
-      <div className="flex flex-col justify-between p-6 sm:p-12 md:p-16 relative z-10 bg-slate-50 dark:bg-[#080C14] text-slate-900 dark:text-slate-100 transition-colors">
+      <div className="flex flex-col justify-between p-4 xs:p-6 sm:p-12 md:p-16 relative z-10 bg-slate-50 dark:bg-[#080C14] text-slate-900 dark:text-slate-100 transition-colors">
         {/* Barra superior con toggle de tema o enlaces rápidos */}
         <div className="flex items-center justify-between w-full max-w-md mx-auto">
           <div className="flex items-center gap-2">

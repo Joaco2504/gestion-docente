@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "generatedAt": "2026-10-19T14:20:00.000Z",
+    "tasksAnalyzed": 5,
+    "thresholdScore": 5,
+    "projectName": "Korum - Planilla Docente",
+    "tag": "master"
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 1,
+      "taskTitle": "Catálogo Decreto 1092 y Motor de Licencias Multi-día",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "reasoning": "Involucra reglas normativas de cómputo de días hábiles vs corridos y topes mensuales/anuales."
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "Edición Completa de Licencias Registradas",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "reasoning": "Requiere reconciliación bidireccional de fechas liberadas y nuevas fechas afectadas en base de datos."
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "Corrección Exhaustiva de Vistas Desktop (10 Puntos UI/UX)",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "reasoning": "Abarca múltiples vistas y layouts responsivos en escritorio."
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Rediseño Portal Estudiantil 'Mi espacio académico' y Licencias Inteligentes",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "reasoning": "Combina privacidad de datos en portal público y lógica de prioridad de feriados sobre licencias."
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "Autogeneración Estricta en Días de Cursada y Soporte Completo de Feriados",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "reasoning": "Sincroniza el motor de autogeneración de clases con dias_clase y el catálogo oficial de feriados."
+    }
+  ]
+}

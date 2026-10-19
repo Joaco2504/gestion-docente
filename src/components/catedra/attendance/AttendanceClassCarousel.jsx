@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { 
   Calendar, 
   CheckCircle2, 
@@ -11,7 +11,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { formatFechaDMY } from '../../../lib/dateUtils';
-import { isFechaCubiertaPorLicencias } from '../../../services/licenciasService';
+import { isFechaCubiertaPorLicencias, obtenerFeriadoParaFecha } from '../../../services/licenciasService';
 import Badge from '../../common/Badge';
 
 const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -41,6 +41,7 @@ function isGenericTema(tema) {
     clean === 'clase regular' ||
     clean === 'clase dictada regular' ||
     clean.startsWith('clase en curso') ||
+    clean.startsWith('clase del ') ||
     clean === 'sin tema asignado'
   );
 }
@@ -68,6 +69,28 @@ export default function AttendanceClassCarousel({
       scrollContainerRef.current.scrollBy({ left: offset, behavior: 'smooth' });
     }
   };
+
+  // Numeración correlativa real ordenando las clases cronológicamente (fecha ASC)
+  // y contando únicamente las clases dictadas/programadas reales (excluyendo feriados y licencias).
+  const correlativeNumberMap = useMemo(() => {
+    const map = new Map();
+    const sortedAsc = [...clases].sort((a, b) =>
+      String(a.fecha || '').localeCompare(String(b.fecha || ''))
+    );
+    let counter = 0;
+    for (const c of sortedAsc) {
+      const infoFer = obtenerFeriadoParaFecha(c.fecha, c);
+      const cov = isFechaCubiertaPorLicencias(c.fecha, licenciasDocente, catedraId);
+      const isLic =
+        !infoFer.esFeriado &&
+        (c.estado === 'DOCENTE_AUSENTE' || Boolean(c.articulo_licencia) || cov.cubierta);
+      if (!infoFer.esFeriado && !isLic) {
+        counter += 1;
+        map.set(c.id || c.fecha, counter);
+      }
+    }
+    return map;
+  }, [clases, licenciasDocente, catedraId]);
 
   // Calcular asistencia registrada por cada clase
   const getClaseAttendanceStats = (clase) => {
@@ -165,14 +188,22 @@ export default function AttendanceClassCarousel({
             const stats = getClaseAttendanceStats(c);
             const formattedDate = formatFechaDMY(c.fecha).replace(/-/g, '/');
             const legibleDate = formatFechaLegibleCorta(c.fecha);
-            const numeroClase = c.numero_clase || (clases.length - idx);
+            const infoFeriado = obtenerFeriadoParaFecha(c.fecha, c);
+            const isFeriado = infoFeriado.esFeriado;
             const coverage = isFechaCubiertaPorLicencias(c.fecha, licenciasDocente, catedraId);
-            const isLicencia = c.estado === 'DOCENTE_AUSENTE' || Boolean(c.articulo_licencia) || coverage.cubierta;
+            const isLicencia =
+              !isFeriado &&
+              (c.estado === 'DOCENTE_AUSENTE' || Boolean(c.articulo_licencia) || coverage.cubierta);
+            const numeroClase = correlativeNumberMap.get(c.id || c.fecha) || (clases.length - idx);
             const licenciaArticulo = c.articulo_licencia || (coverage.licencia?.articulo_codigo || coverage.licencia?.articulo);
             const genericTema = isGenericTema(c.tema);
 
             let cardStyle = 'border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:border-slate-300 dark:hover:border-slate-700';
-            if (isLicencia) {
+            if (isFeriado) {
+              cardStyle = isSelected
+                ? 'border-sky-500 bg-sky-50/90 dark:border-sky-500 dark:bg-sky-950/50 shadow-sm ring-2 ring-sky-500/30'
+                : 'border-sky-300 bg-sky-50/60 dark:border-sky-800 dark:bg-sky-950/30 hover:border-sky-400 dark:hover:border-sky-700';
+            } else if (isLicencia) {
               cardStyle = isSelected
                 ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 shadow-sm ring-2 ring-amber-500/30'
                 : 'border-amber-500/40 bg-amber-500/5 dark:bg-amber-500/10 hover:border-amber-500/60';
@@ -186,29 +217,43 @@ export default function AttendanceClassCarousel({
                 type="button"
                 onClick={() => onSelectClase?.(c)}
                 className={`group relative flex flex-col justify-between items-start gap-2 min-w-[190px] max-w-[210px] p-3.5 rounded-2xl border transition-all cursor-pointer shrink-0 snap-start text-left touch-target-44 ${cardStyle}`}
-                title={isLicencia ? `Licencia Docente registrada (${formattedDate})` : `Clase #${numeroClase} (${formattedDate}) — ${genericTema ? 'Sin tema asignado' : c.tema}`}
+                title={
+                  isFeriado
+                    ? `Feriado Nacional (${formattedDate}) — ${infoFeriado.nombre}`
+                    : isLicencia
+                      ? `Licencia Docente registrada (${formattedDate})`
+                      : `Clase #${numeroClase} (${formattedDate}) — ${genericTema ? 'Sin tema asignado' : c.tema}`
+                }
               >
-                {/* Cabecera de tarjeta: Fecha legible ('Jue 15 Oct') + Badge 'Clase #N' */}
+                {/* Cabecera de tarjeta: Fecha legible ('Lun 12 Oct') + Badge ('FERIADO' / 'LIC' / 'Clase #N') */}
                 <div className="w-full flex items-center justify-between gap-1.5">
                   <span className={`font-bold text-sm tracking-tight truncate ${
-                    isSelected
-                      ? isLicencia ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
-                      : isLicencia ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'
+                    isFeriado
+                      ? isSelected ? 'text-sky-800 dark:text-sky-200' : 'text-sky-700 dark:text-sky-300'
+                      : isSelected
+                        ? isLicencia ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
+                        : isLicencia ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'
                   }`}>
                     {legibleDate}
                   </span>
                   <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md shrink-0 ${
-                    isLicencia
-                      ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 font-bold border border-amber-500/20'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200/70 dark:border-slate-700'
+                    isFeriado
+                      ? 'bg-sky-100 dark:bg-sky-900/70 text-sky-700 dark:text-sky-300 font-bold border border-sky-400/30'
+                      : isLicencia
+                        ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 font-bold border border-amber-500/20'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200/70 dark:border-slate-700'
                   }`}>
-                    {isLicencia ? 'LIC' : `Clase #${numeroClase}`}
+                    {isFeriado ? 'FERIADO' : isLicencia ? 'LIC' : `Clase #${numeroClase}`}
                   </span>
                 </div>
 
-                {/* Cuerpo (Tema): Si es genérico, mostrar en cursiva sutil 'Sin tema asignado' */}
+                {/* Cuerpo (Tema): Si es feriado, nombre oficial; si es genérico, en cursiva 'Sin tema asignado' */}
                 <div className="w-full min-h-[20px]">
-                  {isLicencia ? (
+                  {isFeriado ? (
+                    <p className="text-xs font-semibold text-sky-800 dark:text-sky-200 truncate">
+                      {infoFeriado.nombre}
+                    </p>
+                  ) : isLicencia ? (
                     <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 truncate">
                       {licenciaArticulo || c.motivo_inasistencia || 'Licencia Docente'}
                     </p>
@@ -225,7 +270,11 @@ export default function AttendanceClassCarousel({
 
                 {/* Pie de estado con badge semántico claro */}
                 <div className="w-full pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-1">
-                  {isLicencia ? (
+                  {isFeriado ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/25 text-[10px] font-bold truncate">
+                      <span>🇦🇷 Feriado Nacional</span>
+                    </span>
+                  ) : isLicencia ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25 text-[10px] font-bold truncate">
                       <span>🛡️ Licencia Docente</span>
                     </span>
@@ -240,7 +289,7 @@ export default function AttendanceClassCarousel({
                   )}
                   {isSelected && (
                     <span className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${
-                      isLicencia ? 'bg-amber-500' : 'bg-emerald-500'
+                      isFeriado ? 'bg-sky-500' : isLicencia ? 'bg-amber-500' : 'bg-emerald-500'
                     }`} />
                   )}
                 </div>
