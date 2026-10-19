@@ -75,7 +75,7 @@ export default function NotificationPanel() {
         <button
           type="button"
           aria-label="Abrir notificaciones"
-          className="relative p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden transition-colors cursor-pointer active:scale-95"
+          className="relative p-1.5 sm:p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden transition-colors cursor-pointer active:scale-95"
         >
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (

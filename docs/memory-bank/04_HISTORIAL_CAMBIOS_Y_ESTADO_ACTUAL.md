@@ -53,3 +53,14 @@ Bitácora técnica viva donde se registran cronológicamente todas las directiva
   * Paquete `@vercel/speed-insights` verificado e instalado en `package.json`.
   * Integración en la raíz de la aplicación ([`src/App.jsx`](file:///c:/Users/emili/Documents/docente/src/App.jsx)) importando y montando `<SpeedInsights />` junto a `<Analytics />`.
   * Verificación de calidad: 67/67 tests pasando en Vitest y compilación de producción exitosa con Vite (código 0).
+
+### 9. Corrección Quirúrgica de Vista Celular (< 640px)
+- **Estado:** ✅ Completado y Verificado.
+- **Alcance y Mejoras Realizadas:**
+  * **Desbloqueo de Scroll Vertical Táctil en Alumnos (`StudentsTab.jsx`):** Eliminado `overflow-y-auto overscroll-y-contain` atrapado del contenedor principal de la vista, permitiendo que el scroll táctil fluya libremente al nivel del layout de la página. Incorporado `touch-pan-y` y `style={{ touchAction: 'pan-y' }}` en `StudentCardMobile`, `EquivalenciaCardMobile` y el contenedor grid móvil.
+  * **Buscador & Ordenamiento Móvil Unificado:** En móviles (`< 1024px`), se sustituyó la lupa circular expandible por un input de búsqueda siempre visible con ícono de lupa y botón `X` de limpieza (`placeholder="Buscar alumno por nombre o DNI..."`), y una única fila de ordenamiento con select de criterios y botón `Asc`/`Desc`. En desktop (`>= 1024px`) se mantiene `ExpandableSearch` y el botón rápido `Ordenar: A-Z`.
+  * **Sub-pestañas Móviles:** Incorporadas clases `scrollbar-none [&::-webkit-scrollbar]:hidden` en el listado horizontal de sub-pestañas para eliminar la barra gris de scroll en navegadores WebKit/Blink/Gecko.
+  * **Header Móvil Compacto (`Navbar.jsx`, `UserMenu.jsx`, `NotificationPanel.jsx`):** Reducción quirúrgica de padding lateral (`px-2.5 sm:px-4 lg:px-6`), gap (`gap-1 sm:gap-2`), y tamaño responsivo del avatar de usuario a `w-8 h-8 sm:w-10 sm:h-10`, garantizando que las iniciales `EP` y el menú de perfil entren 100% completos en pantallas de 360px–390px sin desbordamiento horizontal.
+  * **Selectores de Institución y Ciclo en Dashboard (`HeaderSelector.jsx`):** Reorganizados en móvil (`< 640px`) en 2 filas completas e independientes (`flex-col sm:flex-row`), permitiendo mostrar el nombre completo de la institución y su badge sin truncamiento severo y manteniendo los botones `[+]` alineados a la derecha (`w-10 h-10`). En tablet y PC (`sm:`) regresa fluidamente a `flex-row`.
+  * **QA y Verificación:** 67/67 tests unitarios aprobados en Vitest (`npx vitest run --passWithNoTests`) y build de producción exitoso con Vite (Código 0).
+

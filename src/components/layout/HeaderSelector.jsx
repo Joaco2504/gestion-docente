@@ -62,60 +62,64 @@ export default function HeaderSelector() {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-surface p-2.5 sm:p-3 rounded-2xl border border-surface-border shadow-xs">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-surface p-2.5 sm:p-3 rounded-2xl border border-surface-border shadow-xs w-full">
       {/* Selector de Institución */}
-      <div className="flex items-center gap-1.5 flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
-        <CustomSelect
-          value={selectedInstitucion?.id || ''}
-          onChange={(val) => {
-            const targetId = typeof val === 'object' ? val.target.value : val;
-            const found = instituciones.find(i => i.id === targetId);
-            if (found) setSelectedInstitucion(found);
-          }}
-          options={instituciones.map(inst => ({
-            value: inst.id,
-            label: inst.nombre,
-            badge: inst.nivel === 'TERCIARIO' ? 'Terciario' : 'Secundario'
-          }))}
-          placeholder="Sin instituciones"
-          icon={Building2}
-          buttonClassName="py-2 text-xs"
-        />
+      <div className="flex items-center gap-1.5 w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-xs">
+        <div className="flex-1 min-w-0">
+          <CustomSelect
+            value={selectedInstitucion?.id || ''}
+            onChange={(val) => {
+              const targetId = typeof val === 'object' ? val.target.value : val;
+              const found = instituciones.find(i => i.id === targetId);
+              if (found) setSelectedInstitucion(found);
+            }}
+            options={instituciones.map(inst => ({
+              value: inst.id,
+              label: inst.nombre,
+              badge: inst.nivel === 'TERCIARIO' ? 'Terciario' : 'Secundario'
+            }))}
+            placeholder="Sin instituciones"
+            icon={Building2}
+            buttonClassName="py-2 text-xs"
+          />
+        </div>
         <button
           type="button"
           onClick={() => setIsInstModalOpen(true)}
           title="Nueva Institución"
           aria-label="Nueva Institución"
-          className="p-2 w-10 h-10 min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
+          className="p-2 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer active:scale-95"
         >
           <Plus className="w-4 h-4 text-primary" />
         </button>
       </div>
 
       {/* Selector de Ciclo Lectivo */}
-      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-0 sm:min-w-[160px] sm:max-w-[220px]">
-        <CustomSelect
-          value={selectedCiclo?.id || ''}
-          onChange={(val) => {
-            const targetId = typeof val === 'object' ? val.target.value : val;
-            const found = ciclosLectivos.find(c => c.id === targetId);
-            if (found) setSelectedCiclo(found);
-          }}
-          options={ciclosLectivos.map(c => ({
-            value: c.id,
-            label: `${c.anio} ${c.activo ? '• Activo' : ''}`,
-            badge: String(c.anio)
-          }))}
-          placeholder="Sin ciclos"
-          icon={Calendar}
-          buttonClassName="py-2 text-xs font-mono"
-        />
+      <div className="flex items-center gap-1.5 w-full sm:w-auto sm:flex-initial sm:min-w-[160px] sm:max-w-[220px]">
+        <div className="flex-1 min-w-0">
+          <CustomSelect
+            value={selectedCiclo?.id || ''}
+            onChange={(val) => {
+              const targetId = typeof val === 'object' ? val.target.value : val;
+              const found = ciclosLectivos.find(c => c.id === targetId);
+              if (found) setSelectedCiclo(found);
+            }}
+            options={ciclosLectivos.map(c => ({
+              value: c.id,
+              label: `${c.anio} ${c.activo ? '• Activo' : ''}`,
+              badge: String(c.anio)
+            }))}
+            placeholder="Sin ciclos"
+            icon={Calendar}
+            buttonClassName="py-2 text-xs font-mono"
+          />
+        </div>
         <button
           type="button"
           onClick={() => setIsCicloModalOpen(true)}
           title="Nuevo Ciclo Lectivo"
           aria-label="Nuevo Ciclo Lectivo"
-          className="p-2 w-10 h-10 min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer"
+          className="p-2 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-surface-hover rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0 border border-surface-border cursor-pointer active:scale-95"
         >
           <Plus className="w-4 h-4 text-primary" />
         </button>

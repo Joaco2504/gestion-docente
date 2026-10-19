@@ -99,7 +99,8 @@ const StudentCardMobile = React.memo(function StudentCardMobile({
         }
       }}
       aria-label={`Ver ficha académica de ${st.apellido}, ${st.nombre}`}
-      className="group relative bg-surface hover:bg-surface-hover/30 p-4 rounded-2xl border border-surface-border shadow-xs hover:shadow-sm transition-all text-left w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      className="group relative bg-surface hover:bg-surface-hover/30 p-4 rounded-2xl border border-surface-border shadow-xs hover:shadow-sm transition-all text-left w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 touch-pan-y"
+      style={{ touchAction: 'pan-y' }}
     >
       {/* Fila Superior: Iniciales + Nombre + DNI + Semáforo */}
       <div className="flex items-start justify-between gap-3 min-w-0">
@@ -276,7 +277,8 @@ const EquivalenciaCardMobile = React.memo(function EquivalenciaCardMobile({
         }
       }}
       aria-label={`Ver ficha académica de ${st.apellido}, ${st.nombre}`}
-      className="group relative bg-surface hover:bg-surface-hover/30 p-4 rounded-2xl border border-surface-border shadow-xs hover:shadow-sm transition-all text-left w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      className="group relative bg-surface hover:bg-surface-hover/30 p-4 rounded-2xl border border-surface-border shadow-xs hover:shadow-sm transition-all text-left w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 touch-pan-y"
+      style={{ touchAction: 'pan-y' }}
     >
       <div className="flex items-start justify-between gap-3 min-w-0">
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1211,7 +1213,7 @@ export default function StudentsTab({
   }, [estudiantes, searchQuery, sortField, sortDirection, studentConditionsMap, studentListFilter, studentAttendanceMap, studentAverageMap]);
 
   return (
-    <div className="w-full min-h-full flex flex-col overflow-y-auto overscroll-y-contain space-y-6 animate-fadeIn pb-24 md:pb-6">
+    <div className="w-full flex flex-col space-y-6 animate-fadeIn pb-24 md:pb-6 touch-pan-y" style={{ touchAction: 'pan-y' }}>
       {/* View Mode: Excel Importer View */}
       {viewMode === 'import-excel' ? (
         <div className="space-y-4">
@@ -1290,7 +1292,7 @@ export default function StudentsTab({
           </Card>
 
           {/* Segmented Control de Vistas: Cursantes Activos / Acreditados por Equivalencia / Todos */}
-          <div className="flex items-center gap-1.5 p-1 bg-surface rounded-2xl border border-surface-border shadow-xs overflow-x-auto no-scrollbar max-w-full shrink-0">
+          <div className="flex items-center gap-1.5 p-1 bg-surface rounded-2xl border border-surface-border shadow-xs overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden no-scrollbar max-w-full shrink-0">
             <button
               type="button"
               onClick={() => setStudentListFilter('activos')}
@@ -1350,8 +1352,8 @@ export default function StudentsTab({
             </button>
           </div>
 
-          {/* Search bar expandible reactiva, Contador de Coincidencias & Orden A-Z */}
-          <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+          {/* Búsqueda y Ordenamiento en Desktop (>=1024px) */}
+          <div className="hidden lg:flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
               <ExpandableSearch
                 value={searchQuery}
@@ -1363,7 +1365,7 @@ export default function StudentsTab({
 
               {/* Contador de coincidencias en escritorio */}
               {searchQuery.trim() && (
-                <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary animate-fadeIn shrink-0 shadow-xs">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary animate-fadeIn shrink-0 shadow-xs">
                   <span>
                     Mostrando <strong className="font-mono font-bold text-primary">{filteredAndSortedStudents.length}</strong> de <span className="font-mono">{estudiantes.length}</span> alumnos
                   </span>
@@ -1384,7 +1386,7 @@ export default function StudentsTab({
             <button
               type="button"
               onClick={toggleSortAZ}
-              className="hidden lg:inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-text-primary transition-all shadow-xs shrink-0 touch-target-44 active:scale-95 duration-100 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-text-primary transition-all shadow-xs shrink-0 touch-target-44 active:scale-95 duration-100 cursor-pointer"
               title={sortDirection === 'asc' ? 'Orden alfabético A-Z activo. Clic para ordenar Z-A' : 'Orden alfabético Z-A activo. Clic para ordenar A-Z'}
             >
               {sortDirection === 'asc' ? (
@@ -1401,60 +1403,85 @@ export default function StudentsTab({
             </button>
           </div>
 
-          {/* Selector de Ordenamiento Móvil & Tablet (<1024px) */}
-          <div className="flex lg:hidden items-center justify-between gap-2 bg-surface p-2.5 rounded-2xl border border-surface-border shadow-xs">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <SlidersHorizontal className="w-4 h-4 text-text-muted shrink-0 ml-1" />
-              <select
-                value={sortField}
-                onChange={(e) => setSortField(e.target.value)}
-                aria-label="Criterio de ordenamiento"
-                className="bg-transparent text-xs font-semibold text-text-primary focus:outline-none w-full cursor-pointer py-1"
-              >
-                <option value="apellido">Ordenar por: Apellido</option>
-                <option value="nombre">Ordenar por: Nombre</option>
-                <option value="dni">Ordenar por: DNI</option>
-                <option value="condicion">Ordenar por: Condición</option>
-                <option value="asistencia">Ordenar por: Asistencia %</option>
-                <option value="promedio">Ordenar por: Promedio Notas</option>
-              </select>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-surface-elevated border border-surface-border text-xs font-bold text-primary shrink-0 touch-target-44 cursor-pointer active:scale-95 transition-all"
-              title={sortDirection === 'asc' ? 'Orden Ascendente (menor a mayor / A-Z)' : 'Orden Descendente (mayor a menor / Z-A)'}
-            >
-              {sortDirection === 'asc' ? (
-                <>
-                  <ArrowDownAZ className="w-4 h-4 text-primary" />
-                  <span className="text-[11px]">Asc</span>
-                </>
-              ) : (
-                <>
-                  <ArrowUpZA className="w-4 h-4 text-primary" />
-                  <span className="text-[11px]">Desc</span>
-                </>
+          {/* Controles de Búsqueda y Ordenamiento Móvil & Tablet (<1024px) */}
+          <div className="lg:hidden space-y-2.5">
+            {/* Input de Búsqueda Completo y Visible en Móvil */}
+            <div className="relative w-full">
+              <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={studentListFilter === 'equivalencias' ? "Buscar por Apellido, DNI o N° Resolución..." : "Buscar alumno por nombre o DNI..."}
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl text-xs sm:text-sm bg-surface border border-surface-border text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all shadow-xs"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Limpiar búsqueda"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               )}
-            </button>
-          </div>
+            </div>
 
-          {/* Contador de coincidencias visible en dispositivos móviles cuando hay búsqueda activa */}
-          {searchQuery.trim() && (
-            <div className="flex sm:hidden items-center justify-between px-3.5 py-2 rounded-2xl bg-primary/10 border border-primary/20 text-xs font-semibold text-primary animate-fadeIn shadow-xs">
-              <span>
-                Mostrando <strong className="font-mono font-bold">{filteredAndSortedStudents.length}</strong> de <span className="font-mono">{estudiantes.length}</span> alumnos
-              </span>
+            {/* Selector Único de Ordenamiento Móvil */}
+            <div className="flex items-center justify-between gap-2 bg-surface p-2 sm:p-2.5 rounded-xl border border-surface-border shadow-xs">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <SlidersHorizontal className="w-4 h-4 text-text-muted shrink-0 ml-1" />
+                <select
+                  value={sortField}
+                  onChange={(e) => setSortField(e.target.value)}
+                  aria-label="Criterio de ordenamiento"
+                  className="bg-transparent text-xs font-semibold text-text-primary focus:outline-none w-full cursor-pointer py-1"
+                >
+                  <option value="apellido">Ordenar por: Apellido</option>
+                  <option value="nombre">Ordenar por: Nombre</option>
+                  <option value="dni">Ordenar por: DNI</option>
+                  <option value="condicion">Ordenar por: Condición</option>
+                  <option value="asistencia">Ordenar por: Asistencia %</option>
+                  <option value="promedio">Ordenar por: Promedio Notas</option>
+                </select>
+              </div>
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="text-xs text-primary font-bold hover:underline cursor-pointer flex items-center gap-1"
+                onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-elevated border border-surface-border text-xs font-bold text-primary shrink-0 min-h-[36px] cursor-pointer active:scale-95 transition-all"
+                title={sortDirection === 'asc' ? 'Orden Ascendente (menor a mayor / A-Z)' : 'Orden Descendente (mayor a menor / Z-A)'}
               >
-                <span>Limpiar</span>
-                <X className="w-3.5 h-3.5" />
+                {sortDirection === 'asc' ? (
+                  <>
+                    <ArrowDownAZ className="w-4 h-4 text-primary" />
+                    <span className="text-[11px]">Asc</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowUpZA className="w-4 h-4 text-primary" />
+                    <span className="text-[11px]">Desc</span>
+                  </>
+                )}
               </button>
             </div>
-          )}
+
+            {/* Contador de coincidencias visible en dispositivos móviles cuando hay búsqueda activa */}
+            {searchQuery.trim() && (
+              <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-primary/10 border border-primary/20 text-xs font-semibold text-primary animate-fadeIn shadow-xs">
+                <span>
+                  Mostrando <strong className="font-mono font-bold">{filteredAndSortedStudents.length}</strong> de <span className="font-mono">{estudiantes.length}</span> alumnos
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-xs text-primary font-bold hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <span>Limpiar</span>
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Student Table / Cards */}
           {loading ? (
@@ -1506,7 +1533,7 @@ export default function StudentsTab({
               )}
             >
               {/* VISTA MÓVIL Y TABLET: Grid de cards táctiles con micro-KPIs (<1024px) */}
-              <div className="lg:hidden space-y-3">
+              <div className="lg:hidden space-y-3 touch-pan-y" style={{ touchAction: 'pan-y' }}>
                 {studentListFilter === 'equivalencias' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {filteredAndSortedStudents.slice(0, visibleCount).map((st) => (

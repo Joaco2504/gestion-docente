@@ -63,7 +63,7 @@ export default function UserMenu() {
           aria-label="Abrir menú de usuario"
           className="relative group p-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/40 focus-visible:ring-primary focus-visible:outline-hidden transition-all duration-150 active:scale-95 cursor-pointer"
         >
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center font-bold text-xs sm:text-sm tracking-tight shadow-xs select-none">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center font-bold text-xs sm:text-sm tracking-tight shadow-xs select-none">
             {initials}
           </div>
           {/* Indicador de estado activo */}

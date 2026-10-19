@@ -79,12 +79,12 @@ export default function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-30 h-16 w-full backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 text-text-primary transition-all shadow-xs">
-        <div className="flex items-center justify-between gap-3 w-full px-4 lg:px-6 h-16 max-w-7xl 2xl:max-w-[96rem] mx-auto">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-3 w-full px-2.5 sm:px-4 lg:px-6 h-16 max-w-7xl 2xl:max-w-[96rem] mx-auto">
           
           {/* ============================================================
               1. LADO IZQUIERDO: LOGO SVG KORUM + SELECTOR DE CÁTEDRA ACTIVA
              ============================================================ */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink min-w-0">
             {/* Isotipo & Marca Korum */}
             <Link 
               to="/dashboard" 
@@ -118,7 +118,7 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[130px] xs:max-w-[160px] sm:max-w-[180px] xl:max-w-[220px] truncate cursor-pointer shadow-2xs group shrink-0"
+                    className="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[110px] xs:max-w-[140px] sm:max-w-[180px] xl:max-w-[220px] truncate cursor-pointer shadow-2xs group shrink-0"
                     title={`Cátedra activa: ${currentCatedra.nombre}`}
                   >
                     <span 
@@ -212,7 +212,7 @@ export default function Navbar() {
           {/* ============================================================
               3. LADO DERECHO: COMMAND PALETTE + TEMA + NOTIF + USER MENU
              ============================================================ */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Botón disparador de Command Palette (⌘K) en Desktop */}
             <button
               type="button"
@@ -234,19 +234,19 @@ export default function Navbar() {
               type="button"
               onClick={() => setIsCommandPaletteOpen(true)}
               aria-label="Abrir buscador global"
-              className="sm:hidden w-9 h-9 flex items-center justify-center rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer active:scale-95 shrink-0"
+              className="sm:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer active:scale-95 shrink-0"
             >
               <Search className="w-4 h-4" />
             </button>
 
             {/* Selector de Tema Oscuro / Claro */}
-            <ThemeToggle />
+            <ThemeToggle className="p-1.5 sm:p-2" />
 
             {/* Campana de Notificaciones & Agenda */}
             <NotificationPanel />
 
             {/* Divisor vertical sutil */}
-            <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
+            <div className="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
 
             {/* Menú de Perfil Docente */}
             <UserMenu />
