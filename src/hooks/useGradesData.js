@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../lib/academicLogic';
+import { calcularCondicionFinal, calcularPorcentajeAsistencia, calcularNotasEfectivasEstudiante } from '../lib/academicLogic';
 import { calculateStudentRisk } from '../lib/earlyWarningLogic';
 import { getEstudiantesCatedra } from '../services/catedraEstudiantesService';
-import { getEvaluacionesCatedra } from '../services/evaluacionesService';
+import { getEvaluacionesCatedra, saveEvaluacion } from '../services/evaluacionesService';
 import { handleAppError } from '../utils/handleAppError';
 import { toast } from 'sonner';
 
@@ -26,6 +26,8 @@ export function useGradesData({
   const [asistencias, setAsistencias] = useState([]);
   const [inasistenciasDocente, setInasistenciasDocente] = useState([]);
   const [loading, setLoading] = useState(true);
+  const initializedCatedraRef = useRef(null);
+  const userId = user?.id;
   const [criterios, setCriterios] = useState({
     min_asist_promo: 80,
     min_asist_reg: 70,
@@ -60,7 +62,22 @@ export function useGradesData({
             .in('evaluacion_id', evIds);
 
           if (!notasError) {
-            setNotas(notasData || []);
+            const normalizedNotas = (notasData || []).map(n => {
+              let detalle = n.detalle_recuperatorio;
+              if (!detalle && n.observaciones && typeof n.observaciones === 'string' && n.observaciones.trim().startsWith('[')) {
+                try {
+                  detalle = JSON.parse(n.observaciones);
+                } catch (_) {}
+              }
+              const notaEfectiva = n.nota ?? n.valor ?? n.calificacion ?? null;
+              return {
+                ...n,
+                nota: notaEfectiva,
+                valor: notaEfectiva,
+                detalle_recuperatorio: detalle || null
+              };
+            });
+            setNotas(normalizedNotas);
           }
         } else {
           setNotas([]);
@@ -119,7 +136,23 @@ export function useGradesData({
 
         setEstudiantes(storedEst ? JSON.parse(storedEst) : []);
         setEvaluaciones(storedEv ? JSON.parse(storedEv) : []);
-        setNotas(storedNotas ? JSON.parse(storedNotas) : []);
+        const parsedStoredNotas = storedNotas ? JSON.parse(storedNotas) : [];
+        const normalizedStoredNotas = parsedStoredNotas.map(n => {
+          let detalle = n.detalle_recuperatorio;
+          if (!detalle && n.observaciones && typeof n.observaciones === 'string' && n.observaciones.trim().startsWith('[')) {
+            try {
+              detalle = JSON.parse(n.observaciones);
+            } catch (_) {}
+          }
+          const notaEfectiva = n.nota ?? n.valor ?? n.calificacion ?? null;
+          return {
+            ...n,
+            nota: notaEfectiva,
+            valor: notaEfectiva,
+            detalle_recuperatorio: detalle || null
+          };
+        });
+        setNotas(normalizedStoredNotas);
         setClases(storedClases ? JSON.parse(storedClases) : []);
         setAsistencias(storedAsist ? JSON.parse(storedAsist) : []);
         if (storedCrit) {
@@ -133,11 +166,13 @@ export function useGradesData({
     } finally {
       setLoading(false);
     }
-  }, [catedraId, isDemo, user]);
+  }, [catedraId, isDemo, userId]);
 
   useEffect(() => {
+    if (!catedraId || initializedCatedraRef.current === catedraId) return;
+    initializedCatedraRef.current = catedraId;
     fetchData();
-  }, [fetchData]);
+  }, [catedraId, fetchData]);
 
   // Mapa de notas por estudiante y evaluación: `${estudianteId}_${evaluacionId}` -> nota
   const notasMap = useMemo(() => {
@@ -242,19 +277,28 @@ export function useGradesData({
       const asistPct = asistenciaPorEstudiante.get(st.id) ?? 100;
       const stNotas = notas.filter(n => n.estudiante_id === st.id);
 
-      // Calcular promedio de cursada del estudiante
-      const validVals = stNotas
-        .map(n => n.valor ?? n.nota)
-        .filter(v => v !== null && v !== undefined && v !== '' && !isNaN(Number(v)))
-        .map(Number);
+      const { notasEfectivasMap, parcialesRecuperadosCount, promedioEfectivo } = calcularNotasEfectivasEstudiante({
+        evaluaciones,
+        studentNotas: stNotas,
+        criterios
+      });
 
-      const promedio = validVals.length > 0
-        ? Number((validVals.reduce((a, b) => a + b, 0) / validVals.length).toFixed(1))
-        : null;
+      // Calcular promedio de cursada del estudiante (con notas efectivas de recuperatorio reemplazadas)
+      let promedio = promedioEfectivo;
+      if (promedio === null) {
+        const validVals = stNotas
+          .map(n => n.valor ?? n.nota)
+          .filter(v => v !== null && v !== undefined && v !== '' && !isNaN(Number(v)))
+          .map(Number);
+        promedio = validVals.length > 0
+          ? Number((validVals.reduce((a, b) => a + b, 0) / validVals.length).toFixed(1))
+          : null;
+      }
 
       const condicion = calcularCondicionFinal({
         nivel: academicLevel,
         modalidad,
+        regimen: modalidad,
         asistenciaPct: asistPct,
         evaluaciones,
         studentNotas: stNotas,
@@ -281,7 +325,9 @@ export function useGradesData({
         promedio,
         condicion,
         risk,
-        notas: stNotas
+        notas: stNotas,
+        notasEfectivasMap,
+        parcialesRecuperadosCount
       };
     });
   }, [estudiantes, asistenciaPorEstudiante, notas, academicLevel, modalidad, evaluaciones, criterios, asistencias, clases, inasistenciasDocente]);
@@ -311,18 +357,49 @@ export function useGradesData({
   }, [estudiantes, studentRows, mainEvaluations]);
 
   // Mutación optimista de calificaciones (soporta firma por objeto { estudianteId, evaluacionId, valor, estado } o posicional (est, ev, payload))
+  // Asegura la existencia de la evaluación de recuperatorio general
+  const ensureRecuperatorioEval = useCallback(async () => {
+    let recup = evaluaciones.find(e => String(e.tipo || '').toUpperCase().includes('RECUP'));
+    if (recup) return recup;
+
+    try {
+      const newRecup = await saveEvaluacion({
+        titulo: 'Recuperatorio',
+        tipo: 'RECUPERATORIO',
+        catedra_id: catedraId
+      }, { catedraId, isDemo });
+      setEvaluaciones(prev => [...prev, newRecup]);
+      return newRecup;
+    } catch (err) {
+      console.warn('No se pudo crear evaluación de recuperatorio en BD, usando temporal:', err);
+      const fallback = {
+        id: `recup-gen-${catedraId}`,
+        titulo: 'Recuperatorio',
+        tipo: 'RECUPERATORIO',
+        catedra_id: catedraId
+      };
+      setEvaluaciones(prev => [...prev, fallback]);
+      return fallback;
+    }
+  }, [evaluaciones, catedraId, isDemo]);
+
+  // Mutación optimista de calificaciones (soporta firma por objeto { estudianteId, evaluacionId, valor, estado, detalle_recuperatorio } o posicional)
   const handleQuickSetGrade = useCallback(async (arg1, arg2, arg3) => {
-    let estudianteId, evaluacionId, valor, estado;
+    let estudianteId, evaluacionId, valor, estado, detalle_recuperatorio, observaciones;
     if (arg2 && arg3) {
       estudianteId = arg1?.id || arg1?.estudiante_id || arg1;
       evaluacionId = arg2?.id || arg2;
       valor = arg3.valor !== undefined ? arg3.valor : arg3.nota;
       estado = arg3.estado;
+      detalle_recuperatorio = arg3.detalle_recuperatorio ?? arg3.detalle;
+      observaciones = arg3.observaciones;
     } else if (arg1 && typeof arg1 === 'object') {
       estudianteId = arg1.estudianteId || arg1.estudiante_id;
       evaluacionId = arg1.evaluacionId || arg1.evaluacion_id;
       valor = arg1.valor !== undefined ? arg1.valor : arg1.nota;
       estado = arg1.estado;
+      detalle_recuperatorio = arg1.detalle_recuperatorio ?? arg1.detalle;
+      observaciones = arg1.observaciones;
     }
 
     if (!estudianteId || !evaluacionId) return;
@@ -343,7 +420,9 @@ export function useGradesData({
           ...updatedNotas[existingIndex],
           valor: numVal,
           nota: numVal,
-          estado: estado ?? null
+          estado: estado ?? null,
+          detalle_recuperatorio: detalle_recuperatorio !== undefined ? detalle_recuperatorio : prev[existingIndex]?.detalle_recuperatorio,
+          observaciones: observaciones !== undefined ? observaciones : prev[existingIndex]?.observaciones
         };
       } else {
         const newNotaObj = {
@@ -352,18 +431,20 @@ export function useGradesData({
           evaluacion_id: evaluacionId,
           valor: numVal,
           nota: numVal,
-          estado: estado ?? null
+          estado: estado ?? null,
+          detalle_recuperatorio: detalle_recuperatorio ?? null,
+          observaciones: observaciones ?? null
         };
         updatedNotas = [...prev, newNotaObj];
       }
 
-      if (!isSupabaseConfigured || isDemo) {
-        try {
-          const json = JSON.stringify(updatedNotas);
-          localStorage.setItem(`docentepro_demo_notas_${catedraId}`, json);
-          localStorage.setItem(`notas_${catedraId}`, json);
-        } catch (_) {}
-      }
+      // Cache local incondicional como red de seguridad contra pérdida de datos
+      try {
+        const json = JSON.stringify(updatedNotas);
+        localStorage.setItem(`docentepro_demo_notas_${catedraId}`, json);
+        localStorage.setItem(`notas_${catedraId}`, json);
+      } catch (_) {}
+
       return updatedNotas;
     });
 
@@ -378,16 +459,41 @@ export function useGradesData({
           estado: estado ?? null
         };
 
+        if (detalle_recuperatorio !== undefined) {
+          payload.detalle_recuperatorio = detalle_recuperatorio;
+          if (detalle_recuperatorio) {
+            payload.observaciones = JSON.stringify(detalle_recuperatorio);
+          } else {
+            payload.observaciones = observaciones ?? null;
+          }
+        } else if (observaciones !== undefined) {
+          payload.observaciones = observaciones;
+        }
+
         const { error: upsertErr } = await supabase
           .from('notas')
           .upsert(payload, { onConflict: 'estudiante_id,evaluacion_id' });
 
         if (upsertErr) {
-          if (existingIdToUpdate && !String(existingIdToUpdate).startsWith('nota-temp-')) {
-            await supabase
-              .from('notas')
-              .update(payload)
-              .eq('id', existingIdToUpdate);
+          // Reintento resiliente con columnas canónicas esenciales (valor, observaciones)
+          const fallbackPayload = {
+            estudiante_id: estudianteId,
+            evaluacion_id: evaluacionId,
+            valor: numVal,
+            observaciones: payload.observaciones || (estado ? `[ESTADO:${estado}]` : null)
+          };
+
+          const { data: existingRow } = await supabase
+            .from('notas')
+            .select('id')
+            .eq('estudiante_id', estudianteId)
+            .eq('evaluacion_id', evaluacionId)
+            .maybeSingle();
+
+          if (existingRow?.id) {
+            await supabase.from('notas').update(fallbackPayload).eq('id', existingRow.id);
+          } else {
+            await supabase.from('notas').insert([fallbackPayload]);
           }
         }
       } catch (err) {
@@ -404,11 +510,23 @@ export function useGradesData({
     }
   }, [isDemo, catedraId]);
 
+  const deleteEvaluacionLocal = useCallback((evaluacionId) => {
+    setEvaluaciones(prev => {
+      const recupIds = prev.filter(e => e.evaluacion_origen_id === evaluacionId).map(e => e.id);
+      const allDeletedIds = new Set([evaluacionId, ...recupIds]);
+      setNotas(prevNotas => prevNotas.filter(n => !allDeletedIds.has(n.evaluacion_id)));
+      return prev.filter(e => !allDeletedIds.has(e.id));
+    });
+  }, []);
+
   return {
     estudiantes,
     evaluaciones,
+    setEvaluaciones,
     mainEvaluations,
+    recuperatorioEvaluation: evaluaciones.find(e => String(e.tipo || '').toUpperCase().includes('RECUP')) || null,
     notas,
+    setNotas,
     loading,
     criterios,
     studentRows,
@@ -416,7 +534,16 @@ export function useGradesData({
     overallStats,
     getNotaValue,
     getNotaEstado,
+    getNotaDetalleRecuperatorio: useCallback((estId, evalId) => {
+      const n = notasMap.get(`${estId}_${evalId}`);
+      return n?.detalle_recuperatorio ?? null;
+    }, [notasMap]),
+    getNotaObj: useCallback((estId, evalId) => {
+      return notasMap.get(`${estId}_${evalId}`) ?? null;
+    }, [notasMap]),
+    ensureRecuperatorioEval,
     handleQuickSetGrade,
+    deleteEvaluacionLocal,
     refetch: fetchData
   };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcularCondicionFinal, calcularPorcentajeAsistencia } from '../../lib/academicLogic';
+import { calcularCondicionFinal, calcularPorcentajeAsistencia, calcularNotasEfectivasEstudiante } from '../../lib/academicLogic';
 
 describe('Suite de Pruebas Unitarias: academicLogic (RAM Catamarca & Régimen Laboral)', () => {
 
@@ -268,6 +268,178 @@ describe('Suite de Pruebas Unitarias: academicLogic (RAM Catamarca & Régimen La
     it('Asigna color ROJO si cae por debajo del umbral mínimo reglamentario', () => {
       expect(evaluarSemaforo(69.9, false)).toBe('rojo');
       expect(evaluarSemaforo(59.9, true)).toBe('rojo');
+    });
+  });
+
+  describe('7. Sistema de Recuperatorio Diferenciado por Alumno (Nivel Terciario)', () => {
+    const parciales = [
+      { id: 'p1', tipo: 'PARCIAL', titulo: '1° Parcial' },
+      { id: 'p2', tipo: 'PARCIAL', titulo: '2° Parcial' },
+      { id: 'p3', tipo: 'PARCIAL', titulo: '3° Parcial' }
+    ];
+
+    it('Caso 1: 0 parciales recuperados + notas >= 7 + asistencia >= 80% -> PROMOCIONAL (Directa)', () => {
+      const notas = [
+        { evaluacion_id: 'p1', valor: 8 },
+        { evaluacion_id: 'p2', valor: 7 },
+        { evaluacion_id: 'p3', valor: 9 }
+      ];
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'CUATRIMESTRAL',
+        asistenciaPct: 85,
+        evaluaciones: parciales,
+        studentNotas: notas
+      });
+
+      expect(resultado.condicion).toBe('PROMOCIONAL');
+      expect(resultado.subcondicion).toBe('DIRECTA');
+      expect(resultado.badgeVariant).toBe('promo');
+    });
+
+    it('Caso 2: Exactamente 1 parcial recuperado con nota >= 7 + notas finales >= 7 + asist >= 80% -> PROMOCION_INDIRECTA', () => {
+      // Alumno desaprobó p1 con 3, pero en recuperatorio sacó 8. p2=7, p3=8
+      const notas = [
+        { evaluacion_id: 'p1', valor: 3 },
+        { evaluacion_id: 'p2', valor: 7 },
+        { evaluacion_id: 'p3', valor: 8 },
+        {
+          evaluacion_id: 'recup-gen',
+          detalle_recuperatorio: [
+            { evaluacion_id: 'p1', titulo: '1° Parcial', nota_recuperatorio: 8, estado: 'CALIFICADO', aprobado: true }
+          ]
+        }
+      ];
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'CUATRIMESTRAL',
+        asistenciaPct: 82,
+        evaluaciones: parciales,
+        studentNotas: notas
+      });
+
+      expect(resultado.condicion).toBe('PROMOCION_INDIRECTA');
+      expect(resultado.subcondicion).toBe('INDIRECTA');
+      expect(resultado.badgeVariant).toBe('promo');
+      expect(resultado.motivo).toContain('Promoción Indirecta alcanzada');
+    });
+
+    it('Caso 3: Régimen ANUAL con 2 parciales recuperados aprobados con >= 7 -> REGULAR (tope máx regular para 2 recuperados)', () => {
+      // Alumno recuperó p1 con 8 y p3 con 9. Aunque las notas son altas, 2 recuperados limitan a REGULAR
+      const notas = [
+        { evaluacion_id: 'p1', valor: 2 },
+        { evaluacion_id: 'p2', valor: 8 },
+        { evaluacion_id: 'p3', valor: 3 },
+        {
+          evaluacion_id: 'recup-gen',
+          detalle_recuperatorio: [
+            { evaluacion_id: 'p1', titulo: '1° Parcial', nota_recuperatorio: 8, estado: 'CALIFICADO', aprobado: true },
+            { evaluacion_id: 'p3', titulo: '3° Parcial', nota_recuperatorio: 9, estado: 'CALIFICADO', aprobado: true }
+          ]
+        }
+      ];
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'ANUAL',
+        asistenciaPct: 85,
+        evaluaciones: parciales,
+        studentNotas: notas
+      });
+
+      expect(resultado.condicion).toBe('REGULAR');
+      expect(resultado.badgeVariant).toBe('regular');
+      expect(resultado.motivo).toContain('Regularidad alcanzada con 2 parcial(es) recuperado(s)');
+    });
+
+    it('Caso 4a: Régimen CUATRIMESTRAL con 2 parciales desaprobados en 1ra instancia -> LIBRE automático (excede límite máx 1)', () => {
+      const notas = [
+        { evaluacion_id: 'p1', valor: 2 },
+        { evaluacion_id: 'p2', valor: 3 },
+        { evaluacion_id: 'p3', valor: 8 }
+      ];
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'CUATRIMESTRAL',
+        asistenciaPct: 90,
+        evaluaciones: parciales,
+        studentNotas: notas
+      });
+
+      expect(resultado.condicion).toBe('LIBRE');
+      expect(resultado.badgeVariant).toBe('libre');
+      expect(resultado.motivo).toContain('exceder límite de parciales desaprobados');
+    });
+
+    it('Caso 4b: Régimen ANUAL con 3 parciales desaprobados en 1ra instancia -> LIBRE automático (excede límite máx 2)', () => {
+      const notas = [
+        { evaluacion_id: 'p1', valor: 2 },
+        { evaluacion_id: 'p2', valor: 3 },
+        { evaluacion_id: 'p3', valor: 1 }
+      ];
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'ANUAL',
+        asistenciaPct: 90,
+        evaluaciones: parciales,
+        studentNotas: notas
+      });
+
+      expect(resultado.condicion).toBe('LIBRE');
+      expect(resultado.badgeVariant).toBe('libre');
+      expect(resultado.motivo).toContain('exceder límite de parciales desaprobados');
+    });
+
+    it('Caso 5: Rinde recuperatorio y saca nota < 4 o Ausente -> LIBRE automático', () => {
+      const notas = [
+        { evaluacion_id: 'p1', valor: 2 },
+        { evaluacion_id: 'p2', valor: 8 },
+        { evaluacion_id: 'p3', valor: 7 },
+        {
+          evaluacion_id: 'recup-gen',
+          detalle_recuperatorio: [
+            { evaluacion_id: 'p1', titulo: '1° Parcial', nota_recuperatorio: 2, estado: 'CALIFICADO', aprobado: false }
+          ]
+        }
+      ];
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'CUATRIMESTRAL',
+        asistenciaPct: 85,
+        evaluaciones: parciales,
+        studentNotas: notas
+      });
+
+      expect(resultado.condicion).toBe('LIBRE');
+      expect(resultado.badgeVariant).toBe('libre');
+      expect(resultado.motivo).toContain('Libre por desaprobar recuperatorio');
+    });
+
+    it('Caso 6: Trazabilidad y Reemplazo Efectivo con calcularNotasEfectivasEstudiante', () => {
+      const notas = [
+        { evaluacion_id: 'p1', valor: 3 },
+        { evaluacion_id: 'p2', valor: 8 },
+        { evaluacion_id: 'p3', valor: 7 },
+        {
+          evaluacion_id: 'recup-gen',
+          detalle_recuperatorio: [
+            { evaluacion_id: 'p1', titulo: '1° Parcial', nota_recuperatorio: 9, estado: 'CALIFICADO', aprobado: true }
+          ]
+        }
+      ];
+
+      const { notasEfectivasMap, parcialesRecuperadosCount, promedioEfectivo } = calcularNotasEfectivasEstudiante({
+        evaluaciones: parciales,
+        studentNotas: notas
+      });
+
+      expect(parcialesRecuperadosCount).toBe(1);
+      const infoP1 = notasEfectivasMap.get('p1');
+      expect(infoP1.notaOriginal).toBe(3);
+      expect(infoP1.notaRecup).toBe(9);
+      expect(infoP1.notaEfectiva).toBe(9);
+      expect(infoP1.reemplazada).toBe(true);
+      // Promedio con 9, 8, 7 = (9 + 8 + 7) / 3 = 8.0
+      expect(promedioEfectivo).toBe(8);
     });
   });
 

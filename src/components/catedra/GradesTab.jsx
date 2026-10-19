@@ -15,6 +15,7 @@ import PrintPreviewModal from '../common/PrintPreviewModal';
 import PrintGradesConfigModal from './PrintGradesConfigModal';
 import EditEvaluacionParamsModal from './EditEvaluacionParamsModal';
 import NuevaEvaluacionModal from './modals/NuevaEvaluacionModal';
+import ConfigurarRecuperatorioModal from './modals/ConfigurarRecuperatorioModal';
 import GradesStatsHeader from './grades/GradesStatsHeader';
 import GradeMatrixTable from './grades/GradeMatrixTable';
 import GradeCardsMobile from './grades/GradeCardsMobile';
@@ -23,6 +24,7 @@ import { useGradesData } from '../../hooks/useGradesData';
 import { useAuth } from '../../context/AuthContext';
 import { exportGradesToExcel } from '../../lib/excel';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { deleteEvaluacion } from '../../services/evaluacionesService';
 import { toast } from 'sonner';
 
 /**
@@ -41,18 +43,23 @@ export default function GradesTab({
   const { user, isDemo } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [density, setDensity] = useState('comfortable'); // 'comfortable' | 'compact'
+  const [regimen, setRegimen] = useState(
+    String(modalidad || 'ANUAL').toUpperCase().includes('CUATRI') ? 'CUATRIMESTRAL' : 'ANUAL'
+  );
   const [isNuevaEvalModalOpen, setIsNuevaEvalModalOpen] = useState(false);
   const [isPrintConfigModalOpen, setIsPrintConfigModalOpen] = useState(false);
   const [isPrintPreviewModalOpen, setIsPrintPreviewModalOpen] = useState(false);
   const [printConfig, setPrintConfig] = useState(null);
   const [editingModalNota, setEditingModalNota] = useState(null);
   const [editingEvalParams, setEditingEvalParams] = useState(null);
+  const [configurandoRecupEstudiante, setConfigurandoRecupEstudiante] = useState(null);
 
   // Hook desacoplado de datos y mutaciones
   const {
     estudiantes,
     evaluaciones,
     mainEvaluations,
+    recuperatorioEvaluation,
     notas,
     loading,
     studentRows,
@@ -60,12 +67,15 @@ export default function GradesTab({
     overallStats,
     getNotaValue,
     getNotaEstado,
+    getNotaObj,
+    ensureRecuperatorioEval,
     handleQuickSetGrade,
+    deleteEvaluacionLocal,
     refetch
   } = useGradesData({
     catedraId,
     academicLevel,
-    modalidad,
+    modalidad: regimen,
     isDemo,
     user
   });
@@ -95,6 +105,25 @@ export default function GradesTab({
         nombreEstudiante: `${info.apellido || ''}, ${info.nombre || ''}`.trim(),
         nombreEvaluacion: maybeEv.titulo || maybeEv.nombre || 'Evaluación'
       });
+    }
+  };
+
+  const handleSaveRecuperatorio = async (detalle, valorPromedio, estado) => {
+    if (!configurandoRecupEstudiante) return;
+    try {
+      const recupEval = await ensureRecuperatorioEval();
+      await handleQuickSetGrade({
+        estudianteId: configurandoRecupEstudiante.id,
+        evaluacionId: recupEval.id,
+        valor: valorPromedio,
+        estado: estado || (valorPromedio !== null ? 'CALIFICADO' : null),
+        detalle_recuperatorio: detalle
+      });
+      toast.success(`Recuperatorio guardado para ${configurandoRecupEstudiante.apellido}, ${configurandoRecupEstudiante.nombre}`);
+      refetch();
+    } catch (err) {
+      console.error('Error guardando recuperatorio:', err);
+      toast.error('Error al guardar recuperatorio');
     }
   };
 
@@ -131,18 +160,22 @@ export default function GradesTab({
       return;
     }
     try {
-      if (isSupabaseConfigured && !isDemo && !String(evToDelete.id).startsWith('eval-')) {
-        const { error } = await supabase.from('evaluaciones').delete().eq('id', evToDelete.id);
-        if (error) throw error;
-      } else {
-        const key = `docentepro_demo_evals_${catedraId}`;
-        const list = JSON.parse(localStorage.getItem(key) || '[]');
-        localStorage.setItem(key, JSON.stringify(list.filter(e => e.id !== evToDelete.id)));
-      }
-      toast.success('Evaluación eliminada.');
+      // 1. Inmediatamente actualizar la UI optimista
+      deleteEvaluacionLocal(evToDelete.id);
+
+      // 2. Ejecutar borrado seguro en 2 pasos
+      await deleteEvaluacion(evToDelete.id, {
+        catedraId,
+        supabase,
+        isDemo
+      });
+
+      toast.success('Evaluación eliminada correctamente.');
       refetch();
     } catch (err) {
+      console.error('Error al eliminar evaluación:', err);
       toast.error('No se pudo eliminar la evaluación.');
+      refetch();
     }
   };
 
@@ -215,6 +248,34 @@ export default function GradesTab({
 
           {/* Acciones principales */}
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* Conmutador de Régimen Académico (Anual vs Cuatrimestral) */}
+            <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200/80 dark:border-white/10 text-xs font-bold select-none">
+              <button
+                type="button"
+                onClick={() => setRegimen('ANUAL')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  regimen === 'ANUAL'
+                    ? 'bg-white dark:bg-slate-900 text-primary shadow-xs font-black'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+                title="Régimen Anual: Máximo 2 parciales a recuperar"
+              >
+                Anual (máx. 2)
+              </button>
+              <button
+                type="button"
+                onClick={() => setRegimen('CUATRIMESTRAL')}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  regimen === 'CUATRIMESTRAL'
+                    ? 'bg-white dark:bg-slate-900 text-primary shadow-xs font-black'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+                title="Régimen Cuatrimestral: Máximo 1 parcial a recuperar"
+              >
+                Cuatrimestral (máx. 1)
+              </button>
+            </div>
+
             <div className="hidden lg:block">
               <GradesDensitySelector density={density} onDensityChange={setDensity} />
             </div>
@@ -259,6 +320,8 @@ export default function GradesTab({
           studentRows={filteredStudentRows}
           mainEvaluations={mainEvaluations}
           evaluaciones={evaluaciones}
+          recuperatorioEval={recuperatorioEvaluation}
+          regimen={regimen}
           evalMetricsMap={evalMetricsMap}
           getNotaValue={getNotaValue}
           getNotaEstado={getNotaEstado}
@@ -266,6 +329,7 @@ export default function GradesTab({
           onOpenEditNota={handleOpenEditNota}
           onOpenNuevaEvaluacion={() => setIsNuevaEvalModalOpen(true)}
           onOpenEditParams={(ev) => setEditingEvalParams(ev)}
+          onOpenConfigurarRecuperatorio={(est) => setConfigurandoRecupEstudiante(est)}
           onDeleteEval={handleDeleteEval}
           density={density}
         />
@@ -277,9 +341,12 @@ export default function GradesTab({
           studentRows={filteredStudentRows}
           mainEvaluations={mainEvaluations}
           evaluaciones={evaluaciones}
+          recuperatorioEval={recuperatorioEvaluation}
+          regimen={regimen}
           getNotaValue={getNotaValue}
           getNotaEstado={getNotaEstado}
           onOpenEditNota={handleOpenEditNota}
+          onOpenConfigurarRecuperatorio={(est) => setConfigurandoRecupEstudiante(est)}
           onQuickSetGrade={cursadaFinalizada ? undefined : handleQuickSetGrade}
         />
       </div>
@@ -400,6 +467,10 @@ export default function GradesTab({
           setIsNuevaEvalModalOpen(false);
           refetch();
         }}
+        onEvaluacionCreada={() => {
+          setIsNuevaEvalModalOpen(false);
+          refetch();
+        }}
       />
 
       <EditEvaluacionParamsModal
@@ -408,6 +479,10 @@ export default function GradesTab({
         evaluacion={editingEvalParams}
         catedraId={catedraId}
         onSave={handleSaveEvalParams}
+        onDelete={(ev) => {
+          setEditingEvalParams(null);
+          handleDeleteEval(ev);
+        }}
       />
 
       <PrintGradesConfigModal
@@ -436,6 +511,35 @@ export default function GradesTab({
           printConfig
         }}
       />
+
+      {configurandoRecupEstudiante && (
+        <ConfigurarRecuperatorioModal
+          isOpen={Boolean(configurandoRecupEstudiante)}
+          onClose={() => setConfigurandoRecupEstudiante(null)}
+          estudiante={configurandoRecupEstudiante}
+          parciales={mainEvaluations.filter(e => {
+            const t = String(e.tipo || '').toUpperCase();
+            return t === 'PARCIAL' || t.includes('PARCIAL') || t === 'PRUEBA';
+          })}
+          notasMap={(evalId) => {
+            const val = getNotaValue(configurandoRecupEstudiante.id, evalId);
+            const est = getNotaEstado(configurandoRecupEstudiante.id, evalId);
+            return { valor: val, nota: val, estado: est };
+          }}
+          recuperatorioActual={
+            getNotaObj(
+              configurandoRecupEstudiante.id,
+              recuperatorioEvaluation?.id || 'recup-gen'
+            ) ||
+            notas.find(
+              n => n.estudiante_id === configurandoRecupEstudiante.id &&
+              (n.detalle_recuperatorio || (recuperatorioEvaluation && n.evaluacion_id === recuperatorioEvaluation.id))
+            )
+          }
+          regimen={regimen}
+          onSave={handleSaveRecuperatorio}
+        />
+      )}
     </div>
   );
 }

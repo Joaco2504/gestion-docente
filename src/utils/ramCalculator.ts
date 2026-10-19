@@ -36,6 +36,16 @@ export interface NotaItem {
   valor?: number | null;
   nota?: number | null;
   estado?: 'CALIFICADO' | 'NO_ENTREGO' | 'AUSENTE' | string;
+  detalle_recuperatorio?: Array<{
+    evaluacion_id: string;
+    titulo?: string;
+    nota_recuperatorio?: number | null;
+    valor?: number | null;
+    nota?: number | null;
+    estado?: string;
+    aprobado?: boolean;
+  }> | null;
+  observaciones?: string | null;
 }
 
 export interface EvaluacionResultadoRAM {
@@ -74,7 +84,7 @@ export function evaluarCondicionEstudiante(
     notaAprobacion: 4,
     notaPromocion: 7
   }
-): { condicion: 'ACREDITADA_EQUIVALENCIA' | 'PROMOCIONAL' | 'REGULAR' | 'LIBRE'; umbralAplicado: number; detalle: string } {
+): { condicion: 'ACREDITADA_EQUIVALENCIA' | 'PROMOCIONAL' | 'PROMOCION_INDIRECTA' | 'REGULAR' | 'LIBRE' | 'RECUPERATORIO'; umbralAplicado: number; detalle: string } {
   // 1. Acreditación directa por equivalencia
   if (inscripcion?.es_equivalencia) {
     return {
@@ -249,6 +259,28 @@ export function calcularPromedioRAM(
   const evalById = new Map(evaluaciones.map((ev, idx) => [ev.id, { ev, res: analizadas[idx] }]));
   const recupsByOrigen = new Map<string, { ev: EvaluacionItem; res: EvaluacionResultadoRAM }>();
 
+  // Mapa de recuperatorios configurados en detalle_recuperatorio (Opción B)
+  const recuperatoriosMap = new Map<string, number>();
+  notas.forEach(n => {
+    if (estudianteId && n.estudiante_id && n.estudiante_id !== estudianteId) return;
+    let detalle = n.detalle_recuperatorio;
+    if (!detalle && n.observaciones && typeof n.observaciones === 'string' && n.observaciones.trim().startsWith('[')) {
+      try {
+        detalle = JSON.parse(n.observaciones);
+      } catch (_) {}
+    }
+    if (Array.isArray(detalle)) {
+      detalle.forEach(item => {
+        if (item && item.evaluacion_id) {
+          const valRec = item.nota_recuperatorio ?? item.valor ?? item.nota;
+          if (valRec !== null && valRec !== undefined && valRec !== '' && !isNaN(Number(valRec))) {
+            recuperatoriosMap.set(String(item.evaluacion_id), Number(valRec));
+          }
+        }
+      });
+    }
+  });
+
   evaluaciones.forEach((ev, idx) => {
     const isRecup = String(ev.tipo || '').toUpperCase().includes('RECUP');
     if (isRecup && ev.evaluacion_origen_id) {
@@ -274,6 +306,10 @@ export function calcularPromedioRAM(
     }
     if (linkedRecup?.evaluada && linkedRecup.nota !== null && !isNaN(linkedRecup.nota)) {
       notaEfectiva = notaEfectiva !== null ? Math.max(notaEfectiva, linkedRecup.nota) : linkedRecup.nota;
+    }
+    if (recuperatoriosMap.has(String(ev.id))) {
+      const recVal = recuperatoriosMap.get(String(ev.id))!;
+      notaEfectiva = notaEfectiva !== null ? Math.max(notaEfectiva, recVal) : recVal;
     }
 
     if (notaEfectiva !== null) {

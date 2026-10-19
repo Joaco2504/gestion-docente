@@ -507,6 +507,7 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
     const numNota = notaRecord?.nota !== undefined && notaRecord?.nota !== null ? Number(notaRecord.nota) : numValor;
     return {
       id: ev.id,
+      evaluacion_id: ev.id,
       titulo: ev.titulo,
       tipo: ev.tipo,
       fecha_entrega: ev.fecha_entrega || null,
@@ -515,14 +516,24 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
       link_consigna: ev.link_consigna || ev.archivo_url || null,
       valor: numValor,
       nota: numNota,
-      estado: notaRecord?.estado || null
+      estado: notaRecord?.estado || null,
+      detalle_recuperatorio: notaRecord?.detalle_recuperatorio || null,
+      observaciones: notaRecord?.observaciones || null
     };
   });
 
   // 3. Cálculo de Condición RAM
   const studentNotasForLogic = studentEvaluaciones
-    .filter(e => e.valor !== null || e.estado)
-    .map(e => ({ evaluacion_id: e.id, valor: e.valor, nota: e.nota, estado: e.estado, tipo: e.tipo }));
+    .filter(e => e.valor !== null || e.estado || e.detalle_recuperatorio)
+    .map(e => ({ 
+      evaluacion_id: e.id, 
+      valor: e.valor, 
+      nota: e.nota, 
+      estado: e.estado, 
+      tipo: e.tipo,
+      detalle_recuperatorio: e.detalle_recuperatorio,
+      observaciones: e.observaciones
+    }));
 
   const condicionCalculada = student.es_equivalencia 
     ? {

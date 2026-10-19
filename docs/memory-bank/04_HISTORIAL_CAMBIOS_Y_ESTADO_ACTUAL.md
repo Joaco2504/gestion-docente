@@ -61,6 +61,52 @@ Bitácora técnica viva donde se registran cronológicamente todas las directiva
   * **Buscador & Ordenamiento Móvil Unificado:** En móviles (`< 1024px`), se sustituyó la lupa circular expandible por un input de búsqueda siempre visible con ícono de lupa y botón `X` de limpieza (`placeholder="Buscar alumno por nombre o DNI..."`), y una única fila de ordenamiento con select de criterios y botón `Asc`/`Desc`. En desktop (`>= 1024px`) se mantiene `ExpandableSearch` y el botón rápido `Ordenar: A-Z`.
   * **Sub-pestañas Móviles:** Incorporadas clases `scrollbar-none [&::-webkit-scrollbar]:hidden` en el listado horizontal de sub-pestañas para eliminar la barra gris de scroll en navegadores WebKit/Blink/Gecko.
   * **Header Móvil Compacto (`Navbar.jsx`, `UserMenu.jsx`, `NotificationPanel.jsx`):** Reducción quirúrgica de padding lateral (`px-2.5 sm:px-4 lg:px-6`), gap (`gap-1 sm:gap-2`), y tamaño responsivo del avatar de usuario a `w-8 h-8 sm:w-10 sm:h-10`, garantizando que las iniciales `EP` y el menú de perfil entren 100% completos en pantallas de 360px–390px sin desbordamiento horizontal.
-  * **Selectores de Institución y Ciclo en Dashboard (`HeaderSelector.jsx`):** Reorganizados en móvil (`< 640px`) en 2 filas completas e independientes (`flex-col sm:flex-row`), permitiendo mostrar el nombre completo de la institución y su badge sin truncamiento severo y manteniendo los botones `[+]` alineados a la derecha (`w-10 h-10`). En tablet y PC (`sm:`) regresa fluidamente a `flex-row`.
   * **QA y Verificación:** 67/67 tests unitarios aprobados en Vitest (`npx vitest run --passWithNoTests`) y build de producción exitoso con Vite (Código 0).
+
+### 10. Sistema de Recuperatorio Diferenciado por Alumno, Reemplazo Trazable de Notas y Promoción Indirecta
+- **Estado:** ✅ Completado y Verificado al 100%.
+- **Alcance y Mejoras Realizadas:**
+  * **Lógica Académica (`academicLogic.js` & `ramCalculator.ts`):**
+    - Sábana con una única columna de evaluación tipo Recuperatorio configurada individualmente por alumno.
+    - Soporte de límites por régimen: Cuatrimestral (máx. 1 parcial recuperable; $\ge 2$ desaprobados en 1ra instancia $\rightarrow$ automáticamente `LIBRE`) y Anual (máx. 2 parciales recuperables; $\ge 3$ desaprobados en 1ra instancia $\rightarrow$ automáticamente `LIBRE`).
+    - Motor `calcularNotasEfectivasEstudiante`: reemplazo de nota si la nota recuperada es $\ge 4$, cómputo del promedio efectivo y trazabilidad íntegra del parcial original versus nota recuperada.
+    - Condición académica integral: soporte de `PROMOCIONAL` (0 recuperados, notas $\ge 7$, asist $\ge 80\%$), `PROMOCION_INDIRECTA` (exactamente 1 parcial recuperado con nota $\ge 7$, notas finales $\ge 7$, asist $\ge 80\%$), `REGULAR` (parciales $\ge 4$, o 2 parciales recuperados) y `LIBRE` (exceso de límite, recuperatorio desaprobado o inasistencias).
+  * **Persistencia & Supabase (`useGradesData.js` & migración SQL):**
+    - Migración `supabase/migrations/20261019180000_notas_detalle_recuperatorio.sql` agregando la columna `detalle_recuperatorio JSONB DEFAULT NULL`.
+    - Normalización bidireccional y guardado dual con fallback y retry transparente en `observaciones` para resiliencia offline y compatibilidad inmediata con bases de datos remotas.
+    - Resolución y aprovisionamiento automático de la evaluación de recuperatorio mediante `ensureRecuperatorioEval`.
+  * **Componentes UI:**
+    - `ConfigurarRecuperatorioModal.jsx`: Modal táctil y accesible para configurar los parciales que rinde cada estudiante, notas obtenidas, estados (Aus., N/E) y alertas en tiempo real de cupo y exclusión a `LIBRE`.
+    - `Badge.jsx`: Variante `promo_ind` con paleta teal/esmeralda y dot indicador para `PROM. IND`.
+    - `GradeCell.jsx`: Trazabilidad visual de nota original tachada y nota efectiva: `~3~ ➔ 7 (R)` con tooltip explicativo.
+    - `GradeMatrixTable.jsx`: Columna consolidada de Recuperatorio con chips compactos `P1: 7 · P2: 8`, badge `Excede límite (Libre)`, botón `+ Configurar`, badges `PROM. DIR` y `PROM. IND`.
+    - `GradesTab.jsx`: Selector de conmutación de régimen `Anual (máx. 2)` / `Cuatrimestral (máx. 1)` en barra superior con persistencia.
+    - `GradeCardsMobile.jsx`: Fila dedicada de Recuperatorio General con apertura del modal táctil y visualización `~3~ ➔ 7 (R)`.
+    - `ConsultaAlumnoPage.jsx`: Portal del estudiante actualizado reconociendo `PROMOCIÓN INDIRECTA`, desglose de parciales recuperados y trazabilidad visual de notas reemplazadas.
+  * **QA y Verificación:** 74/74 tests unitarios aprobados en Vitest (`npx vitest run`) y build de producción exitoso con Vite (Código 0).
+
+### 11. Detención de Bucle Infinito en Cátedra, Persistencia Firme de Notas, Borrado Seguro de Parciales en 2 Pasos y Google Drive 100% Opcional
+- **Estado:** ✅ Completado y Verificado al 100%.
+- **Alcance y Mejoras Realizadas:**
+  * **1. Eliminación Radical del Bucle Infinito de Recarga:**
+    - Identificada la causa raíz: `useAttendanceManager` incluía el objeto `catedra` en las dependencias de `fetchData`, recreándolo en cada ciclo y ejecutando `ensureScheduledClassesToDate` y escrituras continuas en `localStorage`.
+    - Implementación de candados de sincronización con `initializedCatedraRef = useRef(null)` en `useAttendanceManager.js`, `useGradesData.js`, `CatedraDetailPage.jsx`, `StudentsTab.jsx` y `LibroTemasTab.jsx`.
+    - Estabilización de dependencias a `[catedraId, isDemo, userId]` eliminando completamente las recargas cíclicas.
+  * **2. Persistencia Inmutable y Protección de Notas:**
+    - Cero pérdida de calificaciones: implementado guardado local incondicional inmediato en `localStorage` (`notas_${catedraId}` y `docentepro_demo_notas_${catedraId}`) antes de la llamada de red a Supabase.
+    - Soporte dual y simetría total de campos: mapeo bidireccional `nota` y `valor`, y reintento resiliente con búsqueda previa por `(estudiante_id, evaluacion_id)` e inserción/actualización con columnas esenciales para tolerar cualquier divergencia en restricciones UNIQUE remotas.
+  * **3. Borrado Seguro de Parciales en 2 Pasos (Cascada FK):**
+    - En `src/services/evaluacionesService.js` (`deleteEvaluacion`):
+      * Paso 1: Eliminar primero todas las calificaciones asociadas en `notas` para la evaluación y cualquier recuperatorio hijo vinculado (`evaluacion_origen_id`).
+      * Paso 2: Eliminar recuperatorios hijos y posteriormente la fila de `evaluaciones`.
+      * Paso 3: Limpieza sincronizada en `localStorage` de todas las claves de evaluaciones y notas.
+    - En `GradesTab.jsx`: actualización optimista inmediata en UI con `deleteEvaluacionLocal(id)` antes del llamado asíncrono y refetch de confirmación.
+    - En `EditEvaluacionParamsModal.jsx`: agregado botón de eliminación directa con alerta de confirmación en el pie del modal.
+  * **4. Enlace a Google Drive 100% Opcional:**
+    - En `EditEvaluacionParamsModal.jsx`: removida validación bloqueante `if (consignaType === 'GOOGLE_LINK' && !driveUrl.trim())` y atributo HTML5 `required` del input. Label actualizado a `URL del Documento / Carpeta en Drive (Opcional)`. Si el campo está vacío, guarda `archivo_url: null`.
+    - En `NuevaEvaluacionModal.jsx`: integración de `saveEvaluacion` automático cuando no se suministra `onSave`, soporte unificado de callbacks (`onEvaluacionCreada` y `onEvaluacionCreated`), y cierre automático con toast informativo.
+  * **QA y Verificación:**
+    - 74/74 tests unitarios aprobados en Vitest (`npx vitest run --passWithNoTests`).
+    - Build de producción ejecutado con éxito sin errores (`npm run build`, Código 0).
+
 

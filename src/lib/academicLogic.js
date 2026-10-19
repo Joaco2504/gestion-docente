@@ -208,7 +208,7 @@ export function calcularCondicionFinal(
   }
 
   // =========================================================================
-  // NIVEL TERCIARIO: Promocional, Regular, Libre
+  // NIVEL TERCIARIO: Promocional (Directa/Indirecta), Regular, Libre
   // =========================================================================
   if (notasMap.size === 0 && estadosMap.size === 0) {
     return {
@@ -232,6 +232,29 @@ export function calcularCondicionFinal(
   const recuperatorios = evaluaciones.filter(e => {
     const t = String(e.tipo || '').toUpperCase();
     return t === 'RECUPERATORIO' || t.includes('RECUP');
+  });
+
+  // Determinar régimen de la cátedra: Anual (máx. 2 parciales a recuperar) vs Cuatrimestral (máx. 1)
+  const regimenStr = String(arg1?.regimen || arg1?.modalidad || modalidad || 'CUATRIMESTRAL').toUpperCase();
+  const esAnual = regimenStr.includes('ANUAL');
+  const maxRecupPermitidoReg = esAnual ? 2 : 1;
+
+  // Mapa de detalles de recuperatorio configurados para el alumno (Opción B)
+  const recuperatoriosMap = new Map(); // parcial_id -> { evaluacion_id, titulo, nota_recuperatorio, estado, aprobado }
+  studentNotas.forEach(n => {
+    let detalle = n.detalle_recuperatorio;
+    if (!detalle && n.observaciones && typeof n.observaciones === 'string' && n.observaciones.trim().startsWith('[')) {
+      try {
+        detalle = JSON.parse(n.observaciones);
+      } catch (_) {}
+    }
+    if (Array.isArray(detalle)) {
+      detalle.forEach(item => {
+        if (item && item.evaluacion_id) {
+          recuperatoriosMap.set(String(item.evaluacion_id), item);
+        }
+      });
+    }
   });
 
   // Verificar TPs (se exige aprobación con >= notaMinReg para los TPs ya calificados o vencidos)
@@ -259,11 +282,7 @@ export function calcularCondicionFinal(
     }
   }
 
-  // Parciales y recuperatorios exigibles (excluyendo parciales con fecha futura sin calificar ni estado)
-  let recupsUsados = 0;
-  let todosParcialesReg = true;
-  let todosParcialesPromo = true;
-
+  // Parciales exigibles (excluyendo parciales con fecha futura sin calificar ni estado)
   const parcialesExigibles = parciales.filter(p => {
     if (p.fecha_entrega && !isDatePast(p.fecha_entrega) && !notasMap.has(p.id) && !estadosMap.has(p.id)) {
       return false;
@@ -271,27 +290,86 @@ export function calcularCondicionFinal(
     return true;
   });
 
+  // 1. Contabilizar parciales desaprobados en primera instancia
+  let desaprobadosPrimeraInstancia = 0;
+  parcialesExigibles.forEach(p => {
+    const notaOrig = notasMap.get(p.id);
+    const estadoOrig = estadosMap.get(p.id);
+    const esDesaprobado = estadoOrig === 'NO_ENTREGO' || estadoOrig === 'AUSENTE' || (notaOrig !== undefined && notaOrig < notaMinReg);
+    if (esDesaprobado) {
+      desaprobadosPrimeraInstancia++;
+    }
+  });
+
+  // REGLA DE EXCLUSIÓN AUTOMÁTICA A LIBRE:
+  // Si desaprueba más parciales que el tope del régimen (>1 en cuatrimestral o >2 en anual), queda automáticamente LIBRE
+  if (desaprobadosPrimeraInstancia > maxRecupPermitidoReg) {
+    const limiteTexto = esAnual ? 'máx. 2 en régimen anual' : 'máx. 1 en régimen cuatrimestral';
+    return {
+      condicion: 'LIBRE',
+      color: 'text-rose-700',
+      badgeVariant: 'libre',
+      motivo: `Libre por exceder límite de parciales desaprobados (${desaprobadosPrimeraInstancia} desaprobados, ${limiteTexto})`
+    };
+  }
+
+  // 2. Evaluar cada parcial y su correspondiente nota de recuperatorio
+  let recupsRendidos = 0;
+  let algunRecupDesaprobado = false;
+  let desaprobadoRecupDetalle = '';
+  let todosParcialesReg = true;
+  let todosParcialesPromo = true;
+
   for (const p of parcialesExigibles) {
     const notaOrig = notasMap.get(p.id);
     const estadoOrig = estadosMap.get(p.id);
-    const recupLinked = recuperatorios.find(r => r.evaluacion_origen_id === p.id);
-    const notaRecup = recupLinked ? notasMap.get(recupLinked.id) : undefined;
-    const estadoRecup = recupLinked ? estadosMap.get(recupLinked.id) : undefined;
 
-    const necesitoRecup = notaOrig === undefined || notaOrig < notaMinPromo;
-    if (necesitoRecup && (notaRecup !== undefined || estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO')) {
-      recupsUsados++;
+    let notaRecup = undefined;
+    let estadoRecup = undefined;
+
+    // A. Opción B: Recuperatorio configurado en detalle_recuperatorio
+    if (recuperatoriosMap.has(String(p.id))) {
+      const item = recuperatoriosMap.get(String(p.id));
+      const valRec = item.nota_recuperatorio ?? item.valor ?? item.nota;
+      if (valRec !== null && valRec !== undefined && valRec !== '') {
+        const num = Number(valRec);
+        if (!isNaN(num)) {
+          notaRecup = num;
+        } else {
+          estadoRecup = String(valRec).toUpperCase();
+        }
+      }
+      if (item.estado) estadoRecup = String(item.estado).toUpperCase();
+    } else {
+      // B. Recuperatorio vinculado por evaluacion_origen_id (legacy)
+      const recupLinked = recuperatorios.find(r => r.evaluacion_origen_id === p.id);
+      if (recupLinked) {
+        notaRecup = notasMap.get(recupLinked.id);
+        estadoRecup = estadosMap.get(recupLinked.id);
+      }
     }
 
-    // La nota efectiva protege la nota original si el alumno ya había aprobado y sacó menos o faltó al recuperatorio
+    const rindioRecup = notaRecup !== undefined || estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO';
+    if (rindioRecup) {
+      recupsRendidos++;
+      if (estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO' || (notaRecup !== undefined && notaRecup < notaMinReg)) {
+        algunRecupDesaprobado = true;
+        desaprobadoRecupDetalle = `${p.titulo || 'Parcial'}: ${notaRecup !== undefined ? notaRecup : (estadoRecup || 'Desaprobado')}`;
+      }
+    }
+
+    // Regla de Reemplazo Efectivo:
+    // Si la nota_recuperada es aprobada (>= notaMinReg), esa nota REEMPLAZA a la nota del parcial original
     let notaEfectiva = null;
-    if (notaOrig !== undefined && notaRecup !== undefined) {
-      notaEfectiva = Math.max(notaOrig, notaRecup);
-    } else if (notaRecup !== undefined) {
+    if (notaRecup !== undefined && notaRecup >= notaMinReg) {
       notaEfectiva = notaRecup;
+    } else if (notaRecup !== undefined && notaRecup < notaMinReg) {
+      notaEfectiva = notaRecup; // Desaprobado en recuperatorio
+    } else if (estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO') {
+      notaEfectiva = null;
     } else if (notaOrig !== undefined) {
       notaEfectiva = notaOrig;
-    } else if (estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO' || estadoOrig === 'AUSENTE' || estadoOrig === 'NO_ENTREGO') {
+    } else if (estadoOrig === 'AUSENTE' || estadoOrig === 'NO_ENTREGO') {
       notaEfectiva = null;
     }
 
@@ -303,68 +381,200 @@ export function calcularCondicionFinal(
     }
   }
 
-  const maxRecupPermitidoReg = String(modalidad).toUpperCase().includes('ANUAL') ? 2 : 1;
+  // REGLA: Si rindió recuperatorio y desaprobó alguno de los parciales a recuperar, queda automáticamente LIBRE
+  if (algunRecupDesaprobado) {
+    return {
+      condicion: 'LIBRE',
+      color: 'text-rose-700',
+      badgeVariant: 'libre',
+      motivo: `Libre por desaprobar recuperatorio (${desaprobadoRecupDetalle})`
+    };
+  }
 
-  // Caso especial: hay parciales futuros aún sin rendir pero ya se calificaron TPs
-  if (parciales.length > 0 && parcialesExigibles.length === 0) {
-    if (asistenciaPct >= minRegAsist && todosTpsAprobados) {
+  // REGLA: Si la asistencia no alcanza el piso reglamentario, queda LIBRE
+  if (asistenciaPct < minRegAsist) {
+    return {
+      condicion: 'LIBRE',
+      color: 'text-rose-700',
+      badgeVariant: 'libre',
+      motivo: `Libre por inasistencias (${asistenciaPct}% sobre mín. ${minRegAsist}%)`
+    };
+  }
+
+  // Caso especial: Taller / Seminario evaluado solo por TPs
+  const soloTps = parciales.length === 0 && tpsExigibles.length > 0;
+
+  // REGLA: Si no tiene todos los parciales regulares o TPs aprobados
+  if (!todosParcialesReg || !todosTpsAprobados) {
+    // Si desaprobó parciales en primera instancia dentro del cupo y aún no cargó recuperatorio
+    if (desaprobadosPrimeraInstancia > 0 && recupsRendidos === 0) {
       return {
-        condicion: 'REGULAR',
+        condicion: 'RECUPERATORIO',
         color: 'text-amber-700',
-        badgeVariant: 'regular',
-        motivo: `En curso con TPs aprobados (parciales pendientes) | Asist: ${asistenciaPct}%`
+        badgeVariant: 'warning',
+        motivo: `Debe recuperar ${desaprobadosPrimeraInstancia} parcial(es) desaprobado(s)`
       };
     }
     return {
       condicion: 'LIBRE',
       color: 'text-rose-700',
       badgeVariant: 'libre',
-      motivo: `No alcanza regularidad en TPs o asistencia (${asistenciaPct}%)`
+      motivo: `No alcanza regularidad en evaluaciones`
     };
   }
 
-  // Caso especial: Cátedra tipo Taller / Seminario evaluada únicamente con TPs (sin parciales)
-  const soloTps = parciales.length === 0 && tpsExigibles.length > 0;
-
-  // 1. PROMOCIONAL
-  const cumplePromo =
+  // 1. PROMOCIÓN DIRECTA: 0 parciales recuperados, notas >= notaMinPromo, Asistencia >= minPromoAsist
+  if (
     asistenciaPct >= minPromoAsist &&
     todosTpsAprobados &&
-    (soloTps ? todosTpsPromo : (parcialesExigibles.length > 0 && todosParcialesPromo && recupsUsados <= 1));
-
-  if (cumplePromo) {
+    (soloTps ? todosTpsPromo : (parcialesExigibles.length > 0 && todosParcialesPromo && recupsRendidos === 0))
+  ) {
     return {
       condicion: 'PROMOCIONAL',
+      subcondicion: 'DIRECTA',
       color: 'text-emerald-700',
       badgeVariant: 'promo',
       motivo: soloTps
         ? `Asistencia: ${asistenciaPct}% | TPs >= ${notaMinPromo}`
-        : `Asistencia: ${asistenciaPct}% | Parciales >= ${notaMinPromo} | Recup: ${recupsUsados}/1`
+        : `Promoción Directa alcanzada (0 parciales recuperados) | Asist: ${asistenciaPct}%`
     };
   }
 
-  // 2. REGULAR
-  const cumpleReg =
-    asistenciaPct >= minRegAsist &&
+  // 2. PROMOCIÓN INDIRECTA: exactamente 1 parcial recuperado, notas finales >= notaMinPromo, Asistencia >= minPromoAsist
+  if (
+    asistenciaPct >= minPromoAsist &&
     todosTpsAprobados &&
-    (soloTps ? true : (parcialesExigibles.length > 0 && todosParcialesReg && recupsUsados <= maxRecupPermitidoReg));
-
-  if (cumpleReg) {
+    parcialesExigibles.length > 0 &&
+    todosParcialesPromo &&
+    recupsRendidos === 1
+  ) {
     return {
-      condicion: 'REGULAR',
-      color: 'text-amber-700',
-      badgeVariant: 'regular',
-      motivo: soloTps
-        ? `Asistencia: ${asistenciaPct}% | TPs aprobados >= ${notaMinReg}`
-        : `Asistencia: ${asistenciaPct}% | Parciales >= ${notaMinReg} | Recup: ${recupsUsados}/${maxRecupPermitidoReg}`
+      condicion: 'PROMOCION_INDIRECTA',
+      subcondicion: 'INDIRECTA',
+      color: 'text-teal-700',
+      badgeVariant: 'promo',
+      motivo: `Promoción Indirecta alcanzada (1 parcial recuperado) | Asist: ${asistenciaPct}%`
     };
   }
 
-  // 3. LIBRE
+  // 3. REGULAR: Parciales aprobados >= notaMinReg (incluyendo hasta 2 recuperados en Anual)
   return {
-    condicion: 'LIBRE',
-    color: 'text-rose-700',
-    badgeVariant: 'libre',
-    motivo: `No alcanza regularidad (Asist: ${asistenciaPct}%, Recup: ${recupsUsados})`
+    condicion: 'REGULAR',
+    color: 'text-amber-700',
+    badgeVariant: 'regular',
+    motivo: recupsRendidos > 0
+      ? `Regularidad alcanzada con ${recupsRendidos} parcial(es) recuperado(s) | Asist: ${asistenciaPct}%`
+      : `Regularidad alcanzada (habilitado a examen final) | Asist: ${asistenciaPct}%`
+  };
+}
+
+/**
+ * Helper unificado para calcular notas efectivas, reemplazos de recuperatorios
+ * y promedios trazables por estudiante.
+ */
+export function calcularNotasEfectivasEstudiante({
+  evaluaciones = [],
+  studentNotas = [],
+  criterios = {}
+}) {
+  const notaMinReg = Number(criterios.nota_min_reg ?? 4);
+  const notasMap = new Map();
+  const estadosMap = new Map();
+  const recuperatoriosMap = new Map();
+
+  studentNotas.forEach(n => {
+    const evalId = String(n.evaluacion_id || n.id);
+    const rawVal = n.valor !== undefined && n.valor !== null ? n.valor : (n.nota !== undefined && n.nota !== null ? n.nota : null);
+    if (rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal))) {
+      notasMap.set(evalId, Number(rawVal));
+    }
+    if (n.estado) {
+      estadosMap.set(evalId, String(n.estado).toUpperCase());
+    }
+
+    let detalle = n.detalle_recuperatorio;
+    if (!detalle && n.observaciones && typeof n.observaciones === 'string' && n.observaciones.trim().startsWith('[')) {
+      try {
+        detalle = JSON.parse(n.observaciones);
+      } catch (_) {}
+    }
+    if (Array.isArray(detalle)) {
+      detalle.forEach(item => {
+        if (item && item.evaluacion_id) {
+          recuperatoriosMap.set(String(item.evaluacion_id), item);
+        }
+      });
+    }
+  });
+
+  const notasEfectivasMap = new Map();
+  const valoresParaPromedio = [];
+  let parcialesRecuperadosCount = 0;
+
+  evaluaciones.forEach(ev => {
+    const evId = String(ev.id);
+    const isRecup = String(ev.tipo || '').toUpperCase().includes('RECUP');
+    if (isRecup) return; // Se evalúa en base a los parciales
+
+    const notaOrig = notasMap.get(evId);
+    const estadoOrig = estadosMap.get(evId);
+
+    let notaRecup = undefined;
+    let estadoRecup = undefined;
+
+    if (recuperatoriosMap.has(evId)) {
+      const item = recuperatoriosMap.get(evId);
+      const valRec = item.nota_recuperatorio ?? item.valor ?? item.nota;
+      if (valRec !== null && valRec !== undefined && valRec !== '' && !isNaN(Number(valRec))) {
+        notaRecup = Number(valRec);
+      } else if (valRec) {
+        estadoRecup = String(valRec).toUpperCase();
+      }
+      if (item.estado) estadoRecup = String(item.estado).toUpperCase();
+    }
+
+    const fueRecuperado = notaRecup !== undefined || estadoRecup !== undefined;
+    if (fueRecuperado) {
+      parcialesRecuperadosCount++;
+    }
+
+    let notaEfectiva = null;
+    let estadoEfectivo = estadoOrig ?? null;
+
+    if (notaRecup !== undefined) {
+      notaEfectiva = notaRecup;
+      estadoEfectivo = notaRecup >= notaMinReg ? 'CALIFICADO' : 'DESAPROBADO';
+    } else if (estadoRecup === 'AUSENTE' || estadoRecup === 'NO_ENTREGO') {
+      notaEfectiva = null;
+      estadoEfectivo = estadoRecup;
+    } else if (notaOrig !== undefined) {
+      notaEfectiva = notaOrig;
+    }
+
+    if (notaEfectiva !== null) {
+      valoresParaPromedio.push(notaEfectiva);
+    }
+
+    notasEfectivasMap.set(evId, {
+      evaluacionId: evId,
+      notaOriginal: notaOrig ?? null,
+      estadoOriginal: estadoOrig ?? null,
+      notaRecup: notaRecup ?? null,
+      estadoRecup: estadoRecup ?? null,
+      notaEfectiva,
+      estadoEfectivo,
+      fueRecuperado,
+      reemplazada: fueRecuperado && notaRecup !== undefined && notaRecup >= notaMinReg
+    });
+  });
+
+  const promedioEfectivo = valoresParaPromedio.length > 0
+    ? Number((valoresParaPromedio.reduce((a, b) => a + b, 0) / valoresParaPromedio.length).toFixed(1))
+    : null;
+
+  return {
+    notasEfectivasMap,
+    parcialesRecuperadosCount,
+    promedioEfectivo
   };
 }

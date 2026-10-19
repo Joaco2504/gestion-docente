@@ -40,6 +40,7 @@ export default function EditEvaluacionParamsModal({
   onClose,
   evaluacion,
   onSave,
+  onDelete,
   catedraId
 }) {
   const { user, isDemo } = useAuth();
@@ -103,11 +104,6 @@ export default function EditEvaluacionParamsModal({
       return;
     }
 
-    if (consignaType === 'GOOGLE_LINK' && !driveUrl.trim()) {
-      setErrorMsg('Debes ingresar la URL de Google Drive o Docs.');
-      return;
-    }
-
     setSaving(true);
     setErrorMsg('');
 
@@ -116,8 +112,8 @@ export default function EditEvaluacionParamsModal({
       let finalArchivoNombre = null;
 
       if (consignaType === 'GOOGLE_LINK') {
-        finalArchivoUrl = driveUrl.trim();
-        finalArchivoNombre = driveNombre.trim() || 'Consignas en Google Drive';
+        finalArchivoUrl = driveUrl.trim() || null;
+        finalArchivoNombre = driveUrl.trim() ? (driveNombre.trim() || 'Consignas en Google Drive') : null;
       } else if (consignaType === 'LOCAL') {
         if (selectedFile) {
           // Subir archivo a Supabase Storage
@@ -141,6 +137,7 @@ export default function EditEvaluacionParamsModal({
         ...evaluacion,
         titulo: titulo.trim(),
         tipo,
+        fecha: fechaEntrega ? fechaEntrega : null,
         fecha_entrega: fechaEntrega ? fechaEntrega : null,
         ponderacion: Number(ponderacion) || 100,
         escala_notas: escalaNotas,
@@ -342,7 +339,7 @@ export default function EditEvaluacionParamsModal({
 
               <div>
                 <label className="block text-xs font-semibold uppercase text-text-secondary mb-1">
-                  URL del Documento / Carpeta en Drive *
+                  URL del Documento / Carpeta en Drive (Opcional)
                 </label>
                 <div className="relative">
                   <input
@@ -351,7 +348,6 @@ export default function EditEvaluacionParamsModal({
                     onChange={(e) => setDriveUrl(e.target.value)}
                     placeholder="https://drive.google.com/file/d/... o https://docs.google.com/..."
                     className="w-full pl-9 pr-3.5 py-2 text-xs font-mono border border-surface-border rounded-xl bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    required
                   />
                   <LinkIcon className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
                 </div>
@@ -441,23 +437,44 @@ export default function EditEvaluacionParamsModal({
         </div>
 
         {/* FOOTER ACTIONS */}
-        <div className="flex items-center justify-between pt-4 border-t border-surface-border">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={saving}
-            className="font-bold shadow-xs"
-          >
-            Guardar Parámetros
-          </Button>
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-surface-border">
+          <div>
+            {onDelete && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => {
+                  if (window.confirm(`¿Deseas eliminar la evaluación "${evaluacion?.titulo || 'esta evaluación'}" y sus notas asociadas?`)) {
+                    onClose();
+                    onDelete(evaluacion);
+                  }
+                }}
+                disabled={saving}
+                className="font-bold text-xs w-full sm:w-auto"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                Eliminar Evaluación
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={saving}
+              className="font-bold shadow-xs"
+            >
+              Guardar Parámetros
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

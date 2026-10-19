@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   BookOpen, 
   Calendar as CalendarIcon, 
@@ -112,7 +112,11 @@ export default function LibroTemasTab({ catedraId, catedraName }) {
     };
   }, [catedras, catedraId, catedraName]);
 
+  const initializedCatedraRef = useRef(null);
+
   useEffect(() => {
+    if (initializedCatedraRef.current === catedraId) return;
+    initializedCatedraRef.current = catedraId;
     fetchClases();
   }, [catedraId]);
 

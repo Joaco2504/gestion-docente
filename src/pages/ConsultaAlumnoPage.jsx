@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { calcularNotasEfectivasEstudiante } from '../lib/academicLogic';
 import { 
   Search, 
   AlertCircle, 
@@ -178,7 +179,7 @@ export default function ConsultaAlumnoPage() {
   const institucionNombre = catedra.instituciones?.nombre || catedra.institucion_nombre || 'Institución Educativa';
 
   // Helper de condición académica comprensible para el estudiante
-  const getCondicionContextual = (condicionRaw, esEquivalencia = false) => {
+  const getCondicionContextual = (condicionRaw, esEquivalencia = false, subcondicion = null) => {
     const cond = (condicionRaw || 'REGULAR').toUpperCase();
     if (esEquivalencia || cond.includes('EQUIV')) {
       return {
@@ -188,12 +189,28 @@ export default function ConsultaAlumnoPage() {
         pillClass: 'bg-emerald-600 text-white'
       };
     }
+    if (cond.includes('INDIRECT') || subcondicion === 'INDIRECTA' || (cond.includes('PROMO') && cond.includes('IND'))) {
+      return {
+        label: 'PROMOCIÓN INDIRECTA',
+        explicacion: 'Cumplís los requisitos de promoción indirecta (1 parcial recuperado con nota ≥ 7 y asistencia ≥ 80%).',
+        boxClass: 'bg-teal-50/80 dark:bg-teal-950/30 border border-teal-200/70 dark:border-teal-800/60 rounded-2xl p-4',
+        pillClass: 'bg-teal-600 text-white'
+      };
+    }
     if (cond.includes('PROMO') || cond.includes('APROB')) {
       return {
         label: 'PROMOCIONAL',
         explicacion: 'Cumplís los requisitos de promoción directa sin examen final.',
         boxClass: 'bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/60 rounded-2xl p-4',
         pillClass: 'bg-emerald-600 text-white'
+      };
+    }
+    if (cond.includes('RECUP')) {
+      return {
+        label: 'A RECUPERATORIO',
+        explicacion: 'Debés presentarte a la instancia de recuperatorio para alcanzar la regularidad o promoción.',
+        boxClass: 'bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/60 rounded-2xl p-4',
+        pillClass: 'bg-amber-600 text-white'
       };
     }
     if (cond.includes('RIESGO') || cond.includes('CONDICIONAL') || cond.includes('ALERTA')) {
@@ -316,13 +333,17 @@ export default function ConsultaAlumnoPage() {
           (() => {
             const condInfo = getCondicionContextual(
               resultado.condicion_ram?.condicion,
-              resultado.estudiante?.es_equivalencia
+              resultado.estudiante?.es_equivalencia,
+              resultado.condicion_ram?.subcondicion
             );
             const pctAsistencia = Math.min(100, Math.max(0, resultado.asistencia?.porcentaje ?? 0));
             const metaAsistencia = resultado.estudiante?.tiene_certificado_trabajo ? 60 : 70;
             const evalsList = Array.isArray(resultado.evaluaciones) ? resultado.evaluaciones : [];
+            const { notasEfectivasMap, parcialesRecuperadosCount } = useMemo(() => {
+              return calcularNotasEfectivasEstudiante(evalsList, evalsList);
+            }, [evalsList]);
             const ultimaEval = evalsList.length > 0 ? evalsList[evalsList.length - 1] : null;
-            const recuperatoriosUsados = evalsList.filter(ev =>
+            const recuperatoriosUsados = parcialesRecuperadosCount > 0 ? parcialesRecuperadosCount : evalsList.filter(ev =>
               (ev.tipo || '').toLowerCase().includes('recup') || (ev.titulo || '').toLowerCase().includes('recup')
             ).length;
 
@@ -573,12 +594,16 @@ export default function ConsultaAlumnoPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
                               {evalsList.map((ev, idx) => {
+                                const evalId = ev.id || ev.evaluacion_id;
                                 const hasNota = ev.valor !== null && ev.valor !== undefined;
                                 const notaNum = hasNota ? Number(ev.valor) : null;
                                 const isAprobado = notaNum !== null && notaNum >= 4;
+                                const infoEfectiva = notasEfectivasMap[evalId] || null;
+                                const esRecuperatorio = (ev.tipo || '').toUpperCase().includes('RECUP') || (ev.titulo || '').toLowerCase().includes('recup');
+                                const detalleRecup = ev.detalle_recuperatorio;
 
                                 return (
-                                  <tr key={ev.id || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                                  <tr key={evalId || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
                                     <td className="py-3.5 pr-4">
                                       <span className="font-bold text-slate-900 dark:text-white block">
                                         {ev.titulo}
@@ -595,7 +620,42 @@ export default function ConsultaAlumnoPage() {
                                       </span>
                                     </td>
                                     <td className="py-3.5 pl-4 text-right whitespace-nowrap">
-                                      {hasNota ? (
+                                      {infoEfectiva?.reemplazada ? (
+                                        <div 
+                                          className="inline-flex items-center gap-1.5"
+                                          title={`Nota original: ${infoEfectiva.notaOriginal !== null ? infoEfectiva.notaOriginal : 'Aus.'} → Reemplazada en Recuperatorio por ${infoEfectiva.notaEfectiva}`}
+                                        >
+                                          <span className="line-through text-slate-400 dark:text-slate-500 font-mono text-xs">
+                                            {infoEfectiva.notaOriginal !== null && infoEfectiva.notaOriginal !== undefined ? Number(infoEfectiva.notaOriginal).toFixed(1) : 'Aus.'}
+                                          </span>
+                                          <span className="text-slate-400 text-xs">➔</span>
+                                          <span className="bg-emerald-100/80 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono font-bold px-2.5 py-1 rounded-full text-xs inline-flex items-center gap-1 shadow-2xs">
+                                            {Number(infoEfectiva.notaEfectiva).toFixed(1)}
+                                            <span className="text-[10px] uppercase font-sans font-black text-emerald-600 dark:text-emerald-400">R</span>
+                                          </span>
+                                        </div>
+                                      ) : esRecuperatorio && detalleRecup?.excede_limite ? (
+                                        <span className="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+                                          Excede cupo (Libre)
+                                        </span>
+                                      ) : esRecuperatorio && detalleRecup?.parciales_recuperados && Object.keys(detalleRecup.parciales_recuperados).length > 0 ? (
+                                        <div className="inline-flex flex-wrap items-center justify-end gap-1">
+                                          {Object.entries(detalleRecup.parciales_recuperados).map(([pId, data]) => {
+                                            const pEval = evalsList.find(e => (e.id || e.evaluacion_id) === pId);
+                                            const pName = pEval?.titulo || 'Parcial';
+                                            const shortP = pName.length > 7 ? pName.substring(0, 7) + '..' : pName;
+                                            return (
+                                              <span 
+                                                key={pId}
+                                                className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold border border-slate-200/60 dark:border-slate-700"
+                                                title={`${pName}: ${data.nota !== null && data.nota !== undefined ? data.nota : (data.estado || 'Aus.')}`}
+                                              >
+                                                {shortP}: <strong>{data.nota !== null && data.nota !== undefined ? Number(data.nota).toFixed(1) : (data.estado || 'Aus.')}</strong>
+                                              </span>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : hasNota ? (
                                         <span className={
                                           isAprobado
                                             ? 'bg-emerald-100/80 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono font-bold px-3 py-1 rounded-full inline-block'
@@ -627,13 +687,17 @@ export default function ConsultaAlumnoPage() {
                         {/* Vista en Celulares (sm:hidden): Tarjetas compactas apiladas */}
                         <div className="sm:hidden space-y-2.5">
                           {evalsList.map((ev, idx) => {
+                            const evalId = ev.id || ev.evaluacion_id;
                             const hasNota = ev.valor !== null && ev.valor !== undefined;
                             const notaNum = hasNota ? Number(ev.valor) : null;
                             const isAprobado = notaNum !== null && notaNum >= 4;
+                            const infoEfectiva = notasEfectivasMap[evalId] || null;
+                            const esRecuperatorio = (ev.tipo || '').toUpperCase().includes('RECUP') || (ev.titulo || '').toLowerCase().includes('recup');
+                            const detalleRecup = ev.detalle_recuperatorio;
 
                             return (
                               <div
-                                key={ev.id || idx}
+                                key={evalId || idx}
                                 className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 flex items-center justify-between gap-3"
                               >
                                 <div className="min-w-0 space-y-1">
@@ -652,8 +716,42 @@ export default function ConsultaAlumnoPage() {
                                   </div>
                                 </div>
 
-                                <div className="shrink-0">
-                                  {hasNota ? (
+                                <div className="shrink-0 text-right">
+                                  {infoEfectiva?.reemplazada ? (
+                                    <div 
+                                      className="inline-flex items-center gap-1"
+                                      title={`Nota original: ${infoEfectiva.notaOriginal !== null ? infoEfectiva.notaOriginal : 'Aus.'} → Reemplazada en Recuperatorio por ${infoEfectiva.notaEfectiva}`}
+                                    >
+                                      <span className="line-through text-slate-400 dark:text-slate-500 font-mono text-[11px]">
+                                        {infoEfectiva.notaOriginal !== null && infoEfectiva.notaOriginal !== undefined ? Number(infoEfectiva.notaOriginal).toFixed(1) : 'Aus.'}
+                                      </span>
+                                      <span className="text-slate-400 text-xs">➔</span>
+                                      <span className="bg-emerald-100/80 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                                        {Number(infoEfectiva.notaEfectiva).toFixed(1)}
+                                        <span className="text-[9px] uppercase font-sans font-black text-emerald-600 dark:text-emerald-400">R</span>
+                                      </span>
+                                    </div>
+                                  ) : esRecuperatorio && detalleRecup?.excede_limite ? (
+                                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+                                      Libre (cupo)
+                                    </span>
+                                  ) : esRecuperatorio && detalleRecup?.parciales_recuperados && Object.keys(detalleRecup.parciales_recuperados).length > 0 ? (
+                                    <div className="flex flex-col items-end gap-1">
+                                      {Object.entries(detalleRecup.parciales_recuperados).map(([pId, data]) => {
+                                        const pEval = evalsList.find(e => (e.id || e.evaluacion_id) === pId);
+                                        const pName = pEval?.titulo || 'P';
+                                        const shortP = pName.length > 5 ? pName.substring(0, 5) + '..' : pName;
+                                        return (
+                                          <span 
+                                            key={pId}
+                                            className="px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[10px] font-semibold"
+                                          >
+                                            {shortP}: {data.nota !== null && data.nota !== undefined ? Number(data.nota).toFixed(1) : (data.estado || 'Aus.')}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : hasNota ? (
                                     <span className={
                                       isAprobado
                                         ? 'bg-emerald-100/80 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono font-bold text-xs px-3 py-1 rounded-full inline-block'

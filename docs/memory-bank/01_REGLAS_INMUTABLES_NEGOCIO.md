@@ -41,3 +41,25 @@ Este documento contiene las reglas de dominio pedagógico y normativo que **NUNC
      - Tiene precedencia sobre la licencia docente: no genera doble justificación ni se computa como día hábil de clase.
 3. **Unicidad Visual en el Calendario:**
    - En `CalendarPage.jsx`, cada licencia registrada se muestra como **UNA SOLA tarjeta consolidada** en la agenda y cronograma, identificada con el nombre oficial legible del artículo (ej. *"Art. 48° inc. b - Atención Familiar"*), **NUNCA** el código interno tipo `ART_48_B`, y **NUNCA** repetida por cada cátedra alcanzada.
+
+---
+
+## 4. Régimen de Evaluación Terciaria y Recuperatorio Diferenciado
+
+1. **Columna Única de Recuperatorio con Configuración Individual por Alumno:**
+   - En la sábana de notas existe una única columna general de Recuperatorio.
+   - Cada alumno rinde de forma diferenciada los parciales que adeuda (no todos recuperan los mismos parciales).
+   - Se persiste en la columna `notas.detalle_recuperatorio` (JSONB) con fallback en `observaciones`.
+2. **Límites de Parciales Recuperables según Régimen:**
+   - **Cuatrimestral (`modalidad === 'CUATRIMESTRAL'`):** Máximo **1 parcial** recuperable. Desaprobar 2 o más parciales en 1ra instancia $\rightarrow$ automáticamente **`LIBRE`** (excede límite de recuperación).
+   - **Anual (`modalidad === 'ANUAL'`):** Máximo **2 parciales** recuperables. Desaprobar 3 o más parciales en 1ra instancia $\rightarrow$ automáticamente **`LIBRE`**.
+3. **Reemplazo Efectivo de Notas & Trazabilidad Visual:**
+   - Si la nota obtenida en el recuperatorio es aprobada ($\ge 4$), reemplaza la nota del parcial original a los efectos del cálculo del promedio y de la condición final.
+   - En la celda del parcial original se exhibe la trazabilidad: `~nota_original~ ➔ nota_recuperada (R)` con tooltip informativo.
+   - Desaprobar el recuperatorio (< 4 o Ausente) $\rightarrow$ automáticamente **`LIBRE`**.
+4. **Condición Académica & Promoción Indirecta:**
+   - **`PROMOCIONAL` (Badge `PROM. DIR`):** 0 parciales recuperados + notas $\ge 7$ + asistencia $\ge 80\%$.
+   - **`PROMOCION_INDIRECTA` (Badge `PROM. IND`):** Exactamente 1 parcial recuperado con nota $\ge 7$ + notas finales $\ge 7$ + asistencia $\ge 80\%$. Si el estudiante recuperó 2 parciales (en materias anuales), su techo reglamentario máximo es **`REGULAR`**.
+   - **`REGULAR` (Badge `REG`):** Parciales aprobados $\ge 4$ (en 1ra instancia o recuperados).
+   - **`LIBRE` (Badge `LIB`):** Excede cupo de recuperatorios, desaprueba recuperatorio o no alcanza asistencia mínima.
+

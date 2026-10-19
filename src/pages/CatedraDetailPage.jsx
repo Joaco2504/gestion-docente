@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -339,13 +339,14 @@ export default function CatedraDetailPage() {
   }, [tabFromUrl, id, navigate]);
 
   // Carga inicial de datos de la cátedra
+  const initializedCatedraRef = useRef(null);
   useEffect(() => {
-    if (id) {
-      try {
-        localStorage.setItem('last_active_catedra_id', id);
-      } catch (_) {}
-      fetchCatedraData();
-    }
+    if (!id || initializedCatedraRef.current === id) return;
+    initializedCatedraRef.current = id;
+    try {
+      localStorage.setItem('last_active_catedra_id', id);
+    } catch (_) {}
+    fetchCatedraData();
   }, [id]);
 
   if (loading) {

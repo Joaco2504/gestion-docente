@@ -20,9 +20,12 @@ export default function GradeCardsMobile({
   studentRows = [],
   mainEvaluations = [],
   evaluaciones = [],
+  recuperatorioEval = null,
+  regimen = 'CUATRIMESTRAL',
   getNotaValue,
   getNotaEstado,
   onOpenEditNota,
+  onOpenConfigurarRecuperatorio,
   onQuickSetGrade
 }) {
   const [expandedId, setExpandedId] = useState(null);
@@ -32,8 +35,12 @@ export default function GradeCardsMobile({
       case 'PROMOCIONAL':
       case 'ACREDITADA_EQUIVALENCIA':
         return 'promo';
+      case 'PROMOCION_INDIRECTA':
+        return 'promo_ind';
       case 'REGULAR':
         return 'regular';
+      case 'RECUPERATORIO':
+        return 'warning';
       case 'LIBRE':
         return 'libre';
       default:
@@ -83,7 +90,13 @@ export default function GradeCardsMobile({
               <div className="flex items-center gap-1.5 shrink-0">
                 {risk && <RiskBadge risk={risk} compact />}
                 <Badge variant={getCondBadgeVariant(condicion?.condicion)}>
-                  {condicion?.condicion === 'ACREDITADA_EQUIVALENCIA' ? 'EQUIVALENCIA' : condicion?.condicion || 'EN CURSO'}
+                  {condicion?.condicion === 'PROMOCION_INDIRECTA'
+                    ? 'PROM. IND'
+                    : condicion?.condicion === 'PROMOCIONAL'
+                    ? (condicion?.subcondicion === 'INDIRECTA' ? 'PROM. IND' : 'PROM. DIR')
+                    : condicion?.condicion === 'ACREDITADA_EQUIVALENCIA'
+                    ? 'EQUIVALENCIA'
+                    : condicion?.condicion || 'EN CURSO'}
                 </Badge>
               </div>
             </div>
@@ -129,6 +142,7 @@ export default function GradeCardsMobile({
               {isExpanded && (
                 <div className="space-y-2 pt-1 animate-fadeIn">
                   {mainEvaluations.map(ev => {
+                    const infoEfectiva = row.notasEfectivasMap?.get(String(ev.id));
                     const recup = evaluaciones.find(
                       r => String(r.tipo || '').toUpperCase().includes('RECUP') && r.evaluacion_origen_id === ev.id
                     );
@@ -161,7 +175,19 @@ export default function GradeCardsMobile({
                           </div>
 
                           <div className="shrink-0 flex items-center gap-2">
-                            {estado === 'NO_ENTREGO' ? (
+                            {infoEfectiva?.reemplazada ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="line-through text-text-muted text-[11px] opacity-60">
+                                  {nota}
+                                </span>
+                                <span className="px-2 py-1 rounded-lg text-xs font-mono font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                  ➔ {infoEfectiva.notaRecup}
+                                  <span className="text-[9px] font-black uppercase text-purple-600 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/80 px-1 py-0.2 rounded">
+                                    R
+                                  </span>
+                                </span>
+                              </div>
+                            ) : estado === 'NO_ENTREGO' ? (
                               <span className="px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
                                 N/E
                               </span>
@@ -214,6 +240,86 @@ export default function GradeCardsMobile({
                       </div>
                     );
                   })}
+
+                  {/* Fila Dedicada: Recuperatorio General Diferenciado */}
+                  {(() => {
+                    const parcialesList = mainEvaluations.filter(e => {
+                      const t = String(e.tipo || '').toUpperCase();
+                      return t === 'PARCIAL' || t.includes('PARCIAL') || t === 'PRUEBA';
+                    });
+                    let detalleRecup = null;
+                    const recupNota = row.notas?.find(n => {
+                      if (n.detalle_recuperatorio && Array.isArray(n.detalle_recuperatorio) && n.detalle_recuperatorio.length > 0) return true;
+                      if (recuperatorioEval && n.evaluacion_id === recuperatorioEval.id) return true;
+                      return false;
+                    });
+                    if (recupNota?.detalle_recuperatorio && Array.isArray(recupNota.detalle_recuperatorio)) {
+                      detalleRecup = recupNota.detalle_recuperatorio;
+                    } else if (recupNota?.observaciones && typeof recupNota.observaciones === 'string' && recupNota.observaciones.trim().startsWith('[')) {
+                      try { detalleRecup = JSON.parse(recupNota.observaciones); } catch(_) {}
+                    }
+
+                    const desaprobados = parcialesList.filter(p => {
+                      const val = getNotaValue(est.id, p.id);
+                      const estVal = getNotaEstado(est.id, p.id);
+                      return estVal === 'AUSENTE' || estVal === 'NO_ENTREGO' || (val !== null && val !== undefined && Number(val) < 4);
+                    });
+                    const isAnual = String(regimen || '').toUpperCase().includes('ANUAL');
+                    const maxPermitido = isAnual ? 2 : 1;
+
+                    return (
+                      <div className="pt-2 border-t border-purple-200/50 dark:border-purple-800/30">
+                        <div
+                          onClick={() => onOpenConfigurarRecuperatorio && onOpenConfigurarRecuperatorio(est)}
+                          className="flex items-center justify-between p-2.5 rounded-xl border border-purple-300/60 dark:border-purple-800/50 bg-purple-50/40 dark:bg-purple-950/20 hover:bg-purple-100/50 dark:hover:bg-purple-900/30 transition-colors cursor-pointer min-h-[44px]"
+                        >
+                          <div className="min-w-0 flex-1 pr-2">
+                            <span className="text-xs font-bold text-purple-900 dark:text-purple-200 block truncate">
+                              Recuperatorio General
+                            </span>
+                            <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold uppercase">
+                              {desaprobados.length > maxPermitido
+                                ? 'Excede límite (Libre)'
+                                : detalleRecup?.length > 0
+                                ? `${detalleRecup.length} parcial(es) configurado(s)`
+                                : desaprobados.length > 0
+                                ? `${desaprobados.length} parcial(es) a recuperar`
+                                : 'No requiere recuperatorio'}
+                            </span>
+                          </div>
+
+                          <div className="shrink-0 flex items-center gap-1.5">
+                            {desaprobados.length > maxPermitido ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-rose-50 text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300">
+                                Libre
+                              </span>
+                            ) : detalleRecup && detalleRecup.length > 0 ? (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {detalleRecup.map((d, dIdx) => {
+                                  const shortTitle = (d.titulo || `P${dIdx + 1}`).replace(/parcial/i, 'P').replace(/°/g, '').trim();
+                                  const val = d.nota_recuperatorio ?? d.valor ?? d.nota;
+                                  return (
+                                    <span key={d.evaluacion_id || dIdx} className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/80 dark:bg-slate-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                      {shortTitle}: {val !== null && val !== undefined && val !== '' ? val : (d.estado || 'Pend')}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : desaprobados.length > 0 ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                + Configurar
+                              </span>
+                            ) : (
+                              <span className="text-xs font-mono text-text-muted px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                                —
+                              </span>
+                            )}
+                            <Edit3 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

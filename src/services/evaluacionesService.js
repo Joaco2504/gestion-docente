@@ -7,7 +7,7 @@ import { normalizeTipoEvaluacion } from '../lib/enums';
  * Incluye tanto 'fecha' como 'fecha_entrega' para garantizar compatibilidad
  * bidireccional y evitar errores por omisión de columnas o desincronización.
  */
-export const EVALUACIONES_COLUMNS = 'id, catedra_id, periodo_id, titulo, tipo, evaluacion_origen_id, fecha, fecha_entrega, ponderacion, escala_maxima, archivo_url, archivo_nombre, created_at, updated_at';
+export const EVALUACIONES_COLUMNS = '*';
 
 /**
  * Normaliza una evaluación para asegurar paridad estricta entre fecha y fecha_entrega.
@@ -186,7 +186,6 @@ export async function saveEvaluacion(evalData, options = {}) {
     titulo: tituloLimpio,
     tipo: tipoCanonico,
     fecha: isoFecha,
-    fecha_entrega: isoFecha,
     archivo_url: evalData.archivo_url || null,
     archivo_nombre: evalData.archivo_nombre || null,
     periodo_id: evalData.periodo_id || null,
@@ -250,22 +249,25 @@ export async function saveEvaluacion(evalData, options = {}) {
 
   // Sincronizar en localStorage
   if (catedraId) {
-    const localKey = `evaluaciones_${catedraId}`;
-    try {
-      const stored = localStorage.getItem(localKey);
-      const list = stored ? JSON.parse(stored) : [];
-      const updatedList = list.some(e => e.id === savedRow.id)
-        ? list.map(e => e.id === savedRow.id ? savedRow : e)
-        : [...list, savedRow];
-      localStorage.setItem(localKey, JSON.stringify(updatedList));
-    } catch (_) {}
+    const localKeys = [`evaluaciones_${catedraId}`, `docentepro_demo_evaluaciones_${catedraId}`, `docentepro_demo_evals_${catedraId}`];
+    localKeys.forEach(key => {
+      try {
+        const stored = localStorage.getItem(key);
+        const list = stored ? JSON.parse(stored) : [];
+        const updatedList = list.some(e => e.id === savedRow.id)
+          ? list.map(e => e.id === savedRow.id ? savedRow : e)
+          : [...list, savedRow];
+        localStorage.setItem(key, JSON.stringify(updatedList));
+      } catch (_) {}
+    });
   }
 
   return savedRow;
 }
 
 /**
- * Eliminación de evaluación con sincronización de estado local.
+ * Eliminación de evaluación con borrado seguro en 2 pasos (notas dependientes primero)
+ * y sincronización de estado local.
  * 
  * @param {string} evaluacionId 
  * @param {Object} [options]
@@ -278,26 +280,80 @@ export async function deleteEvaluacion(evaluacionId, options = {}) {
   const catedraId = options.catedraId;
 
   if (isSupabaseConfigured && !isDemo && client && !String(evaluacionId).startsWith('eval-')) {
-    const { error } = await client
-      .from('evaluaciones')
-      .delete()
-      .eq('id', evaluacionId);
+    try {
+      // 1. Identificar recuperatorios vinculados por clave foránea/lógica
+      const { data: recups } = await client
+        .from('evaluaciones')
+        .select('id')
+        .eq('evaluacion_origen_id', evaluacionId);
 
-    if (error) {
-      console.error('[evaluacionesService] Error al eliminar evaluación:', error);
-      throw new Error(`Error en base de datos al eliminar: ${error.message}`);
+      const allEvalIds = [evaluacionId, ...(recups || []).map(r => r.id)];
+
+      // 2. Paso 1: Eliminar primero las notas asociadas para no violar restricciones de FK
+      const { error: notasError } = await client
+        .from('notas')
+        .delete()
+        .in('evaluacion_id', allEvalIds);
+
+      if (notasError) {
+        console.warn('[evaluacionesService] Aviso al eliminar notas asociadas:', notasError);
+      }
+
+      // 3. Eliminar recuperatorios hijos si existen
+      if (recups && recups.length > 0) {
+        await client
+          .from('evaluaciones')
+          .delete()
+          .in('id', recups.map(r => r.id));
+      }
+
+      // 4. Paso 2: Eliminar la evaluación principal
+      const { error: evalError } = await client
+        .from('evaluaciones')
+        .delete()
+        .eq('id', evaluacionId);
+
+      if (evalError) {
+        console.error('[evaluacionesService] Error al eliminar evaluación:', evalError);
+        throw new Error(`Error en base de datos al eliminar: ${evalError.message}`);
+      }
+    } catch (err) {
+      console.error('[evaluacionesService] Error en borrado seguro:', err);
+      throw err;
     }
   }
 
+  // Sincronización completa en LocalStorage
   if (catedraId) {
-    const localKey = `evaluaciones_${catedraId}`;
-    try {
-      const stored = localStorage.getItem(localKey);
-      if (stored) {
-        const list = JSON.parse(stored);
-        const filtered = list.filter(e => e.id !== evaluacionId && e.evaluacion_origen_id !== evaluacionId);
-        localStorage.setItem(localKey, JSON.stringify(filtered));
-      }
-    } catch (_) {}
+    const evalKeys = [
+      `evaluaciones_${catedraId}`,
+      `docentepro_demo_evaluaciones_${catedraId}`,
+      `docentepro_demo_evals_${catedraId}`
+    ];
+    evalKeys.forEach(k => {
+      try {
+        const stored = localStorage.getItem(k);
+        if (stored) {
+          const list = JSON.parse(stored);
+          const filtered = list.filter(e => e.id !== evaluacionId && e.evaluacion_origen_id !== evaluacionId);
+          localStorage.setItem(k, JSON.stringify(filtered));
+        }
+      } catch (_) {}
+    });
+
+    const notasKeys = [
+      `notas_${catedraId}`,
+      `docentepro_demo_notas_${catedraId}`
+    ];
+    notasKeys.forEach(k => {
+      try {
+        const stored = localStorage.getItem(k);
+        if (stored) {
+          const list = JSON.parse(stored);
+          const filtered = list.filter(n => n.evaluacion_id !== evaluacionId);
+          localStorage.setItem(k, JSON.stringify(filtered));
+        }
+      } catch (_) {}
+    });
   }
 }

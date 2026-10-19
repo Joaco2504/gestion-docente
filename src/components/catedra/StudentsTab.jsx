@@ -452,8 +452,10 @@ export default function StudentsTab({
 
   // Toggle de certificado de trabajo en edición
   const [tieneTrabajoEdit, setTieneTrabajoEdit] = useState(false);
-
+  const initializedCatedraRef = useRef(null);
   useEffect(() => {
+    if (!catedraId || initializedCatedraRef.current === catedraId) return;
+    initializedCatedraRef.current = catedraId;
     fetchStudents();
   }, [catedraId]);
 

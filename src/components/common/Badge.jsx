@@ -34,6 +34,7 @@ export default function Badge({
     
     // Academic semantic statuses (Korum RAM High-Legibility Badges)
     promo: 'bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] dark:bg-[#064E3B]/40 dark:text-[#6EE7B7] dark:border-[#059669]/50 font-bold',
+    promo_ind: 'bg-teal-50 text-teal-800 border border-teal-300 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800 font-bold',
     promocionado: 'bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] dark:bg-[#064E3B]/40 dark:text-[#6EE7B7] dark:border-[#059669]/50 font-bold',
     presente: 'bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] dark:bg-[#064E3B]/40 dark:text-[#6EE7B7] dark:border-[#059669]/50 font-bold',
     approved: 'bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] dark:bg-[#064E3B]/40 dark:text-[#6EE7B7] dark:border-[#059669]/50 font-bold',
@@ -51,6 +52,7 @@ export default function Badge({
 
   const dotColors = {
     promo: 'bg-emerald-500',
+    promo_ind: 'bg-teal-500',
     promocionado: 'bg-emerald-500',
     presente: 'bg-emerald-500',
     approved: 'bg-emerald-500',

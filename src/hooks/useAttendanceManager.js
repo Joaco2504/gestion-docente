@@ -41,6 +41,10 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const initializedCatedraRef = useRef(null);
+  const catedraRef = useRef(catedra);
+  catedraRef.current = catedra;
+  const userId = user?.id;
 
   // Carga completa relacional de Clases e Historial de Asistencias
   const fetchData = useCallback(async () => {
@@ -50,7 +54,8 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
 
     const filtrarClasesFantasma = (lista, asistenciasList = []) => {
       if (!Array.isArray(lista)) return [];
-      const diasValidos = obtenerDiasDeCursadaCatedra(catedra, lista, asistenciasList);
+      const catedraTarget = catedraRef.current || { id: catedraId };
+      const diasValidos = obtenerDiasDeCursadaCatedra(catedraTarget, lista, asistenciasList);
       const hasValidDays = diasValidos.length > 0;
       const clasesConAsist = new Set();
       const fechasConAsist = new Set();
@@ -176,7 +181,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
         setLicenciasDocente(combinedLics);
 
         // 4. Autogeneración y saneamiento de clases según días reales de cursada y feriados
-        const catedraTarget = catedra || { id: catedraId };
+        const catedraTarget = catedraRef.current || { id: catedraId };
         const autoRes = await ensureScheduledClassesToDate(catedraTarget, initialClases, isDemo, {
           asistencias: enrichedAsist,
           licencias: combinedLics
@@ -201,7 +206,7 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
         setLicenciasDocente(combinedLics);
 
         let parsedClases = storedClases ? JSON.parse(storedClases) : [];
-        const catedraTarget = catedra || { id: catedraId };
+        const catedraTarget = catedraRef.current || { id: catedraId };
         const autoRes = await ensureScheduledClassesToDate(catedraTarget, parsedClases, true, {
           asistencias: parsedAsist,
           licencias: combinedLics
@@ -231,11 +236,13 @@ export function useAttendanceManager({ catedraId, isDemo = false, user = null, c
     } finally {
       setLoading(false);
     }
-  }, [catedraId, isDemo, user, catedra]);
+  }, [catedraId, isDemo, userId]);
 
   useEffect(() => {
+    if (!catedraId || initializedCatedraRef.current === catedraId) return;
+    initializedCatedraRef.current = catedraId;
     fetchData();
-  }, [fetchData]);
+  }, [catedraId, fetchData]);
 
   // Recarga reactiva si se registra o modifica una licencia docente
   useEffect(() => {

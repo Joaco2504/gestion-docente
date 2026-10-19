@@ -23,6 +23,7 @@ import {
   CATEGORIA_RECURSO, 
   normalizeTipoEvaluacion 
 } from '../../../lib/enums';
+import { saveEvaluacion } from '../../../services/evaluacionesService';
 
 export function NuevaEvaluacionModal({
   isOpen,
@@ -32,7 +33,8 @@ export function NuevaEvaluacionModal({
   evaluaciones = [],
   saving = false,
   catedraId = null,
-  onEvaluacionCreada = null
+  onEvaluacionCreada = null,
+  onEvaluacionCreated = null
 }) {
   const { user, isDemo } = useAuth();
 
@@ -231,12 +233,31 @@ export function NuevaEvaluacionModal({
       recurso_creado: Boolean(recursoIdFinal && autoGuardarEnRecursos)
     };
 
+    let savedRow = null;
     if (onSave) {
-      onSave(payloadEvaluacion);
+      savedRow = await onSave(payloadEvaluacion);
+    } else {
+      try {
+        savedRow = await saveEvaluacion(payloadEvaluacion, {
+          catedraId,
+          supabase,
+          isDemo
+        });
+        toast.success(`Evaluación "${payloadEvaluacion.titulo}" creada.`);
+      } catch (err) {
+        console.error('Error al guardar evaluación:', err);
+        toast.error('No se pudo guardar la evaluación: ' + (err.message || 'Error desconocido'));
+        return;
+      }
     }
+
     if (onEvaluacionCreada) {
-      onEvaluacionCreada(payloadEvaluacion);
+      onEvaluacionCreada(savedRow || payloadEvaluacion);
     }
+    if (onEvaluacionCreated) {
+      onEvaluacionCreated(savedRow || payloadEvaluacion);
+    }
+    onClose();
   };
 
   return (

@@ -17,6 +17,7 @@ export const GradeCell = React.memo(function GradeCell({
   estadoOriginal,
   notaRecup,
   estadoRecup,
+  infoEfectiva,
   isFlashingOriginal,
   isFlashingRecup,
   onOpenEditNota,
@@ -124,6 +125,39 @@ export const GradeCell = React.memo(function GradeCell({
         </span>
       );
     }
+    // Si la nota fue recuperada y aprobada (>= 4), se muestra trazable con reemplazo
+    if (infoEfectiva?.reemplazada) {
+      const numRecup = Number(infoEfectiva.notaRecup);
+      const isPromo = numRecup >= 7;
+      const isReg = numRecup >= 4;
+      return (
+        <span
+          className={`${
+            isCompact 
+              ? 'min-h-[28px] px-2 py-1 text-xs' 
+              : 'min-h-[32px] px-2.5 py-1.5 text-xs'
+          } rounded-lg font-mono font-bold transition-all border flex items-center justify-center gap-1 shadow-2xs select-none ${
+            isPromo
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800'
+              : isReg
+              ? 'bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800'
+              : 'bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800'
+          }`}
+          title={`Parcial recuperado: Nota original ${notaOriginal !== null && notaOriginal !== undefined ? Number(notaOriginal).toFixed(2) : (estadoOriginal || 'Desaprobado')} → Reemplazada por ${numRecup.toFixed(2)} en Recuperatorio`}
+        >
+          <span className="line-through opacity-50 text-[11px] text-text-muted">
+            {notaOriginal !== null && notaOriginal !== undefined ? notaOriginal : (estadoOriginal === 'AUSENTE' ? 'Aus.' : 'N/E')}
+          </span>
+          <span className="font-black text-emerald-700 dark:text-emerald-300">
+            ➔ {numRecup}
+          </span>
+          <span className="text-[9px] font-black uppercase text-purple-600 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/80 px-1 py-0.2 rounded ml-0.5">
+            R
+          </span>
+        </span>
+      );
+    }
+
     if (notaOriginal !== null && notaOriginal !== undefined) {
       const num = Number(notaOriginal);
       const isPromo = num >= 7;
@@ -270,6 +304,9 @@ export const GradeCell = React.memo(function GradeCell({
     prev.estadoOriginal === next.estadoOriginal &&
     prev.notaRecup === next.notaRecup &&
     prev.estadoRecup === next.estadoRecup &&
+    prev.infoEfectiva?.reemplazada === next.infoEfectiva?.reemplazada &&
+    prev.infoEfectiva?.notaRecup === next.infoEfectiva?.notaRecup &&
+    prev.infoEfectiva?.notaEfectiva === next.infoEfectiva?.notaEfectiva &&
     prev.isFlashingOriginal === next.isFlashingOriginal &&
     prev.isFlashingRecup === next.isFlashingRecup &&
     prev.ev.id === next.ev.id &&
