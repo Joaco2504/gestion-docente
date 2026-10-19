@@ -76,7 +76,7 @@ export default function QADiagnosticModal({
     try {
       const lineas = [
         '====================================================',
-        'INFORME DE AUTODIAGNÓSTICO Y QA — PLANILLADOCENTE',
+        'INFORME DE AUTODIAGNÓSTICO Y QA — KORUM',
         '====================================================',
         `Fecha: ${new Date(results.timestamp).toLocaleString('es-AR')}`,
         `Estado: ${results.estado_sistema}`,

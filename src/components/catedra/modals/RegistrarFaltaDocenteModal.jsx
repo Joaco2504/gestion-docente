@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { CalendarOff, AlertTriangle, Check, X, Clock, ShieldAlert, BookOpen } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CalendarOff, AlertTriangle, Check, X, Clock, ShieldAlert, BookOpen, Search } from 'lucide-react';
 import Modal from '../../common/Modal';
 import { obtenerFeriado } from '../../../utils/feriadosAcademicos';
+import { CATALOGO_DECRETO_1092 } from '../../../constants/decreto1092';
 
 export function RegistrarFaltaDocenteModal({ 
   isOpen, 
@@ -12,14 +13,27 @@ export function RegistrarFaltaDocenteModal({
 }) {
   const [fecha, setFecha] = useState(fechaPorDefecto || new Date().toISOString().split('T')[0]);
   const [horario, setHorario] = useState('');
-  const [articulo, setArticulo] = useState('70-A'); // Artículo reglamentario por defecto (Decreto 1092)
+  const [articulo, setArticulo] = useState('ART_52'); // Artículo reglamentario por defecto (Decreto 1092)
+  const [searchArticulo, setSearchArticulo] = useState('');
   const [motivo, setMotivo] = useState('');
   const [errorValidacion, setErrorValidacion] = useState(null);
+
+  const articulosFiltrados = useMemo(() => {
+    const q = searchArticulo.trim().toLowerCase();
+    if (!q) return CATALOGO_DECRETO_1092;
+    return CATALOGO_DECRETO_1092.filter(art =>
+      (art.label || '').toLowerCase().includes(q) ||
+      (art.codigo || '').toLowerCase().includes(q) ||
+      (art.capitulo || '').toLowerCase().includes(q) ||
+      (art.descripcion || '').toLowerCase().includes(q)
+    );
+  }, [searchArticulo]);
 
   // Sincronizar fecha al abrir el modal si viene fecha por defecto
   useEffect(() => {
     if (isOpen) {
       setFecha(fechaPorDefecto || new Date().toISOString().split('T')[0]);
+      setSearchArticulo('');
       setErrorValidacion(null);
     }
   }, [isOpen, fechaPorDefecto]);
@@ -37,9 +51,11 @@ export function RegistrarFaltaDocenteModal({
       return;
     }
     setErrorValidacion(null);
+    const artObj = CATALOGO_DECRETO_1092.find(a => a.codigo === articulo);
     onConfirm({
       fecha,
-      articulo,
+      articulo: artObj ? artObj.label : articulo,
+      articulo_codigo: artObj ? artObj.codigo : null,
       motivo,
       horario: horario.trim() || undefined,
       catedra_id: catedra?.id
@@ -115,21 +131,40 @@ export function RegistrarFaltaDocenteModal({
             />
           </div>
 
-          {/* Selector de Artículo de Licencia (Decreto 1092 / Marco Normativo) */}
-          <div>
-            <label className="block text-xs font-mono uppercase font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Régimen / Artículo de Inasistencia *
+          {/* Selector de Artículo de Licencia (Decreto 1092 / Marco Normativo) con Buscador Rápido */}
+          <div className="space-y-2">
+            <label className="block text-xs font-mono uppercase font-semibold text-slate-700 dark:text-slate-300">
+              Régimen / Artículo de Inasistencia (Decreto 1092) *
             </label>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchArticulo}
+                onChange={(e) => setSearchArticulo(e.target.value)}
+                placeholder="🔍 Buscar artículo por número o motivo (ej: 52, 16, salud, examen, fallecimiento)..."
+                className="w-full pl-8 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
+              />
+              {searchArticulo && (
+                <button
+                  type="button"
+                  onClick={() => setSearchArticulo('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
             <select
               value={articulo}
               onChange={(e) => setArticulo(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all cursor-pointer"
             >
-              <option value="70-A">Art. 70-A: Enfermedad común (Corto tratamiento)</option>
-              <option value="70-B">Art. 70-B: Enfermedad largo tratamiento</option>
-              <option value="70-G">Art. 70-G: Atención familiar enfermo</option>
-              <option value="70-I">Art. 70-I: Examen o perfeccionamiento docente</option>
-              <option value="70-K">Art. 70-K: Razones particulares (con/sin goce)</option>
+              {articulosFiltrados.map(art => (
+                <option key={art.codigo} value={art.codigo}>
+                  {art.label}
+                </option>
+              ))}
               <option value="PARO">Medida de fuerza gremial / Adhesión a paro</option>
               <option value="SIN_AVISO">Inasistencia Injustificada / Sin parte médico</option>
             </select>

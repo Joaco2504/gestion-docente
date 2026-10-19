@@ -173,17 +173,54 @@ export default function CalendarWeekView({
               return evDate === dayStr;
             });
 
-            const dayAllItems = [
-              ...dayRegularClasses.map(c => ({
+            // Unificar eventos superpuestos de la misma cátedra y hora (Clase + Asistencia / Licencia)
+            const mergedCustomEventIds = new Set();
+
+            const normalizedRegular = dayRegularClasses.map(c => {
+              const regStart = c.desde || c.hora_inicio || '18:00';
+              const regEnd = c.hasta || c.hora_fin || '20:00';
+
+              // Buscar si existe licencia docente o asistencia registrada para esta misma cátedra en este día/bloque
+              const matchingLicencia = dayCustomEvents.find(ev => {
+                if (ev.tipo !== 'LICENCIA_DOCENTE') return false;
+                const matchesCatedra =
+                  ev.aplica_todas_catedras ||
+                  (ev.catedra_id && String(ev.catedra_id) === String(c.catedra_id)) ||
+                  (Array.isArray(ev.catedra_ids) && ev.catedra_ids.some(id => String(id) === String(c.catedra_id)));
+                return matchesCatedra;
+              });
+
+              const matchingAsistencia = dayCustomEvents.find(ev => {
+                if (ev.tipo !== 'ASISTENCIA_REGISTRADA') return false;
+                if (!ev.catedra_id || String(ev.catedra_id) !== String(c.catedra_id)) return false;
+                const evStart = ev.fecha_inicio ? ev.fecha_inicio.substring(11, 16) : (ev.hora_inicio || regStart);
+                return evStart === regStart || true;
+              });
+
+              if (matchingLicencia) mergedCustomEventIds.add(matchingLicencia.id);
+              if (matchingAsistencia) mergedCustomEventIds.add(matchingAsistencia.id);
+
+              return {
                 ...c,
-                hora_inicio: c.desde,
-                hora_fin: c.hasta
-              })),
-              ...dayCustomEvents.map(e => ({
+                hora_inicio: regStart,
+                hora_fin: regEnd,
+                mergedLicencia: matchingLicencia || null,
+                mergedAsistencia: matchingAsistencia || null
+              };
+            });
+
+            // Filtrar eventos personalizados que no fueron absorbidos por una clase programada
+            const remainingCustomEvents = dayCustomEvents
+              .filter(e => !mergedCustomEventIds.has(e.id))
+              .map(e => ({
                 ...e,
                 hora_inicio: e.fecha_inicio ? e.fecha_inicio.substring(11, 16) : (e.hora_inicio || '18:00'),
                 hora_fin: e.fecha_fin ? e.fecha_fin.substring(11, 16) : (e.hora_fin || '20:00')
-              }))
+              }));
+
+            const dayAllItems = [
+              ...normalizedRegular,
+              ...remainingCustomEvents
             ].map((item) => {
               const [sh, sm] = (item.hora_inicio || '18:00').split(':').map(Number);
               const [eh, em] = (item.hora_fin || '20:00').split(':').map(Number);
@@ -197,7 +234,7 @@ export default function CalendarWeekView({
                 {dayAllItems.map((item, itemIdx) => {
                   const baseMinTotal = 7 * 60; // 07:00 hs base
 
-                  // Detectar solapamientos en la misma columna de día
+                  // Detectar solapamientos reales entre distintas materias/eventos en la misma columna de día
                   const overlapping = dayAllItems.filter(
                     other => other.startMinTotal < item.endMinTotal && other.endMinTotal > item.startMinTotal
                   );
@@ -208,20 +245,56 @@ export default function CalendarWeekView({
                   const durationHours = Math.max(1, (item.endMinTotal - item.startMinTotal) / 60);
                   const height = Math.max(56, durationHours * HOUR_ROW_HEIGHT - 6);
 
-                  const design = getItemDesign(item);
+                  const hasLicencia = item.tipo === 'LICENCIA_DOCENTE' || Boolean(item.mergedLicencia);
+                  const hasAsistencia = item.tipo === 'ASISTENCIA_REGISTRADA' || Boolean(item.mergedAsistencia);
+
+                  // Si la clase tiene licencia docente, usar diseño ámbar; si no, diseño de la materia/evento
+                  const effectiveItemForDesign = item.mergedLicencia
+                    ? { ...item, tipo: 'LICENCIA_DOCENTE' }
+                    : item;
+                  const design = getItemDesign(effectiveItemForDesign);
                   const EvIcon = design.Icon;
+
+                  // Limpiar prefijos redundantes para mostrar el nombre de la materia limpio en 1 línea
+                  const rawTitle = item.catedra_nombre || item.titulo || 'Actividad';
+                  const cleanTitle = String(rawTitle)
+                    .replace(/^✓\s*Asistencia:\s*/i, '')
+                    .replace(/^🛡️\s*Licencia Docente\s*—\s*/i, '')
+                    .trim();
+
+                  const presentesCount = item.mergedAsistencia?.presentes ?? item.presentes;
+                  const totalRegistros = item.mergedAsistencia?.total_registros ?? item.total_registros;
+                  const aulaLabel = item.aula || 'Aula 1';
+                  const alumnosCount = item.alumnos_count || totalRegistros || null;
+
+                  // Tooltip completo con toda la información del evento
+                  const tooltipParts = [
+                    cleanTitle,
+                    `Horario: ${item.hora_inicio} - ${item.hora_fin} hs`,
+                    hasLicencia
+                      ? `Estado: 🛡️ Licencia Docente (${item.mergedLicencia?.articulo || item.articulo || 'Decreto 1092'})`
+                      : hasAsistencia
+                      ? `Estado: ✓ Asistencia tomada${presentesCount !== undefined ? ` (${presentesCount}/${totalRegistros || presentesCount} pres.)` : ''}`
+                      : `Aula: ${aulaLabel}`,
+                    alumnosCount ? `Alumnos: ${alumnosCount}` : null,
+                    item.descripcion ? `Detalle: ${item.descripcion}` : null
+                  ].filter(Boolean).join(' • ');
 
                   // Columna en grid de 8 (col 1 es hora, cols 2-8 son días)
                   const dayColLeftPercent = (dayIdx + 1) * (100 / 8);
                   const dayColWidthPercent = (100 / 8) / overlapCount;
                   const colLeftPercent = dayColLeftPercent + overlapIndex * dayColWidthPercent;
 
+                  // Al hacer clic en una tarjeta unificada, abrir el evento enriquecido (asistencia o licencia si existe)
+                  const targetClickItem = item.mergedLicencia || item.mergedAsistencia || item;
+
                   return (
                     <div
                       key={item.id || `ev-${dayIdx}-${itemIdx}`}
+                      title={tooltipParts}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onSelectEvent?.(item);
+                        onSelectEvent?.(targetClickItem);
                       }}
                       style={{
                         top: `${top}px`,
@@ -232,51 +305,50 @@ export default function CalendarWeekView({
                         color: design.textColor
                       }}
                       className={`
-                        absolute z-20 rounded-xl p-2.5 shadow-sm transition-[transform,box-shadow] duration-200 hover:scale-[1.02] hover:shadow-md cursor-pointer overflow-hidden flex flex-col justify-between
+                        absolute z-20 rounded-xl p-2 shadow-sm transition-[transform,box-shadow] duration-200 hover:scale-[1.01] hover:shadow-md hover:z-30 cursor-pointer overflow-hidden flex flex-col justify-between
                         ${design.isMesa 
                           ? 'border-2 border-dashed border-indigo-300 ring-2 ring-indigo-500/40 shadow-indigo-500/20' 
-                          : 'border border-black/10 dark:border-white/10'
+                          : 'border border-black/10 dark:border-white/15'
                         }
                       `}
                     >
-                      {/* Línea 1: Título de la materia o examen */}
-                      <div>
-                        <div className="flex items-start justify-between gap-1">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <EvIcon className="w-3.5 h-3.5 shrink-0 opacity-90" />
-                            <h4 className="font-bold text-xs sm:text-sm truncate leading-tight">
-                              {item.titulo}
+                      {/* Bloque Superior: Línea 1 (Materia + Chip integrado) y Línea 2 (Horario en 1 línea) */}
+                      <div className="min-w-0 space-y-0.5">
+                        {/* Línea 1: Nombre de la materia + Chip integrado */}
+                        <div className="flex items-center justify-between gap-1 min-w-0">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <EvIcon className="w-3 h-3 shrink-0 opacity-90" />
+                            <h4 className="font-bold text-xs leading-tight line-clamp-1">
+                              {cleanTitle}
                             </h4>
                           </div>
-                        </div>
 
-                        {/* Indicador de Cátedra para Mesas de Examen */}
-                        {design.isMesa && design.catedraColor && (
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span
-                              className="w-2 h-2 rounded-full shrink-0 ring-1 ring-white/80"
-                              style={{ backgroundColor: design.catedraColor }}
-                              title={`Cátedra: ${item.catedra_nombre || ''}`}
-                            />
-                            <span className="text-[10px] font-medium opacity-90 truncate">
-                              {item.catedra_nombre || 'Materia'}
+                          {hasLicencia ? (
+                            <span className="shrink-0 px-1.5 py-0.2 rounded-md bg-black/20 text-white text-[9px] font-bold whitespace-nowrap">
+                              🛡️ Licencia
                             </span>
-                          </div>
-                        )}
+                          ) : hasAsistencia ? (
+                            <span className="shrink-0 px-1.5 py-0.2 rounded-md bg-emerald-950/35 border border-white/25 text-white text-[9px] font-bold whitespace-nowrap">
+                              ✓ Asistencia
+                            </span>
+                          ) : null}
+                        </div>
 
-                        {/* Línea 2: Horario en formato 24 hs */}
-                        <div className="font-mono text-[11px] opacity-85 mt-1 font-semibold">
-                          {item.hora_inicio} - {item.hora_fin} hs
+                        {/* Línea 2: Horario en una sola línea */}
+                        <div className="text-[11px] opacity-90 font-mono whitespace-nowrap leading-tight">
+                          {item.hora_inicio} - {item.hora_fin}
                         </div>
                       </div>
 
-                      {/* Línea 3: Micro-chips informativos */}
-                      <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-mono mt-1 pt-1 border-t border-black/10 dark:border-white/15 opacity-90">
-                        <span className="truncate">📍 {item.aula || 'Aula 1'}</span>
-                        {item.alumnos_count && (
-                          <span>👥 {item.alumnos_count}</span>
-                        )}
-                      </div>
+                      {/* Línea 3 (solo si el alto del bloque >= 60px): Aula y cantidad de alumnos */}
+                      {height >= 60 && (
+                        <div className="flex items-center gap-1 text-[10px] font-mono whitespace-nowrap truncate pt-1 border-t border-black/10 dark:border-white/15 opacity-95">
+                          <span className="truncate">
+                            📍 {aulaLabel}
+                            {alumnosCount ? ` · 👥 ${alumnosCount}` : ''}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

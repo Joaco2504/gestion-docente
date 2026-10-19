@@ -107,7 +107,7 @@ export default function SupportPage() {
       categoryLabel: 'Nómina & Excel',
       icon: FileSpreadsheet,
       q: '¿Cuál es el formato exacto para importar la lista de alumnos desde Excel?',
-      a: 'PlanillaDocente acepta archivos .xlsx, .xls y .csv. Se recomienda incluir encabezados como "DNI", "Apellido" y "Nombre" (o una columna unificada "Alumno"). El importador busca automáticamente estas columnas de forma inteligente y te permite revisar y editar cualquier dato antes de confirmar la matriculación.',
+      a: 'Korum acepta archivos .xlsx, .xls y .csv. Se recomienda incluir encabezados como "DNI", "Apellido" y "Nombre" (o una columna unificada "Alumno"). El importador busca automáticamente estas columnas de forma inteligente y te permite revisar y editar cualquier dato antes de confirmar la matriculación.',
       tip: 'Puedes arrastrar directamente el archivo descargado de tu sistema de gestión estudiantil institucional.'
     },
     {
@@ -143,7 +143,7 @@ export default function SupportPage() {
       categoryLabel: 'Seguridad & RLS',
       icon: ShieldCheck,
       q: '¿Mis datos y cátedras están protegidos de otros profesores?',
-      a: 'Sí. PlanillaDocente utiliza Row Level Security (RLS) en Supabase a nivel de motor PostgreSQL. Cada docente tiene un identificador único seguro (UUID) y solo tiene acceso de lectura y escritura a las cátedras, alumnos, asistencias, notas y archivos que le pertenecen.',
+      a: 'Sí. Korum utiliza Row Level Security (RLS) en Supabase a nivel de motor PostgreSQL. Cada docente tiene un identificador único seguro (UUID) y solo tiene acceso de lectura y escritura a las cátedras, alumnos, asistencias, notas y archivos que le pertenecen.',
       tip: 'Tus planillas y notas de exámenes están criptográficamente aisladas y no pueden ser leídas por terceros.'
     },
     {

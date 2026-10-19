@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 let isLoggingOut = false;
 
 /**
- * Servicio Centralizado de Manejo de Errores de PlanillaDocente
+ * Servicio Centralizado de Manejo de Errores de Korum
  * Unifica la presentación amigable al usuario (sin fugas de SQL/PostgreSQL),
  * el registro en consola para depuración, el envío de telemetría a Discord
  * y el auto-logout inmediato cuando la sesión JWT ha expirado (ERR-101 / PGRST303).

@@ -14,6 +14,37 @@ import { formatFechaDMY } from '../../../lib/dateUtils';
 import { isFechaCubiertaPorLicencias } from '../../../services/licenciasService';
 import Badge from '../../common/Badge';
 
+const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const MESES_CORTO = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+function formatFechaLegibleCorta(dateInput) {
+  if (!dateInput) return 'Sin fecha';
+  const str = String(dateInput).trim().split('T')[0];
+  const match = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+  if (match) {
+    const y = Number(match[1]);
+    const m = Number(match[2]) - 1;
+    const d = Number(match[3]);
+    const dt = new Date(y, m, d, 12, 0, 0);
+    if (!isNaN(dt.getTime())) {
+      return `${DIAS_CORTO[dt.getDay()]} ${String(d).padStart(2, '0')} ${MESES_CORTO[m]}`;
+    }
+  }
+  return formatFechaDMY(dateInput).replace(/-/g, '/');
+}
+
+function isGenericTema(tema) {
+  if (!tema) return true;
+  const clean = String(tema).trim().toLowerCase();
+  return (
+    !clean ||
+    clean === 'clase regular' ||
+    clean === 'clase dictada regular' ||
+    clean.startsWith('clase en curso') ||
+    clean === 'sin tema asignado'
+  );
+}
+
 /**
  * AttendanceClassCarousel
  * Carrusel horizontal ergonómico y táctil de clases registradas en la cátedra.
@@ -86,13 +117,14 @@ export default function AttendanceClassCarousel({
             <span className="sm:hidden">Hoy</span>
           </button>
 
-          {clases.length > 3 && (
-            <div className="hidden md:flex items-center gap-1 ml-1">
+          {clases.length > 0 && (
+            <div className="flex items-center gap-1 ml-1">
               <button
                 type="button"
                 onClick={() => scroll('left')}
                 aria-label="Desplazar a la izquierda"
                 className="p-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Desplazar a la izquierda"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -101,6 +133,7 @@ export default function AttendanceClassCarousel({
                 onClick={() => scroll('right')}
                 aria-label="Desplazar a la derecha"
                 className="p-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Desplazar a la derecha"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -109,7 +142,7 @@ export default function AttendanceClassCarousel({
         </div>
       </div>
 
-      {/* Lista Deslizable de Clases */}
+      {/* Lista Deslizable de Clases (sin barra de scroll nativa) */}
       {clases.length === 0 ? (
         <div className="py-6 px-4 text-center rounded-xl bg-slate-50/50 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800">
           <Calendar className="w-6 h-6 mx-auto text-text-muted/50 mb-1.5" />
@@ -123,7 +156,7 @@ export default function AttendanceClassCarousel({
       ) : (
         <div
           ref={scrollContainerRef}
-          className="flex items-center gap-2.5 overflow-x-auto pb-1.5 scrollbar-thin overscroll-contain snap-x"
+          className="flex items-stretch gap-3 overflow-x-auto pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overscroll-contain snap-x"
         >
           {clases.map((c, idx) => {
             const isSelected = selectedClaseId 
@@ -131,17 +164,20 @@ export default function AttendanceClassCarousel({
               : c.fecha === selectedFecha;
             const stats = getClaseAttendanceStats(c);
             const formattedDate = formatFechaDMY(c.fecha).replace(/-/g, '/');
+            const legibleDate = formatFechaLegibleCorta(c.fecha);
+            const numeroClase = c.numero_clase || (clases.length - idx);
             const coverage = isFechaCubiertaPorLicencias(c.fecha, licenciasDocente, catedraId);
             const isLicencia = c.estado === 'DOCENTE_AUSENTE' || Boolean(c.articulo_licencia) || coverage.cubierta;
             const licenciaArticulo = c.articulo_licencia || (coverage.licencia?.articulo_codigo || coverage.licencia?.articulo);
+            const genericTema = isGenericTema(c.tema);
 
-            let cardStyle = 'border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700';
+            let cardStyle = 'border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:border-slate-300 dark:hover:border-slate-700';
             if (isLicencia) {
               cardStyle = isSelected
-                ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 shadow-xs ring-2 ring-amber-500/30'
+                ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 shadow-sm ring-2 ring-amber-500/30'
                 : 'border-amber-500/40 bg-amber-500/5 dark:bg-amber-500/10 hover:border-amber-500/60';
             } else if (isSelected) {
-              cardStyle = 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/15 shadow-xs ring-2 ring-emerald-500/30';
+              cardStyle = 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/15 shadow-sm ring-2 ring-emerald-500/30';
             }
 
             return (
@@ -149,56 +185,61 @@ export default function AttendanceClassCarousel({
                 key={c.id || idx}
                 type="button"
                 onClick={() => onSelectClase?.(c)}
-                className={`group relative flex flex-col items-start gap-1 p-2.5 rounded-xl border transition-all cursor-pointer min-w-[145px] max-w-[180px] shrink-0 snap-start text-left touch-target-44 ${cardStyle}`}
-                title={isLicencia ? `Licencia Docente registrada (${formattedDate})` : `Ver y editar asistencia del ${formattedDate}`}
+                className={`group relative flex flex-col justify-between items-start gap-2 min-w-[190px] max-w-[210px] p-3.5 rounded-2xl border transition-all cursor-pointer shrink-0 snap-start text-left touch-target-44 ${cardStyle}`}
+                title={isLicencia ? `Licencia Docente registrada (${formattedDate})` : `Clase #${numeroClase} (${formattedDate}) — ${genericTema ? 'Sin tema asignado' : c.tema}`}
               >
-                {/* Línea 1: Fecha e Indicador de Selección */}
-                <div className="w-full flex items-center justify-between gap-1">
-                  <span className={`font-mono text-xs font-bold ${
+                {/* Cabecera de tarjeta: Fecha legible ('Jue 15 Oct') + Badge 'Clase #N' */}
+                <div className="w-full flex items-center justify-between gap-1.5">
+                  <span className={`font-bold text-sm tracking-tight truncate ${
                     isSelected
                       ? isLicencia ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
-                      : isLicencia ? 'text-amber-600 dark:text-amber-400' : 'text-text-primary'
+                      : isLicencia ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'
                   }`}>
-                    {formattedDate}
+                    {legibleDate}
                   </span>
-                  <span className={`text-[10px] font-mono px-1 py-0.2 rounded ${
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md shrink-0 ${
                     isLicencia
-                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold'
-                      : 'bg-slate-100 dark:bg-slate-800 text-text-muted'
+                      ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 font-bold border border-amber-500/20'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200/70 dark:border-slate-700'
                   }`}>
-                    {isLicencia ? 'LIC' : `N° ${c.numero_clase || (clases.length - idx)}`}
+                    {isLicencia ? 'LIC' : `Clase #${numeroClase}`}
                   </span>
                 </div>
 
-                {/* Línea 2: Tema de la Clase o Licencia */}
-                <div className={`w-full text-[11px] truncate font-medium ${
-                  isLicencia ? 'text-amber-700 dark:text-amber-300 font-semibold' : 'text-text-muted'
-                }`}>
-                  {isLicencia 
-                    ? (licenciaArticulo || c.motivo_inasistencia || 'Licencia Docente')
-                    : (c.tema || 'Clase regular')}
+                {/* Cuerpo (Tema): Si es genérico, mostrar en cursiva sutil 'Sin tema asignado' */}
+                <div className="w-full min-h-[20px]">
+                  {isLicencia ? (
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 truncate">
+                      {licenciaArticulo || c.motivo_inasistencia || 'Licencia Docente'}
+                    </p>
+                  ) : genericTema ? (
+                    <p className="text-xs italic text-slate-400 dark:text-slate-500 truncate">
+                      Sin tema asignado
+                    </p>
+                  ) : (
+                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
+                      {c.tema}
+                    </p>
+                  )}
                 </div>
 
-                {/* Línea 3: Chip de Asistencia Tomada o Licencia */}
-                <div className="w-full pt-1 mt-0.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px] font-mono">
+                {/* Pie de estado con badge semántico claro */}
+                <div className="w-full pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-1">
                   {isLicencia ? (
-                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold truncate">
-                      <ShieldAlert className="w-3 h-3 shrink-0" />
-                      <span>🛡️ Licencia</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25 text-[10px] font-bold truncate">
+                      <span>🛡️ Licencia Docente</span>
                     </span>
                   ) : stats.hasRecords ? (
-                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>{stats.presentes} presentes</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 text-[10px] font-bold truncate">
+                      <span>✓ Asistencia tomada ({stats.presentes} pres.)</span>
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-text-muted">
-                      <Clock className="w-3 h-3" />
-                      <span>Sin registros</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-200/70 dark:border-slate-700/70 text-[10px] font-semibold truncate">
+                      <span>○ Pendiente de lista</span>
                     </span>
                   )}
                   {isSelected && (
-                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                    <span className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${
                       isLicencia ? 'bg-amber-500' : 'bg-emerald-500'
                     }`} />
                   )}

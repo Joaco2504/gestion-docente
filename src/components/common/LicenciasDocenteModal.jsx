@@ -107,6 +107,7 @@ export default function LicenciasDocenteModal({
   const [formCustomArticulo, setFormCustomArticulo] = useState('');
   const [formEstadoTramite, setFormEstadoTramite] = useState('PENDIENTE_CERTIFICADO');
   const [formObservacion, setFormObservacion] = useState('');
+  const [searchArticuloInput, setSearchArticuloInput] = useState('');
 
   // Objeto de configuración del artículo actual
   const currentArticuloObj = useMemo(() => {
@@ -129,20 +130,36 @@ export default function LicenciasDocenteModal({
     return calcularFechaFinLicencia(formFecha, cant, tipoComputo);
   }, [formFecha, formCantidadDias, currentArticuloObj]);
 
-  // Cálculo reactivo de disponibilidad y cupo según artículo y fecha seleccionados
-  // Si estamos en edición completa, excluimos la licencia en edición para no duplicar cómputo en el saldo
-  const disponibilidad = useMemo(() => {
-    const licenciasParaDisponibilidad = editingLicencia
+  // Lista base excluyendo licencia en edición para cálculo de saldos
+  const licenciasParaDisponibilidad = useMemo(() => {
+    return editingLicencia
       ? licencias.filter(l => String(l.id) !== String(editingLicencia.id))
       : licencias;
+  }, [licencias, editingLicencia]);
+
+  // Cálculo reactivo de disponibilidad y cupo según artículo y fecha seleccionados
+  const disponibilidad = useMemo(() => {
     return calcularDisponibilidadArticulo(formArticulo, licenciasParaDisponibilidad, formFecha);
-  }, [formArticulo, licencias, formFecha, editingLicencia]);
+  }, [formArticulo, licenciasParaDisponibilidad, formFecha]);
+
+  // Filtrado en tiempo real de artículos del Decreto 1092 en el formulario
+  const articulosFiltradosForm = useMemo(() => {
+    const q = searchArticuloInput.trim().toLowerCase();
+    if (!q) return [];
+    return CATALOGO_DECRETO_1092.filter(art =>
+      (art.label || '').toLowerCase().includes(q) ||
+      (art.codigo || '').toLowerCase().includes(q) ||
+      (art.capitulo || '').toLowerCase().includes(q) ||
+      (art.descripcion || '').toLowerCase().includes(q)
+    );
+  }, [searchArticuloInput]);
 
   // Cancelar edición y limpiar formulario
   const handleCancelEditForm = useCallback(() => {
     setEditingLicencia(null);
     setFormObservacion('');
     setFormCustomArticulo('');
+    setSearchArticuloInput('');
     setFormFecha(getTodayYMD());
     setFormArticulo('ART_52');
     setFormCantidadDias(1);
@@ -155,6 +172,7 @@ export default function LicenciasDocenteModal({
   // Iniciar edición completa de una licencia
   const handleStartFullEdit = useCallback((lic) => {
     setEditingLicencia(lic);
+    setSearchArticuloInput('');
     setFormFecha(lic.fecha_inicio || lic.fecha || getTodayYMD());
 
     const artCode = lic.articulo_codigo || getArticuloByText(lic.articulo)?.codigo;
@@ -484,7 +502,7 @@ export default function LicenciasDocenteModal({
               <span>
                 {isFormOpen
                   ? (editingLicencia ? 'Cancelar Edición' : 'Ocultar Formulario')
-                  : '+ Registrar Nueva Licencia'}
+                  : 'Registrar Nueva Licencia'}
               </span>
             </button>
           </div>
@@ -828,11 +846,97 @@ export default function LicenciasDocenteModal({
                 </div>
               </div>
 
-              {/* Artículo Decreto 1092 */}
+              {/* Artículo Decreto 1092 con Buscador Rápido */}
               <div className="sm:col-span-2">
                 <label className="block text-xs font-mono font-bold uppercase text-text-secondary mb-1">
                   Artículo / Causal (Decreto 1092) *
                 </label>
+
+                {/* Buscador instantáneo de artículos */}
+                <div className="relative mb-2">
+                  <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchArticuloInput}
+                    onChange={(e) => setSearchArticuloInput(e.target.value)}
+                    placeholder="🔍 Buscar artículo por número o motivo (ej: 52, 16, salud, examen, fallecimiento)..."
+                    className="w-full pl-8 pr-8 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-surface-border text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium"
+                  />
+                  {searchArticuloInput && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchArticuloInput('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary cursor-pointer"
+                      title="Limpiar búsqueda"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Lista desplegable de coincidencias en tiempo real con cupo disponible */}
+                {searchArticuloInput.trim() !== '' && (
+                  <div className="mb-2 max-h-48 overflow-y-auto rounded-xl border border-primary/30 bg-white dark:bg-slate-900 divide-y divide-surface-border shadow-md">
+                    {articulosFiltradosForm.length > 0 ? (
+                      articulosFiltradosForm.map((art) => {
+                        const dispItem = calcularDisponibilidadArticulo(art.codigo, licenciasParaDisponibilidad, formFecha);
+                        const isSelected = formArticulo === art.codigo;
+                        const badgeCupo = dispItem.modo === 'SIN_LIMITE'
+                          ? 'Sin límite'
+                          : dispItem.modo === 'POR_EVENTO'
+                          ? `Hasta ${art.topePorEvento} ${art.unidad}/ev.`
+                          : dispItem.bloqueado
+                          ? 'Cupo agotado'
+                          : `${dispItem.restanteAnual ?? '—'} disp. año`;
+                        return (
+                          <button
+                            key={art.codigo}
+                            type="button"
+                            onClick={() => {
+                              setFormArticulo(art.codigo);
+                              setSearchArticuloInput('');
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs flex items-start justify-between gap-2 transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-primary/10 text-primary font-bold'
+                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/70 text-text-primary'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <span className="block font-semibold truncate">{art.label}</span>
+                              <span className="block text-[10px] text-text-muted truncate">{art.capitulo} · {art.descripcion}</span>
+                            </div>
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                              dispItem.bloqueado
+                                ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                                : dispItem.modo === 'SIN_LIMITE'
+                                ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                                : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                              {badgeCupo}
+                            </span>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="px-3 py-2.5 text-xs text-text-muted flex items-center justify-between">
+                        <span>No se encontraron artículos para "{searchArticuloInput}".</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormArticulo('OTRO');
+                            setFormCustomArticulo(searchArticuloInput);
+                            setSearchArticuloInput('');
+                          }}
+                          className="text-primary font-bold hover:underline cursor-pointer"
+                        >
+                          Usar como otra causal
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <select
                   value={formArticulo}
                   onChange={(e) => setFormArticulo(e.target.value)}

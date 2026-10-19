@@ -299,7 +299,7 @@ export default function ActaVolantePrintModal({
             </div>
 
             <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 italic">
-              <span>Constancia emitida por PlanillaDocente para control y archivo oficial de actas.</span>
+              <span>Constancia emitida por Korum para control y archivo oficial de actas.</span>
               <span>Página 1 de 1</span>
             </div>
           </div>

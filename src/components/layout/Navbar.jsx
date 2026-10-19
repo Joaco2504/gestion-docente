@@ -78,13 +78,13 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 h-16 w-full backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 text-text-primary px-3 sm:px-6 transition-all shadow-xs">
-        <div className="h-full flex items-center justify-between gap-3 max-w-7xl 2xl:max-w-[96rem] mx-auto">
+      <header className="sticky top-0 z-30 h-16 w-full backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 text-text-primary transition-all shadow-xs">
+        <div className="flex items-center justify-between gap-3 w-full px-4 lg:px-6 h-16 max-w-7xl 2xl:max-w-[96rem] mx-auto">
           
           {/* ============================================================
               1. LADO IZQUIERDO: LOGO SVG KORUM + SELECTOR DE CÁTEDRA ACTIVA
              ============================================================ */}
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
+          <div className="flex items-center gap-3 shrink-0">
             {/* Isotipo & Marca Korum */}
             <Link 
               to="/dashboard" 
@@ -110,7 +110,7 @@ export default function Navbar() {
             </Link>
 
             {/* Divisor vertical sutil */}
-            <div className="hidden sm:block h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1" />
+            <div className="hidden sm:block h-6 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
 
             {/* Selector Dropdown de Cátedra Activa */}
             {currentCatedra ? (
@@ -118,7 +118,7 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[140px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-[240px] xl:max-w-[280px] cursor-pointer shadow-2xs group shrink"
+                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-text-primary transition-all max-w-[180px] xl:max-w-[220px] truncate cursor-pointer shadow-2xs group shrink-0"
                     title={`Cátedra activa: ${currentCatedra.nombre}`}
                   >
                     <span 
@@ -185,7 +185,7 @@ export default function Navbar() {
              ============================================================ */}
           <nav 
             aria-label="Navegación principal superior" 
-            className="hidden lg:flex items-center gap-1 shrink-0 bg-slate-100/60 dark:bg-slate-800/40 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800"
+            className="hidden lg:flex items-center gap-1 bg-slate-100/80 dark:bg-slate-900/80 p-1 rounded-2xl border border-slate-200/70 dark:border-slate-800 shrink-0 mx-auto"
           >
             {navLinks.map((link) => {
               const isCurrentActive = link.isActiveMatch !== undefined 
@@ -196,7 +196,7 @@ export default function Navbar() {
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs font-semibold rounded-xl shrink-0 transition-all ${
                     isCurrentActive
                       ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/60'
@@ -212,17 +212,19 @@ export default function Navbar() {
           {/* ============================================================
               3. LADO DERECHO: COMMAND PALETTE + TEMA + NOTIF + USER MENU
              ============================================================ */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto lg:ml-0">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Botón disparador de Command Palette (⌘K) en Desktop */}
             <button
               type="button"
               onClick={() => setIsCommandPaletteOpen(true)}
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 text-xs text-text-muted hover:text-text-primary hover:border-emerald-500/40 hover:bg-surface transition-all cursor-pointer shadow-2xs group active:scale-[0.99]"
+              className="hidden sm:inline-flex items-center justify-between gap-2 px-3 py-1.5 w-44 xl:w-56 rounded-xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 text-xs text-text-muted hover:text-text-primary hover:border-emerald-500/40 hover:bg-surface transition-all cursor-pointer shadow-2xs group active:scale-[0.99]"
               title="Abrir buscador global de Korum (Ctrl+K)"
             >
-              <Search className="w-3.5 h-3.5 text-text-muted group-hover:text-emerald-500 transition-colors shrink-0" />
-              <span className="hidden xl:inline font-medium text-text-secondary">Buscar alumnos, cátedras...</span>
-              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-text-muted font-bold shadow-2xs">
+              <span className="inline-flex items-center gap-2 min-w-0 truncate">
+                <Search className="w-3.5 h-3.5 text-text-muted group-hover:text-emerald-500 transition-colors shrink-0" />
+                <span className="truncate font-medium text-text-secondary">Buscar...</span>
+              </span>
+              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-text-muted font-bold shadow-2xs shrink-0">
                 ⌘K
               </kbd>
             </button>

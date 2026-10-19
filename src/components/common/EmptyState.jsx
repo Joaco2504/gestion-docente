@@ -122,7 +122,7 @@ export default function EmptyState({
       </h4>
 
       {description && (
-        <p className="text-xs sm:text-sm text-text-muted mt-1.5 max-w-sm sm:max-w-md mx-auto leading-relaxed">
+        <p className="text-xs sm:text-sm text-text-muted mt-1.5 pb-4 max-w-sm sm:max-w-md mx-auto leading-relaxed">
           {description}
         </p>
       )}

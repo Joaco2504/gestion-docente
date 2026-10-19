@@ -133,7 +133,7 @@ export default function PortalSettingsModal({
   const activeSlug = alias.trim() || catedra?.alias || slugifyCatedra(catedra?.nombre || 'catedra');
   const portalUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/consulta/${activeSlug}`
-    : `https://app.planilladocente.com/consulta/${activeSlug}`;
+    : `https://korum-wine.vercel.app/consulta/${activeSlug}`;
 
   const handleCopyLink = async () => {
     try {

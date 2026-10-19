@@ -181,7 +181,7 @@ export default function LibroTemasPrintModal({
           </div>
 
           <div className="text-right text-[10px] text-slate-400 print:text-slate-500 font-mono pt-2">
-            Emitido por PlanillaDocente • {new Date().toLocaleDateString('es-AR')}
+            Emitido por Korum • {new Date().toLocaleDateString('es-AR')}
           </div>
         </div>
       </div>

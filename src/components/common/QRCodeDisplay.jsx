@@ -135,7 +135,7 @@ export default function QRCodeDisplay({
     }
   };
 
-  const { matrix, size } = generateQRCodeMatrix(url || 'https://planilladocente.com');
+  const { matrix, size } = generateQRCodeMatrix(url || 'https://korum-wine.vercel.app');
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-colors duration-300 ${

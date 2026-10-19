@@ -98,20 +98,20 @@ function AuthenticatedDocenteShell() {
 
   if (loading) {
     return (
-      <div className="min-h-app flex items-center justify-center bg-[#0B0F19] relative overflow-hidden">
-        <div className="absolute w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none animate-pulseGlow" />
+      <div className="min-h-app flex items-center justify-center bg-slate-50 dark:bg-slate-950 relative overflow-hidden transition-colors">
+        <div className="absolute w-72 h-72 rounded-full bg-[#10B981]/10 blur-3xl pointer-events-none animate-pulseGlow" />
         <div className="flex flex-col items-center gap-4 relative z-10">
           <div className="relative">
-            <div className="w-16 h-16 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+            <div className="w-16 h-16 rounded-2xl border-2 border-[#10B981]/20 border-t-[#10B981] animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
               <img src="/dashboard-logo.png" alt="Korum" className="w-8 h-8 object-contain rounded-xl" />
             </div>
           </div>
           <div className="text-center">
-            <span className="font-bold text-lg tracking-tight text-white block">
+            <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white block">
               Korum
             </span>
-            <span className="text-xs font-mono text-slate-400">Iniciando plataforma académica...</span>
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">Cargando espacio académico...</span>
           </div>
         </div>
       </div>
@@ -126,7 +126,7 @@ function AuthenticatedDocenteShell() {
   return (
     <AppLayout>
       <ErrorBoundary title="Error en el módulo docente">
-        <Suspense fallback={<RouteLoadingSpinner mensaje="Cargando módulo académico..." />}>
+        <Suspense fallback={<RouteLoadingSpinner mensaje="Cargando espacio académico..." />}>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />

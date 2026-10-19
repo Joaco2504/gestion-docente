@@ -814,12 +814,12 @@ export default function SupportHubModal({
       />
 
       {/* MODAL CONTENEDOR RESPONSIVO */}
-      <div className="relative w-full max-w-4xl max-h-[85vh] flex flex-col bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden z-10 animate-scaleIn dark text-slate-100">
+      <div className="relative w-full max-w-4xl max-h-[85vh] flex flex-col bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-10 animate-scaleIn">
         
         {/* ========================================================
             1. CABECERA DE USUARIO (2 FILAS CLARAS)
            ======================================================== */}
-        <div className="p-4 sm:p-5 border-b border-slate-700/80 bg-slate-800/60 backdrop-blur-xl flex flex-col gap-3 shrink-0">
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/60 backdrop-blur-xl flex flex-col gap-3 shrink-0">
           {/* Fila 1: Avatar, Nombre, Email a la izquierda; Botón accesible [ ✕ ] a la derecha */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -828,14 +828,14 @@ export default function SupportHubModal({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 truncate">
-                  <h2 className="text-sm sm:text-base font-bold text-white truncate">
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
                     {teacher?.nombre || 'Docente'}
                   </h2>
                   <Badge variant={teacher?.rol === 'superadmin' ? 'primary' : 'default'} className="font-mono text-[10px] font-bold shrink-0">
                     {teacher?.rol?.toUpperCase() || 'DOCENTE'}
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-400 font-mono truncate">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate">
                   {teacher?.email || 'Sin correo registrado'}
                 </p>
               </div>
@@ -845,7 +845,7 @@ export default function SupportHubModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               title="Cerrar modal de soporte"
               aria-label="Cerrar"
             >
@@ -854,30 +854,30 @@ export default function SupportHubModal({
           </div>
 
           {/* Fila 2: Badge UUID con botón de copia rápida + selector de rol compacto */}
-          <div className="flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-slate-700/60">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60 max-w-[210px] sm:max-w-xs">
-              <span className="text-[10px] sm:text-xs font-mono text-slate-400 truncate">
+          <div className="flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-slate-200 dark:border-slate-700/60">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 max-w-[210px] sm:max-w-xs">
+              <span className="text-[10px] sm:text-xs font-mono text-slate-600 dark:text-slate-400 truncate">
                 UUID: {teacher?.id}
               </span>
               <button
                 type="button"
                 onClick={handleCopyId}
-                className="p-1 text-slate-400 hover:text-indigo-400 rounded transition-colors cursor-pointer shrink-0"
+                className="p-1 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition-colors cursor-pointer shrink-0"
                 title="Copiar ID de Supabase"
               >
                 {copiedId ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               </button>
             </div>
 
-            <div className="flex items-center p-0.5 rounded-xl bg-slate-800 border border-slate-700/60">
+            <div className="flex items-center p-0.5 rounded-xl bg-slate-200/70 dark:bg-slate-800 border border-slate-300/70 dark:border-slate-700/60">
               <button
                 type="button"
                 disabled={changingRole}
                 onClick={() => handleRoleChange('docente')}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   teacher?.rol !== 'superadmin'
-                    ? 'bg-slate-700 text-white shadow-xs font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 Docente
@@ -889,7 +889,7 @@ export default function SupportHubModal({
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
                   teacher?.rol === 'superadmin'
                     ? 'bg-gradient-to-r from-rose-500 to-indigo-600 text-white shadow-xs font-bold'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
@@ -902,33 +902,33 @@ export default function SupportHubModal({
         {/* ========================================================
             2. BARRA DE ACCIONES DE SUPERUSUARIO (LUCIDE SVG ONLY)
            ======================================================== */}
-        <div className="p-3 sm:px-5 border-b border-slate-700/80 bg-slate-800/40 flex items-center justify-between gap-2.5 shrink-0">
+        <div className="p-3 sm:px-5 border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-800/40 flex items-center justify-between gap-2.5 shrink-0">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 flex-1">
             <button
               type="button"
               onClick={handlePurgeOrphans}
               disabled={purging}
-              className="bg-slate-800/80 border border-slate-700/80 rounded-xl py-2.5 px-3 text-xs font-medium hover:bg-slate-700 text-slate-200 flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
+              className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800/70 dark:hover:bg-slate-800 dark:text-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
             >
-              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
               <span>{purging ? 'Purgando...' : 'Purgar Huérfanos'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleInspectAsTeacher}
-              className="bg-slate-800/80 border border-slate-700/80 rounded-xl py-2.5 px-3 text-xs font-medium hover:bg-slate-700 text-slate-200 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800/70 dark:hover:bg-slate-800 dark:text-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Eye className="w-4 h-4 text-indigo-400 shrink-0" />
+              <Eye className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span>Inspeccionar</span>
             </button>
 
             <button
               type="button"
               onClick={handleExportJson}
-              className="bg-slate-800/80 border border-slate-700/80 rounded-xl py-2.5 px-3 text-xs font-medium hover:bg-slate-700 text-slate-200 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800/70 dark:hover:bg-slate-800 dark:text-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Download className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>Exportar JSON</span>
             </button>
           </div>
@@ -936,7 +936,7 @@ export default function SupportHubModal({
           <button
             type="button"
             onClick={() => loadTeacherData(teacher?.id)}
-            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-700/80 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors shrink-0 cursor-pointer"
+            className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors shrink-0 cursor-pointer"
             title="Recargar datos del docente"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -946,14 +946,14 @@ export default function SupportHubModal({
         {/* ========================================================
             3. PESTAÑAS DE NAVEGACIÓN
            ======================================================== */}
-        <div className="flex items-center border-b border-slate-700/80 px-4 overflow-x-auto no-scrollbar gap-2 shrink-0 bg-slate-900/60">
+        <div className="flex items-center border-b border-slate-200 dark:border-slate-800 px-4 overflow-x-auto no-scrollbar gap-2 shrink-0 bg-white dark:bg-slate-900/60">
           <button
             type="button"
             onClick={() => setActiveTab('catedras')}
             className={`whitespace-nowrap px-3.5 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'catedras'
-                ? 'border-indigo-500 text-indigo-400 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <BookOpen className="w-4 h-4 shrink-0" />
@@ -965,8 +965,8 @@ export default function SupportHubModal({
             onClick={() => setActiveTab('alumnos')}
             className={`whitespace-nowrap px-3.5 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'alumnos'
-                ? 'border-indigo-500 text-indigo-400 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Users className="w-4 h-4 shrink-0" />
@@ -978,8 +978,8 @@ export default function SupportHubModal({
             onClick={() => setActiveTab('evaluaciones')}
             className={`whitespace-nowrap px-3.5 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'evaluaciones'
-                ? 'border-indigo-500 text-indigo-400 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <FileSpreadsheet className="w-4 h-4 shrink-0" />
@@ -991,8 +991,8 @@ export default function SupportHubModal({
             onClick={() => setActiveTab('clases')}
             className={`whitespace-nowrap px-3.5 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'clases'
-                ? 'border-indigo-500 text-indigo-400 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <GraduationCap className="w-4 h-4 shrink-0" />
@@ -1005,8 +1005,8 @@ export default function SupportHubModal({
             onClick={() => setActiveTab('mesas')}
             className={`whitespace-nowrap px-3.5 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'mesas'
-                ? 'border-indigo-500 text-indigo-400 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <BookMarked className="w-4 h-4 shrink-0" />
@@ -1017,7 +1017,7 @@ export default function SupportHubModal({
         {/* ========================================================
             4. CONTENIDO DE LAS PESTAÑAS (TARJETAS TRUNCADAS ESTILIZADAS)
            ======================================================== */}
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 pb-8 scrollbar-thin space-y-4">
           
           {loading ? (
             <div className="flex justify-center items-center py-16">
@@ -1033,6 +1033,7 @@ export default function SupportHubModal({
                       icon={BookOpen}
                       title="Sin cátedras registradas"
                       description="El docente no tiene espacios curriculares asignados en este momento."
+                      className="bg-slate-50/70 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80 p-8 min-h-[240px]"
                     />
                   ) : (
                     catedras.map((cat) => (
@@ -1142,6 +1143,7 @@ export default function SupportHubModal({
                       icon={Users}
                       title="Sin alumnos coincidentes"
                       description="No se encontraron estudiantes para los criterios ingresados."
+                      className="bg-slate-50/70 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80 p-8 min-h-[240px]"
                     />
                   ) : (
                     <div className="space-y-2.5">
@@ -1361,6 +1363,7 @@ export default function SupportHubModal({
                         icon={FileSpreadsheet}
                         title="Sin evaluaciones encontradas"
                         description="No se encontraron evaluaciones con los filtros seleccionados."
+                        className="bg-slate-50/70 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80 p-8 min-h-[240px]"
                       />
                     ) : (
                       <div className="space-y-2">
@@ -1446,6 +1449,7 @@ export default function SupportHubModal({
                       icon={GraduationCap}
                       title="Sin clases registradas"
                       description="El docente no ha registrado clases ni temas dictados todavía."
+                      className="bg-slate-50/70 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80 p-8 min-h-[240px]"
                     />
                   ) : (
                     <div className="space-y-2">
@@ -1493,6 +1497,7 @@ export default function SupportHubModal({
                       icon={BookMarked}
                       title="Sin mesas de examen registradas"
                       description="El docente no ha creado actas ni mesas de examen todavía."
+                      className="bg-slate-50/70 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80 p-8 min-h-[240px]"
                     />
                   ) : (
                     <div className="space-y-2.5">

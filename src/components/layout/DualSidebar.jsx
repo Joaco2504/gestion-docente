@@ -55,7 +55,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
 
   // Estado colapsado del riel secundario (persistido en localStorage)
   const [isSecondaryNavOpen, setIsSecondaryNavOpen] = useState(() => {
-    return localStorage.getItem('planilladocente_dual_secondary_open') !== 'false';
+    return localStorage.getItem('korum_dual_secondary_open') !== 'false';
   });
 
   // Control del Avatar Popover
@@ -78,7 +78,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
   const toggleSecondaryNav = () => {
     setIsSecondaryNavOpen(prev => {
       const next = !prev;
-      localStorage.setItem('planilladocente_dual_secondary_open', String(next));
+      localStorage.setItem('korum_dual_secondary_open', String(next));
       return next;
     });
   };
@@ -95,7 +95,7 @@ export default function DualSidebar({ isOpen = false, onClose }) {
         e.preventDefault();
         setIsSecondaryNavOpen(prev => {
           const next = !prev;
-          localStorage.setItem('planilladocente_dual_secondary_open', String(next));
+          localStorage.setItem('korum_dual_secondary_open', String(next));
           toast.info(next ? 'Panel lateral desplegado' : 'Panel lateral oculto (espacio de trabajo ampliado)', {
             duration: 1800
           });

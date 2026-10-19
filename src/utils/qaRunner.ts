@@ -1,5 +1,5 @@
 /**
- * qaRunner.ts - Suite de QA y Diagnóstico Integral Automatizado para PlanillaDocente
+ * qaRunner.ts - Suite de QA y Diagnóstico Integral Automatizado para Korum
  * 
  * Evalúa las 5 operaciones troncales de la plataforma:
  * 1. Creación y consulta de Cátedras / Ciclos.

@@ -11,7 +11,8 @@ import {
   GraduationCap,
   Briefcase,
   FileText,
-  ExternalLink
+  ExternalLink,
+  UserCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ThemeToggle from '../components/common/ThemeToggle';
@@ -25,7 +26,7 @@ import { handleAppError } from '../utils/handleAppError';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 /**
- * ConsultaAlumnoPage - Portal de Consulta Académica Oficial Korum (Diseño Ultraminimalista)
+ * ConsultaAlumnoPage - Portal de Consulta Académica Oficial Korum
  * Ruta: /consulta/:catedraId
  */
 export default function ConsultaAlumnoPage() {
@@ -133,8 +134,8 @@ export default function ConsultaAlumnoPage() {
   // Carga inicial
   if (initLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
-        <div className="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="w-7 h-7 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -142,11 +143,11 @@ export default function ConsultaAlumnoPage() {
   // Cátedra no encontrada o inactiva
   if (!catedra) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
-        <div className="max-w-sm w-full bg-surface border border-surface-border rounded-2xl p-6 text-center space-y-3 shadow-xs">
-          <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-          <h2 className="text-base font-bold text-text-primary">Cátedra no encontrada</h2>
-          <p className="text-xs text-text-muted leading-relaxed">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="max-w-sm w-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-7 text-center space-y-3 shadow-xl">
+          <AlertCircle className="w-9 h-9 text-rose-500 mx-auto" />
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Cátedra no encontrada</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
             El enlace no corresponde a una materia activa en el sistema.
           </p>
         </div>
@@ -156,11 +157,11 @@ export default function ConsultaAlumnoPage() {
 
   if (!catedra.portal_activo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
-        <div className="max-w-sm w-full bg-surface border border-surface-border rounded-2xl p-6 text-center space-y-3 shadow-xs">
-          <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
-          <h2 className="text-base font-bold text-text-primary">Consulta desactivada</h2>
-          <p className="text-xs text-text-muted leading-relaxed">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="max-w-sm w-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-7 text-center space-y-3 shadow-xl">
+          <AlertCircle className="w-9 h-9 text-amber-500 mx-auto" />
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Consulta desactivada</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
             El docente de <strong>{catedra.nombre}</strong> no tiene habilitada la consulta pública de calificaciones en este momento.
           </p>
         </div>
@@ -171,21 +172,21 @@ export default function ConsultaAlumnoPage() {
   const institucionNombre = catedra.instituciones?.nombre || catedra.institucion_nombre || 'Institución Educativa';
 
   return (
-    <div className="min-h-screen flex flex-col bg-canvas text-text-primary antialiased selection:bg-emerald-500/20">
-      {/* 1. Cabecera Compacta */}
-      <header className="w-full bg-surface border-b border-surface-border px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-emerald-500/20 transition-colors">
+      {/* 1. Cabecera Superior */}
+      <header className="w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-2.5 min-w-0">
           <img 
             src="/dashboard-logo.png" 
             alt="Korum" 
-            className="w-7 h-7 rounded-lg object-contain shrink-0" 
+            className="w-8 h-8 rounded-xl object-contain shrink-0 shadow-xs" 
           />
           <div className="min-w-0">
-            <h1 className="text-xs sm:text-sm font-bold text-text-primary truncate leading-tight">
-              Consulta de Estado Académico
-            </h1>
-            <p className="text-[11px] text-text-muted truncate">
-              {catedra.nombre} · {institucionNombre}
+            <span className="text-xs sm:text-sm font-black tracking-tight text-slate-900 dark:text-white block truncate leading-tight">
+              Korum
+            </span>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              Portal Oficial de Consulta Estudiantil
             </p>
           </div>
         </div>
@@ -193,36 +194,50 @@ export default function ConsultaAlumnoPage() {
         <ThemeToggle />
       </header>
 
-      {/* 2. Cuerpo Utilitario */}
-      <main className="max-w-xl w-full mx-auto px-4 py-6 sm:py-8 flex-1 flex flex-col justify-start">
+      {/* 2. Cuerpo Principal */}
+      <main className="max-w-xl w-full mx-auto px-4 py-8 sm:py-12 flex-1 flex flex-col justify-center">
         {!resultado ? (
-          /* PANTALLA DE BÚSQUEDA DIRECTA */
-          <div className="bg-surface border border-surface-border rounded-2xl p-5 sm:p-6 shadow-xs space-y-4 animate-fadeIn">
-            <div>
-              <h2 className="text-sm font-bold text-text-primary">
-                Ingresá tu DNI
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Consulta inmediata de condición reglamentaria, asistencia y notas.
-              </p>
+          /* TARJETA CENTRAL EQUILIBRADA DE CONSULTA */
+          <div className="max-w-md w-full mx-auto bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl p-7 sm:p-8 space-y-6 animate-fadeIn">
+            {/* Cabecera Institucional */}
+            <div className="space-y-3 text-center sm:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold max-w-full">
+                <span className="shrink-0">📚</span>
+                <span className="truncate">{catedra.nombre} · {institucionNombre}</span>
+              </div>
+
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Consulta de Estado Académico
+                </h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  Ingresá tu número de documento para consultar tu condición reglamentaria, porcentaje de asistencia y calificaciones.
+                </p>
+              </div>
             </div>
 
-            <form onSubmit={handleConsultarDni} className="space-y-3">
+            <form onSubmit={handleConsultarDni} className="space-y-4">
               <div>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formattedDni}
-                  onChange={handleDniInputFormatting}
-                  placeholder="Ej: 42.123.456"
-                  autoFocus
-                  required
-                  className="w-full px-3.5 py-2.5 rounded-xl text-base font-mono font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 text-center tracking-wider"
-                />
+                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                  Documento Nacional de Identidad (DNI)
+                </label>
+                <div className="relative">
+                  <UserCheck className="w-5 h-5 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formattedDni}
+                    onChange={handleDniInputFormatting}
+                    placeholder="Ej: 42.123.456"
+                    autoFocus
+                    required
+                    className="w-full pl-11 pr-4 py-3 rounded-xl font-mono text-lg tracking-wider font-bold bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  />
+                </div>
               </div>
 
               {searchError && (
-                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs flex items-center gap-2 animate-fadeIn">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{searchError}</span>
                 </div>
@@ -231,7 +246,7 @@ export default function ConsultaAlumnoPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 bg-primary hover:bg-primary-hover active:scale-[0.99] text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 touch-target-44 min-h-[44px]"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-semibold py-3 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 touch-target-44 min-h-[46px]"
               >
                 {loading ? (
                   <>
@@ -241,47 +256,51 @@ export default function ConsultaAlumnoPage() {
                 ) : (
                   <>
                     <Search className="w-4 h-4" />
-                    <span>Consultar Estado</span>
+                    <span>Consultar Estado Académico</span>
                   </>
                 )}
               </button>
             </form>
           </div>
         ) : (
-          /* FICHA DE RESULTADOS COMPACTA (1 PANTALLA) */
+          /* VISTA DE RESULTADOS DEL ALUMNO (TARJETAS BENTO LIMPIAS) */
           <div className="space-y-4 animate-fadeIn">
             {/* Encabezado del Alumno y Botón Volver */}
-            <div className="flex items-center justify-between gap-3 bg-surface border border-surface-border rounded-2xl p-4 shadow-xs">
+            <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-text-primary truncate">
+                <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-0.5">
+                  <span>📚 {catedra.nombre}</span>
+                  {consultaTimestamp && <span className="text-slate-400 font-mono">· {consultaTimestamp} hs</span>}
+                </div>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">
                   {resultado.estudiante?.apellido}, {resultado.estudiante?.nombre}
                 </h2>
-                <div className="flex items-center gap-2 text-xs font-mono text-text-muted mt-0.5">
+                <div className="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">
                   <span>DNI {formatDniDisplay(resultado.estudiante?.dni)}</span>
                   <span>•</span>
-                  <span>{catedra.nombre}</span>
+                  <span className="truncate">{institucionNombre}</span>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={handleResetSearch}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-surface-border text-xs font-bold text-text-muted hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 touch-target-44 min-h-[38px] cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 touch-target-44 min-h-[38px] cursor-pointer"
                 title="Consultar otro número de DNI"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Volver</span>
+                <span>Nueva consulta</span>
               </button>
             </div>
 
-            {/* Tarjeta Principal de Condición Reglamentaria */}
+            {/* Tarjeta Bento 1: Condición Reglamentaria */}
             {resultado.config?.portal_mostrar_condicion && resultado.condicion_ram && (
-              <div className="bg-surface border border-surface-border rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] font-mono uppercase font-bold text-text-muted block">
-                    Condición Académica
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 block">
+                    Condición Académica Reglamentaria
                   </span>
-                  <p className="text-xs text-text-muted">
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
                     {resultado.condicion_ram.motivo || 'Situación académica según RAM provincial.'}
                   </p>
                 </div>
@@ -292,15 +311,15 @@ export default function ConsultaAlumnoPage() {
                   const isReg = cond === 'REGULAR';
                   const isEquiv = cond.includes('EQUIV') || resultado.estudiante?.es_equivalencia;
 
-                  let badgeColor = 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20';
+                  let badgeColor = 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25';
                   if (isEquiv || isPromo) {
-                    badgeColor = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20';
+                    badgeColor = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25';
                   } else if (isReg) {
-                    badgeColor = 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20';
+                    badgeColor = 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/25';
                   }
 
                   return (
-                    <span className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-mono font-black uppercase tracking-wider border shrink-0 ${badgeColor}`}>
+                    <span className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-mono font-black uppercase tracking-wider border shrink-0 ${badgeColor}`}>
                       {cond}
                     </span>
                   );
@@ -308,31 +327,31 @@ export default function ConsultaAlumnoPage() {
               </div>
             )}
 
-            {/* Bloque de Asistencia Acumulada */}
+            {/* Tarjeta Bento 2: Barra de Progreso de Asistencia con Meta */}
             {resultado.config?.portal_mostrar_asistencia && resultado.asistencia && (
-              <div className="bg-surface border border-surface-border rounded-2xl p-4 shadow-xs space-y-2.5">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
-                    <Calendar className="w-4 h-4 text-primary shrink-0" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
+                    <Calendar className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span>Asistencia Acumulada</span>
                   </div>
-                  <span className="text-xs font-mono text-text-muted">
+                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                     {resultado.asistencia.presentes ?? 0} de {resultado.asistencia.total_clases ?? 0} clases
                   </span>
                 </div>
 
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black font-mono text-text-primary">
+                  <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
                     {resultado.asistencia.porcentaje ?? 0}%
                   </span>
                   <div className="text-right">
-                    <span className="text-[11px] font-mono text-text-muted block">
+                    <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block">
                       {resultado.estudiante?.tiene_certificado_trabajo ? (
-                        <span className="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
-                          <Briefcase className="w-3 h-3" /> Meta 60% (Laboral)
+                        <span className="text-blue-600 dark:text-blue-400 font-bold inline-flex items-center gap-1">
+                          <Briefcase className="w-3 h-3" /> Meta 60% Cert. Laboral
                         </span>
                       ) : (
-                        <span>Meta 70% (Regular)</span>
+                        <span>Meta 70% Regularidad</span>
                       )}
                     </span>
                   </div>
@@ -346,7 +365,7 @@ export default function ConsultaAlumnoPage() {
                   const isAlBorde = pct >= meta && pct < meta + 5;
 
                   return (
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           !isOk 
@@ -363,68 +382,82 @@ export default function ConsultaAlumnoPage() {
               </div>
             )}
 
-            {/* Lista Compacta de Evaluaciones y TPs */}
+            {/* Tarjeta Bento 3: Tabla Ordenada de Calificaciones */}
             {resultado.config?.portal_mostrar_notas && (
-              <div className="bg-surface border border-surface-border rounded-2xl p-4 shadow-xs space-y-3">
-                <div className="flex items-center justify-between border-b border-surface-border pb-2">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
-                    <GraduationCap className="w-4 h-4 text-primary shrink-0" />
-                    <span>Calificaciones y Evaluaciones</span>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
+                    <GraduationCap className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Calificaciones (Parciales y TPs)</span>
                   </div>
-                  <span className="text-[10px] font-mono text-text-muted uppercase">
-                    {resultado.evaluaciones?.length || 0} Registradas
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase">
+                    {resultado.evaluaciones?.length || 0} Evaluaciones
                   </span>
                 </div>
 
                 {(!resultado.evaluaciones || resultado.evaluaciones.length === 0) ? (
-                  <p className="text-xs text-text-muted text-center py-4">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">
                     Sin evaluaciones registradas por el docente para este ciclo.
                   </p>
                 ) : (
-                  <div className="divide-y divide-surface-border">
-                    {resultado.evaluaciones.map((ev, idx) => {
-                      const hasNota = ev.valor !== null && ev.valor !== undefined;
-                      const notaNum = hasNota ? Number(ev.valor) : null;
-                      const isAprobado = notaNum !== null && notaNum >= 4;
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-mono uppercase text-slate-400 dark:text-slate-500">
+                          <th className="pb-2 font-semibold">Instancia</th>
+                          <th className="pb-2 font-semibold hidden sm:table-cell">Tipo</th>
+                          <th className="pb-2 font-semibold text-right">Calificación</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+                        {resultado.evaluaciones.map((ev, idx) => {
+                          const hasNota = ev.valor !== null && ev.valor !== undefined;
+                          const notaNum = hasNota ? Number(ev.valor) : null;
+                          const isAprobado = notaNum !== null && notaNum >= 4;
 
-                      return (
-                        <div key={ev.id || idx} className="py-2.5 flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-text-primary block truncate">
-                              {ev.titulo}
-                            </span>
-                            <div className="flex items-center gap-2 text-[10px] font-mono text-text-muted mt-0.5">
-                              <span className="uppercase">{ev.tipo || 'EVAL'}</span>
-                              {ev.fecha_entrega && <span>· {ev.fecha_entrega}</span>}
-                            </div>
-                          </div>
-
-                          <div className="shrink-0 text-right">
-                            {hasNota ? (
-                              <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-mono font-bold border ${
-                                isAprobado
-                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30'
-                              }`}>
-                                {notaNum.toFixed(1)} / 10
-                              </span>
-                            ) : ev.estado === 'NO_ENTREGO' ? (
-                              <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                                NO ENTREGÓ
-                              </span>
-                            ) : ev.estado === 'AUSENTE' ? (
-                              <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
-                                AUSENTE
-                              </span>
-                            ) : (
-                              <span className="text-[11px] font-mono text-text-muted">
-                                Pendiente
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                          return (
+                            <tr key={ev.id || idx}>
+                              <td className="py-2.5 pr-2">
+                                <span className="font-bold text-slate-900 dark:text-white block truncate max-w-[200px] sm:max-w-[260px]">
+                                  {ev.titulo}
+                                </span>
+                                <span className="text-[10px] font-mono text-slate-400 sm:hidden">
+                                  {ev.tipo || 'EVAL'} {ev.fecha_entrega ? `· ${ev.fecha_entrega}` : ''}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-2 hidden sm:table-cell">
+                                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-[10px] font-semibold uppercase">
+                                  {ev.tipo || 'EVAL'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 pl-2 text-right whitespace-nowrap">
+                                {hasNota ? (
+                                  <span className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border ${
+                                    isAprobado
+                                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                      : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30'
+                                  }`}>
+                                    {notaNum.toFixed(1)} / 10
+                                  </span>
+                                ) : ev.estado === 'NO_ENTREGO' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                    N/E (No entregó)
+                                  </span>
+                                ) : ev.estado === 'AUSENTE' ? (
+                                  <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+                                    Aus. (Ausente)
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] font-mono text-slate-400">
+                                    Pendiente
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -434,7 +467,7 @@ export default function ConsultaAlumnoPage() {
       </main>
 
       {/* Footer Sobrio */}
-      <footer className="py-4 border-t border-surface-border text-center text-[11px] font-mono text-text-muted">
+      <footer className="py-4 border-t border-slate-200/80 dark:border-slate-800 text-center text-[11px] font-mono text-slate-500 dark:text-slate-400">
         Korum · Consulta de Estado Académico
       </footer>
     </div>

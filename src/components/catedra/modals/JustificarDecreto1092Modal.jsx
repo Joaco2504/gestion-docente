@@ -1,19 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { ShieldAlert, AlertTriangle, Check, X, BookOpen, Clock, FileText } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, Check, X, BookOpen, Clock, FileText, Search } from 'lucide-react';
 import Modal from '../../common/Modal';
 import { formatFechaDMY } from '../../../lib/dateUtils';
-import { getLocalLicencias } from '../../../services/licenciasService';
+import { getLocalLicencias, calcularDisponibilidadArticulo } from '../../../services/licenciasService';
 import { useAuth } from '../../../context/AuthContext';
-
-const ARTICULOS_DECRETO_1092 = [
-  { id: 'Art. 9°', label: 'Art. 9° — Enfermedad de corto tratamiento', descripcion: 'Afección común con certificado médico oficial' },
-  { id: 'Art. 15°', label: 'Art. 15° — Razones particulares (con goce de haberes)', descripcion: 'Trámites o motivos personales reglamentarios' },
-  { id: 'Art. 24°', label: 'Art. 24° — Atención de familiar enfermo', descripcion: 'Cuidado directo de cónyuge, hijos o padres' },
-  { id: 'Art. 28°/29°', label: 'Art. 28° / 29° — Perfeccionamiento / Capacitación docente', descripcion: 'Congresos, jornadas académicas o formación en servicio' },
-  { id: 'Art. 32°', label: 'Art. 32° — Examen / Mesas examinadoras', descripcion: 'Integración de tribunal examinador en otra institución' },
-  { id: 'Art. 45°', label: 'Art. 45° — Fuerza mayor / Fenómenos climáticos', descripcion: 'Inclemencias meteorológicas o suspensión de actividades' },
-  { id: 'OTRO', label: 'Otro artículo / Motivo institucional', descripcion: 'Especificar norma reglamentaria manualmente' }
-];
+import { CATALOGO_DECRETO_1092 } from '../../../constants/decreto1092';
 
 /**
  * JustificarDecreto1092Modal
@@ -28,20 +19,35 @@ export default function JustificarDecreto1092Modal({
   onOpenHistorialLicencias
 }) {
   const { user } = useAuth();
-  const [selectedArticulo, setSelectedArticulo] = useState('Art. 9°');
+  const [selectedCodigo, setSelectedCodigo] = useState('ART_52');
+  const [searchArticulo, setSearchArticulo] = useState('');
   const [customArticulo, setCustomArticulo] = useState('');
   const [observacion, setObservacion] = useState('');
   const [saving, setSaving] = useState(false);
 
   const currentYear = new Date().getFullYear();
-  const licenciasCount = useMemo(() => {
+  const localLicencias = useMemo(() => {
     try {
-      const list = getLocalLicencias(user?.id);
-      return list.filter(l => (l.fecha || '').startsWith(String(currentYear))).length;
+      return getLocalLicencias(user?.id) || [];
     } catch (_) {
-      return 0;
+      return [];
     }
-  }, [user?.id, currentYear, isOpen]);
+  }, [user?.id, isOpen]);
+
+  const licenciasCount = useMemo(() => {
+    return localLicencias.filter(l => (l.fecha || l.fecha_inicio || '').startsWith(String(currentYear))).length;
+  }, [localLicencias, currentYear]);
+
+  const articulosFiltrados = useMemo(() => {
+    const q = searchArticulo.trim().toLowerCase();
+    if (!q) return CATALOGO_DECRETO_1092;
+    return CATALOGO_DECRETO_1092.filter(art =>
+      (art.label || '').toLowerCase().includes(q) ||
+      (art.codigo || '').toLowerCase().includes(q) ||
+      (art.capitulo || '').toLowerCase().includes(q) ||
+      (art.descripcion || '').toLowerCase().includes(q)
+    );
+  }, [searchArticulo]);
 
   if (!isOpen || !clase) return null;
 
@@ -51,14 +57,16 @@ export default function JustificarDecreto1092Modal({
     e.preventDefault();
     setSaving(true);
     try {
-      const articuloFinal = selectedArticulo === 'OTRO' 
+      const selectedObj = CATALOGO_DECRETO_1092.find(a => a.codigo === selectedCodigo);
+      const articuloFinal = selectedCodigo === 'OTRO'
         ? (customArticulo.trim() || 'Motivo Institucional')
-        : selectedArticulo;
+        : (selectedObj?.label || selectedCodigo);
 
       await onConfirm({
         claseId: clase.id,
         estado: 'DOCENTE_AUSENTE',
         articulo_licencia: articuloFinal,
+        articulo_codigo: selectedCodigo !== 'OTRO' ? selectedCodigo : null,
         tema: `Sin actividad áulica - Licencia Docente (${articuloFinal})`,
         observaciones: observacion.trim() || undefined
       });
@@ -104,43 +112,107 @@ export default function JustificarDecreto1092Modal({
           </button>
         )}
 
-        {/* Selector de Artículo del Decreto 1092 */}
-        <div className="space-y-1.5">
+        {/* Selector de Artículo del Decreto 1092 con Buscador Rápido */}
+        <div className="space-y-2">
           <label className="block text-xs font-mono uppercase font-bold text-text-secondary">
             Artículo / Causal del Decreto 1092 *
           </label>
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-            {ARTICULOS_DECRETO_1092.map((art) => {
-              const isSelected = selectedArticulo === art.id;
+
+          {/* Input de búsqueda en tiempo real */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchArticulo}
+              onChange={(e) => setSearchArticulo(e.target.value)}
+              placeholder="🔍 Buscar artículo por número o motivo (ej: 52, 16, salud, examen, fallecimiento)..."
+              className="w-full pl-8 pr-8 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-surface-border text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium"
+            />
+            {searchArticulo && (
+              <button
+                type="button"
+                onClick={() => setSearchArticulo('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary cursor-pointer"
+                title="Limpiar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+            {articulosFiltrados.map((art) => {
+              const isSelected = selectedCodigo === art.codigo;
+              const disp = calcularDisponibilidadArticulo(art.codigo, localLicencias, clase.fecha);
+              const badgeCupo = disp.modo === 'SIN_LIMITE'
+                ? 'Sin límite'
+                : disp.modo === 'POR_EVENTO'
+                ? `Hasta ${art.topePorEvento} ${art.unidad}/ev.`
+                : disp.bloqueado
+                ? 'Cupo agotado'
+                : `${disp.restanteAnual ?? '—'} disp.`;
               return (
                 <label
-                  key={art.id}
-                  className={`flex items-start gap-3 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                  key={art.codigo}
+                  className={`flex items-start justify-between gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
                     isSelected
                       ? 'bg-primary/10 border-primary text-text-primary font-semibold shadow-xs'
                       : 'bg-surface border-surface-border text-text-secondary hover:bg-slate-50 dark:hover:bg-slate-800/50'
                   }`}
                 >
-                  <input
-                    type="radio"
-                    name="articuloDecreto"
-                    value={art.id}
-                    checked={isSelected}
-                    onChange={() => setSelectedArticulo(art.id)}
-                    className="mt-0.5 text-primary focus:ring-primary"
-                  />
-                  <div className="min-w-0">
-                    <span className="block font-medium text-text-primary">{art.label}</span>
-                    <span className="text-[11px] text-text-muted">{art.descripcion}</span>
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <input
+                      type="radio"
+                      name="articuloDecreto"
+                      value={art.codigo}
+                      checked={isSelected}
+                      onChange={() => setSelectedCodigo(art.codigo)}
+                      className="mt-0.5 text-primary focus:ring-primary"
+                    />
+                    <div className="min-w-0">
+                      <span className="block font-medium text-text-primary">{art.label}</span>
+                      <span className="block text-[10px] text-text-muted">{art.capitulo} · {art.descripcion}</span>
+                    </div>
                   </div>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    disp.bloqueado
+                      ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                      : disp.modo === 'SIN_LIMITE'
+                      ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                      : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    {badgeCupo}
+                  </span>
                 </label>
               );
             })}
+
+            {/* Opción Otro artículo */}
+            <label
+              className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                selectedCodigo === 'OTRO'
+                  ? 'bg-primary/10 border-primary text-text-primary font-semibold shadow-xs'
+                  : 'bg-surface border-surface-border text-text-secondary hover:bg-slate-50 dark:hover:bg-slate-800/50'
+              }`}
+            >
+              <input
+                type="radio"
+                name="articuloDecreto"
+                value="OTRO"
+                checked={selectedCodigo === 'OTRO'}
+                onChange={() => setSelectedCodigo('OTRO')}
+                className="mt-0.5 text-primary focus:ring-primary"
+              />
+              <div className="min-w-0">
+                <span className="block font-medium text-text-primary">Otro artículo / Motivo institucional</span>
+                <span className="text-[10px] text-text-muted">Especificar norma reglamentaria manualmente</span>
+              </div>
+            </label>
           </div>
         </div>
 
         {/* Input libre si eligió OTRO */}
-        {selectedArticulo === 'OTRO' && (
+        {selectedCodigo === 'OTRO' && (
           <div className="space-y-1 animate-fadeIn">
             <label className="block text-xs font-mono font-semibold text-text-secondary">
               Especificar artículo o norma:

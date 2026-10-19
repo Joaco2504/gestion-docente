@@ -419,7 +419,7 @@ function LibroTemasTemplate({ data }) {
         </div>
 
         <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 italic">
-          <span>Libro de Temas generado mediante PlanillaDocente para archivo oficial.</span>
+          <span>Libro de Temas generado mediante Korum para archivo oficial.</span>
           <span>Página 1 de 1</span>
         </div>
       </div>

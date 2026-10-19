@@ -1,5 +1,5 @@
 /**
- * Servicio de Telemetría y Alertas en Discord para PlanillaDocente
+ * Servicio de Telemetría y Alertas en Discord para Korum
  * Notifica errores críticos de base de datos o fallos de operación al canal de soporte técnico.
  */
 

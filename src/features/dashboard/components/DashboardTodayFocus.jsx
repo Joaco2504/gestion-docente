@@ -6,7 +6,7 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   ChevronRight, 
-  ChevronDown, 
+  ChevronUp, 
   Clock, 
   ArrowRight,
   ShieldAlert
@@ -130,10 +130,10 @@ export default function DashboardTodayFocus({
               Clase programada para hoy
             </Badge>
           ) : (
-            <Badge variant="secondary" size="md">
-              <Clock className="w-3.5 h-3.5 text-text-muted mr-1" />
-              Hoy sin clases fijas en horario
-            </Badge>
+            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80">
+              <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>Sin clases hoy</span>
+            </span>
           )}
         </div>
       </div>
@@ -166,16 +166,19 @@ export default function DashboardTodayFocus({
               </div>
             </div>
 
-            <Button
-              variant="secondary"
-              size="sm"
+            <button
+              type="button"
               onClick={() => setShowAlertsDetail(prev => !prev)}
               aria-expanded={showAlertsDetail}
-              className="text-xs font-semibold shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-2xs cursor-pointer"
             >
-              <span>{showAlertsDetail ? 'Ocultar' : 'Revisar'} ({alerts.length})</span>
-              {showAlertsDetail ? <ChevronDown className="w-3.5 h-3.5 ml-1" /> : <ChevronRight className="w-3.5 h-3.5 ml-1" />}
-            </Button>
+              <span>{showAlertsDetail ? 'Ocultar' : `Revisar (${alerts.length})`}</span>
+              {showAlertsDetail ? (
+                <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+              )}
+            </button>
           </div>
 
           {/* Desplegable con detalle de alertas */}

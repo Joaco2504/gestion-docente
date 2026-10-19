@@ -182,16 +182,16 @@ export default function Login() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-[#0B0F19]">
+    <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-slate-50 dark:bg-[#080C14] text-slate-900 dark:text-slate-100 transition-colors">
       {/* ===================================================================
-          COLUMNA IZQUIERDA: ACCESO DOCENTE (FORMULARIO)
+          COLUMNA IZQUIERDA: ACCESO DOCENTE (FORMULARIO MODO CLARO / OSCURO)
           =================================================================== */}
-      <div className="flex flex-col justify-between p-6 sm:p-12 md:p-16 relative z-10">
+      <div className="flex flex-col justify-between p-6 sm:p-12 md:p-16 relative z-10 bg-slate-50 dark:bg-[#080C14] text-slate-900 dark:text-slate-100 transition-colors">
         {/* Barra superior con toggle de tema o enlaces rápidos */}
         <div className="flex items-center justify-between w-full max-w-md mx-auto">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Korum Node v2.0
             </span>
           </div>
@@ -206,24 +206,24 @@ export default function Login() {
               <img 
                 src="/dashboard-logo.png" 
                 alt="Korum" 
-                className="w-12 h-12 object-contain rounded-2xl mb-3 shadow-lg shadow-emerald-950/30" 
+                className="w-12 h-12 object-contain rounded-2xl mb-3 shadow-lg shadow-emerald-950/20" 
               />
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center justify-center sm:justify-start gap-2">
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center justify-center sm:justify-start gap-2">
               Korum
             </h1>
-            <p className="text-sm text-slate-400 mt-1.5 font-medium">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1.5 font-medium">
               Gestión Académica y Actas Reglamentarias
             </p>
           </div>
 
           {/* Advertencia si falta Supabase */}
           {!isSupabaseConfigured && (
-            <div className="mb-5 p-3.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs rounded-xl flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="mb-5 p-3.5 bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-400 text-xs rounded-xl flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold block text-amber-300">Supabase no configurado en .env</span>
-                <span className="text-[11px] text-amber-400/90">
+                <span className="font-semibold block text-amber-900 dark:text-amber-300">Supabase no configurado en .env</span>
+                <span className="text-[11px] text-amber-700 dark:text-amber-400/90">
                   Puedes ingresar utilizando el <strong>Modo Demostración</strong> interactivo.
                 </span>
               </div>
@@ -232,69 +232,85 @@ export default function Login() {
 
           {/* Mensajes de error o éxito */}
           {errorMsg && (
-            <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-center gap-2 animate-fadeIn">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs rounded-xl flex items-center gap-2 animate-fadeIn">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-5 p-3.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl flex items-center gap-2 animate-fadeIn">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <div className="mb-5 p-3.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs rounded-xl flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span>{successMsg}</span>
             </div>
           )}
 
-          {/* Formulario de Credenciales con estilo oscuro elegante y onda de letras */}
-          <form onSubmit={handleSubmit} className="space-y-2">
+          {/* Formulario de Credenciales con soporte Modo Claro y Oscuro */}
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             {!isLogin && (
-              <WaveAnimatedInput
-                label="Nombre y Apellido"
-                type="text"
-                name="nombre"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                required
-              />
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Nombre y Apellido
+                </label>
+                <input
+                  type="text"
+                  name="nombre"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej: Prof. Laura Gómez"
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900/80 border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500 transition-all"
+                />
+              </div>
             )}
 
-            <WaveAnimatedInput
-              label="Correo Electrónico"
-              type="email"
-              name="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Correo Electrónico
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="docente@instituto.edu.ar"
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900/80 border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500 transition-all"
+              />
+            </div>
 
             <div className="relative">
-              <WaveAnimatedInput
-                label="Contraseña"
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Contraseña
+                </label>
+                {isLogin && (
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer transition-colors font-medium"
+                  >
+                    ¿Olvidaste tu clave?
+                  </button>
+                )}
+              </div>
+              <input
                 type="password"
                 name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
                 required
                 minLength={6}
+                className="w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900/80 border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500 transition-all"
               />
-              {isLogin && (
-                <div className="text-right -mt-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
-                    className="text-[11px] text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors"
-                  >
-                    ¿Olvidaste tu clave?
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Botón de acceso con estética esmeralda */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl h-11 transition-all shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl h-11 transition-all shadow-lg shadow-emerald-600/20 dark:shadow-emerald-950/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -316,7 +332,7 @@ export default function Login() {
                 setErrorMsg('');
                 setSuccessMsg('');
               }}
-              className="text-xs text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer font-medium"
+              className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer font-medium"
             >
               {isLogin
                 ? '¿Aún no tienes cuenta? Regístrate aquí'
@@ -327,10 +343,10 @@ export default function Login() {
           {/* Separador */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-800" />
+              <div className="w-full border-t border-slate-200 dark:border-slate-800" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-[#0B0F19] px-3 text-slate-500 font-mono text-[10px]">
+              <span className="bg-slate-50 dark:bg-[#080C14] px-3 text-slate-400 dark:text-slate-500 font-mono text-[10px] transition-colors">
                 O continuar con
               </span>
             </div>
@@ -342,7 +358,7 @@ export default function Login() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="h-11 sm:h-12 px-3 rounded-xl border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="h-11 sm:h-12 px-3 rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -368,18 +384,18 @@ export default function Login() {
             <button
               type="button"
               onClick={handleDemoAccess}
-              className="h-11 sm:h-12 px-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              className="h-11 sm:h-12 px-3 rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
             >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <Sparkles className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
               <span>Modo Demostración</span>
             </button>
           </div>
         </div>
 
         {/* Pie de página izquierdo */}
-        <div className="w-full max-w-md mx-auto pt-6 border-t border-slate-900 text-center sm:text-left flex items-center justify-between text-[11px] text-slate-500">
+        <div className="w-full max-w-md mx-auto pt-6 border-t border-slate-200 dark:border-slate-900 text-center sm:text-left flex items-center justify-between text-[11px] text-slate-500">
           <span>© 2026 Korum Platform</span>
-          <div className="flex items-center gap-1.5 text-emerald-500/80 font-mono">
+          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500/80 font-mono">
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>RLS PostgreSQL</span>
           </div>
@@ -387,45 +403,46 @@ export default function Login() {
       </div>
 
       {/* ========================================================= */}
-      {/* COLUMNA DERECHA: PANEL INMERSIVO KORUM (FULL-BLEED BACKGROUND) */}
+      {/* COLUMNA DERECHA: PANEL INMERSIVO KORUM (SIN SUPERPOSICIÓN) */}
       {/* ========================================================= */}
-      <div className="relative hidden lg:flex flex-col justify-between p-10 xl:p-14 overflow-hidden border-l border-slate-800/80 bg-[#080C14]">
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden border-l border-slate-200 dark:border-slate-800/80 bg-slate-950">
         
-        {/* 1. Imagen de Fondo a Pantalla Completa (Cubre el 100% del contenedor) */}
-        <div 
-          className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-1000 ease-out hover:scale-105"
-          style={{ backgroundImage: `url('${heroBgUrl}')` }}
-        />
+        {/* 1. Maqueta / Imagen de Vista Previa Superior contenida para no pisar el texto inferior */}
+        <div className="relative w-full max-h-[62%] flex-1 overflow-hidden p-10 xl:p-14">
+          <div 
+            className="absolute inset-0 w-full h-full bg-cover bg-top bg-no-repeat pointer-events-none transition-transform duration-1000 ease-out"
+            style={{ backgroundImage: `url('${heroBgUrl}')` }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/60 via-transparent to-slate-950 pointer-events-none" />
 
-        {/* 2. Filtro / Overlay de Gradiente para Garantizar Contraste y Fusión */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#080C14] via-[#080C14]/40 to-[#080C14]/30 pointer-events-none" />
-        <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-[#080C14]/70 pointer-events-none" />
-
-        {/* 3. Badge Institucional Superior (Montado sobre z-10) */}
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/60 shadow-lg">
-            <img src="/dashboard-logo.png" alt="Korum" className="w-5 h-5 rounded-md" />
-            <span className="text-xs font-mono font-medium text-slate-200 tracking-wider uppercase">
-              Korum Suite Académica
+          {/* Badge Institucional Superior */}
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border border-slate-700/70 shadow-lg">
+              <img src="/dashboard-logo.png" alt="Korum" className="w-5 h-5 rounded-md" />
+              <span className="text-xs font-mono font-medium text-slate-200 tracking-wider uppercase">
+                Korum Suite Académica
+              </span>
+            </div>
+            <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 backdrop-blur-md">
+              v2.6 Operativa
             </span>
           </div>
-          <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-md">
-            v2.6 Operativa
-          </span>
         </div>
 
-        {/* 4. Cita / Manifiesto Institucional Inferior (Montado sobre z-10) */}
-        <div className="relative z-10 max-w-lg">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono mb-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Rigor Reglamentario & Exactitud Algorítmica
+        {/* 2. Bloque de Texto Inferior sobre Contenedor con Gradiente Opaco */}
+        <div className="relative bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pt-16 pb-8 px-10 xl:px-14 z-20">
+          <div className="max-w-lg">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Rigor Reglamentario & Exactitud Algorítmica
+            </div>
+            <h2 className="text-2xl xl:text-3xl font-bold text-white tracking-tight leading-snug">
+              Certeza matemática, actas oficiales y transparencia en cada cátedra.
+            </h2>
+            <p className="text-xs xl:text-sm text-slate-300 mt-2.5 leading-relaxed">
+              Plataforma de gestión docente integral con cálculo automatizado de regularidades, actas volantes de examen y portal de consulta directa por DNI.
+            </p>
           </div>
-          <h2 className="text-2xl xl:text-3xl font-bold text-white tracking-tight leading-snug drop-shadow-md">
-            Certeza matemática, actas oficiales y transparencia en cada cátedra.
-          </h2>
-          <p className="text-xs xl:text-sm text-slate-300 mt-2.5 leading-relaxed drop-shadow">
-            Plataforma de gestión docente integral con cálculo automatizado de regularidades, actas volantes de examen y portal de consulta directa por DNI.
-          </p>
         </div>
 
       </div>
