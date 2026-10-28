@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Search, X, ShieldAlert } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';

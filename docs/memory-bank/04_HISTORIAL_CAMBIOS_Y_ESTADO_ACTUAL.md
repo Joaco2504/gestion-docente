@@ -109,4 +109,13 @@ Bitácora técnica viva donde se registran cronológicamente todas las directiva
     - 74/74 tests unitarios aprobados en Vitest (`npx vitest run --passWithNoTests`).
     - Build de producción ejecutado con éxito sin errores (`npm run build`, Código 0).
 
+### 12. Corrección de `ReferenceError: useRef is not defined` en Calificaciones y Auditoría Global de Hooks de React
+- **Estado:** ✅ Completado y Verificado al 100%.
+- **Alcance y Mejoras Realizadas:**
+  * **Causa Raíz Solucionada (`useGradesData.js`):** Incorporado `useRef` en la línea 1 (`import { useState, useEffect, useMemo, useCallback, useRef } from 'react';`) para resolver el `ReferenceError: useRef is not defined` al inicializar `initializedCatedraRef = useRef(null)` desde `GradesTab.jsx`.
+  * **Blindaje de Importaciones de React:** Asegurada la importación explícita `{ useState, useEffect, useMemo, useCallback, useRef }` en `GradesTab.jsx`, `GradeMatrixTable.jsx` y `AttendanceTab.jsx`, además de confirmar su presencia en `useAttendanceManager.js`, `StudentsTab.jsx`, `LibroTemasTab.jsx` y `CatedraDetailPage.jsx`.
+  * **Auditoría Estática Completa:** Escaneo automatizado sobre todos los archivos de `src/` confirmando **0** hooks de React invocados sin importar.
+  * **QA y Verificación:** 74/74 tests pasando en Vitest y `npm run build` exitoso (Código 0).
+
+
 

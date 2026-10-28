@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { 
   getDiasNumerosCatedra, 
   calcularClasesPendientes,
@@ -213,38 +213,44 @@ describe('Suite: Autogeneración de Clases y Cola Offline (Modo Aula PWA)', () =
     });
 
     it('Limpia clases fantasma (Sáb 10, Dom 11, Mar 13, Mié 14), convierte Lun 12 Oct en FERIADO y numera correlativamente Clase #1 y Clase #2', async () => {
-      const catedra = {
-        id: 'cat-estadistica',
-        horarios_semanales: [{ dia_semana: 'Lunes' }]
-      };
-      const clasesSucias = [
-        { id: 'c-lun-05', fecha: '2026-10-05', tema: 'Clase del 05/10/2026', numero_clase: 1 },
-        { id: 'c-sab-10', fecha: '2026-10-10', tema: 'Clase del 10/10/2026', numero_clase: 1 },
-        { id: 'c-dom-11', fecha: '2026-10-11', tema: 'Clase del 11/10/2026', numero_clase: 1 },
-        { id: 'c-lun-12', fecha: '2026-10-12', tema: 'Clase del 12/10/2026', numero_clase: 1 },
-        { id: 'c-mar-13', fecha: '2026-10-13', tema: 'Clase del 13/10/2026', numero_clase: 1 },
-        { id: 'c-mie-14', fecha: '2026-10-14', tema: 'Clase del 14/10/2026', numero_clase: 1 },
-        { id: 'c-lun-19', fecha: '2026-10-19', tema: 'Clase del 19/10/2026', numero_clase: 1 }
-      ];
-      const asistencias = [
-        { id: 'a1', clase_id: 'c-lun-05', estudiante_id: 'e1', estado: 'PRESENTE' }
-      ];
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-19T12:00:00Z'));
+      try {
+        const catedra = {
+          id: 'cat-estadistica',
+          horarios_semanales: [{ dia_semana: 'Lunes' }]
+        };
+        const clasesSucias = [
+          { id: 'c-lun-05', fecha: '2026-10-05', tema: 'Clase del 05/10/2026', numero_clase: 1 },
+          { id: 'c-sab-10', fecha: '2026-10-10', tema: 'Clase del 10/10/2026', numero_clase: 1 },
+          { id: 'c-dom-11', fecha: '2026-10-11', tema: 'Clase del 11/10/2026', numero_clase: 1 },
+          { id: 'c-lun-12', fecha: '2026-10-12', tema: 'Clase del 12/10/2026', numero_clase: 1 },
+          { id: 'c-mar-13', fecha: '2026-10-13', tema: 'Clase del 13/10/2026', numero_clase: 1 },
+          { id: 'c-mie-14', fecha: '2026-10-14', tema: 'Clase del 14/10/2026', numero_clase: 1 },
+          { id: 'c-lun-19', fecha: '2026-10-19', tema: 'Clase del 19/10/2026', numero_clase: 1 }
+        ];
+        const asistencias = [
+          { id: 'a1', clase_id: 'c-lun-05', estudiante_id: 'e1', estado: 'PRESENTE' }
+        ];
 
-      const res = await ensureScheduledClassesToDate(catedra, clasesSucias, true, { asistencias });
+        const res = await ensureScheduledClassesToDate(catedra, clasesSucias, true, { asistencias });
 
-      // Solo deben quedar los 3 lunes: 05/10, 12/10 y 19/10
-      const fechasRestantes = res.all.map(c => c.fecha).sort();
-      expect(fechasRestantes).toEqual(['2026-10-05', '2026-10-12', '2026-10-19']);
+        // Solo deben quedar los 3 lunes: 05/10, 12/10 y 19/10
+        const fechasRestantes = res.all.map(c => c.fecha).sort();
+        expect(fechasRestantes).toEqual(['2026-10-05', '2026-10-12', '2026-10-19']);
 
-      const lun05 = res.all.find(c => c.fecha === '2026-10-05');
-      const lun12 = res.all.find(c => c.fecha === '2026-10-12');
-      const lun19 = res.all.find(c => c.fecha === '2026-10-19');
+        const lun05 = res.all.find(c => c.fecha === '2026-10-05');
+        const lun12 = res.all.find(c => c.fecha === '2026-10-12');
+        const lun19 = res.all.find(c => c.fecha === '2026-10-19');
 
-      expect(lun05.numero_clase).toBe(1);
-      expect(lun12.estado).toBe('FERIADO');
-      expect(lun12.unidad).toBe('Feriado Nacional');
-      expect(lun12.tema).toBe('Día del Respeto a la Diversidad Cultural');
-      expect(lun19.numero_clase).toBe(2);
+        expect(lun05.numero_clase).toBe(1);
+        expect(lun12.estado).toBe('FERIADO');
+        expect(lun12.unidad).toBe('Feriado Nacional');
+        expect(lun12.tema).toBe('Día del Respeto a la Diversidad Cultural');
+        expect(lun19.numero_clase).toBe(2);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
