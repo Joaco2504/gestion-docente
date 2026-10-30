@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { calcularNotasEfectivasEstudiante } from '../lib/academicLogic';
+import { calcularNotasEfectivasEstudiante, calcularPromedioGeneral } from '../lib/academicLogic';
 import { 
   Search, 
   AlertCircle, 
@@ -331,18 +331,43 @@ export default function ConsultaAlumnoPage() {
         ) : (
           /* VISTA DE RESULTADOS: "MI ESPACIO ACADÉMICO" */
           (() => {
+            const condicionEfectiva = resultado.estudiante?.condicion_manual || resultado.condicion_ram?.condicion;
             const condInfo = getCondicionContextual(
-              resultado.condicion_ram?.condicion,
+              condicionEfectiva,
               resultado.estudiante?.es_equivalencia,
               resultado.condicion_ram?.subcondicion
             );
             const pctAsistencia = Math.min(100, Math.max(0, resultado.asistencia?.porcentaje ?? 0));
-            const metaAsistencia = resultado.estudiante?.tiene_certificado_trabajo ? 60 : 70;
+            const metaAsistencia = resultado.asistencia?.min_asist_reg ?? (resultado.estudiante?.tiene_certificado_trabajo ? 60 : 70);
             const evalsList = Array.isArray(resultado.evaluaciones) ? resultado.evaluaciones : [];
-            const { notasEfectivasMap, parcialesRecuperadosCount } = useMemo(() => {
-              return calcularNotasEfectivasEstudiante(evalsList, evalsList);
-            }, [evalsList]);
-            const ultimaEval = evalsList.length > 0 ? evalsList[evalsList.length - 1] : null;
+
+            const mostrarParciales = (resultado.config?.mostrar_parciales ?? catedra?.mostrar_parciales) !== false;
+            const mostrarTps = (resultado.config?.mostrar_tps ?? catedra?.mostrar_tps) !== false;
+            const mostrarPromedio = (resultado.config?.mostrar_promedio ?? catedra?.mostrar_promedio) !== false;
+
+            const isParcialOrRecup = (ev) => {
+              const t = (ev?.tipo || '').toUpperCase().trim();
+              const title = (ev?.titulo || '').toLowerCase();
+              return t === 'PARCIAL' || t === 'RECUPERATORIO' || t.includes('PARCIAL') || t.includes('RECUP') || title.includes('parcial') || title.includes('recup');
+            };
+            const isTp = (ev) => {
+              const t = (ev?.tipo || '').toUpperCase().trim();
+              if (t === 'TP' || t === 'TRABAJO_PRACTICO') return true;
+              return !isParcialOrRecup(ev);
+            };
+
+            const visibleEvalsList = evalsList.filter((ev) => {
+              if (!mostrarParciales && isParcialOrRecup(ev)) return false;
+              if (!mostrarTps && isTp(ev)) return false;
+              return true;
+            });
+
+            const { notasEfectivasMap, parcialesRecuperadosCount } = calcularNotasEfectivasEstudiante(evalsList, evalsList);
+            const promedioAlumno = resultado.promedio !== undefined && resultado.promedio !== null
+              ? resultado.promedio
+              : calcularPromedioGeneral(evalsList, evalsList);
+
+            const ultimaEval = visibleEvalsList.length > 0 ? visibleEvalsList[visibleEvalsList.length - 1] : null;
             const recuperatoriosUsados = parcialesRecuperadosCount > 0 ? parcialesRecuperadosCount : evalsList.filter(ev =>
               (ev.tipo || '').toLowerCase().includes('recup') || (ev.titulo || '').toLowerCase().includes('recup')
             ).length;
@@ -526,19 +551,26 @@ export default function ConsultaAlumnoPage() {
                   {resultado.config?.portal_mostrar_notas && (
                     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4">
                       <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
-                          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                            <ClipboardList className="w-4 h-4" />
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                              <ClipboardList className="w-4 h-4" />
+                            </div>
+                            <span>Evaluaciones</span>
                           </div>
-                          <span>Evaluaciones</span>
+                          {mostrarPromedio && (
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                              Promedio: {promedioAlumno !== null && promedioAlumno !== undefined ? Number(promedioAlumno).toFixed(2) : '—'}
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex items-baseline gap-2">
                           <span className="text-4xl font-extrabold text-slate-900 dark:text-white font-mono">
-                            {evalsList.length}
+                            {visibleEvalsList.length}
                           </span>
                           <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                            {evalsList.length === 1 ? 'evaluación registrada' : 'evaluaciones registradas'}
+                            {visibleEvalsList.length === 1 ? 'evaluación visible' : 'evaluaciones visibles'}
                           </span>
                         </div>
                       </div>
@@ -555,7 +587,7 @@ export default function ConsultaAlumnoPage() {
                           </>
                         ) : (
                           <span className="text-[11px] text-slate-400 italic">
-                            Sin instancias evaluativas cargadas aún
+                            Sin instancias evaluativas visibles
                           </span>
                         )}
                       </div>
@@ -564,21 +596,38 @@ export default function ConsultaAlumnoPage() {
                 </div>
 
                 {/* 4. SECCIÓN INFERIOR: CALIFICACIONES (Parciales y TPs) ADAPTABLE */}
-                {resultado.config?.portal_mostrar_notas && (
+                {resultado.config?.portal_mostrar_notas && (mostrarParciales || mostrarTps || mostrarPromedio) && (
                   <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                       <div className="flex items-center gap-2.5 text-sm font-bold text-slate-900 dark:text-white">
                         <GraduationCap className="w-4 h-4 text-emerald-500 shrink-0" />
-                        <span>Calificaciones (Parciales y TPs)</span>
+                        <span>
+                          {mostrarParciales && mostrarTps
+                            ? 'Calificaciones (Parciales y TPs)'
+                            : mostrarParciales
+                            ? 'Calificaciones (Parciales y Recuperatorios)'
+                            : mostrarTps
+                            ? 'Calificaciones (Trabajos Prácticos)'
+                            : 'Promedio General'}
+                        </span>
                       </div>
-                      <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                        {evalsList.length} {evalsList.length === 1 ? 'instancia' : 'instancias'}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        {mostrarPromedio && (
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/70 dark:border-emerald-800/60 text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                            Promedio General: {promedioAlumno !== null && promedioAlumno !== undefined ? Number(promedioAlumno).toFixed(2) : '—'}
+                          </span>
+                        )}
+                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                          {visibleEvalsList.length} {visibleEvalsList.length === 1 ? 'instancia' : 'instancias'}
+                        </span>
+                      </div>
                     </div>
 
-                    {evalsList.length === 0 ? (
+                    {visibleEvalsList.length === 0 ? (
                       <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-6">
-                        Sin evaluaciones registradas por el docente para este ciclo.
+                        {!mostrarParciales && !mostrarTps
+                          ? 'El detalle de parciales y trabajos prácticos se encuentra oculto por configuración de la cátedra.'
+                          : 'Sin evaluaciones registradas por el docente para esta vista.'}
                       </p>
                     ) : (
                       <>
@@ -593,12 +642,12 @@ export default function ConsultaAlumnoPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
-                              {evalsList.map((ev, idx) => {
+                              {visibleEvalsList.map((ev, idx) => {
                                 const evalId = ev.id || ev.evaluacion_id;
                                 const hasNota = ev.valor !== null && ev.valor !== undefined;
                                 const notaNum = hasNota ? Number(ev.valor) : null;
                                 const isAprobado = notaNum !== null && notaNum >= 4;
-                                const infoEfectiva = notasEfectivasMap[evalId] || null;
+                                const infoEfectiva = (notasEfectivasMap?.get ? notasEfectivasMap.get(String(evalId)) : notasEfectivasMap?.[evalId]) || null;
                                 const esRecuperatorio = (ev.tipo || '').toUpperCase().includes('RECUP') || (ev.titulo || '').toLowerCase().includes('recup');
                                 const detalleRecup = ev.detalle_recuperatorio;
 
@@ -686,12 +735,12 @@ export default function ConsultaAlumnoPage() {
 
                         {/* Vista en Celulares (sm:hidden): Tarjetas compactas apiladas */}
                         <div className="sm:hidden space-y-2.5">
-                          {evalsList.map((ev, idx) => {
+                          {visibleEvalsList.map((ev, idx) => {
                             const evalId = ev.id || ev.evaluacion_id;
                             const hasNota = ev.valor !== null && ev.valor !== undefined;
                             const notaNum = hasNota ? Number(ev.valor) : null;
                             const isAprobado = notaNum !== null && notaNum >= 4;
-                            const infoEfectiva = notasEfectivasMap[evalId] || null;
+                            const infoEfectiva = (notasEfectivasMap?.get ? notasEfectivasMap.get(String(evalId)) : notasEfectivasMap?.[evalId]) || null;
                             const esRecuperatorio = (ev.tipo || '').toUpperCase().includes('RECUP') || (ev.titulo || '').toLowerCase().includes('recup');
                             const detalleRecup = ev.detalle_recuperatorio;
 

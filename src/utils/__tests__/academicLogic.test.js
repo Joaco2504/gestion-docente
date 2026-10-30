@@ -443,4 +443,101 @@ describe('Suite de Pruebas Unitarias: academicLogic (RAM Catamarca & Régimen La
     });
   });
 
+  describe('8. Parámetros de Condición Configurables (eval_considerar_asistencia, parciales, tps y umbrales)', () => {
+    const evalsMixtas = [
+      { id: 'p1', tipo: 'PARCIAL', titulo: '1° Parcial' },
+      { id: 'tp1', tipo: 'TP', titulo: 'TP 1' },
+      { id: 'tp2', tipo: 'TP', titulo: 'TP 2' }
+    ];
+
+    it('Si eval_considerar_asistencia = false, inasistencias bajas (ej. 40%) NO dejan LIBRE al alumno', () => {
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'ANUAL',
+        asistenciaPct: 40,
+        evaluaciones: evalsMixtas,
+        studentNotas: [
+          { evaluacion_id: 'p1', valor: 8 },
+          { evaluacion_id: 'tp1', valor: 8 },
+          { evaluacion_id: 'tp2', valor: 9 }
+        ],
+        criterios: {
+          eval_considerar_asistencia: false,
+          eval_considerar_parciales: true,
+          eval_considerar_tps: true
+        }
+      });
+
+      expect(resultado.condicion).toBe('PROMOCIONAL');
+    });
+
+    it('Si eval_considerar_tps = false, TPs desaprobados o N/E NO bajan la condición del alumno', () => {
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'ANUAL',
+        asistenciaPct: 85,
+        evaluaciones: evalsMixtas,
+        studentNotas: [
+          { evaluacion_id: 'p1', valor: 8 },
+          { evaluacion_id: 'tp1', estado: 'NO_ENTREGO', valor: null },
+          { evaluacion_id: 'tp2', valor: 2 }
+        ],
+        criterios: {
+          eval_considerar_asistencia: true,
+          eval_considerar_parciales: true,
+          eval_considerar_tps: false
+        }
+      });
+
+      expect(resultado.condicion).toBe('PROMOCIONAL');
+    });
+
+    it('Si eval_considerar_parciales = false, decide la condición sólo con los demás parámetros activos (Asistencia y TPs)', () => {
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'ANUAL',
+        asistenciaPct: 85,
+        evaluaciones: evalsMixtas,
+        studentNotas: [
+          { evaluacion_id: 'p1', valor: 2 },
+          { evaluacion_id: 'tp1', valor: 8 },
+          { evaluacion_id: 'tp2', valor: 9 }
+        ],
+        criterios: {
+          eval_considerar_asistencia: true,
+          eval_considerar_parciales: false,
+          eval_considerar_tps: true
+        }
+      });
+
+      expect(resultado.condicion).toBe('PROMOCIONAL');
+    });
+
+    it('Respeta umbrales personalizados (nota_promocion = 8, porcentaje_tps_regular = 50)', () => {
+      // Con 1 de 2 TPs aprobados (50%), si porcentaje_tps_regular = 50 y porcentaje_tps_promocion = 100 -> REGULAR
+      const resultado = calcularCondicionFinal({
+        nivel: 'TERCIARIO',
+        modalidad: 'ANUAL',
+        asistenciaPct: 85,
+        evaluaciones: evalsMixtas,
+        studentNotas: [
+          { evaluacion_id: 'p1', valor: 8 },
+          { evaluacion_id: 'tp1', valor: 8 },
+          { evaluacion_id: 'tp2', estado: 'NO_ENTREGO', valor: null }
+        ],
+        criterios: {
+          eval_considerar_asistencia: true,
+          eval_considerar_parciales: true,
+          eval_considerar_tps: true,
+          nota_regularidad: 4,
+          nota_promocion: 8,
+          porcentaje_tps_regular: 50,
+          porcentaje_tps_promocion: 100
+        }
+      });
+
+      expect(resultado.condicion).toBe('REGULAR');
+    });
+  });
+
 });

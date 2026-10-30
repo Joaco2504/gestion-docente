@@ -1,6 +1,64 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { calcularPorcentajeAsistencia, calcularCondicionFinal } from '../lib/academicLogic';
+import { calcularPorcentajeAsistencia, calcularCondicionFinal, calcularPromedioGeneral } from '../lib/academicLogic';
 import { getEstudiantesCatedra } from './catedraEstudiantesService';
+
+/**
+ * Helper interno para construir un objeto de condición RAM a partir de un override manual.
+ */
+function buildManualCondicionRam(condicionManual, motivoManual = null, condicionAutomatica = null) {
+  const code = String(condicionManual || '').toUpperCase();
+  const isPromoInd = code === 'PROMOCION_INDIRECTA';
+  const isPromoDir = code === 'PROMOCIONAL' || code === 'PROMOCION_DIRECTA' || code === 'APROBADO';
+  const isReg = code === 'REGULAR';
+
+  return {
+    condicion: isPromoInd ? 'PROMOCION_INDIRECTA' : (isPromoDir ? 'PROMOCIONAL' : (isReg ? 'REGULAR' : 'LIBRE')),
+    subcondicion: isPromoInd ? 'INDIRECTA' : (isPromoDir ? 'DIRECTA' : null),
+    es_manual: true,
+    condicion_manual: code,
+    condicion_automatica: condicionAutomatica?.condicion || null,
+    badgeVariant: (isPromoDir || isPromoInd) ? 'promo' : (isReg ? 'regular' : 'libre'),
+    color: isPromoInd
+      ? 'text-teal-700 dark:text-teal-400'
+      : isPromoDir
+      ? 'text-emerald-700 dark:text-emerald-400'
+      : isReg
+      ? 'text-amber-700 dark:text-amber-400'
+      : 'text-rose-700 dark:text-rose-400',
+    motivo: motivoManual
+      ? `Condición fijada por la cátedra: ${motivoManual}`
+      : 'Condición asignada administrativamente por el docente'
+  };
+}
+
+/**
+ * Lee el override manual desde el estudiante o desde localStorage.
+ */
+function resolveStudentManualOverride(catedraId, resolvedCatedraId, student) {
+  if (!student || student.es_equivalencia) return { condicion_manual: null, motivo_condicion_manual: null };
+  if (student.condicion_manual && student.condicion_manual !== 'AUTO') {
+    return {
+      condicion_manual: student.condicion_manual,
+      motivo_condicion_manual: student.motivo_condicion_manual || null
+    };
+  }
+  try {
+    const raw =
+      localStorage.getItem(`condicion_override_${resolvedCatedraId}_${student.id}`) ||
+      localStorage.getItem(`condicion_override_${catedraId}_${student.id}`);
+    if (!raw || raw === 'AUTO') return { condicion_manual: null, motivo_condicion_manual: null };
+    if (raw.startsWith('{')) {
+      const parsed = JSON.parse(raw);
+      return {
+        condicion_manual: parsed?.condicion_manual || null,
+        motivo_condicion_manual: parsed?.motivo_condicion_manual || null
+      };
+    }
+    return { condicion_manual: raw, motivo_condicion_manual: null };
+  } catch (_) {
+    return { condicion_manual: null, motivo_condicion_manual: null };
+  }
+}
 
 /**
  * Convierte un nombre de cátedra o texto en un slug amigable y limpio en kebab-case.
@@ -71,19 +129,11 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
       let data = null;
 
       if (isInputUuid) {
-        // Búsqueda directa por UUID
+        // Búsqueda directa por UUID (intentamos primero con todos los campos extendidos)
         const res = await supabase
           .from('catedras')
           .select(`
-            id,
-            nombre,
-            alias,
-            nivel,
-            modalidad,
-            portal_activo,
-            portal_mostrar_asistencia,
-            portal_mostrar_notas,
-            portal_mostrar_condicion,
+            *,
             instituciones (
               nombre
             )
@@ -94,7 +144,7 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
         if (!res.error && res.data) {
           data = res.data;
         } else if (res.error) {
-          // Fallback en caso de que la columna 'alias' no exista en la tabla aún
+          // Fallback en caso de que alguna columna no exista en la tabla aún
           const retryRes = await supabase
             .from('catedras')
             .select(`
@@ -123,15 +173,7 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
           const aliasRes = await supabase
             .from('catedras')
             .select(`
-              id,
-              nombre,
-              alias,
-              nivel,
-              modalidad,
-              portal_activo,
-              portal_mostrar_asistencia,
-              portal_mostrar_notas,
-              portal_mostrar_condicion,
+              *,
               instituciones (
                 nombre
               )
@@ -149,14 +191,7 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
           const { data: activeList, error: listErr } = await supabase
             .from('catedras')
             .select(`
-              id,
-              nombre,
-              nivel,
-              modalidad,
-              portal_activo,
-              portal_mostrar_asistencia,
-              portal_mostrar_notas,
-              portal_mostrar_condicion,
+              *,
               instituciones (
                 nombre
               )
@@ -173,6 +208,12 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
       }
 
       if (data) {
+        let localPortalOverride = {};
+        try {
+          const rawLocal = localStorage.getItem(`portal_config_${data.id}`);
+          if (rawLocal) localPortalOverride = JSON.parse(rawLocal) || {};
+        } catch (_) {}
+
         return {
           id: data.id,
           nombre: data.nombre,
@@ -185,7 +226,19 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
           portal_mostrar_notas: data.portal_mostrar_notas !== false,
           portal_mostrar_condicion: data.portal_mostrar_condicion !== false,
           portal_mostrar_info_academica: data.portal_mostrar_info_academica !== false,
-          portal_mostrar_aranceles: Boolean(data.portal_mostrar_aranceles)
+          portal_mostrar_aranceles: Boolean(data.portal_mostrar_aranceles),
+          mostrar_parciales: (data.mostrar_parciales ?? localPortalOverride.mostrar_parciales) !== false,
+          mostrar_tps: (data.mostrar_tps ?? localPortalOverride.mostrar_tps) !== false,
+          mostrar_promedio: (data.mostrar_promedio ?? localPortalOverride.mostrar_promedio) !== false,
+          eval_considerar_asistencia: (data.eval_considerar_asistencia ?? localPortalOverride.eval_considerar_asistencia) !== false,
+          eval_considerar_parciales: (data.eval_considerar_parciales ?? localPortalOverride.eval_considerar_parciales) !== false,
+          eval_considerar_tps: (data.eval_considerar_tps ?? localPortalOverride.eval_considerar_tps) !== false,
+          nota_regularidad: Number(data.nota_regularidad ?? data.ram_nota_regular ?? localPortalOverride.nota_regularidad ?? 4),
+          nota_promocion: Number(data.nota_promocion ?? data.ram_nota_promocion ?? localPortalOverride.nota_promocion ?? 7),
+          ram_asistencia_regular: Number(data.ram_asistencia_regular ?? localPortalOverride.ram_asistencia_regular ?? 70),
+          ram_asistencia_trabajo: Number(data.ram_asistencia_trabajo ?? localPortalOverride.ram_asistencia_trabajo ?? 60),
+          porcentaje_tps_regular: Number(data.porcentaje_tps_regular ?? localPortalOverride.porcentaje_tps_regular ?? 80),
+          porcentaje_tps_promocion: Number(data.porcentaje_tps_promocion ?? localPortalOverride.porcentaje_tps_promocion ?? 100)
         };
       }
     } catch (err) {
@@ -233,19 +286,37 @@ export async function getCatedraPortalConfig(catedraId, isDemo = false) {
 
     if (cat || localPortalConfig) {
       const nombre = cat?.nombre || localPortalConfig?.nombre || 'Cátedra';
+      let localCrit = {};
+      try {
+        const rawCrit = localStorage.getItem(`criterios_${resolvedId}`);
+        if (rawCrit) localCrit = JSON.parse(rawCrit) || {};
+      } catch (_) {}
+
       return {
         id: resolvedId,
         nombre,
         alias: cat?.alias || localPortalConfig?.alias || slugifyCatedra(nombre),
         nivel: cat?.nivel || localPortalConfig?.nivel || 'TERCIARIO',
-        modalidad: cat?.modalidad || localPortalConfig?.modalidad || 'ANUAL',
+        modalidad: cat?.modalidad || localPortalConfig?.modalidad || localCrit?.regimen_cursada || 'ANUAL',
         institucion_nombre: cat?.institucion_nombre || localPortalConfig?.institucion_nombre || 'I.S.F.T. N° 179',
         portal_activo: localPortalConfig?.portal_activo ?? cat?.portal_activo ?? false,
         portal_mostrar_asistencia: localPortalConfig?.portal_mostrar_asistencia ?? cat?.portal_mostrar_asistencia ?? true,
         portal_mostrar_notas: localPortalConfig?.portal_mostrar_notas ?? cat?.portal_mostrar_notas ?? true,
         portal_mostrar_condicion: localPortalConfig?.portal_mostrar_condicion ?? cat?.portal_mostrar_condicion ?? true,
         portal_mostrar_info_academica: localPortalConfig?.portal_mostrar_info_academica ?? cat?.portal_mostrar_info_academica ?? true,
-        portal_mostrar_aranceles: localPortalConfig?.portal_mostrar_aranceles ?? cat?.portal_mostrar_aranceles ?? false
+        portal_mostrar_aranceles: localPortalConfig?.portal_mostrar_aranceles ?? cat?.portal_mostrar_aranceles ?? false,
+        mostrar_parciales: (localPortalConfig?.mostrar_parciales ?? cat?.mostrar_parciales) !== false,
+        mostrar_tps: (localPortalConfig?.mostrar_tps ?? cat?.mostrar_tps) !== false,
+        mostrar_promedio: (localPortalConfig?.mostrar_promedio ?? cat?.mostrar_promedio) !== false,
+        eval_considerar_asistencia: (localCrit?.eval_considerar_asistencia ?? localPortalConfig?.eval_considerar_asistencia ?? cat?.eval_considerar_asistencia) !== false,
+        eval_considerar_parciales: (localCrit?.eval_considerar_parciales ?? localPortalConfig?.eval_considerar_parciales ?? cat?.eval_considerar_parciales) !== false,
+        eval_considerar_tps: (localCrit?.eval_considerar_tps ?? localPortalConfig?.eval_considerar_tps ?? cat?.eval_considerar_tps) !== false,
+        nota_regularidad: Number(localCrit?.nota_regularidad ?? localCrit?.nota_min_reg ?? cat?.nota_regularidad ?? 4),
+        nota_promocion: Number(localCrit?.nota_promocion ?? localCrit?.nota_min_promo ?? cat?.nota_promocion ?? 7),
+        ram_asistencia_regular: Number(localCrit?.ram_asistencia_regular ?? localCrit?.min_asist_reg ?? cat?.ram_asistencia_regular ?? 70),
+        ram_asistencia_trabajo: Number(localCrit?.ram_asistencia_trabajo ?? localCrit?.min_asist_trabajo ?? cat?.ram_asistencia_trabajo ?? 60),
+        porcentaje_tps_regular: Number(localCrit?.porcentaje_tps_regular ?? cat?.porcentaje_tps_regular ?? 80),
+        porcentaje_tps_promocion: Number(localCrit?.porcentaje_tps_promocion ?? cat?.porcentaje_tps_promocion ?? 100)
       };
     }
 
@@ -372,17 +443,46 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
 
       if (!rpcError && rpcData) {
         if (rpcData.success) {
-          // Si el RPC no incluye cálculo completo de condición RAM, lo complementamos localmente
-          if (rpcData.config?.portal_mostrar_condicion && !rpcData.condicion_ram) {
-            const nivel = rpcData.catedra?.nivel || 'TERCIARIO';
-            const mod = rpcData.catedra?.modalidad || 'ANUAL';
-            const asistPct = rpcData.asistencia?.porcentaje ?? 100;
-            const evals = rpcData.evaluaciones || [];
-            const notas = evals.filter(e => e.valor !== null && e.valor !== undefined);
-            
-            const cond = calcularCondicionFinal(nivel, mod, asistPct, evals, notas);
-            rpcData.condicion_ram = cond;
+          const portalCfg = resolvedConfig || await getCatedraPortalConfig(resolvedCatedraId, isDemo);
+          rpcData.config = {
+            ...(rpcData.config || {}),
+            mostrar_parciales: (rpcData.config?.mostrar_parciales ?? portalCfg?.mostrar_parciales) !== false,
+            mostrar_tps: (rpcData.config?.mostrar_tps ?? portalCfg?.mostrar_tps) !== false,
+            mostrar_promedio: (rpcData.config?.mostrar_promedio ?? portalCfg?.mostrar_promedio) !== false
+          };
+
+          const nivel = rpcData.catedra?.nivel || portalCfg?.nivel || 'TERCIARIO';
+          const mod = rpcData.catedra?.modalidad || portalCfg?.modalidad || 'ANUAL';
+          const asistPct = rpcData.asistencia?.porcentaje ?? 100;
+          const evals = rpcData.evaluaciones || [];
+          const notas = evals.filter(e => e.valor !== null && e.valor !== undefined || e.estado || e.detalle_recuperatorio);
+          const mergedCriterios = {
+            eval_considerar_asistencia: portalCfg?.eval_considerar_asistencia !== false,
+            eval_considerar_parciales: portalCfg?.eval_considerar_parciales !== false,
+            eval_considerar_tps: portalCfg?.eval_considerar_tps !== false,
+            nota_regularidad: portalCfg?.nota_regularidad ?? 4,
+            nota_promocion: portalCfg?.nota_promocion ?? 7,
+            ram_asistencia_regular: portalCfg?.ram_asistencia_regular ?? 70,
+            ram_asistencia_trabajo: portalCfg?.ram_asistencia_trabajo ?? 60,
+            porcentaje_tps_regular: portalCfg?.porcentaje_tps_regular ?? 80,
+            porcentaje_tps_promocion: portalCfg?.porcentaje_tps_promocion ?? 100
+          };
+
+          const condAuto = calcularCondicionFinal(nivel, mod, asistPct, evals, notas, mergedCriterios, rpcData.estudiante || {});
+          const { condicion_manual, motivo_condicion_manual } = resolveStudentManualOverride(catedraId, resolvedCatedraId, rpcData.estudiante);
+
+          if (rpcData.config?.portal_mostrar_condicion) {
+            rpcData.condicion_ram = condicion_manual
+              ? buildManualCondicionRam(condicion_manual, motivo_condicion_manual, condAuto)
+              : (rpcData.condicion_ram || condAuto);
           }
+
+          if (rpcData.estudiante) {
+            rpcData.estudiante.condicion_manual = condicion_manual || null;
+            rpcData.estudiante.motivo_condicion_manual = motivo_condicion_manual || null;
+          }
+
+          rpcData.promedio = calcularPromedioGeneral(evals, notas);
           return rpcData;
         } else {
           return rpcData;
@@ -442,30 +542,39 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
   let notas = [];
   let criterios = {
     min_asist_promo: 80,
-    min_asist_reg: 70,
-    min_asist_trabajo: 60,
-    nota_min_promo: 7,
-    nota_min_reg: 4,
-    nota_min_sec: 6
+    min_asist_reg: portalConfig.ram_asistencia_regular ?? 70,
+    min_asist_trabajo: portalConfig.ram_asistencia_trabajo ?? 60,
+    ram_asistencia_regular: portalConfig.ram_asistencia_regular ?? 70,
+    ram_asistencia_trabajo: portalConfig.ram_asistencia_trabajo ?? 60,
+    nota_min_promo: portalConfig.nota_promocion ?? 7,
+    nota_min_reg: portalConfig.nota_regularidad ?? 4,
+    nota_promocion: portalConfig.nota_promocion ?? 7,
+    nota_regularidad: portalConfig.nota_regularidad ?? 4,
+    nota_min_sec: 6,
+    eval_considerar_asistencia: portalConfig.eval_considerar_asistencia !== false,
+    eval_considerar_parciales: portalConfig.eval_considerar_parciales !== false,
+    eval_considerar_tps: portalConfig.eval_considerar_tps !== false,
+    porcentaje_tps_regular: portalConfig.porcentaje_tps_regular ?? 80,
+    porcentaje_tps_promocion: portalConfig.porcentaje_tps_promocion ?? 100
   };
 
   try {
-    const stClases = localStorage.getItem(`clases_${catedraId}`);
+    const stClases = localStorage.getItem(`clases_${resolvedCatedraId}`) || localStorage.getItem(`clases_${catedraId}`);
     if (stClases) clases = JSON.parse(stClases);
 
-    const stAsist = localStorage.getItem(`asistencias_${catedraId}`);
+    const stAsist = localStorage.getItem(`asistencias_${resolvedCatedraId}`) || localStorage.getItem(`asistencias_${catedraId}`);
     if (stAsist) asistencias = JSON.parse(stAsist);
 
-    const stInasist = localStorage.getItem(`inasistencias_docente_${catedraId}`);
+    const stInasist = localStorage.getItem(`inasistencias_docente_${resolvedCatedraId}`) || localStorage.getItem(`inasistencias_docente_${catedraId}`);
     if (stInasist) inasistenciasDocente = JSON.parse(stInasist);
 
-    const stEval = localStorage.getItem(`evaluaciones_${catedraId}`);
+    const stEval = localStorage.getItem(`evaluaciones_${resolvedCatedraId}`) || localStorage.getItem(`evaluaciones_${catedraId}`);
     if (stEval) evaluaciones = JSON.parse(stEval);
 
-    const stNotas = localStorage.getItem(`notas_${catedraId}`);
+    const stNotas = localStorage.getItem(`notas_${resolvedCatedraId}`) || localStorage.getItem(`notas_${catedraId}`);
     if (stNotas) notas = JSON.parse(stNotas);
 
-    const stCrit = localStorage.getItem(`criterios_${catedraId}`);
+    const stCrit = localStorage.getItem(`criterios_${resolvedCatedraId}`) || localStorage.getItem(`criterios_${catedraId}`);
     if (stCrit) criterios = { ...criterios, ...JSON.parse(stCrit) };
   } catch (_) {}
 
@@ -546,7 +655,7 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
       }
     : calcularCondicionFinal(
         portalConfig.nivel,
-        portalConfig.modalidad,
+        criterios.regimen_cursada || portalConfig.modalidad,
         asistenciaPct,
         evaluaciones,
         studentNotasForLogic,
@@ -554,17 +663,14 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
         student
       );
 
-  // Verificar override manual del docente si existe
-  const manualOverride = localStorage.getItem(`condicion_override_${catedraId}_${student.id}`);
+  // Verificar override manual del docente si existe (inscripcion.condicion_manual || condicionAutomatica)
+  const { condicion_manual, motivo_condicion_manual } = resolveStudentManualOverride(catedraId, resolvedCatedraId, student);
   let finalCondicion = condicionCalculada;
-  if (!student.es_equivalencia && manualOverride && manualOverride !== 'AUTO') {
-    finalCondicion = {
-      condicion: manualOverride,
-      badgeVariant: manualOverride === 'PROMOCIONAL' || manualOverride === 'APROBADO' ? 'promo' : (manualOverride === 'REGULAR' ? 'regular' : 'libre'),
-      color: manualOverride === 'PROMOCIONAL' || manualOverride === 'APROBADO' ? 'text-emerald-700 dark:text-emerald-400' : (manualOverride === 'REGULAR' ? 'text-amber-700 dark:text-amber-400' : 'text-rose-700 dark:text-rose-400'),
-      motivo: 'Condición asignada administrativamente por el docente'
-    };
+  if (!student.es_equivalencia && condicion_manual && condicion_manual !== 'AUTO') {
+    finalCondicion = buildManualCondicionRam(condicion_manual, motivo_condicion_manual, condicionCalculada);
   }
+
+  const promedioGeneral = calcularPromedioGeneral(evaluaciones, studentNotasForLogic);
 
   // Estructura de respuesta
   return {
@@ -573,7 +679,7 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
       id: portalConfig.id,
       nombre: portalConfig.nombre,
       nivel: portalConfig.nivel,
-      modalidad: portalConfig.modalidad,
+      modalidad: criterios.regimen_cursada || portalConfig.modalidad,
       institucion_nombre: portalConfig.institucion_nombre
     },
     estudiante: {
@@ -584,25 +690,32 @@ export async function consultarEstadoAlumno(catedraId, dniInput, isDemo = false)
       es_equivalencia: Boolean(student.es_equivalencia),
       tiene_certificado_trabajo: Boolean(student.tiene_certificado_trabajo),
       resolucion_equivalencia: student.resolucion_equivalencia || null,
-      fecha_equivalencia: student.fecha_equivalencia || null
+      fecha_equivalencia: student.fecha_equivalencia || null,
+      condicion_manual: condicion_manual || null,
+      motivo_condicion_manual: motivo_condicion_manual || null
     },
     config: {
       portal_mostrar_asistencia: portalConfig.portal_mostrar_asistencia,
       portal_mostrar_notas: portalConfig.portal_mostrar_notas,
-      portal_mostrar_condicion: portalConfig.portal_mostrar_condicion
+      portal_mostrar_condicion: portalConfig.portal_mostrar_condicion,
+      mostrar_parciales: portalConfig.mostrar_parciales !== false,
+      mostrar_tps: portalConfig.mostrar_tps !== false,
+      mostrar_promedio: portalConfig.mostrar_promedio !== false
     },
     asistencia: portalConfig.portal_mostrar_asistencia ? {
       total_clases: totalClasesEfectivas,
       presentes,
       ausentes,
       porcentaje: asistenciaPct,
-      min_asist_reg: student.tiene_certificado_trabajo ? (criterios.min_asist_trabajo ?? 60) : (criterios.min_asist_reg ?? 70),
-      min_asist_trabajo: criterios.min_asist_trabajo ?? 60,
+      min_asist_reg: student.tiene_certificado_trabajo ? (criterios.ram_asistencia_trabajo ?? criterios.min_asist_trabajo ?? 60) : (criterios.ram_asistencia_regular ?? criterios.min_asist_reg ?? 70),
+      min_asist_trabajo: criterios.ram_asistencia_trabajo ?? criterios.min_asist_trabajo ?? 60,
       min_asist_promo: criterios.min_asist_promo ?? 80,
       tiene_certificado_trabajo: Boolean(student.tiene_certificado_trabajo),
       es_equivalencia: Boolean(student.es_equivalencia)
     } : null,
     evaluaciones: portalConfig.portal_mostrar_notas ? studentEvaluaciones : null,
-    condicion_ram: portalConfig.portal_mostrar_condicion ? finalCondicion : null
+    promedio: portalConfig.portal_mostrar_notas ? promedioGeneral : null,
+    condicion_ram: portalConfig.portal_mostrar_condicion ? finalCondicion : null,
+    condicion_automatica: condicionCalculada
   };
 }

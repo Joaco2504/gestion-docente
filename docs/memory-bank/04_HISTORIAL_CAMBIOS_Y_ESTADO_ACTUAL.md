@@ -117,5 +117,30 @@ Bitácora técnica viva donde se registran cronológicamente todas las directiva
   * **Auditoría Estática Completa:** Escaneo automatizado sobre todos los archivos de `src/` confirmando **0** hooks de React invocados sin importar.
   * **QA y Verificación:** 74/74 tests pasando en Vitest y `npm run build` exitoso (Código 0).
 
+### 13. Selector de Visibilidad de Notas (Parciales, TPs, Promedio), Panel de Parámetros de Condición y Override Manual/Automático por Alumno
+- **Estado:** ✅ Completado y Verificado al 100%.
+- **Alcance y Mejoras Realizadas:**
+  * **1. Selector de Visibilidad de Notas (`GradesTab.jsx`, `GradeMatrixTable.jsx`, `GradeCardsMobile.jsx`, `ConsultaAlumnoPage.jsx`, `studentPortalService.js`):**
+    - Incorporadas píldoras interactivas en la barra superior de Calificaciones (`GradesTab.jsx`): `[✓] Todo a la vez`, `[✓] Parciales y Recuperatorios` (`mostrar_parciales`), `[✓] Trabajos Prácticos` (`mostrar_tps`) y `[✓] Promedio General` (`mostrar_promedio`).
+    - Añadido switch `"Sincronizar esta vista con el Portal del Alumno"` que persiste `mostrar_parciales`, `mostrar_tps` y `mostrar_promedio` en `public.catedras` (con respaldo instantáneo en `localStorage`).
+    - Filtrado dinámico de columnas de evaluaciones (`PARCIAL`/`RECUPERATORIO`, `TP`) y de la columna/KPI `Promedio` tanto en la tabla desktop/tablet (`GradeMatrixTable.jsx`) como en las tarjetas móviles (`GradeCardsMobile.jsx`) y en el Portal Estudiantil (`ConsultaAlumnoPage.jsx`).
+  * **2. Panel de Parámetros para Decidir la Condición Académica (`GradesTab.jsx`, `academicLogic.js`, `ramCalculator.ts`, `useGradesData.js`):**
+    - Desplegable `"⚙️ Parámetros de Condición"` en `GradesTab.jsx` con checkboxes de criterios activos:
+      * `[✓] Evaluar Asistencia` (`eval_considerar_asistencia`): al destildarse, las inasistencias no dejan `LIBRE` al alumno en el cálculo automático.
+      * `[✓] Evaluar Parciales y Recuperatorios` (`eval_considerar_parciales`): al destildarse, decide la condición únicamente con los demás parámetros activos.
+      * `[✓] Evaluar Trabajos Prácticos` (`eval_considerar_tps`): al destildarse, los TPs desaprobados o `N/E` no reducen la condición del alumno.
+    - Inputs numéricos rápidos de umbrales: `Nota mínima Regularidad` (`nota_regularidad`, default `4`), `Nota mínima Promoción` (`nota_promocion`, default `7`), `% Asistencia Regular` (`ram_asistencia_regular`, default `70%`), `% Régimen Laboral` (`ram_asistencia_trabajo`, default `60%`), `% de TPs aprobados para Regularizar` (`porcentaje_tps_regular`, default `80%`), `% para Promocionar` (`porcentaje_tps_promocion`, default `100%`) y selector de `Régimen de cursada` (`Anual (máx. 2 recup.)` | `Cuatrimestral (máx. 1 recup.)`).
+    - Guardado en `public.catedras` y `public.criterios_evaluacion` con recálculo instantáneo de toda la planilla.
+  * **3. Override Manual de Condición por Alumno sin Perder el Automático (`GradeMatrixTable.jsx`, `GradeCardsMobile.jsx`, `catedraEstudiantesService.js`, `useGradesData.js`, `ConsultaAlumnoPage.jsx`):**
+    - `ConditionBadge` interactivo con Popover (renderizado vía React Portal para evitar recortes por `overflow`) disponible tanto en la tabla de PC/Tablet como en las tarjetas de Celular.
+    - Exhibe arriba `🤖 Sugerencia Automática: [PROM. DIR / PROM. IND / REG / LIB]` junto con la explicación automática detallada.
+    - Permite elegir entre `⚡ Automático (Según parámetros de la cátedra)` (`condicion_manual: null`) o fijar manualmente `PROMOCIONAL`, `PROMOCION_INDIRECTA`, `REGULAR` o `LIBRE` en `public.inscripciones`, incluyendo el campo `"Motivo de ajuste manual (opcional)"`.
+    - Distinción visual con icono `✋`, anillo indicador y Tooltip reglamentario: `"Condición fijada manualmente por el docente: REGULAR (Cálculo automático: LIBRE). Clic para volver a automático."`
+    - El Portal Estudiantil (`ConsultaAlumnoPage.jsx`) exhibe siempre la condición efectiva (`inscripcion.condicion_manual || condicionAutomatica`).
+  * **4. Migración SQL y QA:**
+    - Migración [`supabase/migrations/20261030160000_visibilidad_parametros_condicion_manual.sql`](file:///c:/Users/emili/Documents/docente/supabase/migrations/20261030160000_visibilidad_parametros_condicion_manual.sql).
+    - 78/78 tests unitarios aprobados en Vitest (`npx vitest run --passWithNoTests`) y build de producción limpio (`npm run build`, Código 0).
+
+
 
 

@@ -57,23 +57,37 @@ export interface EvaluacionResultadoRAM {
 }
 
 export interface CriteriosRamCatedra {
-  asistenciaRegular: number;   // Ej. 70
-  asistenciaTrabajo: number;   // Ej. 60
-  asistenciaPromocion: number; // Ej. 80
-  notaAprobacion: number;      // Ej. 4
-  notaPromocion: number;       // Ej. 7
+  asistenciaRegular?: number;        // Ej. 70
+  asistenciaTrabajo?: number;        // Ej. 60
+  asistenciaPromocion?: number;      // Ej. 80
+  notaAprobacion?: number;           // Ej. 4
+  notaPromocion?: number;            // Ej. 7
+  ram_asistencia_regular?: number;   // Ej. 70
+  ram_asistencia_trabajo?: number;   // Ej. 60
+  ram_asistencia_promocion?: number; // Ej. 80
+  nota_regularidad?: number;         // Ej. 4
+  nota_promocion?: number;           // Ej. 7
+  porcentaje_tps_regular?: number;   // Ej. 80
+  porcentaje_tps_promocion?: number; // Ej. 100
+  eval_considerar_asistencia?: boolean;
+  eval_considerar_parciales?: boolean;
+  eval_considerar_tps?: boolean;
 }
 
 /**
  * Motor de Regularidad RAM dinámico:
  * - Soporte para acreditación directa por equivalencia (excluye de cómputos)
+ * - Soporte para override manual por alumno (condicion_manual)
  * - Umbral preferencial del 60% para estudiantes con régimen laboral certificado
  * - Umbral del 70% para cursantes estándar y 80% para promoción directa
+ * - Soporte para parámetros configurables (eval_considerar_asistencia, eval_considerar_parciales, eval_considerar_tps)
  */
 export function evaluarCondicionEstudiante(
   inscripcion: {
     es_equivalencia?: boolean;
     tiene_certificado_trabajo?: boolean;
+    condicion_manual?: string | null;
+    motivo_condicion_manual?: string | null;
   } = {},
   porcentajeAsistencia = 0,
   notasValidas: Array<{ nota: number | null; estado: string; aprobado: boolean }> = [],
@@ -82,9 +96,12 @@ export function evaluarCondicionEstudiante(
     asistenciaTrabajo: 60,
     asistenciaPromocion: 80,
     notaAprobacion: 4,
-    notaPromocion: 7
+    notaPromocion: 7,
+    eval_considerar_asistencia: true,
+    eval_considerar_parciales: true,
+    eval_considerar_tps: true
   }
-): { condicion: 'ACREDITADA_EQUIVALENCIA' | 'PROMOCIONAL' | 'PROMOCION_INDIRECTA' | 'REGULAR' | 'LIBRE' | 'RECUPERATORIO'; umbralAplicado: number; detalle: string } {
+): { condicion: 'ACREDITADA_EQUIVALENCIA' | 'PROMOCIONAL' | 'PROMOCION_INDIRECTA' | 'REGULAR' | 'LIBRE' | 'RECUPERATORIO'; umbralAplicado: number; detalle: string; esManual?: boolean } {
   // 1. Acreditación directa por equivalencia
   if (inscripcion?.es_equivalencia) {
     return {
@@ -95,21 +112,37 @@ export function evaluarCondicionEstudiante(
   }
 
   // 2. Determinar umbral de asistencia según régimen del estudiante
+  const evalAsist = criterios?.eval_considerar_asistencia !== false;
+  const evalParciales = criterios?.eval_considerar_parciales !== false;
+
   const umbralAsistencia = inscripcion?.tiene_certificado_trabajo
-    ? (criterios?.asistenciaTrabajo ?? 60)
-    : (criterios?.asistenciaRegular ?? 70);
+    ? (criterios?.ram_asistencia_trabajo ?? criterios?.asistenciaTrabajo ?? 60)
+    : (criterios?.ram_asistencia_regular ?? criterios?.asistenciaRegular ?? 70);
+  const umbralPromo = criterios?.ram_asistencia_promocion ?? criterios?.asistenciaPromocion ?? 80;
+  const notaMinPromo = criterios?.nota_promocion ?? criterios?.notaPromocion ?? 7;
 
-  const cumpleAsistenciaRegular = porcentajeAsistencia >= umbralAsistencia;
-  const cumpleAsistenciaPromo = porcentajeAsistencia >= (criterios?.asistenciaPromocion ?? 80);
+  const cumpleAsistenciaRegular = !evalAsist || porcentajeAsistencia >= umbralAsistencia;
+  const cumpleAsistenciaPromo = !evalAsist || porcentajeAsistencia >= umbralPromo;
 
-  const examenesAprobados = notasValidas.length > 0 && notasValidas.every(n => n.aprobado);
-  const notasParaPromo = notasValidas.length > 0 && notasValidas.every(n => (n.nota || 0) >= (criterios?.notaPromocion ?? 7));
+  const examenesAprobados = !evalParciales || (notasValidas.length > 0 && notasValidas.every(n => n.aprobado));
+  const notasParaPromo = !evalParciales || (notasValidas.length > 0 && notasValidas.every(n => (n.nota || 0) >= notaMinPromo));
 
-  // 3. Dictamen reglamentario
-  if (cumpleAsistenciaPromo && notasParaPromo && examenesAprobados && notasValidas.length > 0) {
+  // 3. Override manual si el docente fijó condición para este alumno
+  if (inscripcion?.condicion_manual && inscripcion.condicion_manual !== 'AUTO') {
+    const manualCond = inscripcion.condicion_manual as 'PROMOCIONAL' | 'PROMOCION_INDIRECTA' | 'REGULAR' | 'LIBRE';
+    return {
+      condicion: manualCond,
+      umbralAplicado: umbralAsistencia,
+      detalle: inscripcion.motivo_condicion_manual || `Condición fijada manualmente por el docente: ${manualCond}`,
+      esManual: true
+    };
+  }
+
+  // 4. Dictamen reglamentario automático
+  if (cumpleAsistenciaPromo && notasParaPromo && examenesAprobados && (!evalParciales || notasValidas.length > 0)) {
     return {
       condicion: 'PROMOCIONAL',
-      umbralAplicado: criterios?.asistenciaPromocion ?? 80,
+      umbralAplicado: umbralPromo,
       detalle: `Promoción directa alcanzada (${porcentajeAsistencia}% asistencia).`
     };
   }

@@ -5,7 +5,12 @@ import {
   Printer, 
   Search, 
   X,
-  Check
+  Check,
+  Settings,
+  Eye,
+  ChevronDown,
+  Save,
+  Globe
 } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
@@ -30,8 +35,8 @@ import { toast } from 'sonner';
 /**
  * GradesTab (Orquestador Korum 2.0 Desacoplado)
  * Mantiene la sábana de notas bajo una arquitectura modular limpia,
- * integrando hooks especializados, métricas grupales, sábana desktop por teclado
- * y vista táctil mobile responsive-craft.
+ * integrando hooks especializados, métricas grupales, sábana desktop por teclado,
+ * selector de visibilidad de columnas, panel de parámetros de condición y override manual/automático.
  */
 export default function GradesTab({
   catedraId,
@@ -46,6 +51,7 @@ export default function GradesTab({
   const [regimen, setRegimen] = useState(
     String(modalidad || 'ANUAL').toUpperCase().includes('CUATRI') ? 'CUATRIMESTRAL' : 'ANUAL'
   );
+  const [isParamsOpen, setIsParamsOpen] = useState(false);
   const [isNuevaEvalModalOpen, setIsNuevaEvalModalOpen] = useState(false);
   const [isPrintConfigModalOpen, setIsPrintConfigModalOpen] = useState(false);
   const [isPrintPreviewModalOpen, setIsPrintPreviewModalOpen] = useState(false);
@@ -62,6 +68,11 @@ export default function GradesTab({
     recuperatorioEvaluation,
     notas,
     loading,
+    criterios,
+    saveCriteriosCondicion,
+    visibilityConfig,
+    updateVisibilityConfig,
+    handleSetCondicionManual,
     studentRows,
     evalMetricsMap,
     overallStats,
@@ -79,6 +90,60 @@ export default function GradesTab({
     isDemo,
     user
   });
+
+  const {
+    mostrar_parciales: mostrarParciales = true,
+    mostrar_tps: mostrarTps = true,
+    mostrar_promedio: mostrarPromedio = true,
+    sincronizar_portal: sincronizarPortal = false
+  } = visibilityConfig || {};
+
+  const todoActivo = mostrarParciales && mostrarTps && mostrarPromedio;
+
+  const handleToggleTodo = async () => {
+    const nextState = await updateVisibilityConfig({
+      mostrar_parciales: true,
+      mostrar_tps: true,
+      mostrar_promedio: true
+    });
+    if (nextState.sincronizar_portal) {
+      toast.success('Vista completa sincronizada con el Portal del Alumno');
+    }
+  };
+
+  const handleToggleVisibilityPill = async (field) => {
+    const nextVal = !visibilityConfig[field];
+    // Evitar que se desactiven las 3 píldoras a la vez dejando la vista vacía
+    const nextStateCandidate = {
+      ...visibilityConfig,
+      [field]: nextVal
+    };
+    if (!nextStateCandidate.mostrar_parciales && !nextStateCandidate.mostrar_tps && !nextStateCandidate.mostrar_promedio) {
+      toast.info('Debe quedar al menos una categoría visible en la sábana.');
+      return;
+    }
+    const updated = await updateVisibilityConfig({ [field]: nextVal });
+    if (updated.sincronizar_portal) {
+      toast.success('Preferencia de visibilidad sincronizada con el Portal del Alumno');
+    }
+  };
+
+  const handleToggleSyncPortal = async () => {
+    const nextSync = !sincronizarPortal;
+    await updateVisibilityConfig({ sincronizar_portal: nextSync }, nextSync);
+    if (nextSync) {
+      toast.success('Vista sincronizada con el Portal del Alumno (public.catedras)');
+    } else {
+      toast.info('Sincronización automática con el Portal del Alumno desactivada');
+    }
+  };
+
+  const handleParamChange = async (partialParams, nextRegimen = null) => {
+    if (nextRegimen) {
+      setRegimen(nextRegimen);
+    }
+    await saveCriteriosCondicion(partialParams, nextRegimen || regimen);
+  };
 
   // Filtrado reactivo de estudiantes por nombre o DNI
   const filteredStudentRows = useMemo(() => {
@@ -218,12 +283,13 @@ export default function GradesTab({
     : null;
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
+    <div className="space-y-4 animate-fadeIn pb-12">
       {/* 1. Métricas Grupales Reactivas (Bento Grid) */}
       <GradesStatsHeader overallStats={overallStats} />
 
-      {/* 2. Barra de Herramientas y Acciones */}
-      <Card className="p-4 border border-surface-border">
+      {/* 2. Barra de Herramientas, Visibilidad de Notas y Parámetros de Condición */}
+      <Card className="p-4 border border-surface-border space-y-3.5">
+        {/* Fila 1: Buscador y Acciones Principales */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Buscador reactivo */}
           <div className="relative w-full md:w-80">
@@ -252,7 +318,7 @@ export default function GradesTab({
             <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200/80 dark:border-white/10 text-xs font-bold select-none">
               <button
                 type="button"
-                onClick={() => setRegimen('ANUAL')}
+                onClick={() => handleParamChange({}, 'ANUAL')}
                 className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                   regimen === 'ANUAL'
                     ? 'bg-white dark:bg-slate-900 text-primary shadow-xs font-black'
@@ -264,7 +330,7 @@ export default function GradesTab({
               </button>
               <button
                 type="button"
-                onClick={() => setRegimen('CUATRIMESTRAL')}
+                onClick={() => handleParamChange({}, 'CUATRIMESTRAL')}
                 className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                   regimen === 'CUATRIMESTRAL'
                     ? 'bg-white dark:bg-slate-900 text-primary shadow-xs font-black'
@@ -275,6 +341,21 @@ export default function GradesTab({
                 Cuatrimestral (máx. 1)
               </button>
             </div>
+
+            {/* Botón Desplegable: Parámetros de Condición */}
+            <button
+              type="button"
+              onClick={() => setIsParamsOpen(prev => !prev)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all inline-flex items-center gap-1.5 cursor-pointer select-none min-h-[36px] ${
+                isParamsOpen
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-500/50'
+              }`}
+              title="Configurar criterios y umbrales para el cálculo automático de condición académica"
+            >
+              <span>⚙️ Parámetros de Condición</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isParamsOpen ? 'rotate-180' : ''}`} />
+            </button>
 
             <div className="hidden lg:block">
               <GradesDensitySelector density={density} onDensityChange={setDensity} />
@@ -312,6 +393,319 @@ export default function GradesTab({
             </Button>
           </div>
         </div>
+
+        {/* Fila 2: Selector Rápido de Qué Notas Mostrar (Píldoras + Switch Sincronizar Portal) */}
+        <div className="pt-3 border-t border-slate-100 dark:border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] font-mono font-bold uppercase text-text-muted mr-1 flex items-center gap-1">
+              <Eye className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Mostrar:</span>
+            </span>
+
+            {/* Píldora: Todo a la vez */}
+            <button
+              type="button"
+              onClick={handleToggleTodo}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border select-none ${
+                todoActivo
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                  : 'bg-slate-100 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500/40'
+              }`}
+            >
+              <Check className={`w-3.5 h-3.5 ${todoActivo ? 'opacity-100' : 'opacity-40'}`} />
+              <span>Todo a la vez</span>
+            </button>
+
+            {/* Píldora: Parciales y Recuperatorios */}
+            <button
+              type="button"
+              onClick={() => handleToggleVisibilityPill('mostrar_parciales')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 border select-none ${
+                mostrarParciales
+                  ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/40'
+                  : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] font-black ${
+                mostrarParciales ? 'bg-emerald-600 text-white' : 'bg-slate-300 dark:bg-slate-700 text-transparent'
+              }`}>
+                ✓
+              </span>
+              <span>Parciales y Recuperatorios</span>
+            </button>
+
+            {/* Píldora: Trabajos Prácticos */}
+            <button
+              type="button"
+              onClick={() => handleToggleVisibilityPill('mostrar_tps')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 border select-none ${
+                mostrarTps
+                  ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/40'
+                  : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] font-black ${
+                mostrarTps ? 'bg-emerald-600 text-white' : 'bg-slate-300 dark:bg-slate-700 text-transparent'
+              }`}>
+                ✓
+              </span>
+              <span>Trabajos Prácticos</span>
+            </button>
+
+            {/* Píldora: Promedio General */}
+            <button
+              type="button"
+              onClick={() => handleToggleVisibilityPill('mostrar_promedio')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 border select-none ${
+                mostrarPromedio
+                  ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/40'
+                  : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] font-black ${
+                mostrarPromedio ? 'bg-emerald-600 text-white' : 'bg-slate-300 dark:bg-slate-700 text-transparent'
+              }`}>
+                ✓
+              </span>
+              <span>Promedio General</span>
+            </button>
+          </div>
+
+          {/* Switch Opcional: Sincronizar esta vista con el Portal del Alumno */}
+          <label className="inline-flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 self-start lg:self-auto">
+            <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>Sincronizar esta vista con el Portal del Alumno</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={sincronizarPortal}
+              onClick={handleToggleSyncPortal}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none ${
+                sincronizarPortal ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-xs transform transition-transform duration-200 ease-in-out ${
+                  sincronizarPortal ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </label>
+        </div>
+
+        {/* Panel Desplegable: ⚙️ Parámetros de Condición */}
+        {isParamsOpen && (
+          <div className="pt-3.5 border-t border-slate-200/80 dark:border-slate-800 animate-fadeIn space-y-4">
+            <div className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>⚙️ Parámetros para Decidir la Condición Académica</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Elegí qué criterios evalúa el motor automático para definir si un alumno está Promocional, Regular o Libre. Los cambios recalculan la planilla al instante.
+                  </p>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={Save}
+                  onClick={async () => {
+                    await saveCriteriosCondicion(criterios, regimen);
+                    toast.success('Parámetros de condición guardados en la cátedra y planilla recalculada.');
+                    setIsParamsOpen(false);
+                  }}
+                  className="text-xs font-bold shrink-0"
+                >
+                  Guardar y Cerrar
+                </Button>
+              </div>
+
+              {/* 1. Checkboxes de qué criterios evaluar */}
+              <div>
+                <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                  Criterios Activos en el Cálculo Automático
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 cursor-pointer hover:border-emerald-500/40 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={criterios.eval_considerar_asistencia !== false}
+                      onChange={(e) => handleParamChange({ eval_considerar_asistencia: e.target.checked })}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                        Evaluar Asistencia
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block leading-snug">
+                        Si se destilda, las inasistencias no dejan libre al alumno en el cálculo automático.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 cursor-pointer hover:border-emerald-500/40 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={criterios.eval_considerar_parciales !== false}
+                      onChange={(e) => handleParamChange({ eval_considerar_parciales: e.target.checked })}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                        Evaluar Parciales y Recuperatorios
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block leading-snug">
+                        Si se destilda, decide la condición solo con los demás parámetros activos.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 cursor-pointer hover:border-emerald-500/40 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={criterios.eval_considerar_tps !== false}
+                      onChange={(e) => handleParamChange({ eval_considerar_tps: e.target.checked })}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                        Evaluar Trabajos Prácticos
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block leading-snug">
+                        Si se destilda, los TPs desaprobados o N/E no bajan la condición del alumno.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* 2. Inputs numéricos rápidos de umbrales */}
+              <div>
+                <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                  Umbrales Reglamentarios y Régimen
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      Nota mín. Regularidad
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      value={criterios.nota_regularidad ?? criterios.nota_min_reg ?? 4}
+                      onChange={(e) => handleParamChange({
+                        nota_regularidad: Number(e.target.value),
+                        nota_min_reg: Number(e.target.value)
+                      })}
+                      className="w-full px-2 py-1 rounded-lg font-mono font-bold text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      Nota mín. Promoción
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      value={criterios.nota_promocion ?? criterios.nota_min_promo ?? 7}
+                      onChange={(e) => handleParamChange({
+                        nota_promocion: Number(e.target.value),
+                        nota_min_promo: Number(e.target.value)
+                      })}
+                      className="w-full px-2 py-1 rounded-lg font-mono font-bold text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      % Asist. Regular
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={criterios.ram_asistencia_regular ?? criterios.min_asist_reg ?? 70}
+                      onChange={(e) => handleParamChange({
+                        ram_asistencia_regular: Number(e.target.value),
+                        min_asist_reg: Number(e.target.value)
+                      })}
+                      className="w-full px-2 py-1 rounded-lg font-mono font-bold text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      % Régimen Laboral
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={criterios.ram_asistencia_trabajo ?? criterios.min_asist_trabajo ?? 60}
+                      onChange={(e) => handleParamChange({
+                        ram_asistencia_trabajo: Number(e.target.value),
+                        min_asist_trabajo: Number(e.target.value)
+                      })}
+                      className="w-full px-2 py-1 rounded-lg font-mono font-bold text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      % TPs Regularizar
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={criterios.porcentaje_tps_regular ?? 80}
+                      onChange={(e) => handleParamChange({
+                        porcentaje_tps_regular: Number(e.target.value)
+                      })}
+                      className="w-full px-2 py-1 rounded-lg font-mono font-bold text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      % TPs Promocionar
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={criterios.porcentaje_tps_promocion ?? 100}
+                      onChange={(e) => handleParamChange({
+                        porcentaje_tps_promocion: Number(e.target.value)
+                      })}
+                      className="w-full px-2 py-1 rounded-lg font-mono font-bold text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 col-span-2 sm:col-span-1">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      Régimen de Cursada
+                    </label>
+                    <select
+                      value={regimen}
+                      onChange={(e) => handleParamChange({}, e.target.value)}
+                      className="w-full px-2 py-1 rounded-lg font-bold text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer"
+                    >
+                      <option value="ANUAL">Anual (máx. 2 recup.)</option>
+                      <option value="CUATRIMESTRAL">Cuatrimestral (máx. 1 recup.)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* 3. VISTA DESKTOP (>= 1024px): Sábana de Notas Matricial con Navegación por Teclado */}
@@ -331,6 +725,10 @@ export default function GradesTab({
           onOpenEditParams={(ev) => setEditingEvalParams(ev)}
           onOpenConfigurarRecuperatorio={(est) => setConfigurandoRecupEstudiante(est)}
           onDeleteEval={handleDeleteEval}
+          onSelectCondicionManual={cursadaFinalizada ? undefined : handleSetCondicionManual}
+          mostrarParciales={mostrarParciales}
+          mostrarTps={mostrarTps}
+          mostrarPromedio={mostrarPromedio}
           density={density}
         />
       </div>
@@ -348,6 +746,10 @@ export default function GradesTab({
           onOpenEditNota={handleOpenEditNota}
           onOpenConfigurarRecuperatorio={(est) => setConfigurandoRecupEstudiante(est)}
           onQuickSetGrade={cursadaFinalizada ? undefined : handleQuickSetGrade}
+          onSelectCondicionManual={cursadaFinalizada ? undefined : handleSetCondicionManual}
+          mostrarParciales={mostrarParciales}
+          mostrarTps={mostrarTps}
+          mostrarPromedio={mostrarPromedio}
         />
       </div>
 

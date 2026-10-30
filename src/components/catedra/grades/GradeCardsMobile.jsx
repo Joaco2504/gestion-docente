@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Badge from '../../common/Badge';
 import RiskBadge from '../../common/RiskBadge';
+import { ConditionBadge, isParcialOrRecupEval, isTpEval } from './GradeMatrixTable';
 import { 
   FileSpreadsheet, 
   ChevronDown, 
@@ -26,27 +27,21 @@ export default function GradeCardsMobile({
   getNotaEstado,
   onOpenEditNota,
   onOpenConfigurarRecuperatorio,
-  onQuickSetGrade
+  onQuickSetGrade,
+  onSelectCondicionManual,
+  mostrarParciales = true,
+  mostrarTps = true,
+  mostrarPromedio = true
 }) {
   const [expandedId, setExpandedId] = useState(null);
 
-  const getCondBadgeVariant = (cond) => {
-    switch (cond) {
-      case 'PROMOCIONAL':
-      case 'ACREDITADA_EQUIVALENCIA':
-        return 'promo';
-      case 'PROMOCION_INDIRECTA':
-        return 'promo_ind';
-      case 'REGULAR':
-        return 'regular';
-      case 'RECUPERATORIO':
-        return 'warning';
-      case 'LIBRE':
-        return 'libre';
-      default:
-        return 'default';
-    }
-  };
+  const visibleMainEvaluations = useMemo(() => {
+    return (mainEvaluations || []).filter(Boolean).filter(ev => {
+      if (isParcialOrRecupEval(ev)) return mostrarParciales;
+      if (isTpEval(ev)) return mostrarTps;
+      return mostrarParciales || mostrarTps;
+    });
+  }, [mainEvaluations, mostrarParciales, mostrarTps]);
 
   if (studentRows.length === 0) {
     return (
@@ -59,7 +54,7 @@ export default function GradeCardsMobile({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
       {studentRows.map((row, idx) => {
-        const { estudiante: est, promedio, condicion, risk, asistPct } = row;
+        const { estudiante: est, promedio, condicion, condicionAutomatica, risk, asistPct } = row;
         const isExpanded = expandedId === est.id;
 
         return (
@@ -89,32 +84,33 @@ export default function GradeCardsMobile({
 
               <div className="flex items-center gap-1.5 shrink-0">
                 {risk && <RiskBadge risk={risk} compact />}
-                <Badge variant={getCondBadgeVariant(condicion?.condicion)}>
-                  {condicion?.condicion === 'PROMOCION_INDIRECTA'
-                    ? 'PROM. IND'
-                    : condicion?.condicion === 'PROMOCIONAL'
-                    ? (condicion?.subcondicion === 'INDIRECTA' ? 'PROM. IND' : 'PROM. DIR')
-                    : condicion?.condicion === 'ACREDITADA_EQUIVALENCIA'
-                    ? 'EQUIVALENCIA'
-                    : condicion?.condicion || 'EN CURSO'}
-                </Badge>
+                <ConditionBadge
+                  condicion={condicion}
+                  condicionAutomatica={condicionAutomatica}
+                  estudiante={est}
+                  asistPct={asistPct}
+                  onSelectCondicionManual={onSelectCondicionManual}
+                  disabled={!onSelectCondicionManual}
+                />
               </div>
             </div>
 
             {/* Micro-KPIs: Promedio y Asistencia */}
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
-              <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-[10px] font-bold uppercase text-text-muted block">Promedio</span>
-                <span className={`text-sm font-black font-mono ${
-                  promedio !== null && promedio >= 7
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : promedio !== null && promedio >= 4
-                    ? 'text-primary'
-                    : 'text-text-muted'
-                }`}>
-                  {promedio !== null ? promedio : '—'}
-                </span>
-              </div>
+            <div className={`grid ${mostrarPromedio ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-2 border-t border-slate-100 dark:border-white/5`}>
+              {mostrarPromedio && (
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                  <span className="text-[10px] font-bold uppercase text-text-muted block">Promedio</span>
+                  <span className={`text-sm font-black font-mono ${
+                    promedio !== null && promedio >= 7
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : promedio !== null && promedio >= 4
+                      ? 'text-primary'
+                      : 'text-text-muted'
+                  }`}>
+                    {promedio !== null ? promedio : '—'}
+                  </span>
+                </div>
+              )}
 
               <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                 <span className="text-[10px] font-bold uppercase text-text-muted block">Asistencia</span>
@@ -135,13 +131,13 @@ export default function GradeCardsMobile({
                 onClick={() => setExpandedId(isExpanded ? null : est.id)}
                 className="w-full flex items-center justify-between text-xs font-semibold text-text-muted hover:text-text-primary py-1.5 cursor-pointer touch-target-44"
               >
-                <span>Evaluaciones ({mainEvaluations.length})</span>
+                <span>Evaluaciones ({visibleMainEvaluations.length})</span>
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
               </button>
 
               {isExpanded && (
                 <div className="space-y-2 pt-1 animate-fadeIn">
-                  {mainEvaluations.map(ev => {
+                  {visibleMainEvaluations.map(ev => {
                     const infoEfectiva = row.notasEfectivasMap?.get(String(ev.id));
                     const recup = evaluaciones.find(
                       r => String(r.tipo || '').toUpperCase().includes('RECUP') && r.evaluacion_origen_id === ev.id
@@ -214,7 +210,7 @@ export default function GradeCardsMobile({
                           </div>
                         </div>
 
-                        {recup && (
+                        {recup && mostrarParciales && (
                           <div
                             onClick={() => onOpenEditNota && onOpenEditNota({
                               estudianteId: est.id,
@@ -242,7 +238,7 @@ export default function GradeCardsMobile({
                   })}
 
                   {/* Fila Dedicada: Recuperatorio General Diferenciado */}
-                  {(() => {
+                  {mostrarParciales && (() => {
                     const parcialesList = mainEvaluations.filter(e => {
                       const t = String(e.tipo || '').toUpperCase();
                       return t === 'PARCIAL' || t.includes('PARCIAL') || t === 'PRUEBA';
